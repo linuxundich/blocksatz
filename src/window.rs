@@ -9,8 +9,8 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    about, aimenu, aiwriter, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, mediabrowser, medialibrary, mediapanel,
-    preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
+    about, aievaluate, aimenu, aiwriter, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, mediabrowser, medialibrary,
+    mediapanel, preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
 };
 
 const DEBOUNCE_MS: u64 = 250;
@@ -19,6 +19,11 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let saved_window_state = windowstate::load();
 
     let (editor_scroller, view, buffer, spelling_menu) = editor::build();
+    // Moved up from its own original spot further down (still just as
+    // valid there) - `EvaluateView::new` below needs it for the article
+    // title, and every other reader of it already just clones an `Rc`
+    // regardless of exactly where in this function it was created.
+    let frontmatter: Rc<RefCell<Frontmatter>> = Rc::new(RefCell::new(Frontmatter::default()));
     let preview_pane = Rc::new(preview::PreviewPane::new());
     let stats_view = Rc::new(stats::StatsView::new());
 
@@ -56,6 +61,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
 
     let chat_view = Rc::new(chat::ChatView::new(&buffer));
     let code_view = Rc::new(codeview::CodeView::new());
+    let evaluate_view = Rc::new(aievaluate::EvaluateView::new(&view, &buffer, frontmatter.clone()));
     let browser_view = Rc::new(browser::BrowserView::new());
 
     let view_stack = adw::ViewStack::new();
@@ -69,6 +75,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     view_stack.add_titled_with_icon(&code_view.widget, Some("code"), &tr("Gutenberg-Code"), "text-x-generic-symbolic");
     view_stack.add_titled_with_icon(&stats_view.widget, Some("stats"), &tr("Statistik"), "view-list-symbolic");
     view_stack.add_titled_with_icon(&chat_view.widget, Some("chat"), &tr("Chat"), "chat-message-new-symbolic");
+    view_stack.add_titled_with_icon(&evaluate_view.widget, Some("evaluate"), &tr("Bewertung"), "edit-find-symbolic");
     view_stack.add_titled_with_icon(&browser_view.widget, Some("browser"), &tr("Browser"), "web-browser-symbolic");
     {
         // The active provider/model may have changed in Einstellungen since
@@ -381,7 +388,6 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     window.add_action(&toggle_focus_mode_action);
 
     let current_path: Rc<RefCell<Option<PathBuf>>> = Rc::new(RefCell::new(None));
-    let frontmatter: Rc<RefCell<Frontmatter>> = Rc::new(RefCell::new(Frontmatter::default()));
     // What's currently safely on disk (or, for a still-unsaved document,
     // just ""): the baseline `wire_live_preview`'s autosave tick compares
     // the buffer against, so loading an already-saved article doesn't

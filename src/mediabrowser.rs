@@ -3,8 +3,9 @@
 //! real WordPress-generated thumbnail, everything else a type icon), a
 //! type filter (Alle Medien/Bilder/Dokumente/Audio/Video), server-side
 //! search, and a details pane showing file name, type, dimensions, size,
-//! upload date and URL, with "URL kopieren", "Im Browser öffnen",
-//! "In Artikel einfügen" (images only) and "Löschen".
+//! upload date and URL, a live-editable Alt-Text field (images only), with
+//! "URL kopieren", "Im Browser öffnen", "In Artikel einfügen" (images only)
+//! and "Löschen".
 //!
 //! Unlike `medialibrary.rs`'s picker (images only, first 60, a plain list),
 //! this pages through the library 48 items at a time behind a "Mehr laden"
@@ -81,6 +82,17 @@ struct Details {
     preview: gtk4::Picture,
     title: gtk4::Label,
     rows: gtk4::Label,
+    /// Editable, unlike every other detail here - Quill's own media
+    /// library (`site/images/media-view.png`) shows alt text as a live
+    /// edit field in the details pane rather than a separate dialog, and
+    /// it's the one field actually worth fixing from right here: a
+    /// missing/wrong alt text is exactly what browsing the library to
+    /// find a specific file would surface. `alt_text_list` (a small
+    /// boxed-list holding just this one `Adw.EntryRow`) is the widget
+    /// whose visibility toggles with the rest of the pane - images only,
+    /// same condition the row's own content already followed.
+    alt_text_list: gtk4::ListBox,
+    alt_text_row: adw::EntryRow,
     url: gtk4::Label,
     insert_button: gtk4::Button,
 }
@@ -325,6 +337,12 @@ fn build_details(can_insert: bool) -> Details {
 
     let rows = gtk4::Label::builder().xalign(0.0).wrap(true).selectable(true).use_markup(true).build();
 
+    let alt_text_row = adw::EntryRow::builder().title(tr("Alt-Text")).build();
+    let alt_text_list = gtk4::ListBox::new();
+    alt_text_list.set_selection_mode(gtk4::SelectionMode::None);
+    alt_text_list.add_css_class("boxed-list");
+    alt_text_list.append(&alt_text_row);
+
     let url = gtk4::Label::builder().xalign(0.0).wrap(true).wrap_mode(gtk4::pango::WrapMode::Char).selectable(true).build();
     url.add_css_class("caption");
     url.add_css_class("dim-label");
@@ -345,16 +363,23 @@ fn build_details(can_insert: bool) -> Details {
     root.append(&preview);
     root.append(&title);
     root.append(&rows);
+    root.append(&alt_text_list);
     root.append(&url);
     root.append(&insert_button);
 
-    Details { root, placeholder, preview, title, rows, url, insert_button }
+    Details { root, placeholder, preview, title, rows, alt_text_list, alt_text_row, url, insert_button }
 }
 
 fn set_details_visible(details: &Details, visible: bool) {
     details.placeholder.set_visible(!visible);
     for widget in [details.preview.upcast_ref::<gtk4::Widget>(), details.title.upcast_ref(), details.rows.upcast_ref(), details.url.upcast_ref()] {
         widget.set_visible(visible);
+    }
+    // `alt_text_list` additionally needs `entry.media_type == "image"` -
+    // `show_details` sets that narrower visibility itself right after
+    // calling this, since only it has the selected entry to check.
+    if !visible {
+        details.alt_text_list.set_visible(false);
     }
     // The action buttons live in a box appended by `wire_details_buttons`.
     if let Some(actions) = details.root.last_child() {
@@ -391,11 +416,9 @@ fn show_details(ctx: &BrowserCtx) {
     if !entry.date.is_empty() {
         lines.push(format!("<b>{}</b> {}", tr("Hochgeladen:"), glib::markup_escape_text(&entry.date.replace('T', " "))));
     }
-    if entry.media_type == "image" {
-        let alt = if entry.alt_text.trim().is_empty() { tr("(kein Alternativtext)") } else { entry.alt_text.clone() };
-        lines.push(format!("<b>{}</b> {}", tr("Alt-Text:"), glib::markup_escape_text(&alt)));
-    }
     details.rows.set_markup(&lines.join("\n"));
+    details.alt_text_list.set_visible(entry.media_type == "image");
+    details.alt_text_row.set_text(&entry.alt_text);
     details.url.set_label(&entry.source_url);
     details.insert_button.set_visible(ctx.on_insert.is_some() && entry.media_type == "image");
 
@@ -435,6 +458,45 @@ fn wire_details_buttons(ctx: &Rc<BrowserCtx>) {
     set_details_visible(&ctx.details, false);
     ctx.details.insert_button.set_visible(false);
 
+    {
+        let ctx_weak = Rc::downgrade(ctx);
+        // `connect_apply`, not `connect_changed` - fires once on Enter (or
+        // the row losing focus with an edit pending), the same "commit,
+        // don't save every keystroke" signal `Adw.EntryRow` is designed
+        // for, matching Quill's own alt-text field editing right in the
+        // details pane (`site/images/media-view.png`) instead of only
+        // through `mediapanel.rs`'s per-body-image editor.
+        ctx.details.alt_text_row.connect_apply(move |row| {
+            let Some(ctx) = ctx_weak.upgrade() else { return };
+            let Some(entry) = selected_entry(&ctx) else { return };
+            let media_id = entry.id;
+            let alt_text = row.text().to_string();
+            if alt_text == entry.alt_text {
+                return;
+            }
+            ctx.status_label.set_label(&tr("Alt-Text wird gespeichert …"));
+            let ctx_weak = ctx_weak.clone();
+            let alt_text_for_save = alt_text.clone();
+            run_with_password(
+                &ctx.site,
+                move |site, password| {
+                    wpclient::Client::new(&site.url, &site.username, password).update_media_metadata(media_id, Some(&alt_text_for_save), None).map_err(|err| err.to_string())
+                },
+                move |outcome| {
+                    let Some(ctx) = ctx_weak.upgrade() else { return };
+                    match outcome {
+                        Ok(()) => {
+                            if let Some(stored) = ctx.entries.borrow_mut().iter_mut().find(|e| e.id == media_id) {
+                                stored.alt_text = alt_text.clone();
+                            }
+                            ctx.status_label.set_label(&tr("Alt-Text gespeichert."));
+                        }
+                        Err(err) => ctx.status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err)),
+                    }
+                },
+            );
+        });
+    }
     {
         let ctx_weak = Rc::downgrade(ctx);
         copy_button.connect_clicked(move |button| {

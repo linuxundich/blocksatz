@@ -2,6 +2,7 @@ mod about;
 mod adblock;
 mod aialt;
 mod aicaption;
+mod aievaluate;
 mod aimenu;
 mod aiprompts;
 mod aiwriter;

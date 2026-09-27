@@ -200,6 +200,28 @@ impl SearchBar {
     }
 }
 
+/// Finds the first occurrence of `needle` (case-sensitive, exact substring -
+/// unlike `SearchBar`'s own live incremental search) anywhere in `buffer`,
+/// selects it and scrolls it into view. `false` if it isn't found at all -
+/// e.g. `aievaluate.rs`'s "jump to finding", where the model's quoted
+/// anchor text may not match verbatim if it paraphrased instead of copying.
+/// A one-shot `SearchContext` of its own, not `SearchBar`'s persistent one -
+/// this shouldn't touch whatever the user currently has highlighted in the
+/// search bar, if it's even open at all.
+pub fn jump_to_text(view: &sourceview5::View, buffer: &sourceview5::Buffer, needle: &str) -> bool {
+    if needle.is_empty() {
+        return false;
+    }
+    let settings = sourceview5::SearchSettings::builder().search_text(needle).case_sensitive(true).build();
+    let context = sourceview5::SearchContext::builder().buffer(buffer).settings(&settings).build();
+    let Some((mut start, end, _wrapped)) = context.forward(&buffer.start_iter()) else {
+        return false;
+    };
+    buffer.select_range(&end, &start);
+    view.scroll_to_iter(&mut start, 0.1, false, 0.0, 0.0);
+    true
+}
+
 /// Pure formatting for the match-count label - `-1` means GtkSourceView is
 /// still scanning asynchronously and the count isn't known yet, shown as
 /// nothing rather than a misleading "0".

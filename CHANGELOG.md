@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.60.2] - 2026-09-27
+
+### Fixed
+
+- The first-run wizard's closing "Fertig" page showed GTK's generic
+  missing-icon placeholder instead of a checkmark - `emblem-ok-symbolic`
+  doesn't exist in this system's Adwaita icon theme.
+
 ## [0.60.1] - 2026-09-27
 
 ### Fixed

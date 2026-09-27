@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.59.0] - 2026-09-27
+
 ### Added
 
 - WordPress pages: a new "Typ" (Blogartikel/Seite) in Artikel-Eigenschaften,
@@ -14,20 +16,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   frontmatter unchanged). Export, preview, delete and the revision-conflict
   check all use `/wp/v2/pages` for a page; categories/tags are skipped and
   their tab hidden, since pages have neither. "Neue Seite" (Ctrl+Alt+N) in
-  the primary menu starts a blank page.
+  the primary menu starts a blank page. Pages also get a "Übergeordnete
+  Seite" picker in Artikel-Eigenschaften, for WordPress's own
+  hierarchical-pages feature.
 - "Von WordPress öffnen" has an "Artikel"/"Seiten" toggle and a per-row
   "In den Papierkorb" button, moving a post or page to WordPress's
   recoverable trash after a confirmation.
 - "WordPress-Mediathek" (Ctrl+Shift+L): a full media library browser with
   a thumbnail grid, type filter (Alle Medien/Bilder/Dokumente/Audio/
   Video), search, paging ("Mehr laden"), a details pane (file name, type,
-  dimensions, size, upload date, alt text, URL) and "URL kopieren", "Im
-  Browser öffnen", "In Artikel einfügen" and "Endgültig löschen".
+  dimensions, size, upload date, a live-editable alt text, URL) and "URL
+  kopieren", "Im Browser öffnen", "In Artikel einfügen" and "Endgültig
+  löschen".
 - "KI-Artikel schreiben" (Ctrl+Shift+G): generates a complete article
   draft from a topic/brief with the active KI-Chat provider, in three
-  lengths, optionally in your own writing style learned from your 1-5 most
-  recently published posts. Reviewed and editable before it's used as a
-  new document or inserted at the cursor.
+  lengths, optionally in your own writing style learned from up to 5 of
+  your own published posts, picked from an explicit checklist. Reviewed
+  and editable before it's used as a new document or inserted at the
+  cursor.
+- New "Bewertung" tab: sends the whole article to the active KI-Chat
+  provider for a critique of grammar, clarity, readability, wordiness and
+  tone. Each finding is clickable and jumps straight to its location in
+  the editor.
+- New "Direkt im Text korrigieren" context-menu section (Stil/
+  Rechtschreibung/Zeichensetzung/Länge) replaces the current selection
+  in place instead of sending it to Chat, with an Übernehmen/Verwerfen
+  bar at the bottom of the editor.
+- New "Galerie einfügen…": pick several images from the WordPress media
+  library, reorder them, edit each one's alt text/caption, and choose
+  the gallery's Spalten/Zuschnitt/Verlinkung/Bildgröße.
+
+### Fixed
+
+- Importing a WordPress post/page containing a block type this app
+  doesn't recognize (a Synced Pattern reference, Page Break, Query Loop,
+  a third-party plugin block, ...) no longer silently drops it - the
+  original block markup now round-trips byte-for-byte instead of being
+  reduced to (and, for a self-closing block, entirely losing) its inner
+  HTML.
+- A gallery block's own settings (columns/crop/link target/image size)
+  now round-trip too, instead of every re-exported gallery silently
+  resetting to square-cropped/unlinked/large/default-columns regardless
+  of what an imported gallery actually had.
 
 ## [0.58.0] - 2026-09-25
 

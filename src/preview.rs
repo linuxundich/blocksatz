@@ -734,6 +734,47 @@ video, audio, iframe {{ max-width: 100%; }}
    (a sibling `<a>`, not part of this element) stays visible either way,
    already the only way to actually reach the file from this preview. */
 object.wp-block-file__embed {{ display: none; }}
+/* `wp:cover`'s children (the background image/video, the color-overlay
+   span, and the actual text content) are meant to sit layered on top of
+   each other, filling the block's own `min-height` - but that layering is
+   normally done by WordPress's own core block CSS, which this preview
+   never loads. Without it they're just plain block-level elements stacking
+   one after another in normal flow: the (empty, since it's an `<img>` or a
+   `background-image`-only `<div>` with no content of its own) background
+   layers collapse to zero height, the actual text top-aligns inside the
+   `min-height` box, and everything below it - the box's own unfilled
+   height - shows up as a large blank gap before the next block. Restores
+   the real position/flex structure (a stable, standard part of Gutenberg's
+   own block markup, unlike a theme's specific gradient/color presets,
+   which this preview still can't resolve and so still won't show).
+   `has-text-align-*` alongside it - `wp:paragraph`'s own alignment is a
+   class, not an inline style, so it needs the same kind of rule to have
+   any visible effect at all. */
+.wp-block-cover {{ position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }}
+.wp-block-cover__image-background, .wp-block-cover__video-background {{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background-size: cover; background-position: 50% 50%; z-index: 0; }}
+.wp-block-cover__background {{ position: absolute; inset: 0; z-index: 1; }}
+.wp-block-cover__inner-container {{ position: relative; z-index: 1; width: 100%; }}
+.has-text-align-center {{ text-align: center; }}
+.has-text-align-left {{ text-align: left; }}
+.has-text-align-right {{ text-align: right; }}
+/* Same missing-WordPress-core-CSS problem as `.wp-block-cover` above, for
+   the blocks `render_special_fenced_block` now renders as their real
+   Gutenberg markup instead of raw fence text: columns/buttons/gallery lay
+   themselves out with flex, and are otherwise just plain stacked
+   block-level elements without it. `.wp-block-details` needs no layout
+   CSS at all - `<details>`/`<summary>` are native, already-interactive
+   HTML elements, unlike every other block on this list. */
+.wp-block-columns {{ display: flex; flex-wrap: wrap; gap: 2rem; }}
+.wp-block-column {{ flex: 1; min-width: 0; }}
+.wp-block-buttons {{ display: flex; flex-wrap: wrap; gap: .5rem; }}
+.wp-block-button__link {{ display: inline-block; padding: .6rem 1.2rem; border: 2px solid currentColor; border-radius: 4px; text-decoration: none; color: inherit; }}
+.wp-block-gallery.has-nested-images {{ display: flex; flex-wrap: wrap; gap: 1rem; }}
+.wp-block-gallery.has-nested-images figure.wp-block-image {{ margin: 0; flex: 1 1 240px; }}
+.wp-block-gallery.has-nested-images figure.wp-block-image img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
+.wp-block-pullquote {{ text-align: center; margin: 2rem 0; padding: 1.5rem 0; border-top: 3px solid currentColor; border-bottom: 3px solid currentColor; }}
+.wp-block-pullquote blockquote {{ margin: 0; font-size: 1.5rem; font-style: italic; }}
+.wp-block-pullquote cite {{ display: block; margin-top: .75rem; font-size: 1rem; font-style: normal; }}
+.wp-block-details summary {{ cursor: pointer; font-weight: 600; }}
 table {{ border-collapse: collapse; }}
 th, td {{ border: 1px solid #ccc; padding: .4rem .6rem; }}
 {BADGE_CSS}
@@ -851,7 +892,29 @@ fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String 
                         inner
                     }
                 };
-                out.push_str(&format!("<div data-line=\"{line}\">{inner}</div>\n"));
+                // A raw HTML block (e.g. one "paragraph" of a `wp:group`'s
+                // own verbatim-preserved markup, see `inject_group_flex_styles`)
+                // can have its own `<div>` split from its matching `</div>`
+                // by a blank line in the source markdown - each side lands
+                // in a *different* top-level block here. Wrapping a block
+                // like that in our own `<div data-line>` would insert a
+                // second, unrelated div boundary between them, prematurely
+                // closing the real one (a bare `</div>` always closes the
+                // innermost *currently open* div, which would be ours, not
+                // theirs) and cutting its later children out of it entirely
+                // - fatal for anything, like a flex/grid `wp:group`, that
+                // depends on its children actually being its DOM children.
+                // Leaving an unbalanced block unwrapped lets its real div
+                // tag reach across block boundaries intact; the wrapped
+                // blocks in between still nest correctly *inside* it, since
+                // each of those, individually, opens and closes exactly as
+                // many divs as it has.
+                let div_balance = inner.matches("<div").count() as isize - inner.matches("</div>").count() as isize;
+                if div_balance == 0 {
+                    out.push_str(&format!("<div data-line=\"{line}\">{inner}</div>\n"));
+                } else {
+                    out.push_str(&inner);
+                }
                 i = end + 1;
             }
             Event::Rule => {
@@ -862,7 +925,102 @@ fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String 
             _ => i += 1,
         }
     }
-    wrap_images_with_badges(&rewrite_media_tags(&out), media)
+    wrap_images_with_badges(&rewrite_media_tags(&inject_group_flex_styles(&out)), media)
+}
+
+/// `wp:group`'s flex/grid layout is driven entirely by its `layout` JSON
+/// attribute plus a page-level `<style>` block WordPress generates
+/// separately, keyed to a per-block `wp-container-*` class - neither of
+/// which makes it into a post's own saved content at all, so this can't be
+/// fixed the way `.wp-block-cover`'s own missing-core-CSS problem was
+/// (real, stable class names to hang static rules off). `wp:group` isn't a
+/// block this crate recognizes at all, so its whole comment (JSON attrs
+/// included) already survives verbatim in the raw HTML via `make_block`'s
+/// "unrecognized block" fallback (`crates/gutenberg`'s `reverse.rs`) -
+/// read directly here instead, and turned into an inline `style` written
+/// straight onto the group's own `<div>`. Only `"type":"flex"` (the one
+/// shape actually seen in real content so far) is handled; a `"grid"`
+/// layout is left alone rather than guessed at with nothing to check it
+/// against.
+fn inject_group_flex_styles(html: &str) -> String {
+    let mut out = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some(marker) = rest.find("<!-- wp:group ") {
+        out.push_str(&rest[..marker]);
+        let Some(comment_end_rel) = rest[marker..].find("-->") else {
+            out.push_str(&rest[marker..]);
+            return out;
+        };
+        let attrs_start = marker + "<!-- wp:group ".len();
+        let comment_end = marker + comment_end_rel + 3;
+        let style = flex_style_for_group_attrs(&rest[attrs_start..marker + comment_end_rel]);
+        out.push_str(&rest[marker..comment_end]);
+        rest = &rest[comment_end..];
+
+        let Some(style) = style else { continue };
+        let Some(div_start) = rest.find("<div class=\"wp-block-group") else { continue };
+        let Some(tag_end_rel) = rest[div_start..].find('>') else { continue };
+        let tag_end = div_start + tag_end_rel;
+        let tag = &rest[..tag_end];
+        match tag.find(" style=\"").and_then(|style_attr| tag[style_attr + " style=\"".len()..].find('"').map(|end| style_attr + " style=\"".len() + end)) {
+            // An existing `style` attribute (from border/background/spacing
+            // support) needs our declarations appended *inside* its quotes -
+            // a second, separate `style=""` attribute on the same tag would
+            // just be ignored by the HTML parser.
+            Some(closing_quote) => {
+                out.push_str(&tag[..closing_quote]);
+                out.push_str(&style);
+                out.push_str(&tag[closing_quote..]);
+            }
+            None => {
+                out.push_str(tag);
+                out.push_str(&format!(" style=\"{style}\""));
+            }
+        }
+        out.push('>');
+        rest = &rest[tag_end + 1..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// The inline `style` value for a `wp:group` comment's JSON attrs, or
+/// `None` if its `layout.type` isn't `"flex"` (includes the common case of
+/// no `layout` at all, WordPress's own default "constrained" layout, which
+/// needs no flex styling here since normal block flow already matches it).
+fn flex_style_for_group_attrs(attrs: &str) -> Option<String> {
+    if !attrs.contains("\"type\":\"flex\"") {
+        return None;
+    }
+    let vertical = attrs.contains("\"orientation\":\"vertical\"");
+    let mut style = String::from("display:flex;");
+    style.push_str(if vertical { "flex-direction:column;align-items:flex-start;" } else { "flex-direction:row;align-items:center;" });
+    style.push_str(if attrs.contains("\"flexWrap\":\"nowrap\"") { "flex-wrap:nowrap;" } else { "flex-wrap:wrap;" });
+    if let Some(justify) = extract_json_string_value(attrs, "justifyContent") {
+        // WordPress's own "left"/"right" aren't valid CSS `justify-content`
+        // keywords - every other value it uses (`center`/`space-between`/
+        // `flex-start`/`flex-end`/`space-around`) already is, so those pass
+        // through unchanged.
+        let css_value = match justify.as_str() {
+            "left" => "flex-start",
+            "right" => "flex-end",
+            other => other,
+        };
+        style.push_str(&format!("justify-content:{css_value};"));
+    }
+    Some(style)
+}
+
+/// Reads a `"key":"value"` string out of a JSON-ish attrs string - the
+/// same hand-rolled-scanner approach `crates/gutenberg`'s own
+/// `extract_json_string` uses, not a full JSON parser, since this crate
+/// only ever needs one or two known keys out of a small, well-defined
+/// attrs shape.
+fn extract_json_string_value(json: &str, key: &str) -> Option<String> {
+    let needle = format!("\"{key}\":\"");
+    let start = json.find(&needle)? + needle.len();
+    let end = json[start..].find('"')? + start;
+    Some(json[start..end].to_string())
 }
 
 /// Rewrites `<img>` tags whose `src` is a local video/audio file (by
@@ -1190,6 +1348,14 @@ fn render_code_block_with_line_anchors(events: &[(Event, std::ops::Range<usize>)
         }
     }
 
+    if let CodeBlockKind::Fenced(info) = kind {
+        if let Some(lang) = info.split_whitespace().next().filter(|lang| !lang.is_empty()) {
+            if let Some(html) = render_special_fenced_block(lang, &code) {
+                return html;
+            }
+        }
+    }
+
     let lang_class = match kind {
         CodeBlockKind::Fenced(info) => info
             .split_whitespace()
@@ -1208,6 +1374,30 @@ fn render_code_block_with_line_anchors(events: &[(Event, std::ops::Range<usize>)
     }
     html.push_str("</code></pre>");
     html
+}
+
+/// This app's own five fenced-code "languages" (`gallery`/`columns`/
+/// `buttons`/`pullquote`/`details`) - CommonMark has no native syntax for
+/// side-by-side columns, a button row, a photo gallery, a pulled quote or a
+/// collapsible disclosure, so `crates/gutenberg` uses a fenced block for
+/// each instead (see that crate's own `Block` doc comments). Reuses that
+/// crate's real parser and renderer directly, so the preview shows the
+/// actual intended Gutenberg block - real image grid, real columns, a
+/// styled button, a big pulled quote, a native `<details>` - instead of
+/// falling back to a generic fenced-code-block dump of the raw fence text,
+/// `+++` separator and all, which is what happens to a language this
+/// doesn't recognize either. `None` for anything else, so the caller falls
+/// back to that generic `<pre><code>` path unchanged.
+fn render_special_fenced_block(lang: &str, text: &str) -> Option<String> {
+    let block = match lang {
+        "columns" => gutenberg::parse_fenced_columns(text),
+        "buttons" => gutenberg::parse_fenced_buttons(text),
+        "gallery" => gutenberg::parse_fenced_gallery(text),
+        "pullquote" => gutenberg::parse_fenced_pullquote(text),
+        "details" => gutenberg::parse_fenced_details(text),
+        _ => return None,
+    };
+    Some(gutenberg::render_block(&block))
 }
 
 fn line_number(markdown: &str, byte_offset: usize) -> usize {
@@ -1270,6 +1460,32 @@ mod tests {
         assert!(out.contains("<div data-line=\"1\"><p>Intro text.</p>"));
         assert!(out.contains("<div data-line=\"3\"><p><span class=\"img-wrap\"><img src=\"cat.png\" alt=\"a cat\""), "{out}");
         assert!(out.contains("<div data-line=\"5\"><p>Outro text.</p>"));
+    }
+
+    #[test]
+    fn a_multi_paragraph_raw_html_group_keeps_its_div_open_across_blank_lines() {
+        // A real `wp:group` (`crates/gutenberg` doesn't recognize the block,
+        // so its whole comment+markup survives as raw HTML - see
+        // `inject_group_flex_styles`'s own doc comment) with more than one
+        // paragraph inside it: each paragraph is its own blank-line-separated
+        // "block" as far as the Markdown parser is concerned, splitting the
+        // group's opening `<div>` from its closing `</div>` across multiple
+        // top-level events here. Wrapping the opening fragment in its own
+        // `<div data-line>` used to prematurely close the real div (a bare
+        // `</div>` always closes the innermost currently-open div) and cut
+        // every later paragraph out of it - exactly the bug that made
+        // `wp:group`'s flex/grid layout never actually apply to more than
+        // one child in the live preview.
+        let markdown = "<!-- wp:group {\"layout\":{\"type\":\"flex\"}} -->\n<div class=\"wp-block-group\"><!-- wp:paragraph -->\n<p>First</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Second</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:group -->\n";
+        let out = render_body_with_line_anchors(markdown, &[]);
+        let group_open = out.find("<div class=\"wp-block-group\"").expect("group div");
+        let group_close = out.find("</div>\n<!-- /wp:group -->").expect("group's own closing div, right before the comment");
+        let between = &out[group_open..group_close];
+        assert!(between.contains("First"), "{out}");
+        assert!(between.contains("Second"), "{out}");
+        // Exactly the pair opened above and its match - no stray wrapper
+        // `</div>` landing inside the span and closing it early.
+        assert_eq!(between.matches("<div").count(), between.matches("</div>").count() + 1, "{out}");
     }
 
     #[test]
@@ -1488,6 +1704,109 @@ mod tests {
         let out = render_body_with_line_anchors("```\n<script>alert(1)</script>\n```\n", &[]);
         assert!(out.contains("&lt;script&gt;"), "{out}");
         assert!(!out.contains("<script>"), "{out}");
+    }
+
+    #[test]
+    fn pullquote_fence_renders_as_a_real_pullquote_not_raw_fence_text() {
+        let out = render_body_with_line_anchors("```pullquote\nA striking quote.\n+++\nJane Doe\n```\n", &[]);
+        assert!(out.contains("<figure class=\"wp-block-pullquote\">"), "{out}");
+        assert!(out.contains("<blockquote>"), "{out}");
+        assert!(out.contains("<cite>Jane Doe</cite>"), "{out}");
+        assert!(!out.contains("+++"), "{out}");
+    }
+
+    #[test]
+    fn gallery_fence_renders_as_a_real_gallery() {
+        let out = render_body_with_line_anchors("```gallery\n![First](one.jpg)\n![Second](two.jpg)\n```\n", &[]);
+        assert!(out.contains("class=\"wp-block-gallery"), "{out}");
+        assert!(out.contains("src=\"one.jpg\""), "{out}");
+        assert!(out.contains("src=\"two.jpg\""), "{out}");
+    }
+
+    #[test]
+    fn columns_fence_renders_as_real_columns() {
+        let out = render_body_with_line_anchors("```columns\nLeft side.\n+++\nRight side.\n```\n", &[]);
+        assert!(out.contains("class=\"wp-block-columns\">"), "{out}");
+        assert!(out.contains("class=\"wp-block-column\">"), "{out}");
+        assert!(out.contains("Left side."), "{out}");
+        assert!(out.contains("Right side."), "{out}");
+    }
+
+    #[test]
+    fn buttons_fence_renders_as_real_buttons() {
+        let out = render_body_with_line_anchors("```buttons\n[Los geht's](https://example.com/)\n```\n", &[]);
+        assert!(out.contains("class=\"wp-block-buttons\">"), "{out}");
+        assert!(out.contains("wp-block-button__link"), "{out}");
+        assert!(out.contains("href=\"https://example.com/\""), "{out}");
+    }
+
+    #[test]
+    fn details_fence_renders_as_a_native_details_element() {
+        let out = render_body_with_line_anchors("```details\nMehr anzeigen\n+++\nThe hidden body.\n```\n", &[]);
+        assert!(out.contains("<details class=\"wp-block-details\">"), "{out}");
+        assert!(out.contains("<summary>Mehr anzeigen</summary>"), "{out}");
+        assert!(out.contains("The hidden body."), "{out}");
+    }
+
+    #[test]
+    fn render_special_fenced_block_is_none_for_an_unrelated_language() {
+        assert_eq!(render_special_fenced_block("bash", "echo hi"), None);
+    }
+
+    #[test]
+    fn flex_style_for_group_attrs_handles_row_wrap_and_justify() {
+        let style = flex_style_for_group_attrs(r#"{"type":"flex","flexWrap":"nowrap","justifyContent":"space-between"}"#).unwrap();
+        assert!(style.contains("display:flex;"), "{style}");
+        assert!(style.contains("flex-direction:row;"), "{style}");
+        assert!(style.contains("flex-wrap:nowrap;"), "{style}");
+        assert!(style.contains("justify-content:space-between;"), "{style}");
+    }
+
+    #[test]
+    fn flex_style_for_group_attrs_handles_vertical_orientation() {
+        let style = flex_style_for_group_attrs(r#"{"type":"flex","orientation":"vertical"}"#).unwrap();
+        assert!(style.contains("flex-direction:column;"), "{style}");
+        assert!(style.contains("flex-wrap:wrap;"), "{style}"); // default, no flexWrap given
+    }
+
+    #[test]
+    fn flex_style_for_group_attrs_maps_left_and_right_to_valid_css_keywords() {
+        assert!(flex_style_for_group_attrs(r#"{"type":"flex","justifyContent":"left"}"#).unwrap().contains("justify-content:flex-start;"));
+        assert!(flex_style_for_group_attrs(r#"{"type":"flex","justifyContent":"right"}"#).unwrap().contains("justify-content:flex-end;"));
+    }
+
+    #[test]
+    fn flex_style_for_group_attrs_is_none_for_a_constrained_layout() {
+        assert_eq!(flex_style_for_group_attrs(r#"{"type":"constrained"}"#), None);
+        assert_eq!(flex_style_for_group_attrs(""), None);
+    }
+
+    #[test]
+    fn inject_group_flex_styles_writes_a_fresh_style_attribute() {
+        let html = "<!-- wp:group {\"layout\":{\"type\":\"flex\"}} --><div class=\"wp-block-group\">content</div><!-- /wp:group -->";
+        let out = inject_group_flex_styles(html);
+        assert!(out.contains("<div class=\"wp-block-group\" style=\"display:flex;"), "{out}");
+    }
+
+    #[test]
+    fn inject_group_flex_styles_appends_inside_an_existing_style_attribute() {
+        let html = "<!-- wp:group {\"layout\":{\"type\":\"flex\"}} --><div class=\"wp-block-group\" style=\"border-width:1px;\">content</div><!-- /wp:group -->";
+        let out = inject_group_flex_styles(html);
+        assert!(out.contains("style=\"border-width:1px;display:flex;"), "{out}");
+        // Exactly one `style=` attribute, not two.
+        assert_eq!(out.matches("style=\"").count(), 1, "{out}");
+    }
+
+    #[test]
+    fn inject_group_flex_styles_leaves_a_non_flex_group_untouched() {
+        let html = "<!-- wp:group {\"layout\":{\"type\":\"constrained\"}} --><div class=\"wp-block-group\">content</div><!-- /wp:group -->";
+        assert_eq!(inject_group_flex_styles(html), html);
+    }
+
+    #[test]
+    fn extract_json_string_value_reads_a_known_key() {
+        assert_eq!(extract_json_string_value(r#"{"type":"flex","justifyContent":"center"}"#, "justifyContent").as_deref(), Some("center"));
+        assert_eq!(extract_json_string_value(r#"{"type":"flex"}"#, "justifyContent"), None);
     }
 
     #[test]

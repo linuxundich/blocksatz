@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.60.4] - 2026-09-27
+
+### Fixed
+
+- The preview pane rendered the five fenced special blocks
+  (` ```gallery `/` ```columns `/` ```buttons `/` ```pullquote `/
+  ` ```details `) as raw fence text instead of their real Gutenberg
+  markup - it now reuses `crates/gutenberg`'s own parser and renderer,
+  so they show up styled exactly like the other blocks around them.
+- `wp:group`'s flex/grid layout (e.g. side-by-side "Zeile"-style
+  groups) never actually applied in the preview - fixed by reading the
+  block's own JSON `layout` attrs and writing the matching flex CSS
+  straight onto its `<div>`. Along the way, fixed a deeper bug this
+  exposed: a multi-paragraph group's own `<div>` could get severed
+  from its later children whenever a blank line in the source split it
+  across multiple internal blocks, since the preview's per-block
+  scroll-sync wrapper was closing itself instead of the group's own
+  still-open div.
+
 ## [0.60.3] - 2026-09-27
 
 ### Fixed

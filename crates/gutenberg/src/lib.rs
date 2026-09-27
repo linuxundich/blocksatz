@@ -356,7 +356,7 @@ pub fn embed_provider(url: &str) -> Option<(&'static str, &'static str)> {
 /// column without being mistaken for a column separator. Each section is
 /// re-parsed as ordinary Markdown, so a column can hold anything a normal
 /// article body can (paragraphs, images, lists, ...).
-fn parse_fenced_columns(text: &str) -> Block {
+pub fn parse_fenced_columns(text: &str) -> Block {
     Block::Columns {
         columns: split_on_plus_separator(text).iter().map(|s| parse_markdown(s)).collect(),
     }
@@ -368,7 +368,7 @@ fn parse_fenced_columns(text: &str) -> Block {
 /// visible text becomes the button's label, stripped of any inline
 /// formatting - matching how alt text is handled elsewhere, since
 /// WordPress's own button block only ever holds plain text.
-fn parse_fenced_buttons(text: &str) -> Block {
+pub fn parse_fenced_buttons(text: &str) -> Block {
     let mut options = Options::empty();
     options.insert(Options::ENABLE_STRIKETHROUGH);
     let events: Vec<Event> = Parser::new_ext(text, options).collect();
@@ -397,7 +397,7 @@ fn parse_fenced_buttons(text: &str) -> Block {
 /// wrote before `GallerySettings` existed, or one hand-written without
 /// caring about them) is just its plain image list with every setting at
 /// its default.
-fn parse_fenced_gallery(text: &str) -> Block {
+pub fn parse_fenced_gallery(text: &str) -> Block {
     let sections = split_on_plus_separator(text);
     match sections.get(1) {
         Some(images_text) => Block::Gallery { images: parse_gallery_images(images_text), settings: parse_gallery_settings_line(sections[0].trim()) },
@@ -475,7 +475,7 @@ fn split_on_plus_separator(text: &str) -> Vec<String> {
 /// string per paragraph (`block_inner_html`), matching how WordPress's own
 /// pullquote RichText field holds a bare `<p>` per paragraph rather than a
 /// nested block tree.
-fn parse_fenced_pullquote(text: &str) -> Block {
+pub fn parse_fenced_pullquote(text: &str) -> Block {
     let sections = split_on_plus_separator(text);
     let citation = sections.get(1).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
     let paragraphs = parse_markdown(&sections[0]).iter().map(block_inner_html).collect();
@@ -487,7 +487,7 @@ fn parse_fenced_pullquote(text: &str) -> Block {
 /// a single inline HTML string (`<summary>` holds plain RichText, not a
 /// block tree); the body is parsed as ordinary Markdown into a real `Block`
 /// tree, since `wp:details`'s body *is* an `InnerBlocks` container.
-fn parse_fenced_details(text: &str) -> Block {
+pub fn parse_fenced_details(text: &str) -> Block {
     let sections = split_on_plus_separator(text);
     let summary = parse_markdown(&sections[0]).first().map(block_inner_html).unwrap_or_default();
     let blocks = sections.get(1).map(|s| parse_markdown(s)).unwrap_or_default();
@@ -878,7 +878,14 @@ fn render_details(summary: &str, blocks: &[Block]) -> String {
     )
 }
 
-fn render_block(block: &Block) -> String {
+/// Public (along with the five `parse_fenced_*` functions above) so
+/// `preview.rs` can render ` ```columns `/` ```buttons `/` ```gallery `/
+/// ` ```pullquote `/` ```details ` fenced blocks as their real intended
+/// Gutenberg markup in the live preview - reusing this crate's own tested
+/// parser+renderer there instead of duplicating it, rather than falling
+/// back to a generic fenced-code-block dump of the raw fence text (which
+/// is what an actually unrecognized language still gets).
+pub fn render_block(block: &Block) -> String {
     match block {
         Block::Paragraph { html } => wrap("paragraph", None, &format!("<p>{html}</p>")),
         Block::Heading { level, html } => {

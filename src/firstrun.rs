@@ -123,7 +123,7 @@ pub fn open(parent: &adw::ApplicationWindow) {
     finish_button.add_css_class("suggested-action");
     finish_button.add_css_class("pill");
     let done_page = adw::StatusPage::builder()
-        .icon_name("emblem-ok-symbolic")
+        .icon_name("object-select-symbolic")
         .title(tr("Bereit."))
         .description(tr("Die Verbindung lässt sich jederzeit in den Einstellungen ändern."))
         .child(&finish_button)

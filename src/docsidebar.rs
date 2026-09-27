@@ -285,12 +285,8 @@ fn build_local_page(ctx: &DocContext, on_document_loaded: Rc<dyn Fn()>) -> gtk4:
     let list = gtk4::ListBox::new();
     list.add_css_class("boxed-list");
 
-    let open_row = adw::ActionRow::builder().title(tr("Datei öffnen…")).activatable(true).build();
-    open_row.add_prefix(&gtk4::Image::from_icon_name("document-open-symbolic"));
-
     let scroller = gtk4::ScrolledWindow::builder().child(&list).vexpand(true).build();
     let page = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(12).build();
-    page.append(&open_row);
     page.append(&scroller);
 
     let refresh_list = {
@@ -301,6 +297,21 @@ fn build_local_page(ctx: &DocContext, on_document_loaded: Rc<dyn Fn()>) -> gtk4:
             while let Some(child) = list.first_child() {
                 list.remove(&child);
             }
+            // A permanent first row, rebuilt along with the rest rather
+            // than sitting outside the `Gtk.ListBox` - an `Adw.ActionRow`'s
+            // `activatable`/`activated` click handling only actually
+            // engages as a child of a real `Gtk.ListBox`; one built as a
+            // plain `Gtk.Box`'s direct child renders identically but never
+            // fires (confirmed live: AT-SPI reported zero actions on it).
+            let open_row = adw::ActionRow::builder().title(tr("Datei öffnen…")).activatable(true).build();
+            open_row.add_prefix(&gtk4::Image::from_icon_name("document-open-symbolic"));
+            open_row.connect_activated(|row| {
+                let Some(root) = row.root() else { return };
+                let Ok(window) = root.downcast::<gtk4::Window>() else { return };
+                window.activate_action("win.open", None).ok();
+            });
+            list.append(&open_row);
+
             let entries = recentfiles::load();
             if entries.is_empty() {
                 list.append(&adw::ActionRow::builder().title(tr("Keine zuletzt geöffneten Artikel")).activatable(false).build());
@@ -329,16 +340,6 @@ fn build_local_page(ctx: &DocContext, on_document_loaded: Rc<dyn Fn()>) -> gtk4:
         page.connect_map(move |_| refresh_list());
     }
     refresh_list();
-
-    {
-        let ctx = ctx.clone();
-        open_row.connect_activated(move |row| {
-            let Some(root) = row.root() else { return };
-            let Ok(window) = root.downcast::<gtk4::Window>() else { return };
-            window.activate_action("win.open", None).ok();
-            let _ = &ctx; // no direct use - `win.open`'s own action already has everything it needs.
-        });
-    }
 
     page.upcast()
 }

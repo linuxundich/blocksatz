@@ -238,10 +238,10 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     new_button.set_tooltip_text(Some(&tr("Neu (Strg+N)")));
     new_button.set_action_name(Some("win.new"));
 
-    let open_button = gtk4::Button::from_icon_name("document-open-symbolic");
-    open_button.set_tooltip_text(Some(&tr("Öffnen (Strg+O)")));
-    open_button.set_action_name(Some("win.open"));
-
+    // No headerbar button for "win.open" (it still exists, still has its
+    // Ctrl+O shortcut, still used by the sidebar's own "Datei öffnen…"
+    // row) - redundant with that row once the sidebar exists, per direct
+    // user feedback after shipping the sidebar the first time.
     // Replaces the old "Zuletzt geöffnet" popover and "Von WordPress
     // öffnen" modal dialog buttons that used to sit here - both folded
     // into the sidebar's own "Durchsuchen" page (`docsidebar.rs`) instead,
@@ -312,7 +312,6 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     header_bar.set_title_widget(Some(&title));
     header_bar.pack_start(&sidebar_toggle_button);
     header_bar.pack_start(&new_button);
-    header_bar.pack_start(&open_button);
     header_bar.pack_start(&save_button);
     header_bar.pack_end(&settings_button);
     header_bar.pack_end(&properties_button);

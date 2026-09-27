@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.61.1] - 2026-09-27
+
+### Fixed
+
+- The sidebar's "Datei öffnen…" row didn't respond to clicks - it was
+  built as a standalone row sitting outside the list it visually looked
+  part of, which silently breaks an `Adw.ActionRow`'s click handling. It's
+  now a real first row of that list, alongside the recent files.
+
+### Removed
+
+- The headerbar's "Öffnen" button - redundant now that the sidebar has
+  its own "Datei öffnen…" row. `Ctrl+O` still opens a file, unchanged.
+
 ## [0.61.0] - 2026-09-27
 
 ### Added

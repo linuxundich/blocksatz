@@ -724,7 +724,16 @@ pub fn render_html(markdown: &str, style: PreviewStyle, dark: bool, media: &[Med
 {css}
 {code_css}
 {font_override_css}
-img {{ max-width: 100%; }}
+img {{ max-width: 100%; height: auto; }}
+video, audio, iframe {{ max-width: 100%; }}
+/* WebKitGTK has no PDF plugin, so `wp:file`'s inline-preview `<object>`
+   (`<object class="wp-block-file__embed" style="width:100%;height:NNpx">`)
+   renders as a large blank/black box with a broken-plugin glyph instead of
+   the PDF - hidden outright rather than merely size-capped, since an empty
+   box that size serves no purpose. The block's own "Herunterladen" link
+   (a sibling `<a>`, not part of this element) stays visible either way,
+   already the only way to actually reach the file from this preview. */
+object.wp-block-file__embed {{ display: none; }}
 table {{ border-collapse: collapse; }}
 th, td {{ border: 1px solid #ccc; padding: .4rem .6rem; }}
 {BADGE_CSS}

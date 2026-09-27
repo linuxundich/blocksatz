@@ -9,6 +9,29 @@ what's already shipped.
 
 ## Quick wins (small scope, low risk)
 
+- **Write the attachment id into exported `wp:image` blocks.** Found on
+  2026-09-27 while auditing linuxundich.de: published articles carry image
+  blocks with no attributes at all and an `<img>` with no
+  `class="wp-image-<id>"` - just `<!-- wp:image -->` plus a bare `src`.
+  Without that link WordPress cannot tell which attachment the image is,
+  so it adds **neither `srcset` nor `width`/`height`**. Two consequences on
+  the live site: phone visitors downloaded the full-size original (measured
+  on one article image: 98,390 bytes instead of the 640px variant's 22,078 -
+  78% wasted), and the page shifts while images load because the browser
+  does not know their aspect ratio until they arrive.
+
+  Everything needed is already there: `MediaItem::wordpress` keeps the
+  uploaded attachment's `media_id`, and `upload_media()` already returns a
+  `source -> URL` map that the exporter uses to rewrite these very blocks.
+  The rewrite just needs to carry the id too - emit
+  `<!-- wp:image {"id":123,"sizeSlug":"large"} -->` and add
+  `class="wp-image-123"` plus `width`/`height` to the `<img>`.
+
+  Scope check on the blog: 29 of 1,156 illustrated posts were affected, four
+  of them from 2026 - i.e. the current publishing path keeps producing them.
+  The existing posts have since been repaired server-side, so this is about
+  stopping it from recurring, not about fixing history.
+
 - ~~**Paste an image from the clipboard.**~~ Done (see CHANGELOG.md) -
   `Ctrl+V` now saves a clipboard image into the article folder and
   inserts it, falling back to normal text paste when there's no image.

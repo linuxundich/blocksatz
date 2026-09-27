@@ -1,0 +1,3026 @@
+From a32d3e42116a8600699114294c66c05f35c03a66 Mon Sep 17 00:00:00 2001
+From: linuxundich <mail@christoph-langner.de>
+Date: Sun, 27 Sep 2026 08:34:16 +0000
+Subject: [PATCH 1/3] Support WordPress pages and moving posts/pages to the
+ trash
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- New PostType (post/page) in the frontmatter, written only for pages so
+  existing files round-trip unchanged; export, preview, delete and the
+  conflict check all target the matching REST collection.
+- "Von WordPress öffnen" gets an Artikel/Seiten toggle and a per-row
+  "In den Papierkorb" button (recoverable trash, with confirmation).
+- "Artikel-Eigenschaften" gains a Typ row; the Kategorien & Tags tab is
+  hidden for pages, which have neither taxonomy.
+- "Neue Seite" (Ctrl+Alt+N) in the primary menu.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01JjsLyYv6u423JpRrm8ySeT
+---
+ src/document.rs   |  80 ++++++++++
+ src/export.rs     |  51 +++---
+ src/importer.rs   | 387 +++++++++++++++++++++++++++++-----------------
+ src/main.rs       |   1 +
+ src/properties.rs |  34 +++-
+ src/shortcuts.rs  |   1 +
+ src/window.rs     |  48 +++---
+ src/wpclient.rs   |  60 ++++++-
+ 8 files changed, 472 insertions(+), 190 deletions(-)
+
+diff --git a/src/document.rs b/src/document.rs
+index 1e805cd..5126f68 100644
+--- a/src/document.rs
++++ b/src/document.rs
+@@ -77,9 +77,61 @@ impl PostStatus {
+     }
+ }
+ 
++/// Which WordPress content type an article is - a regular blog post
++/// (`/wp/v2/posts`) or a static page (`/wp/v2/pages`, e.g. "Impressum",
++/// "Über mich"). Pages share nearly every field with posts; the only
++/// differences this app cares about are the REST endpoint and that pages
++/// have no categories/tags (WordPress's `page` type doesn't register
++/// either taxonomy, so sending them would just be dropped).
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
++pub enum PostType {
++    #[default]
++    Post,
++    Page,
++}
++
++impl PostType {
++    pub fn as_str(&self) -> &'static str {
++        match self {
++            PostType::Post => "post",
++            PostType::Page => "page",
++        }
++    }
++
++    pub fn from_str(s: &str) -> Self {
++        match s.trim() {
++            "page" => PostType::Page,
++            _ => PostType::Post,
++        }
++    }
++
++    /// The REST API collection this type lives under (`wp/v2/{rest_base}`).
++    pub fn rest_base(&self) -> &'static str {
++        match self {
++            PostType::Post => "posts",
++            PostType::Page => "pages",
++        }
++    }
++
++    pub const ALL: [PostType; 2] = [PostType::Post, PostType::Page];
++
++    /// Human-readable, translated label - same "each arm calls `tr()` on its
++    /// own literal" rule as `PostStatus::label`.
++    pub fn label(&self) -> String {
++        match self {
++            PostType::Post => crate::i18n::tr("Artikel"),
++            PostType::Page => crate::i18n::tr("Seite"),
++        }
++    }
++}
++
+ #[derive(Debug, Clone, PartialEq, Default)]
+ pub struct Frontmatter {
+     pub title: String,
++    /// Post or page - `Post` (the default) is never written to the
++    /// frontmatter, so every file written before this field existed keeps
++    /// round-tripping byte-for-byte.
++    pub post_type: PostType,
+     pub slug: String,
+     pub status: PostStatus,
+     /// When `status` is `PostStatus::Future`: the publish date/time, as the
+@@ -234,6 +286,7 @@ pub fn parse(input: &str) -> Document {
+             "title" => frontmatter.title = unquote(value),
+             "slug" => frontmatter.slug = unquote(value),
+             "status" => frontmatter.status = PostStatus::from_str(value),
++            "post_type" => frontmatter.post_type = PostType::from_str(value),
+             "scheduled_at" => {
+                 frontmatter.scheduled_at = (!value.is_empty()).then(|| unquote(value));
+             }
+@@ -300,6 +353,9 @@ pub fn serialize(doc: &Document) -> String {
+     let mut out = String::from("---\n");
+     out.push_str(&format!("title: \"{}\"\n", escape(&fm.title)));
+     out.push_str(&format!("slug: \"{}\"\n", escape(&fm.slug)));
++    if fm.post_type != PostType::Post {
++        out.push_str(&format!("post_type: {}\n", fm.post_type.as_str()));
++    }
+     out.push_str(&format!("status: {}\n", fm.status.as_str()));
+     if let Some(scheduled_at) = &fm.scheduled_at {
+         out.push_str(&format!("scheduled_at: \"{}\"\n", escape(scheduled_at)));
+@@ -717,6 +773,7 @@ mod tests {
+         let doc = Document {
+             frontmatter: Frontmatter {
+                 title: "A \"quoted\" title".to_string(),
++                post_type: PostType::Post,
+                 slug: "a-quoted-title".to_string(),
+                 status: PostStatus::Pending,
+                 scheduled_at: Some("2026-12-24T18:30:00".to_string()),
+@@ -816,4 +873,27 @@ mod tests {
+         assert!(!round_tripped.frontmatter.media[0].alt.is_undefined());
+         assert_eq!(round_tripped.frontmatter.media[0].alt.as_wordpress_value(), Some(""));
+     }
++
++    #[test]
++    fn post_type_defaults_to_post_and_is_not_written() {
++        let doc = Document { frontmatter: Frontmatter { title: "x".to_string(), ..Frontmatter::default() }, body: "Body.\n".to_string() };
++        let serialized = serialize(&doc);
++        assert!(!serialized.contains("post_type"), "{serialized}");
++        assert_eq!(parse(&serialized).frontmatter.post_type, PostType::Post);
++    }
++
++    #[test]
++    fn page_post_type_round_trips() {
++        let doc = Document { frontmatter: Frontmatter { title: "Impressum".to_string(), post_type: PostType::Page, ..Frontmatter::default() }, body: "Body.\n".to_string() };
++        let serialized = serialize(&doc);
++        assert!(serialized.contains("post_type: page\n"), "{serialized}");
++        assert_eq!(parse(&serialized), doc);
++    }
++
++    #[test]
++    fn post_type_rest_bases() {
++        assert_eq!(PostType::Post.rest_base(), "posts");
++        assert_eq!(PostType::Page.rest_base(), "pages");
++        assert_eq!(PostType::from_str("garbage"), PostType::Post);
++    }
+ }
+diff --git a/src/export.rs b/src/export.rs
+index 1a8466a..b349083 100644
+--- a/src/export.rs
++++ b/src/export.rs
+@@ -18,7 +18,7 @@ use adw::prelude::*;
+ use gtk4::glib;
+ use webkit6::prelude::*;
+ 
+-use crate::document::{self, Frontmatter, PostStatus};
++use crate::document::{self, Frontmatter, PostStatus, PostType};
+ use crate::i18n::tr;
+ use crate::{browser, linkcheck, media, mediapanel, notify, preview, secrets, wpclient, wpsite};
+ 
+@@ -334,6 +334,7 @@ pub fn open(
+         let dialog_for_confirm = dialog.clone();
+         delete_button.connect_clicked(move |_| {
+             let Some(post_id) = frontmatter.borrow().wp_post_id else { return };
++            let rest_base = frontmatter.borrow().post_type.rest_base();
+             let confirm = adw::AlertDialog::new(
+                 Some(&tr("Artikel wirklich löschen?")),
+                 Some(&tr("Der Artikel wird unwiderruflich von der WordPress-Seite gelöscht.")),
+@@ -367,7 +368,7 @@ pub fn open(
+                         })
+                         .and_then(|password| {
+                             wpclient::Client::new(&site.url, &site.username, &password)
+-                                .delete_post(post_id)
++                                .delete_item(rest_base, post_id)
+                                 .map_err(|err| err.to_string())
+                         });
+                     let _ = tx.send(outcome);
+@@ -411,6 +412,7 @@ pub fn open(
+         let export_preview_web_view = export_preview_web_view.clone();
+         preview_button.connect_clicked(move |_| {
+             let Some(post_id) = frontmatter.borrow().wp_post_id else { return };
++            let rest_base = frontmatter.borrow().post_type.rest_base();
+             preview_button_for_click.set_sensitive(false);
+             status_label.set_label(&tr("Vorschau wird geladen …"));
+             link_button.set_visible(false);
+@@ -425,7 +427,7 @@ pub fn open(
+                     })
+                     .and_then(|password| {
+                         wpclient::Client::new(&site.url, &site.username, &password)
+-                            .get_post(post_id)
++                            .get_item(rest_base, post_id)
+                             .map(|detail| detail.link)
+                             .map_err(|err| err.to_string())
+                     })
+@@ -571,9 +573,9 @@ fn wire_publish_button(
+ 
+     let button_for_click = button.clone();
+     button.connect_clicked(move |_| {
+-        let (post_id, local_hash) = {
++        let (post_id, local_hash, rest_base) = {
+             let fm = frontmatter.borrow();
+-            (fm.wp_post_id, fm.wp_content_hash.clone())
++            (fm.wp_post_id, fm.wp_content_hash.clone(), fm.post_type.rest_base())
+         };
+         let Some(post_id) = post_id.filter(|_| local_hash.is_some()) else {
+             start_export(target_status, &frontmatter, &body, &doc_dir, &status, &button_for_click, &other_buttons);
+@@ -597,7 +599,7 @@ fn wire_publish_button(
+                 })
+                 .and_then(|password| {
+                     wpclient::Client::new(&site.url, &site.username, &password)
+-                        .get_post(post_id)
++                        .get_item(rest_base, post_id)
+                         .map(|detail| document::content_hash(&detail.content))
+                         .map_err(|err| err.to_string())
+                 });
+@@ -804,21 +806,25 @@ fn run_export(
+     rewrite_image_urls(&mut blocks, &uploaded_urls);
+     let content = gutenberg::render_blocks(&blocks);
+ 
+-    let mut category_ids = Vec::new();
+-    for name in &frontmatter.categories {
+-        category_ids.push(client.resolve_or_create_term("categories", name).map_err(|err| err.to_string())?);
+-    }
+-    let mut tag_ids = Vec::new();
+-    for name in &frontmatter.tags {
+-        tag_ids.push(client.resolve_or_create_term("tags", name).map_err(|err| err.to_string())?);
+-    }
+-
+     let mut payload = serde_json::json!({
+         "title": frontmatter.title,
+         "content": content,
+-        "categories": category_ids,
+-        "tags": tag_ids,
+     });
++    // Pages don't have categories/tags at all (WordPress registers neither
++    // taxonomy for the `page` type) - skipped entirely rather than
++    // resolving/creating terms that would then just be silently dropped.
++    if frontmatter.post_type == PostType::Post {
++        let mut category_ids = Vec::new();
++        for name in &frontmatter.categories {
++            category_ids.push(client.resolve_or_create_term("categories", name).map_err(|err| err.to_string())?);
++        }
++        let mut tag_ids = Vec::new();
++        for name in &frontmatter.tags {
++            tag_ids.push(client.resolve_or_create_term("tags", name).map_err(|err| err.to_string())?);
++        }
++        payload["categories"] = serde_json::json!(category_ids);
++        payload["tags"] = serde_json::json!(tag_ids);
++    }
+     // Omitted entirely (not just "left at whatever `frontmatter.status`
+     // says") when `target_status` is `None` - WordPress's REST API leaves
+     // an existing post's status untouched when the field is absent from
+@@ -906,9 +912,10 @@ fn run_export(
+         payload["comment_status"] = serde_json::Value::String(if open { "open" } else { "closed" }.to_string());
+     }
+ 
++    let rest_base = frontmatter.post_type.rest_base();
+     let result = match frontmatter.wp_post_id {
+-        Some(id) => client.update_post(id, &payload),
+-        None => client.create_post(&payload),
++        Some(id) => client.update_item(rest_base, id, &payload),
++        None => client.create_item(rest_base, &payload),
+     }
+     .map_err(|err| err.to_string())?;
+     // `content` is exactly what the server now stores (WordPress's REST API
+@@ -1249,6 +1256,7 @@ mod tests {
+         let body = "Ein Testartikel für Entwurf/Veröffentlichen.\n";
+         let mut frontmatter = Frontmatter {
+             title: "Blocksmith draft/publish status test".to_string(),
++            post_type: PostType::Post,
+             slug: String::new(),
+             status: crate::document::PostStatus::Draft,
+             scheduled_at: None,
+@@ -1300,6 +1308,7 @@ mod tests {
+         let body = "Ein Testartikel für das Aktualisieren-ohne-Statuswechsel-Verhalten.\n";
+         let mut frontmatter = Frontmatter {
+             title: "Blocksmith update-without-status-change test".to_string(),
++            post_type: PostType::Post,
+             slug: String::new(),
+             status: crate::document::PostStatus::Draft,
+             scheduled_at: None,
+@@ -1350,6 +1359,7 @@ mod tests {
+         let body = "Ein Testartikel für den VG-Wort-Toggle.\n";
+         let mut frontmatter = Frontmatter {
+             title: "Blocksmith vgwort_ignored round-trip test".to_string(),
++            post_type: PostType::Post,
+             slug: String::new(),
+             status: crate::document::PostStatus::Draft,
+             scheduled_at: None,
+@@ -1399,6 +1409,7 @@ mod tests {
+         let body = "Ein Testartikel für den Kommentar-Status-Toggle.\n";
+         let mut frontmatter = Frontmatter {
+             title: "Blocksmith comment_status round-trip test".to_string(),
++            post_type: PostType::Post,
+             slug: String::new(),
+             status: crate::document::PostStatus::Draft,
+             scheduled_at: None,
+@@ -1451,6 +1462,7 @@ mod tests {
+ 
+         let mut frontmatter = Frontmatter {
+             title: "Blocksmith export test post".to_string(),
++            post_type: PostType::Post,
+             slug: String::new(),
+             status: crate::document::PostStatus::Draft,
+             scheduled_at: None,
+@@ -1508,6 +1520,7 @@ mod tests {
+ 
+         let mut frontmatter = Frontmatter {
+             title: "Blocksmith re-export test post".to_string(),
++            post_type: PostType::Post,
+             slug: String::new(),
+             status: crate::document::PostStatus::Draft,
+             scheduled_at: None,
+diff --git a/src/importer.rs b/src/importer.rs
+index 1f0c3d6..17e64c3 100644
+--- a/src/importer.rs
++++ b/src/importer.rs
+@@ -1,20 +1,23 @@
+-//! "Von WordPress öffnen" dialog: lists existing posts on the configured
+-//! site; picking one fetches its full content (raw Gutenberg block HTML),
+-//! resolves its category/tag ids back to names, converts the content back
+-//! to Markdown (`gutenberg::gutenberg_to_markdown`), and hands the result
+-//! to the caller to populate the editor - `window.rs` owns what happens
+-//! with that (filling the buffer, frontmatter, clearing `current_path`
+-//! since there's no local file yet).
+-
+-use std::cell::RefCell;
+-use std::rc::Rc;
++//! "Von WordPress öffnen" dialog: lists existing posts - or, switched via
++//! the "Artikel"/"Seiten" toggle in its header, static pages - on the
++//! configured site; picking one fetches its full content (raw Gutenberg
++//! block HTML), resolves its category/tag ids back to names, converts the
++//! content back to Markdown (`gutenberg::gutenberg_to_markdown`), and hands
++//! the result to the caller to populate the editor - `window.rs` owns what
++//! happens with that (filling the buffer, frontmatter, clearing
++//! `current_path` since there's no local file yet). Each row also carries a
++//! "In den Papierkorb" button, moving that post/page to WordPress's own
++//! (recoverable) trash without having to open wp-admin for it.
++
++use std::cell::{Cell, RefCell};
++use std::rc::{Rc, Weak};
+ use std::sync::mpsc;
+ use std::time::Duration;
+ 
+ use adw::prelude::*;
+ use gtk4::glib;
+ 
+-use crate::document::{self, Frontmatter, PostStatus};
++use crate::document::{self, Frontmatter, PostStatus, PostType};
+ use crate::i18n::tr;
+ use crate::{secrets, wpclient, wpsite};
+ 
+@@ -48,69 +51,94 @@ fn build_post_group(title: &str) -> PostGroup {
+     PostGroup { wrap, list_box, posts: Rc::new(RefCell::new(Vec::new())) }
+ }
+ 
+-/// Wires one group's row activation - shared logic (fetch, convert, hand
+-/// off to the caller) between the "Entwürfe"/"Veröffentlicht"/"Weitere"
+-/// sections, `all_list_boxes` being every section's list box so all three
+-/// get disabled together while a post is loading, not just the one it was
+-/// picked from.
+-fn wire_group_row_activation(
+-    group: &PostGroup,
++/// Everything the dialog's callbacks share - bundled into one `Rc` so a
++/// row's "In den Papierkorb" button can trigger a full reload (which
++/// rebuilds that very row) without threading half a dozen clones through
++/// every closure. Row closures only ever hold a `Weak` to it, so the
++/// dialog's widgets don't keep themselves alive through it.
++struct ImporterCtx {
+     site: wpsite::SiteConfig,
+     status_label: gtk4::Label,
+-    on_selected: Rc<dyn Fn(ImportedPost)>,
+-    dialog_weak: glib::WeakRef<adw::Dialog>,
+-    all_list_boxes: Vec<gtk4::ListBox>,
++    groups: [PostGroup; 3],
++    post_type: Cell<PostType>,
++    dialog: glib::WeakRef<adw::Dialog>,
++}
++
++impl ImporterCtx {
++    fn set_lists_sensitive(&self, sensitive: bool) {
++        for group in &self.groups {
++            group.list_box.set_sensitive(sensitive);
++        }
++    }
++}
++
++/// Runs `job` (given the stored Application Password) on a background
++/// thread and hands its outcome to `on_done` on the GTK thread - the same
++/// spawn-then-poll shape every other network call in this dialog uses.
++fn run_with_password<T: Send + 'static>(
++    site: &wpsite::SiteConfig,
++    job: impl FnOnce(&wpsite::SiteConfig, &str) -> Result<T, String> + Send + 'static,
++    on_done: impl Fn(Result<T, String>) + 'static,
+ ) {
++    let site = site.clone();
++    let (tx, rx) = mpsc::channel::<Result<T, String>>();
++    std::thread::spawn(move || {
++        let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
++            .map_err(|err| err.to_string())
++            .and_then(|maybe_password| maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden.")))
++            .and_then(|password| job(&site, &password));
++        let _ = tx.send(outcome);
++    });
++    glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
++        Ok(outcome) => {
++            on_done(outcome);
++            glib::ControlFlow::Break
++        }
++        Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
++        Err(mpsc::TryRecvError::Disconnected) => {
++            on_done(Err(tr("Interner Fehler: Lade-Thread hat kein Ergebnis geliefert.")));
++            glib::ControlFlow::Break
++        }
++    });
++}
++
++/// Wires one group's row activation - shared logic (fetch, convert, hand
++/// off to the caller) between the "Entwürfe"/"Veröffentlicht"/"Weitere"
++/// sections; every section's list gets disabled together while a post is
++/// loading, not just the one it was picked from.
++fn wire_group_row_activation(group: &PostGroup, ctx: &Rc<ImporterCtx>, on_selected: Rc<dyn Fn(ImportedPost)>) {
+     let posts = group.posts.clone();
++    let ctx_weak = Rc::downgrade(ctx);
+     group.list_box.connect_row_activated(move |_list_box, row| {
++        let Some(ctx) = ctx_weak.upgrade() else { return };
+         let Some(post) = posts.borrow().get(row.index() as usize).cloned() else {
+             return;
+         };
+-        for list_box in &all_list_boxes {
+-            list_box.set_sensitive(false);
+-        }
+-        status_label.set_label(&tr("Lade „{title}“ …").replace("{title}", &post.title));
+-
+-        let site = site.clone();
+-        let (tx, rx) = mpsc::channel::<Result<ImportedPost, String>>();
+-        std::thread::spawn(move || {
+-            let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
+-                .map_err(|err| err.to_string())
+-                .and_then(|maybe_password| {
+-                    maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden."))
+-                })
+-                .and_then(|password| fetch_and_convert(&site, &password, post.id));
+-            let _ = tx.send(outcome);
+-        });
++        ctx.set_lists_sensitive(false);
++        ctx.status_label.set_label(&tr("Lade „{title}“ …").replace("{title}", &post.title));
+ 
+-        let status_label = status_label.clone();
+-        let all_list_boxes = all_list_boxes.clone();
++        let post_type = ctx.post_type.get();
+         let on_selected = on_selected.clone();
+-        let dialog_weak = dialog_weak.clone();
+-        glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
+-            Ok(Ok(imported)) => {
+-                on_selected(imported);
+-                if let Some(dialog) = dialog_weak.upgrade() {
+-                    dialog.close();
+-                }
+-                glib::ControlFlow::Break
+-            }
+-            Ok(Err(err)) => {
+-                status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err));
+-                for list_box in &all_list_boxes {
+-                    list_box.set_sensitive(true);
++        let ctx_weak = Rc::downgrade(&ctx);
++        run_with_password(
++            &ctx.site,
++            move |site, password| fetch_and_convert(site, password, post_type, post.id),
++            move |outcome| {
++                let Some(ctx) = ctx_weak.upgrade() else { return };
++                match outcome {
++                    Ok(imported) => {
++                        on_selected(imported);
++                        if let Some(dialog) = ctx.dialog.upgrade() {
++                            dialog.close();
++                        }
++                    }
++                    Err(err) => {
++                        ctx.status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err));
++                        ctx.set_lists_sensitive(true);
++                    }
+                 }
+-                glib::ControlFlow::Break
+-            }
+-            Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+-            Err(mpsc::TryRecvError::Disconnected) => {
+-                status_label.set_label(&tr("Interner Fehler: Ladevorgang hat kein Ergebnis geliefert."));
+-                for list_box in &all_list_boxes {
+-                    list_box.set_sensitive(true);
+-                }
+-                glib::ControlFlow::Break
+-            }
+-        });
++            },
++        );
+     });
+ }
+ 
+@@ -138,7 +166,18 @@ pub fn open(parent: &adw::ApplicationWindow, on_selected: impl Fn(ImportedPost)
+     let refresh_button = gtk4::Button::from_icon_name("view-refresh-symbolic");
+     refresh_button.set_tooltip_text(Some(&tr("Aktualisieren")));
+ 
++    // "Artikel" / "Seiten" - two linked toggle buttons rather than a
++    // dropdown, since there are exactly two choices and switching between
++    // them is the whole point of this control.
++    let posts_toggle = gtk4::ToggleButton::builder().label(tr("Artikel")).active(true).build();
++    let pages_toggle = gtk4::ToggleButton::builder().label(tr("Seiten")).group(&posts_toggle).build();
++    let type_switcher = gtk4::Box::builder().orientation(gtk4::Orientation::Horizontal).build();
++    type_switcher.add_css_class("linked");
++    type_switcher.append(&posts_toggle);
++    type_switcher.append(&pages_toggle);
++
+     let header = adw::HeaderBar::new();
++    header.set_title_widget(Some(&type_switcher));
+     header.pack_end(&refresh_button);
+ 
+     let content_box = gtk4::Box::builder()
+@@ -165,97 +204,101 @@ pub fn open(parent: &adw::ApplicationWindow, on_selected: impl Fn(ImportedPost)
+ 
+     if site.url.is_empty() {
+         status_label.set_label(&tr("Keine WordPress-Verbindung eingerichtet - bitte zuerst in den Einstellungen konfigurieren."));
++        type_switcher.set_sensitive(false);
+         dialog.present(Some(parent));
+         return;
+     }
+ 
+-    let all_list_boxes = vec![drafts_group.list_box.clone(), published_group.list_box.clone(), other_group.list_box.clone()];
++    let ctx = Rc::new(ImporterCtx {
++        site,
++        status_label,
++        groups: [drafts_group, published_group, other_group],
++        post_type: Cell::new(PostType::Post),
++        dialog: dialog.downgrade(),
++    });
+ 
+-    load_posts(site.clone(), &drafts_group, &published_group, &other_group, status_label.clone());
++    load_posts(&ctx);
+     {
+-        let site = site.clone();
+-        let drafts_group = drafts_group.clone();
+-        let published_group = published_group.clone();
+-        let other_group = other_group.clone();
+-        let status_label = status_label.clone();
++        let ctx_weak = Rc::downgrade(&ctx);
+         refresh_button.connect_clicked(move |_| {
+-            load_posts(site.clone(), &drafts_group, &published_group, &other_group, status_label.clone());
++            if let Some(ctx) = ctx_weak.upgrade() {
++                load_posts(&ctx);
++            }
++        });
++    }
++    {
++        let ctx_weak = Rc::downgrade(&ctx);
++        pages_toggle.connect_toggled(move |toggle| {
++            let Some(ctx) = ctx_weak.upgrade() else { return };
++            ctx.post_type.set(if toggle.is_active() { PostType::Page } else { PostType::Post });
++            load_posts(&ctx);
+         });
+     }
+ 
+     let on_selected: Rc<dyn Fn(ImportedPost)> = Rc::new(on_selected);
+-    let dialog_weak = dialog.downgrade();
+-    wire_group_row_activation(&drafts_group, site.clone(), status_label.clone(), on_selected.clone(), dialog_weak.clone(), all_list_boxes.clone());
+-    wire_group_row_activation(&published_group, site.clone(), status_label.clone(), on_selected.clone(), dialog_weak.clone(), all_list_boxes.clone());
+-    wire_group_row_activation(&other_group, site, status_label, on_selected, dialog_weak, all_list_boxes);
++    for group in &ctx.groups {
++        wire_group_row_activation(group, &ctx, on_selected.clone());
++    }
++
++    // Every closure above only holds a `Weak` - this handler is the one
++    // strong reference, so the context lives exactly as long as the dialog
++    // (its signal handlers are dropped along with it).
++    dialog.connect_closed(move |_| {
++        let _keep_alive = &ctx;
++    });
+ 
+     dialog.present(Some(parent));
+ }
+ 
+-fn load_posts(
+-    site: wpsite::SiteConfig,
+-    drafts_group: &PostGroup,
+-    published_group: &PostGroup,
+-    other_group: &PostGroup,
+-    status_label: gtk4::Label,
+-) {
+-    status_label.set_label(&tr("Lade Artikel …"));
+-    let (tx, rx) = mpsc::channel::<Result<Vec<wpclient::PostSummary>, String>>();
+-    std::thread::spawn(move || {
+-        let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
+-            .map_err(|err| err.to_string())
+-            .and_then(|maybe_password| {
+-                maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden."))
+-            })
+-            .and_then(|password| wpclient::Client::new(&site.url, &site.username, &password).list_posts().map_err(|err| err.to_string()));
+-        let _ = tx.send(outcome);
++fn load_posts(ctx: &Rc<ImporterCtx>) {
++    let post_type = ctx.post_type.get();
++    ctx.status_label.set_label(&match post_type {
++        PostType::Post => tr("Lade Artikel …"),
++        PostType::Page => tr("Lade Seiten …"),
+     });
+-
+-    let drafts_list_box = drafts_group.list_box.clone();
+-    let drafts_wrap = drafts_group.wrap.clone();
+-    let drafts_posts = drafts_group.posts.clone();
+-    let published_list_box = published_group.list_box.clone();
+-    let published_wrap = published_group.wrap.clone();
+-    let published_posts = published_group.posts.clone();
+-    let other_list_box = other_group.list_box.clone();
+-    let other_wrap = other_group.wrap.clone();
+-    let other_posts = other_group.posts.clone();
+-
+-    glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
+-        Ok(Ok(fetched)) => {
+-            let mut drafts = Vec::new();
+-            let mut published = Vec::new();
+-            let mut other = Vec::new();
+-            for post in fetched {
+-                match post.status.as_str() {
+-                    "draft" => drafts.push(post),
+-                    "publish" => published.push(post),
+-                    _ => other.push(post),
++    let ctx_weak = Rc::downgrade(ctx);
++    run_with_password(
++        &ctx.site,
++        move |site, password| {
++            wpclient::Client::new(&site.url, &site.username, password).list_items(post_type.rest_base()).map_err(|err| err.to_string())
++        },
++        move |outcome| {
++            let Some(ctx) = ctx_weak.upgrade() else { return };
++            // The user may have flipped the "Artikel"/"Seiten" toggle again
++            // while this request was in flight - a stale result for the
++            // other type must not overwrite the newer one's list.
++            if ctx.post_type.get() != post_type {
++                return;
++            }
++            match outcome {
++                Ok(fetched) => {
++                    let mut buckets: [Vec<wpclient::PostSummary>; 3] = [Vec::new(), Vec::new(), Vec::new()];
++                    for post in fetched {
++                        let bucket = match post.status.as_str() {
++                            "draft" => 0,
++                            "publish" => 1,
++                            _ => 2,
++                        };
++                        buckets[bucket].push(post);
++                    }
++                    let total: usize = buckets.iter().map(Vec::len).sum();
++                    for (index, (group, posts)) in ctx.groups.iter().zip(buckets).enumerate() {
++                        populate_group(group, &posts, index == 2, &Rc::downgrade(&ctx));
++                        *group.posts.borrow_mut() = posts;
++                    }
++                    ctx.set_lists_sensitive(true);
++                    let message = match post_type {
++                        PostType::Post => tr("{n} Artikel gefunden. Zum Öffnen auswählen."),
++                        PostType::Page => tr("{n} Seiten gefunden. Zum Öffnen auswählen."),
++                    };
++                    ctx.status_label.set_label(&message.replace("{n}", &total.to_string()));
++                }
++                Err(err) => {
++                    ctx.status_label.set_label(&tr("Fehler beim Laden: {err}").replace("{err}", &err));
+                 }
+             }
+-            let total = drafts.len() + published.len() + other.len();
+-
+-            populate_group(&drafts_list_box, &drafts_wrap, &drafts, false);
+-            populate_group(&published_list_box, &published_wrap, &published, false);
+-            populate_group(&other_list_box, &other_wrap, &other, true);
+-
+-            *drafts_posts.borrow_mut() = drafts;
+-            *published_posts.borrow_mut() = published;
+-            *other_posts.borrow_mut() = other;
+-
+-            status_label.set_label(&tr("{n} Artikel gefunden. Zum Öffnen auswählen.").replace("{n}", &total.to_string()));
+-            glib::ControlFlow::Break
+-        }
+-        Ok(Err(err)) => {
+-            status_label.set_label(&tr("Fehler beim Laden: {err}").replace("{err}", &err));
+-            glib::ControlFlow::Break
+-        }
+-        Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+-        Err(mpsc::TryRecvError::Disconnected) => {
+-            status_label.set_label(&tr("Interner Fehler: Lade-Thread hat kein Ergebnis geliefert."));
+-            glib::ControlFlow::Break
+-        }
+-    });
++        },
++    );
+ }
+ 
+ /// Rebuilds one group's rows from `posts` and shows/hides the whole group
+@@ -263,17 +306,70 @@ fn load_posts(
+ /// the status word in each row's subtitle (used for the catch-all "Weitere"
+ /// group, which mixes several statuses) - the "Entwürfe"/"Veröffentlicht"
+ /// groups don't need it, since their heading already says which.
+-fn populate_group(list_box: &gtk4::ListBox, wrap: &gtk4::Box, posts: &[wpclient::PostSummary], show_status: bool) {
+-    while let Some(child) = list_box.first_child() {
+-        list_box.remove(&child);
++fn populate_group(group: &PostGroup, posts: &[wpclient::PostSummary], show_status: bool, ctx: &Weak<ImporterCtx>) {
++    while let Some(child) = group.list_box.first_child() {
++        group.list_box.remove(&child);
+     }
+     for post in posts {
+         let date = post.date.split('T').next().unwrap_or(&post.date);
+         let subtitle = if show_status { format!("{} · {date}", status_display(&post.status)) } else { date.to_string() };
+         let row = adw::ActionRow::builder().title(glib::markup_escape_text(&post.title).as_str()).subtitle(subtitle).activatable(true).build();
+-        list_box.append(&row);
++
++        let trash_button = gtk4::Button::from_icon_name("user-trash-symbolic");
++        trash_button.set_tooltip_text(Some(&tr("In den Papierkorb")));
++        trash_button.set_valign(gtk4::Align::Center);
++        trash_button.add_css_class("flat");
++        let ctx = ctx.clone();
++        let post = post.clone();
++        trash_button.connect_clicked(move |button| confirm_trash(button, &ctx, &post));
++        row.add_suffix(&trash_button);
++
++        group.list_box.append(&row);
+     }
+-    wrap.set_visible(!posts.is_empty());
++    group.wrap.set_visible(!posts.is_empty());
++}
++
++/// Asks before moving `post` to WordPress's trash - recoverable from
++/// wp-admin, but still not something a stray click should do silently.
++fn confirm_trash(anchor: &gtk4::Button, ctx: &Weak<ImporterCtx>, post: &wpclient::PostSummary) {
++    let confirm = adw::AlertDialog::new(
++        Some(&tr("In den Papierkorb verschieben?")),
++        Some(&tr("„{title}“ wird in den WordPress-Papierkorb verschoben und kann dort im WordPress-Backend wiederhergestellt werden.").replace("{title}", &post.title)),
++    );
++    confirm.add_response("cancel", &tr("Abbrechen"));
++    confirm.add_response("trash", &tr("In den Papierkorb"));
++    confirm.set_response_appearance("trash", adw::ResponseAppearance::Destructive);
++    confirm.set_default_response(Some("cancel"));
++    confirm.set_close_response("cancel");
++
++    let ctx = ctx.clone();
++    let post = post.clone();
++    confirm.connect_response(None, move |_, response| {
++        if response != "trash" {
++            return;
++        }
++        let Some(strong) = ctx.upgrade() else { return };
++        strong.set_lists_sensitive(false);
++        strong.status_label.set_label(&tr("Verschiebe „{title}“ in den Papierkorb …").replace("{title}", &post.title));
++        let rest_base = strong.post_type.get().rest_base();
++        let post_id = post.id;
++        let ctx = ctx.clone();
++        run_with_password(
++            &strong.site,
++            move |site, password| wpclient::Client::new(&site.url, &site.username, password).trash_item(rest_base, post_id).map_err(|err| err.to_string()),
++            move |outcome| {
++                let Some(ctx) = ctx.upgrade() else { return };
++                match outcome {
++                    Ok(()) => load_posts(&ctx),
++                    Err(err) => {
++                        ctx.status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err));
++                        ctx.set_lists_sensitive(true);
++                    }
++                }
++            },
++        );
++    });
++    confirm.present(Some(anchor));
+ }
+ 
+ fn status_display(status: &str) -> String {
+@@ -287,9 +383,9 @@ fn status_display(status: &str) -> String {
+     }
+ }
+ 
+-fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_id: u64) -> Result<ImportedPost, String> {
++fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_type: PostType, post_id: u64) -> Result<ImportedPost, String> {
+     let client = wpclient::Client::new(&site.url, &site.username, password);
+-    let detail = client.get_post(post_id).map_err(|err| err.to_string())?;
++    let detail = client.get_item(post_type.rest_base(), post_id).map_err(|err| err.to_string())?;
+ 
+     let mut categories = Vec::new();
+     for id in &detail.categories {
+@@ -309,6 +405,7 @@ fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_id: u64) ->
+     let is_future = detail.status == "future";
+     let frontmatter = Frontmatter {
+         title: detail.title,
++        post_type,
+         slug: detail.slug,
+         status: PostStatus::from_str(&detail.status),
+         scheduled_at: is_future.then_some(detail.date).filter(|d| !d.is_empty()),
+@@ -360,7 +457,7 @@ mod tests {
+         // "Rutile 0.2.2 – Eine moderne Alternative zu Tilix" on
+         // linuxundich.de: category "GNU/Linux", tags including "Gnome", and
+         // a featured image (media id 45270 as of writing).
+-        let imported = fetch_and_convert(&site, &password, 45269).expect("fetch_and_convert failed");
++        let imported = fetch_and_convert(&site, &password, PostType::Post, 45269).expect("fetch_and_convert failed");
+ 
+         assert!(!imported.frontmatter.categories.is_empty(), "expected at least one category, got none");
+         assert!(!imported.frontmatter.tags.is_empty(), "expected at least one tag, got none");
+@@ -406,7 +503,7 @@ mod tests {
+             }))
+             .expect("create_post failed");
+ 
+-        let imported = fetch_and_convert(&site, &password, created.id).expect("fetch_and_convert failed");
++        let imported = fetch_and_convert(&site, &password, PostType::Post, created.id).expect("fetch_and_convert failed");
+ 
+         assert_eq!(imported.frontmatter.title, "Blocksmith round-trip test");
+         assert_eq!(imported.frontmatter.wp_post_id, Some(created.id));
+diff --git a/src/main.rs b/src/main.rs
+index ffca523..2d6fc42 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -71,6 +71,7 @@ fn main() -> glib::ExitCode {
+     let app = adw::Application::builder().application_id(APP_ID).flags(gio::ApplicationFlags::HANDLES_OPEN).build();
+ 
+     app.set_accels_for_action("win.new", &["<Ctrl>n"]);
++    app.set_accels_for_action("win.new-page", &["<Ctrl><Alt>n"]);
+     app.set_accels_for_action("win.open", &["<Ctrl>o"]);
+     app.set_accels_for_action("win.open-from-wordpress", &["<Ctrl><Shift>o"]);
+     app.set_accels_for_action("win.save", &["<Ctrl>s"]);
+diff --git a/src/properties.rs b/src/properties.rs
+index 959c2ca..c7eb2a7 100644
+--- a/src/properties.rs
++++ b/src/properties.rs
+@@ -13,7 +13,7 @@ use std::time::Duration;
+ use adw::prelude::*;
+ use gtk4::{gio, glib};
+ 
+-use crate::document::{self, parse_list, Frontmatter, PostStatus};
++use crate::document::{self, parse_list, Frontmatter, PostStatus, PostType};
+ use crate::i18n::tr;
+ use crate::{aialt, autocomplete, media, preview, secrets, tagsuggest, taxonomy, termcache, wpclient, wpsite};
+ 
+@@ -225,6 +225,23 @@ pub fn open(
+     let site = wpsite::load();
+     let current = frontmatter.borrow().clone();
+ 
++    // "Artikel" or "Seite" - which REST collection (`/posts` vs `/pages`)
++    // export targets. Locked once the document is linked to an existing
++    // WordPress item (`wp_post_id` set): WordPress can't convert a post
++    // into a page in place, so switching then would just make the next
++    // export try to update a nonexistent page with that post's id.
++    let type_labels: Vec<String> = PostType::ALL.iter().map(|t| t.label()).collect();
++    let type_label_refs: Vec<&str> = type_labels.iter().map(String::as_str).collect();
++    let type_row = adw::ComboRow::builder()
++        .title(tr("Typ"))
++        .model(&gtk4::StringList::new(&type_label_refs))
++        .selected(PostType::ALL.iter().position(|t| *t == current.post_type).unwrap_or(0) as u32)
++        .sensitive(current.wp_post_id.is_none())
++        .build();
++    if current.wp_post_id.is_some() {
++        type_row.set_subtitle(&tr("Bereits mit WordPress verknüpft - nicht mehr änderbar"));
++    }
++
+     let title_row = adw::EntryRow::builder().title(tr("Titel")).text(current.title.as_str()).build();
+     let slug_row = adw::EntryRow::builder().title(tr("Slug")).text(current.slug.as_str()).build();
+     let slug_generate_button = gtk4::Button::from_icon_name("view-refresh-symbolic");
+@@ -556,6 +573,7 @@ pub fn open(
+     // tab page's leftover vertical space instead of leaving it as dead
+     // white space below a short, fixed-height boxed list.
+     let general_group = adw::PreferencesGroup::builder().title(tr("Allgemein")).vexpand(true).build();
++    general_group.add(&type_row);
+     general_group.add(&title_row);
+     general_group.add(&slug_row);
+     general_group.add(&excerpt_row);
+@@ -599,7 +617,10 @@ pub fn open(
+     let view_stack = adw::ViewStack::new();
+     view_stack.add_titled_with_icon(&tab_page(&general_group), Some("general"), &tr("Allgemein"), "document-properties-symbolic");
+     view_stack.add_titled_with_icon(&tab_page(&publishing_group), Some("publishing"), &tr("Veröffentlichung"), "send-symbolic");
+-    view_stack.add_titled_with_icon(&tab_page(&taxonomy_group), Some("taxonomy"), &tr("Kategorien & Tags"), "tag-symbolic");
++    let taxonomy_page = view_stack.add_titled_with_icon(&tab_page(&taxonomy_group), Some("taxonomy"), &tr("Kategorien & Tags"), "tag-symbolic");
++    // Pages have no categories/tags (see `PostType`), so the whole tab is
++    // hidden for one rather than offering fields export would ignore.
++    taxonomy_page.set_visible(current.post_type == PostType::Post);
+     view_stack.add_titled_with_icon(&tab_page(&image_group), Some("image"), &tr("Bild"), "image-x-generic-symbolic");
+     view_stack.add_titled_with_icon(&tab_page(&seo_group), Some("seo"), &tr("SEO"), "edit-find-symbolic");
+     view_stack.set_vexpand(true);
+@@ -796,6 +817,15 @@ pub fn open(
+             });
+         });
+     }
++    {
++        let frontmatter = frontmatter.clone();
++        type_row.connect_selected_notify(move |row| {
++            if let Some(post_type) = PostType::ALL.get(row.selected() as usize) {
++                frontmatter.borrow_mut().post_type = *post_type;
++                taxonomy_page.set_visible(*post_type == PostType::Post);
++            }
++        });
++    }
+     {
+         let frontmatter = frontmatter.clone();
+         let scheduled_row = scheduled_row.clone();
+diff --git a/src/shortcuts.rs b/src/shortcuts.rs
+index 396dc2c..49cc1db 100644
+--- a/src/shortcuts.rs
++++ b/src/shortcuts.rs
+@@ -19,6 +19,7 @@ pub fn build() -> gtk4::ShortcutsWindow {
+         tr("Allgemein"),
+         &[
+             (tr("Neuer Artikel"), "<Ctrl>N"),
++            (tr("Neue Seite"), "<Ctrl><Alt>N"),
+             (tr("Öffnen"), "<Ctrl>O"),
+             (tr("Von WordPress öffnen"), "<Ctrl><Shift>O"),
+             (tr("Speichern"), "<Ctrl>S"),
+diff --git a/src/window.rs b/src/window.rs
+index dd39df0..9bd23ff 100644
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
+ use adw::prelude::*;
+ use gtk4::{gdk, gio, glib};
+ 
+-use crate::document::{Document, Frontmatter};
++use crate::document::{Document, Frontmatter, PostType};
+ use crate::i18n::tr;
+ use crate::{
+     about, aimenu, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, medialibrary, mediapanel,
+@@ -257,6 +257,9 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
+     // directly, since that's the action-level shortcut, independent of
+     // how the button itself triggers it.
+     let primary_menu = gio::Menu::new();
++    let new_section = gio::Menu::new();
++    new_section.append(Some(&tr("Neue Seite")), Some("win.new-page"));
++    primary_menu.append_section(None, &new_section);
+     primary_menu.append(Some(&tr("Einstellungen")), Some("win.settings"));
+     primary_menu.append(Some(&tr("Tastenkürzel")), Some("win.show-help-overlay"));
+     primary_menu.append(Some(&tr("Über Blocksmith")), Some("win.about"));
+@@ -799,24 +802,31 @@ fn wire_new_action(
+     preview_pane: &Rc<preview::PreviewPane>,
+     saved_text: &Rc<RefCell<String>>,
+ ) {
+-    let action = gio::SimpleAction::new("new", None);
+-    let buffer = buffer.clone();
+-    let current_path = current_path.clone();
+-    let frontmatter = frontmatter.clone();
+-    let title = title.clone();
+-    let preview_pane = preview_pane.clone();
+-    let saved_text = saved_text.clone();
+-    action.connect_activate(move |_, _| {
+-        buffer.set_text("");
+-        *current_path.borrow_mut() = None;
+-        *frontmatter.borrow_mut() = Frontmatter::default();
+-        title.set_subtitle(&tr("Unbenannt"));
+-        preview_pane.set_doc_dir(None);
+-        preview_pane.set_article_header(&frontmatter.borrow());
+-        *saved_text.borrow_mut() = String::new();
+-        autosave::clear();
+-    });
+-    window.add_action(&action);
++    // "new" starts a blank blog post, "new-page" a blank static WordPress
++    // page - identical apart from the frontmatter's `post_type`.
++    for (name, post_type) in [("new", PostType::Post), ("new-page", PostType::Page)] {
++        let action = gio::SimpleAction::new(name, None);
++        let buffer = buffer.clone();
++        let current_path = current_path.clone();
++        let frontmatter = frontmatter.clone();
++        let title = title.clone();
++        let preview_pane = preview_pane.clone();
++        let saved_text = saved_text.clone();
++        action.connect_activate(move |_, _| {
++            buffer.set_text("");
++            *current_path.borrow_mut() = None;
++            *frontmatter.borrow_mut() = Frontmatter { post_type, ..Frontmatter::default() };
++            title.set_subtitle(&match post_type {
++                PostType::Post => tr("Unbenannt"),
++                PostType::Page => tr("Unbenannte Seite"),
++            });
++            preview_pane.set_doc_dir(None);
++            preview_pane.set_article_header(&frontmatter.borrow());
++            *saved_text.borrow_mut() = String::new();
++            autosave::clear();
++        });
++        window.add_action(&action);
++    }
+ }
+ 
+ /// The handles almost every "open something new into the editor" action
+diff --git a/src/wpclient.rs b/src/wpclient.rs
+index a36ef6a..68e40ae 100644
+--- a/src/wpclient.rs
++++ b/src/wpclient.rs
+@@ -360,18 +360,54 @@ impl Client {
+         Ok(())
+     }
+ 
++    #[cfg(test)]
+     pub fn create_post(&self, payload: &Value) -> Result<PostResult> {
+-        self.send_post_payload(self.endpoint("posts"), payload)
++        self.create_item("posts", payload)
+     }
+ 
++    #[cfg(test)]
+     pub fn update_post(&self, post_id: u64, payload: &Value) -> Result<PostResult> {
+-        self.send_post_payload(self.endpoint(&format!("posts/{post_id}")), payload)
++        self.update_item("posts", post_id, payload)
++    }
++
++    /// Like `create_post`, but for any post-like REST collection -
++    /// `"posts"` or `"pages"` (see `document::PostType::rest_base`).
++    pub fn create_item(&self, rest_base: &str, payload: &Value) -> Result<PostResult> {
++        self.send_post_payload(self.endpoint(rest_base), payload)
++    }
++
++    pub fn update_item(&self, rest_base: &str, id: u64, payload: &Value) -> Result<PostResult> {
++        self.send_post_payload(self.endpoint(&format!("{rest_base}/{id}")), payload)
++    }
++
++    /// Moves a post or page to WordPress's trash (a `DELETE` *without*
++    /// `force=true`) - unlike `delete_post`, recoverable from wp-admin's
++    /// own "Papierkorb" view, which is the only deletion the UI offers.
++    pub fn trash_item(&self, rest_base: &str, id: u64) -> Result<()> {
++        let mut response = self
++            .agent
++            .delete(self.endpoint(&format!("{rest_base}/{id}")))
++            .header("Authorization", self.auth_header.as_str())
++            .call()
++            .map_err(network_error)?;
++        let status = response.status().as_u16();
++        if !(200..300).contains(&status) {
++            let body_text = response.body_mut().read_to_string().unwrap_or_default();
++            return Err(error_from_body(status, &body_text));
++        }
++        Ok(())
+     }
+ 
+     /// Permanently deletes a post (bypassing trash). Mainly useful for
+     /// cleaning up after integration tests against a real site.
++    #[cfg(test)]
+     pub fn delete_post(&self, post_id: u64) -> Result<()> {
+-        let url = format!("{}?force=true", self.endpoint(&format!("posts/{post_id}")));
++        self.delete_item("posts", post_id)
++    }
++
++    /// Like `delete_post`, for any post-like REST collection.
++    pub fn delete_item(&self, rest_base: &str, id: u64) -> Result<()> {
++        let url = format!("{}?force=true", self.endpoint(&format!("{rest_base}/{id}")));
+         let mut response = self
+             .agent
+             .delete(url)
+@@ -516,9 +552,15 @@ impl Client {
+     /// see), for the "Von WordPress öffnen" picker. Doesn't paginate beyond
+     /// the first 50 - fine for finding a recent article to edit.
+     pub fn list_posts(&self) -> Result<Vec<PostSummary>> {
++        self.list_items("posts")
++    }
++
++    /// Like `list_posts`, for any post-like REST collection (`"posts"` or
++    /// `"pages"`).
++    pub fn list_items(&self, rest_base: &str) -> Result<Vec<PostSummary>> {
+         let url = format!(
+             "{}?per_page=50&orderby=date&order=desc&context=edit&status=publish,future,draft,pending,private&_fields=id,title,status,date,link",
+-            self.endpoint("posts")
++            self.endpoint(rest_base)
+         );
+         let value = self.get_json(&url)?;
+         Ok(value
+@@ -544,10 +586,18 @@ impl Client {
+     /// via `context=edit` - see [`PostDetail::content`]) plus the metadata
+     /// needed to populate the properties dialog after converting it back to
+     /// Markdown.
++    #[cfg(test)]
+     pub fn get_post(&self, id: u64) -> Result<PostDetail> {
++        self.get_item("posts", id)
++    }
++
++    /// Like `get_post`, for any post-like REST collection - a page simply
++    /// comes back without `categories`/`tags` (WordPress doesn't register
++    /// either taxonomy for pages), which parses as two empty lists below.
++    pub fn get_item(&self, rest_base: &str, id: u64) -> Result<PostDetail> {
+         let url = format!(
+             "{}?context=edit&_fields=id,title,content,excerpt,status,slug,categories,tags,featured_media,author,wp-worthy-pixel,comment_status,date,meta,link",
+-            self.endpoint(&format!("posts/{id}"))
++            self.endpoint(&format!("{rest_base}/{id}"))
+         );
+         let value = self.get_json(&url)?;
+         let u64_array = |key: &str| -> Vec<u64> {
+-- 
+2.43.0
+
+
+From 36807cc88682b7cc7edf80e3d54970a76d1b0932 Mon Sep 17 00:00:00 2001
+From: linuxundich <mail@christoph-langner.de>
+Date: Sun, 27 Sep 2026 08:42:36 +0000
+Subject: [PATCH 2/3] Add a full WordPress media library browser
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+"WordPress-Mediathek" (Ctrl+Shift+L, primary menu) browses the whole
+library instead of just picking images: thumbnail grid with
+WordPress-generated thumbnails, type filter (Alle/Bilder/Dokumente/
+Audio/Video), server-side search, 48-item pages behind "Mehr laden",
+and a details pane with file name, MIME type, dimensions, size, upload
+date, alt text and URL, plus URL kopieren / Im Browser öffnen /
+In Artikel einfügen / Löschen (with confirmation).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01JjsLyYv6u423JpRrm8ySeT
+---
+ src/main.rs         |   2 +
+ src/mediabrowser.rs | 683 ++++++++++++++++++++++++++++++++++++++++++++
+ src/shortcuts.rs    |   1 +
+ src/window.rs       |  52 +++-
+ src/wpclient.rs     | 128 +++++++++
+ 5 files changed, 855 insertions(+), 11 deletions(-)
+ create mode 100644 src/mediabrowser.rs
+
+diff --git a/src/main.rs b/src/main.rs
+index 2d6fc42..490eca0 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -31,6 +31,7 @@ mod linkpicker;
+ mod llm;
+ mod mdpango;
+ mod media;
++mod mediabrowser;
+ mod medialibrary;
+ mod mediapanel;
+ mod notify;
+@@ -78,6 +79,7 @@ fn main() -> glib::ExitCode {
+     app.set_accels_for_action("win.settings", &["<Ctrl>comma"]);
+     app.set_accels_for_action("win.publish", &["<Ctrl><Shift>p"]);
+     app.set_accels_for_action("win.media-manager", &["<Ctrl><Shift>m"]);
++    app.set_accels_for_action("win.media-library", &["<Ctrl><Shift>l"]);
+     app.set_accels_for_action("win.find", &["<Ctrl>f"]);
+     app.set_accels_for_action("win.toggle-focus-mode", &["<Ctrl><Shift>f"]);
+     app.set_accels_for_action("win.show-help-overlay", &["<Ctrl>question"]);
+diff --git a/src/mediabrowser.rs b/src/mediabrowser.rs
+new file mode 100644
+index 0000000..5624d8e
+--- /dev/null
++++ b/src/mediabrowser.rs
+@@ -0,0 +1,683 @@
++//! "WordPress-Mediathek" dialog: browse and manage the site's whole media
++//! library without opening wp-admin - a thumbnail grid (images get their
++//! real WordPress-generated thumbnail, everything else a type icon), a
++//! type filter (Alle Medien/Bilder/Dokumente/Audio/Video), server-side
++//! search, and a details pane showing file name, type, dimensions, size,
++//! upload date and URL, with "URL kopieren", "Im Browser öffnen",
++//! "In Artikel einfügen" (images only) and "Löschen".
++//!
++//! Unlike `medialibrary.rs`'s picker (images only, first 60, a plain list),
++//! this pages through the library 48 items at a time behind a "Mehr laden"
++//! button, since a real site's library easily runs into the thousands.
++
++use std::cell::{Cell, RefCell};
++use std::rc::{Rc, Weak};
++use std::sync::mpsc;
++use std::time::Duration;
++
++use adw::prelude::*;
++use gtk4::{gdk, gio, glib};
++
++use crate::i18n::tr;
++use crate::wpclient::{MediaFilter, WpMediaEntry};
++use crate::{secrets, wpclient, wpsite};
++
++const SEARCH_DEBOUNCE_MS: u64 = 400;
++const TILE_SIZE: i32 = 112;
++
++const FILTERS: [MediaFilter; 5] = [MediaFilter::All, MediaFilter::Images, MediaFilter::Documents, MediaFilter::Audio, MediaFilter::Video];
++
++fn filter_label(filter: MediaFilter) -> String {
++    match filter {
++        MediaFilter::All => tr("Alle Medien"),
++        MediaFilter::Images => tr("Bilder"),
++        MediaFilter::Documents => tr("Dokumente"),
++        MediaFilter::Audio => tr("Audio"),
++        MediaFilter::Video => tr("Video"),
++    }
++}
++
++/// Human-readable file size ("1,2 MB") - German decimal comma, since the
++/// rest of the UI's numbers (`stats.rs`) are formatted that way too.
++fn format_size(bytes: u64) -> String {
++    const UNITS: [&str; 4] = ["B", "KB", "MB", "GB"];
++    if bytes < 1024 {
++        return format!("{bytes} B");
++    }
++    let mut value = bytes as f64;
++    let mut unit = 0;
++    while value >= 1024.0 && unit < UNITS.len() - 1 {
++        value /= 1024.0;
++        unit += 1;
++    }
++    format!("{value:.1} {}", UNITS[unit]).replace('.', ",")
++}
++
++/// The last path segment of a media URL - WordPress's `title` is often
++/// just the file name without its extension, so this is shown separately.
++fn file_name_of(url: &str) -> String {
++    url.rsplit('/').next().unwrap_or(url).split(['?', '#']).next().unwrap_or_default().to_string()
++}
++
++/// A symbolic icon standing in for a thumbnail, by MIME type.
++fn icon_for_mime(mime: &str) -> &'static str {
++    if mime.starts_with("image/") {
++        "image-x-generic-symbolic"
++    } else if mime.starts_with("audio/") {
++        "audio-x-generic-symbolic"
++    } else if mime.starts_with("video/") {
++        "video-x-generic-symbolic"
++    } else if mime == "application/pdf" || mime.starts_with("text/") || mime.contains("document") {
++        "x-office-document-symbolic"
++    } else {
++        "text-x-generic-symbolic"
++    }
++}
++
++/// The details pane's widgets, refreshed whenever the selection changes.
++struct Details {
++    root: gtk4::Box,
++    placeholder: adw::StatusPage,
++    preview: gtk4::Picture,
++    title: gtk4::Label,
++    rows: gtk4::Label,
++    url: gtk4::Label,
++    insert_button: gtk4::Button,
++}
++
++struct BrowserCtx {
++    site: wpsite::SiteConfig,
++    filter: Cell<MediaFilter>,
++    search: RefCell<String>,
++    page: Cell<u32>,
++    total_pages: Cell<u32>,
++    /// Bumped on every fresh (non-"Mehr laden") load, so a slow response
++    /// to an earlier filter/search can't land on top of a newer one.
++    generation: Cell<u64>,
++    entries: RefCell<Vec<WpMediaEntry>>,
++    /// One `Gtk.Picture`/`Gtk.Image` holder per entry, in the same order,
++    /// so thumbnails arriving later can be dropped into the right tile.
++    tiles: RefCell<Vec<gtk4::Box>>,
++    selected: Cell<Option<usize>>,
++    flow_box: gtk4::FlowBox,
++    status_label: gtk4::Label,
++    more_button: gtk4::Button,
++    details: Details,
++    dialog: glib::WeakRef<adw::Dialog>,
++    on_insert: Option<Rc<dyn Fn(WpMediaEntry)>>,
++}
++
++/// Runs `job` with the stored Application Password on a background thread,
++/// handing the outcome to `on_done` on the GTK thread.
++fn run_with_password<T: Send + 'static>(
++    site: &wpsite::SiteConfig,
++    job: impl FnOnce(&wpsite::SiteConfig, &str) -> Result<T, String> + Send + 'static,
++    on_done: impl Fn(Result<T, String>) + 'static,
++) {
++    let site = site.clone();
++    let (tx, rx) = mpsc::channel::<Result<T, String>>();
++    std::thread::spawn(move || {
++        let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
++            .map_err(|err| err.to_string())
++            .and_then(|maybe_password| maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden.")))
++            .and_then(|password| job(&site, &password));
++        let _ = tx.send(outcome);
++    });
++    glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
++        Ok(outcome) => {
++            on_done(outcome);
++            glib::ControlFlow::Break
++        }
++        Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
++        Err(mpsc::TryRecvError::Disconnected) => {
++            on_done(Err(tr("Interner Fehler: Lade-Thread hat kein Ergebnis geliefert.")));
++            glib::ControlFlow::Break
++        }
++    });
++}
++
++/// Opens the media browser. `on_insert`, when given, adds an "In Artikel
++/// einfügen" button for images - the caller decides what inserting means
++/// (`window.rs` reuses "Aus Mediathek wählen…"'s own insertion logic).
++pub fn open(parent: &adw::ApplicationWindow, on_insert: Option<Rc<dyn Fn(WpMediaEntry)>>) {
++    let site = wpsite::load();
++
++    let filter_labels: Vec<String> = FILTERS.iter().map(|f| filter_label(*f)).collect();
++    let filter_label_refs: Vec<&str> = filter_labels.iter().map(String::as_str).collect();
++    let filter_dropdown = gtk4::DropDown::from_strings(&filter_label_refs);
++    filter_dropdown.set_tooltip_text(Some(&tr("Nach Medientyp filtern")));
++
++    let refresh_button = gtk4::Button::from_icon_name("view-refresh-symbolic");
++    refresh_button.set_tooltip_text(Some(&tr("Aktualisieren")));
++
++    let header = adw::HeaderBar::new();
++    header.pack_start(&filter_dropdown);
++    header.pack_end(&refresh_button);
++
++    let search_entry = gtk4::SearchEntry::new();
++    search_entry.set_placeholder_text(Some(&tr("Mediathek durchsuchen…")));
++    search_entry.set_hexpand(true);
++
++    let status_label = gtk4::Label::new(None);
++    status_label.set_xalign(0.0);
++    status_label.set_wrap(true);
++    status_label.add_css_class("dim-label");
++
++    let flow_box = gtk4::FlowBox::builder()
++        .selection_mode(gtk4::SelectionMode::Single)
++        .homogeneous(true)
++        .min_children_per_line(2)
++        .max_children_per_line(12)
++        .column_spacing(6)
++        .row_spacing(6)
++        .valign(gtk4::Align::Start)
++        .build();
++
++    let more_button = gtk4::Button::with_label(&tr("Mehr laden"));
++    more_button.set_halign(gtk4::Align::Center);
++    more_button.set_visible(false);
++
++    let grid_box = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(12).build();
++    grid_box.append(&flow_box);
++    grid_box.append(&more_button);
++    let grid_scroller = gtk4::ScrolledWindow::builder().child(&grid_box).hexpand(true).vexpand(true).hscrollbar_policy(gtk4::PolicyType::Never).build();
++
++    let left = gtk4::Box::builder()
++        .orientation(gtk4::Orientation::Vertical)
++        .spacing(12)
++        .margin_top(12)
++        .margin_bottom(12)
++        .margin_start(12)
++        .margin_end(12)
++        .build();
++    left.append(&search_entry);
++    left.append(&status_label);
++    left.append(&grid_scroller);
++
++    let details = build_details(on_insert.is_some());
++    let details_scroller = gtk4::ScrolledWindow::builder().child(&details.root).width_request(280).hscrollbar_policy(gtk4::PolicyType::Never).build();
++
++    let content = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
++    content.append(&left);
++    content.append(&gtk4::Separator::new(gtk4::Orientation::Vertical));
++    content.append(&details_scroller);
++
++    let toolbar_view = adw::ToolbarView::new();
++    toolbar_view.add_top_bar(&header);
++    toolbar_view.set_content(Some(&content));
++
++    let dialog = adw::Dialog::builder()
++        .title(tr("WordPress-Mediathek"))
++        .content_width(900)
++        .content_height(620)
++        .child(&toolbar_view)
++        .build();
++
++    if site.url.is_empty() {
++        status_label.set_label(&tr("Keine WordPress-Verbindung eingerichtet - bitte zuerst in den Einstellungen konfigurieren."));
++        filter_dropdown.set_sensitive(false);
++        search_entry.set_sensitive(false);
++        refresh_button.set_sensitive(false);
++        dialog.present(Some(parent));
++        return;
++    }
++
++    let ctx = Rc::new(BrowserCtx {
++        site,
++        filter: Cell::new(MediaFilter::All),
++        search: RefCell::new(String::new()),
++        page: Cell::new(1),
++        total_pages: Cell::new(1),
++        generation: Cell::new(0),
++        entries: RefCell::new(Vec::new()),
++        tiles: RefCell::new(Vec::new()),
++        selected: Cell::new(None),
++        flow_box,
++        status_label,
++        more_button,
++        details,
++        dialog: dialog.downgrade(),
++        on_insert,
++    });
++
++    wire_details_buttons(&ctx);
++    {
++        let ctx_weak = Rc::downgrade(&ctx);
++        ctx.flow_box.connect_selected_children_changed(move |flow_box| {
++            let Some(ctx) = ctx_weak.upgrade() else { return };
++            let index = flow_box.selected_children().first().map(|child| child.index() as usize);
++            ctx.selected.set(index);
++            show_details(&ctx);
++        });
++    }
++    {
++        let ctx_weak = Rc::downgrade(&ctx);
++        filter_dropdown.connect_selected_notify(move |dropdown| {
++            let Some(ctx) = ctx_weak.upgrade() else { return };
++            ctx.filter.set(FILTERS.get(dropdown.selected() as usize).copied().unwrap_or(MediaFilter::All));
++            reload(&ctx);
++        });
++    }
++    {
++        let ctx_weak = Rc::downgrade(&ctx);
++        refresh_button.connect_clicked(move |_| {
++            if let Some(ctx) = ctx_weak.upgrade() {
++                reload(&ctx);
++            }
++        });
++    }
++    {
++        let ctx_weak = Rc::downgrade(&ctx);
++        ctx.more_button.connect_clicked(move |_| {
++            if let Some(ctx) = ctx_weak.upgrade() {
++                ctx.page.set(ctx.page.get() + 1);
++                fetch_page(&ctx, false);
++            }
++        });
++    }
++    {
++        let debounce: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
++        let ctx_weak = Rc::downgrade(&ctx);
++        search_entry.connect_search_changed(move |entry| {
++            if let Some(id) = debounce.borrow_mut().take() {
++                id.remove();
++            }
++            let query = entry.text().to_string();
++            let ctx_weak = ctx_weak.clone();
++            let debounce_inner = debounce.clone();
++            let id = glib::timeout_add_local(Duration::from_millis(SEARCH_DEBOUNCE_MS), move || {
++                *debounce_inner.borrow_mut() = None;
++                if let Some(ctx) = ctx_weak.upgrade() {
++                    *ctx.search.borrow_mut() = query.clone();
++                    reload(&ctx);
++                }
++                glib::ControlFlow::Break
++            });
++            *debounce.borrow_mut() = Some(id);
++        });
++    }
++
++    reload(&ctx);
++
++    // Every closure above holds only a `Weak` - this is the one strong
++    // reference, so the context lives exactly as long as the dialog.
++    dialog.connect_closed(move |_| {
++        let _keep_alive = &ctx;
++    });
++
++    dialog.present(Some(parent));
++}
++
++fn build_details(can_insert: bool) -> Details {
++    let placeholder = adw::StatusPage::builder()
++        .icon_name("image-x-generic-symbolic")
++        .title(tr("Keine Datei ausgewählt"))
++        .description(tr("Eine Datei im Raster auswählen, um ihre Details zu sehen."))
++        .vexpand(true)
++        .build();
++    placeholder.add_css_class("compact");
++
++    let preview = gtk4::Picture::builder().content_fit(gtk4::ContentFit::Contain).height_request(180).can_shrink(true).build();
++    preview.add_css_class("card");
++
++    let title = gtk4::Label::builder().xalign(0.0).wrap(true).selectable(true).build();
++    title.add_css_class("title-4");
++
++    let rows = gtk4::Label::builder().xalign(0.0).wrap(true).selectable(true).use_markup(true).build();
++
++    let url = gtk4::Label::builder().xalign(0.0).wrap(true).wrap_mode(gtk4::pango::WrapMode::Char).selectable(true).build();
++    url.add_css_class("caption");
++    url.add_css_class("dim-label");
++
++    let insert_button = gtk4::Button::with_label(&tr("In Artikel einfügen"));
++    insert_button.add_css_class("suggested-action");
++    insert_button.set_visible(can_insert);
++
++    let root = gtk4::Box::builder()
++        .orientation(gtk4::Orientation::Vertical)
++        .spacing(12)
++        .margin_top(12)
++        .margin_bottom(12)
++        .margin_start(12)
++        .margin_end(12)
++        .build();
++    root.append(&placeholder);
++    root.append(&preview);
++    root.append(&title);
++    root.append(&rows);
++    root.append(&url);
++    root.append(&insert_button);
++
++    Details { root, placeholder, preview, title, rows, url, insert_button }
++}
++
++fn set_details_visible(details: &Details, visible: bool) {
++    details.placeholder.set_visible(!visible);
++    for widget in [details.preview.upcast_ref::<gtk4::Widget>(), details.title.upcast_ref(), details.rows.upcast_ref(), details.url.upcast_ref()] {
++        widget.set_visible(visible);
++    }
++    // The action buttons live in a box appended by `wire_details_buttons`.
++    if let Some(actions) = details.root.last_child() {
++        actions.set_visible(visible);
++    }
++}
++
++fn selected_entry(ctx: &BrowserCtx) -> Option<WpMediaEntry> {
++    ctx.selected.get().and_then(|i| ctx.entries.borrow().get(i).cloned())
++}
++
++fn show_details(ctx: &BrowserCtx) {
++    let details = &ctx.details;
++    let Some(entry) = selected_entry(ctx) else {
++        set_details_visible(details, false);
++        details.insert_button.set_visible(false);
++        return;
++    };
++    set_details_visible(details, true);
++
++    let file_name = file_name_of(&entry.source_url);
++    details.title.set_label(if entry.title.trim().is_empty() { &file_name } else { &entry.title });
++
++    let mut lines = vec![format!("<b>{}</b> {}", tr("Datei:"), glib::markup_escape_text(&file_name))];
++    if !entry.mime_type.is_empty() {
++        lines.push(format!("<b>{}</b> {}", tr("Typ:"), glib::markup_escape_text(&entry.mime_type)));
++    }
++    if entry.width > 0 && entry.height > 0 {
++        lines.push(format!("<b>{}</b> {} × {} px", tr("Abmessungen:"), entry.width, entry.height));
++    }
++    if entry.filesize > 0 {
++        lines.push(format!("<b>{}</b> {}", tr("Größe:"), format_size(entry.filesize)));
++    }
++    if !entry.date.is_empty() {
++        lines.push(format!("<b>{}</b> {}", tr("Hochgeladen:"), glib::markup_escape_text(&entry.date.replace('T', " "))));
++    }
++    if entry.media_type == "image" {
++        let alt = if entry.alt_text.trim().is_empty() { tr("(kein Alternativtext)") } else { entry.alt_text.clone() };
++        lines.push(format!("<b>{}</b> {}", tr("Alt-Text:"), glib::markup_escape_text(&alt)));
++    }
++    details.rows.set_markup(&lines.join("\n"));
++    details.url.set_label(&entry.source_url);
++    details.insert_button.set_visible(ctx.on_insert.is_some() && entry.media_type == "image");
++
++    // Re-use the tile's already-downloaded thumbnail if there is one - the
++    // full-size original can be many megabytes, not worth fetching just
++    // for a 280px-wide preview.
++    let texture = ctx.selected.get().and_then(|i| ctx.tiles.borrow().get(i).cloned()).and_then(|tile| tile.first_child()).and_then(|child| child.downcast::<gtk4::Picture>().ok()).and_then(|picture| picture.paintable());
++    match texture {
++        Some(paintable) => details.preview.set_paintable(Some(&paintable)),
++        None => {
++            let icon = gtk4::IconTheme::for_display(&details.preview.display()).lookup_icon(icon_for_mime(&entry.mime_type), &[], 96, 1, gtk4::TextDirection::None, gtk4::IconLookupFlags::empty());
++            details.preview.set_paintable(Some(&icon));
++        }
++    }
++}
++
++fn wire_details_buttons(ctx: &Rc<BrowserCtx>) {
++    let copy_button = gtk4::Button::from_icon_name("edit-copy-symbolic");
++    copy_button.set_tooltip_text(Some(&tr("URL kopieren")));
++    let open_button = gtk4::Button::from_icon_name("web-browser-symbolic");
++    open_button.set_tooltip_text(Some(&tr("Im Browser öffnen")));
++    let delete_button = gtk4::Button::from_icon_name("user-trash-symbolic");
++    delete_button.set_tooltip_text(Some(&tr("Endgültig löschen")));
++    delete_button.add_css_class("destructive-action");
++
++    let actions = gtk4::Box::builder().orientation(gtk4::Orientation::Horizontal).spacing(6).halign(gtk4::Align::Center).build();
++    actions.append(&copy_button);
++    actions.append(&open_button);
++    actions.append(&delete_button);
++    ctx.details.root.append(&actions);
++    set_details_visible(&ctx.details, false);
++    ctx.details.insert_button.set_visible(false);
++
++    {
++        let ctx_weak = Rc::downgrade(ctx);
++        copy_button.connect_clicked(move |button| {
++            let Some(ctx) = ctx_weak.upgrade() else { return };
++            if let Some(entry) = selected_entry(&ctx) {
++                button.clipboard().set_text(&entry.source_url);
++                ctx.status_label.set_label(&tr("URL in die Zwischenablage kopiert."));
++            }
++        });
++    }
++    {
++        let ctx_weak = Rc::downgrade(ctx);
++        open_button.connect_clicked(move |button| {
++            let Some(ctx) = ctx_weak.upgrade() else { return };
++            if let Some(entry) = selected_entry(&ctx) {
++                let window = button.root().and_downcast::<gtk4::Window>();
++                gtk4::UriLauncher::new(&entry.source_url).launch(window.as_ref(), None::<&gio::Cancellable>, |_| {});
++            }
++        });
++    }
++    {
++        let ctx_weak = Rc::downgrade(ctx);
++        ctx.details.insert_button.connect_clicked(move |_| {
++            let Some(ctx) = ctx_weak.upgrade() else { return };
++            let (Some(entry), Some(on_insert)) = (selected_entry(&ctx), ctx.on_insert.clone()) else { return };
++            on_insert(entry);
++            if let Some(dialog) = ctx.dialog.upgrade() {
++                dialog.close();
++            }
++        });
++    }
++    {
++        let ctx_weak = Rc::downgrade(ctx);
++        delete_button.connect_clicked(move |button| {
++            if let Some(ctx) = ctx_weak.upgrade() {
++                confirm_delete(button, &ctx);
++            }
++        });
++    }
++}
++
++fn confirm_delete(anchor: &gtk4::Button, ctx: &Rc<BrowserCtx>) {
++    let Some(entry) = selected_entry(ctx) else { return };
++    let name = file_name_of(&entry.source_url);
++    let confirm = adw::AlertDialog::new(
++        Some(&tr("Datei endgültig löschen?")),
++        Some(&tr("„{name}“ wird unwiderruflich aus der WordPress-Mediathek gelöscht. Artikel, die die Datei verwenden, zeigen sie danach nicht mehr an.").replace("{name}", &name)),
++    );
++    confirm.add_response("cancel", &tr("Abbrechen"));
++    confirm.add_response("delete", &tr("Löschen"));
++    confirm.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
++    confirm.set_default_response(Some("cancel"));
++    confirm.set_close_response("cancel");
++
++    let ctx_weak: Weak<BrowserCtx> = Rc::downgrade(ctx);
++    confirm.connect_response(None, move |_, response| {
++        if response != "delete" {
++            return;
++        }
++        let Some(ctx) = ctx_weak.upgrade() else { return };
++        ctx.status_label.set_label(&tr("Wird gelöscht …"));
++        let media_id = entry.id;
++        let ctx_weak = ctx_weak.clone();
++        let name = name.clone();
++        run_with_password(
++            &ctx.site,
++            move |site, password| wpclient::Client::new(&site.url, &site.username, password).delete_media(media_id).map_err(|err| err.to_string()),
++            move |outcome| {
++                let Some(ctx) = ctx_weak.upgrade() else { return };
++                match outcome {
++                    Ok(()) => {
++                        // Removed locally instead of reloading, so the user
++                        // keeps their scroll position in a long library.
++                        let Some(index) = ctx.entries.borrow().iter().position(|e| e.id == media_id) else { return };
++                        ctx.entries.borrow_mut().remove(index);
++                        ctx.tiles.borrow_mut().remove(index);
++                        if let Some(child) = ctx.flow_box.child_at_index(index as i32) {
++                            ctx.flow_box.remove(&child);
++                        }
++                        ctx.selected.set(None);
++                        show_details(&ctx);
++                        ctx.status_label.set_label(&tr("„{name}“ gelöscht.").replace("{name}", &name));
++                    }
++                    Err(err) => ctx.status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err)),
++                }
++            },
++        );
++    });
++    confirm.present(Some(anchor));
++}
++
++/// Starts over at page 1 for the current filter/search.
++fn reload(ctx: &Rc<BrowserCtx>) {
++    ctx.generation.set(ctx.generation.get() + 1);
++    ctx.page.set(1);
++    ctx.entries.borrow_mut().clear();
++    ctx.tiles.borrow_mut().clear();
++    ctx.flow_box.remove_all();
++    ctx.selected.set(None);
++    show_details(ctx);
++    fetch_page(ctx, true);
++}
++
++fn fetch_page(ctx: &Rc<BrowserCtx>, fresh: bool) {
++    let generation = ctx.generation.get();
++    let filter = ctx.filter.get();
++    let search = ctx.search.borrow().clone();
++    let page = ctx.page.get();
++    ctx.more_button.set_sensitive(false);
++    ctx.status_label.set_label(&tr("Lade Mediathek …"));
++
++    let ctx_weak = Rc::downgrade(ctx);
++    run_with_password(
++        &ctx.site,
++        move |site, password| {
++            wpclient::Client::new(&site.url, &site.username, password)
++                .list_media_library(filter, (!search.trim().is_empty()).then_some(search.as_str()), page)
++                .map_err(|err| err.to_string())
++        },
++        move |outcome| {
++            let Some(ctx) = ctx_weak.upgrade() else { return };
++            if ctx.generation.get() != generation {
++                return;
++            }
++            ctx.more_button.set_sensitive(true);
++            match outcome {
++                Ok((fetched, total_pages)) => {
++                    ctx.total_pages.set(total_pages);
++                    let first_new = ctx.entries.borrow().len();
++                    for entry in &fetched {
++                        let tile = build_tile(entry);
++                        ctx.flow_box.append(&tile);
++                        ctx.tiles.borrow_mut().push(tile.first_child().and_downcast::<gtk4::Box>().expect("tile holder"));
++                    }
++                    ctx.entries.borrow_mut().extend(fetched.iter().cloned());
++                    ctx.more_button.set_visible(ctx.page.get() < total_pages);
++                    let count = ctx.entries.borrow().len();
++                    ctx.status_label.set_label(&if count == 0 {
++                        tr("Keine Medien gefunden.")
++                    } else {
++                        tr("{n} Dateien angezeigt.").replace("{n}", &count.to_string())
++                    });
++                    load_thumbnails(&ctx, generation, first_new, &fetched);
++                }
++                Err(err) => {
++                    if fresh {
++                        ctx.more_button.set_visible(false);
++                    } else {
++                        ctx.page.set(ctx.page.get().saturating_sub(1).max(1));
++                    }
++                    ctx.status_label.set_label(&tr("Fehler beim Laden: {err}").replace("{err}", &err));
++                }
++            }
++        },
++    );
++}
++
++/// One grid tile: a fixed-size holder (icon now, thumbnail once it has
++/// downloaded) plus the file name underneath.
++fn build_tile(entry: &WpMediaEntry) -> gtk4::Box {
++    let holder = gtk4::Box::builder().width_request(TILE_SIZE).height_request(TILE_SIZE).halign(gtk4::Align::Center).build();
++    holder.add_css_class("card");
++    let icon = gtk4::Image::from_icon_name(icon_for_mime(&entry.mime_type));
++    icon.set_pixel_size(48);
++    icon.set_hexpand(true);
++    icon.set_halign(gtk4::Align::Center);
++    icon.add_css_class("dim-label");
++    holder.append(&icon);
++
++    let name = if entry.title.trim().is_empty() { file_name_of(&entry.source_url) } else { entry.title.clone() };
++    let label = gtk4::Label::builder().label(name.as_str()).ellipsize(gtk4::pango::EllipsizeMode::Middle).max_width_chars(14).build();
++    label.add_css_class("caption");
++
++    let tile = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(4).margin_top(4).margin_bottom(4).build();
++    tile.set_tooltip_text(Some(&name));
++    tile.append(&holder);
++    tile.append(&label);
++    tile
++}
++
++/// Downloads the new page's thumbnails on one background thread,
++/// sequentially (a few KB each - not worth a thread per image), dropping
++/// each into its tile as it arrives.
++fn load_thumbnails(ctx: &Rc<BrowserCtx>, generation: u64, first_index: usize, entries: &[WpMediaEntry]) {
++    let jobs: Vec<(usize, String)> = entries.iter().enumerate().filter_map(|(i, e)| e.thumbnail_url.clone().map(|url| (first_index + i, url))).collect();
++    if jobs.is_empty() {
++        return;
++    }
++    let (tx, rx) = mpsc::channel::<(usize, Vec<u8>)>();
++    std::thread::spawn(move || {
++        let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(15))).build().into();
++        for (index, url) in jobs {
++            let Ok(mut response) = agent.get(&url).call() else { continue };
++            let Ok(bytes) = response.body_mut().with_config().limit(5 * 1024 * 1024).read_to_vec() else { continue };
++            if tx.send((index, bytes)).is_err() {
++                return;
++            }
++        }
++    });
++
++    let ctx_weak = Rc::downgrade(ctx);
++    glib::timeout_add_local(Duration::from_millis(100), move || {
++        let Some(ctx) = ctx_weak.upgrade() else { return glib::ControlFlow::Break };
++        if ctx.generation.get() != generation {
++            return glib::ControlFlow::Break;
++        }
++        loop {
++            match rx.try_recv() {
++                Ok((index, bytes)) => {
++                    let Ok(texture) = gdk::Texture::from_bytes(&glib::Bytes::from_owned(bytes)) else { continue };
++                    let Some(holder) = ctx.tiles.borrow().get(index).cloned() else { continue };
++                    while let Some(child) = holder.first_child() {
++                        holder.remove(&child);
++                    }
++                    let picture = gtk4::Picture::builder().paintable(&texture).content_fit(gtk4::ContentFit::Cover).hexpand(true).overflow(gtk4::Overflow::Hidden).build();
++                    holder.append(&picture);
++                    if ctx.selected.get() == Some(index) {
++                        show_details(&ctx);
++                    }
++                }
++                Err(mpsc::TryRecvError::Empty) => return glib::ControlFlow::Continue,
++                Err(mpsc::TryRecvError::Disconnected) => return glib::ControlFlow::Break,
++            }
++        }
++    });
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn format_size_uses_binary_units_and_a_decimal_comma() {
++        assert_eq!(format_size(512), "512 B");
++        assert_eq!(format_size(1536), "1,5 KB");
++        assert_eq!(format_size(5 * 1024 * 1024), "5,0 MB");
++    }
++
++    #[test]
++    fn file_name_of_strips_path_and_query() {
++        assert_eq!(file_name_of("https://example.com/wp-content/uploads/2026/09/shot.png?ver=2"), "shot.png");
++        assert_eq!(file_name_of("plain.pdf"), "plain.pdf");
++    }
++
++    #[test]
++    fn icon_for_mime_buckets_common_types() {
++        assert_eq!(icon_for_mime("image/png"), "image-x-generic-symbolic");
++        assert_eq!(icon_for_mime("application/pdf"), "x-office-document-symbolic");
++        assert_eq!(icon_for_mime("audio/mpeg"), "audio-x-generic-symbolic");
++        assert_eq!(icon_for_mime("application/zip"), "text-x-generic-symbolic");
++    }
++}
+diff --git a/src/shortcuts.rs b/src/shortcuts.rs
+index 49cc1db..7b3bc74 100644
+--- a/src/shortcuts.rs
++++ b/src/shortcuts.rs
+@@ -25,6 +25,7 @@ pub fn build() -> gtk4::ShortcutsWindow {
+             (tr("Speichern"), "<Ctrl>S"),
+             (tr("Artikel exportieren"), "<Ctrl><Shift>P"),
+             (tr("Medienverwaltung"), "<Ctrl><Shift>M"),
++            (tr("WordPress-Mediathek"), "<Ctrl><Shift>L"),
+             (tr("Fokus-Schreibmodus"), "<Ctrl><Shift>F"),
+             (tr("Einstellungen"), "<Ctrl>comma"),
+         ],
+diff --git a/src/window.rs b/src/window.rs
+index 9bd23ff..d552623 100644
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -9,7 +9,7 @@ use gtk4::{gdk, gio, glib};
+ use crate::document::{Document, Frontmatter, PostType};
+ use crate::i18n::tr;
+ use crate::{
+-    about, aimenu, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, medialibrary, mediapanel,
++    about, aimenu, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, mediabrowser, medialibrary, mediapanel,
+     preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
+ };
+ 
+@@ -259,6 +259,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
+     let primary_menu = gio::Menu::new();
+     let new_section = gio::Menu::new();
+     new_section.append(Some(&tr("Neue Seite")), Some("win.new-page"));
++    new_section.append(Some(&tr("WordPress-Mediathek")), Some("win.media-library"));
+     primary_menu.append_section(None, &new_section);
+     primary_menu.append(Some(&tr("Einstellungen")), Some("win.settings"));
+     primary_menu.append(Some(&tr("Tastenkürzel")), Some("win.show-help-overlay"));
+@@ -438,6 +439,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
+     wire_insert_image_action(&window, &buffer, &current_path);
+     wire_insert_media_action(&window, &buffer, &current_path);
+     wire_insert_media_library_action(&window, &buffer, &frontmatter);
++    wire_media_library_browser_action(&window, &buffer, &frontmatter);
+     wire_insert_post_link_action(&window, &buffer);
+     wire_paste_shortcut(&view, &buffer, &current_path, &toast_overlay);
+     wire_drop_target(&view, &buffer, &current_path);
+@@ -1242,17 +1244,45 @@ fn wire_insert_media_library_action(window: &adw::ApplicationWindow, buffer: &so
+         let buffer = buffer.clone();
+         let frontmatter = frontmatter.clone();
+         medialibrary::open(window.upcast_ref::<gtk4::Window>(), move |item| {
+-            formatting::insert_image(&buffer, &item.source_url);
+-            let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
+-            let mut fm = frontmatter.borrow_mut();
+-            fm.media = media::reconcile(&fm.media, &text);
+-            if let Some(media_item) = fm.media.iter_mut().find(|m| m.source == item.source_url) {
+-                media_item.wordpress = Some(media::WordPressMediaRef { media_id: item.id, url: item.source_url.clone(), content_hash: String::new() });
+-                if !item.alt_text.trim().is_empty() {
+-                    media_item.alt = media::AltText::Text(item.alt_text.clone());
+-                }
+-            }
++            insert_wordpress_image(&buffer, &frontmatter, item.id, &item.source_url, &item.alt_text);
++        });
++    });
++    window.add_action(&action);
++}
++
++/// Inserts an image that already lives in the WordPress media library -
++/// shared by "Aus Mediathek wählen…" and the "WordPress-Mediathek"
++/// browser's "In Artikel einfügen" (see `wire_insert_media_library_action`
++/// for why the `MediaItem` gets patched right away).
++fn insert_wordpress_image(buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>, media_id: u64, source_url: &str, alt_text: &str) {
++    formatting::insert_image(buffer, source_url);
++    let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
++    let mut fm = frontmatter.borrow_mut();
++    fm.media = media::reconcile(&fm.media, &text);
++    if let Some(media_item) = fm.media.iter_mut().find(|m| m.source == source_url) {
++        media_item.wordpress = Some(media::WordPressMediaRef { media_id, url: source_url.to_string(), content_hash: String::new() });
++        if !alt_text.trim().is_empty() {
++            media_item.alt = media::AltText::Text(alt_text.to_string());
++        }
++    }
++}
++
++/// Opens the full "WordPress-Mediathek" browser (`mediabrowser.rs`).
++fn wire_media_library_browser_action(window: &adw::ApplicationWindow, buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>) {
++    let action = gio::SimpleAction::new("media-library", None);
++    let buffer = buffer.clone();
++    let frontmatter = frontmatter.clone();
++    let window_weak = window.downgrade();
++    action.connect_activate(move |_, _| {
++        let Some(window) = window_weak.upgrade() else {
++            return;
++        };
++        let buffer = buffer.clone();
++        let frontmatter = frontmatter.clone();
++        let on_insert: Rc<dyn Fn(crate::wpclient::WpMediaEntry)> = Rc::new(move |entry| {
++            insert_wordpress_image(&buffer, &frontmatter, entry.id, &entry.source_url, &entry.alt_text);
+         });
++        mediabrowser::open(&window, Some(on_insert));
+     });
+     window.add_action(&action);
+ }
+diff --git a/src/wpclient.rs b/src/wpclient.rs
+index 68e40ae..197f543 100644
+--- a/src/wpclient.rs
++++ b/src/wpclient.rs
+@@ -111,6 +111,83 @@ pub struct WpMediaItem {
+     pub alt_text: String,
+ }
+ 
++/// A media library item with everything the "WordPress-Mediathek" browser
++/// (`mediabrowser.rs`) shows in its details pane - unlike `WpMediaItem`,
++/// covers every media type (documents, audio, video too), not just images.
++#[derive(Debug, Clone, Default)]
++pub struct WpMediaEntry {
++    pub id: u64,
++    pub title: String,
++    pub source_url: String,
++    /// WordPress's own coarse bucket: `"image"`, `"file"` (documents,
++    /// audio and video alike - the finer split lives in `mime_type`).
++    pub media_type: String,
++    pub mime_type: String,
++    pub alt_text: String,
++    /// Site-local `"YYYY-MM-DDTHH:MM:SS"` upload date.
++    pub date: String,
++    /// Pixel dimensions - `0` for anything that isn't an image (or an image
++    /// WordPress couldn't read the size of).
++    pub width: u64,
++    pub height: u64,
++    /// File size in bytes, `0` when WordPress didn't record it.
++    pub filesize: u64,
++    /// A small, server-generated thumbnail for the grid, when WordPress
++    /// made one (images only) - `None` means "show a type icon instead".
++    pub thumbnail_url: Option<String>,
++}
++
++/// Filter for `Client::list_media_library` - `Documents` is WordPress's
++/// own `application` media type (PDFs, office files, archives).
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub enum MediaFilter {
++    All,
++    Images,
++    Documents,
++    Audio,
++    Video,
++}
++
++impl MediaFilter {
++    fn query_value(&self) -> Option<&'static str> {
++        match self {
++            MediaFilter::All => None,
++            MediaFilter::Images => Some("image"),
++            MediaFilter::Documents => Some("application"),
++            MediaFilter::Audio => Some("audio"),
++            MediaFilter::Video => Some("video"),
++        }
++    }
++}
++
++fn media_entry_from_json(item: &Value) -> Option<WpMediaEntry> {
++    let details = item.get("media_details");
++    let detail_u64 = |key: &str| details.and_then(|d| d.get(key)).and_then(Value::as_u64).unwrap_or(0);
++    // Prefer WordPress's own square "thumbnail" size, falling back to
++    // "medium" - a site can disable either in Settings → Media.
++    let thumbnail_url = ["thumbnail", "medium"].iter().find_map(|size| {
++        details
++            .and_then(|d| d.get("sizes"))
++            .and_then(|s| s.get(*size))
++            .and_then(|s| s.get("source_url"))
++            .and_then(Value::as_str)
++            .map(str::to_string)
++    });
++    Some(WpMediaEntry {
++        id: item.get("id")?.as_u64()?,
++        title: post_title(item),
++        source_url: item.get("source_url").and_then(Value::as_str).unwrap_or_default().to_string(),
++        media_type: item.get("media_type").and_then(Value::as_str).unwrap_or_default().to_string(),
++        mime_type: item.get("mime_type").and_then(Value::as_str).unwrap_or_default().to_string(),
++        alt_text: item.get("alt_text").and_then(Value::as_str).unwrap_or_default().to_string(),
++        date: item.get("date").and_then(Value::as_str).unwrap_or_default().to_string(),
++        width: detail_u64("width"),
++        height: detail_u64("height"),
++        filesize: detail_u64("filesize"),
++        thumbnail_url,
++    })
++}
++
+ #[derive(Debug, Clone)]
+ pub struct PostDetail {
+     pub id: u64,
+@@ -682,6 +759,27 @@ impl Client {
+             .unwrap_or_default())
+     }
+ 
++    /// One page (`page`, 1-based) of the full media library, most recent
++    /// first, optionally narrowed by type and/or `search` - returns the
++    /// items plus WordPress's `X-WP-TotalPages`, so the browser can offer
++    /// "Mehr laden" instead of fetching a possibly thousands-strong library
++    /// up front.
++    pub fn list_media_library(&self, filter: MediaFilter, search: Option<&str>, page: u32) -> Result<(Vec<WpMediaEntry>, u32)> {
++        let mut url = format!(
++            "{}?per_page=48&page={page}&orderby=date&order=desc&_fields=id,date,title,source_url,media_type,mime_type,alt_text,media_details",
++            self.endpoint("media")
++        );
++        if let Some(media_type) = filter.query_value() {
++            url.push_str(&format!("&media_type={media_type}"));
++        }
++        if let Some(search) = search.filter(|s| !s.trim().is_empty()) {
++            url.push_str(&format!("&search={}", percent_encode(search.trim())));
++        }
++        let (value, total_pages) = self.get_json_with_total_pages(&url)?;
++        let items = value.as_array().map(|items| items.iter().filter_map(media_entry_from_json).collect()).unwrap_or_default();
++        Ok((items, total_pages))
++    }
++
+     fn send_post_payload(&self, url: String, payload: &Value) -> Result<PostResult> {
+         let mut response = self
+             .agent
+@@ -777,6 +875,36 @@ mod tests {
+     use super::*;
+     use crate::{secrets, wpsite};
+ 
++    #[test]
++    fn media_entry_from_json_reads_details_and_thumbnail() {
++        let item = serde_json::json!({
++            "id": 7,
++            "date": "2026-09-01T10:00:00",
++            "title": { "rendered": "Screenshot" },
++            "source_url": "https://example.com/wp-content/uploads/shot.png",
++            "media_type": "image",
++            "mime_type": "image/png",
++            "alt_text": "Ein Fenster",
++            "media_details": {
++                "width": 1920, "height": 1080, "filesize": 12345,
++                "sizes": { "thumbnail": { "source_url": "https://example.com/shot-150x150.png" } }
++            }
++        });
++        let entry = media_entry_from_json(&item).expect("parsed");
++        assert_eq!(entry.id, 7);
++        assert_eq!(entry.title, "Screenshot");
++        assert_eq!((entry.width, entry.height, entry.filesize), (1920, 1080, 12345));
++        assert_eq!(entry.thumbnail_url.as_deref(), Some("https://example.com/shot-150x150.png"));
++    }
++
++    #[test]
++    fn media_entry_from_json_without_sizes_has_no_thumbnail() {
++        let item = serde_json::json!({ "id": 8, "media_type": "file", "mime_type": "application/pdf", "media_details": {} });
++        let entry = media_entry_from_json(&item).expect("parsed");
++        assert_eq!(entry.thumbnail_url, None);
++        assert_eq!(entry.width, 0);
++    }
++
+     /// Backs the categories/tags autocomplete in `properties.rs` - checks
+     /// it actually gets real term names back, not just a 200 with an empty
+     /// or malformed body.
+-- 
+2.43.0
+
+
+From bc051ba9643c05b47f697537286dd5fc39d43fdd Mon Sep 17 00:00:00 2001
+From: linuxundich <mail@christoph-langner.de>
+Date: Sun, 27 Sep 2026 08:54:03 +0000
+Subject: [PATCH 3/3] Add "KI-Artikel schreiben" and polish the new dialogs
+
+- New aiwriter.rs (Ctrl+Shift+G, primary menu): drafts a whole article
+  from a topic/brief with the active KI-Chat provider in three lengths,
+  optionally imitating the author's style from their 1-5 most recently
+  published posts. The result is reviewed/edited before it becomes a new
+  document (title from its # heading) or is inserted at the cursor.
+- Media browser: thumbnails as fixed-size Gtk.Image (a Gtk.Picture's
+  natural width collapsed the grid to two columns), type icons no longer
+  blown up in the details preview, singular "1 Datei angezeigt.".
+- Primary menu split into two sections; PostType label "Blogartikel".
+- English translations for all new strings; README, CHANGELOG and a
+  Quill comparison section in ROADMAP.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01JjsLyYv6u423JpRrm8ySeT
+---
+ CHANGELOG.md        |  22 +++
+ README.md           |  31 +++-
+ ROADMAP.md          |  40 ++++-
+ po/POTFILES.in      |   2 +
+ po/en.po            | 189 +++++++++++++++++++++++
+ src/aiwriter.rs     | 368 ++++++++++++++++++++++++++++++++++++++++++++
+ src/document.rs     |   2 +-
+ src/main.rs         |   2 +
+ src/mediabrowser.rs |  25 ++-
+ src/shortcuts.rs    |   1 +
+ src/window.rs       |  45 +++++-
+ 11 files changed, 708 insertions(+), 19 deletions(-)
+ create mode 100644 src/aiwriter.rs
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index ec30bd1..90b5876 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
+ 
+ ## [Unreleased]
+ 
++### Added
++
++- WordPress pages: a new "Typ" (Blogartikel/Seite) in Artikel-Eigenschaften,
++  written to the frontmatter as `post_type: page` (posts keep their
++  frontmatter unchanged). Export, preview, delete and the revision-conflict
++  check all use `/wp/v2/pages` for a page; categories/tags are skipped and
++  their tab hidden, since pages have neither. "Neue Seite" (Ctrl+Alt+N) in
++  the primary menu starts a blank page.
++- "Von WordPress öffnen" has an "Artikel"/"Seiten" toggle and a per-row
++  "In den Papierkorb" button, moving a post or page to WordPress's
++  recoverable trash after a confirmation.
++- "WordPress-Mediathek" (Ctrl+Shift+L): a full media library browser with
++  a thumbnail grid, type filter (Alle Medien/Bilder/Dokumente/Audio/
++  Video), search, paging ("Mehr laden"), a details pane (file name, type,
++  dimensions, size, upload date, alt text, URL) and "URL kopieren", "Im
++  Browser öffnen", "In Artikel einfügen" and "Endgültig löschen".
++- "KI-Artikel schreiben" (Ctrl+Shift+G): generates a complete article
++  draft from a topic/brief with the active KI-Chat provider, in three
++  lengths, optionally in your own writing style learned from your 1-5 most
++  recently published posts. Reviewed and editable before it's used as a
++  new document or inserted at the cursor.
++
+ ## [0.58.0] - 2026-09-25
+ 
+ ### Changed
+diff --git a/README.md b/README.md
+index b81896e..8229447 100644
+--- a/README.md
++++ b/README.md
+@@ -161,13 +161,37 @@ blocks. Implemented so far:
+   changes, a debounced background snapshot is kept in a local recovery
+   slot; if Blocksmith is closed without saving (or crashes), the next
+   launch offers to restore it, or discard it.
+-- **Von WordPress öffnen** (Ctrl+Shift+O) — pick an existing post from the
++- **Von WordPress öffnen** (Ctrl+Shift+O) — pick an existing post - or,
++  via the "Artikel"/"Seiten" toggle in its header, a static page - from the
+   configured site, grouped into "Entwürfe" and "Veröffentlicht" (drafts
+   first), and edit it as Markdown: `crates/gutenberg`'s reverse converter
+   turns its Gutenberg block HTML back into Markdown, categories/tags are
+   resolved from ids back to names, and the post's id carries over so
+   exporting afterward updates that same post instead of creating a
+-  duplicate.
++  duplicate. Every row also has an "In den Papierkorb" button that moves
++  the post/page to WordPress's own (recoverable) trash after a
++  confirmation.
++- **WordPress pages** — besides blog posts, Blocksmith edits static pages
++  ("Impressum", "Über mich"): a "Typ" row in Artikel-Eigenschaften
++  (locked once the document is linked to WordPress), "Neue Seite"
++  (Ctrl+Alt+N) in the primary menu, and export/preview/delete/conflict
++  checks all targeting `/wp/v2/pages`. The "Kategorien & Tags" tab is
++  hidden for pages, which have neither taxonomy.
++- **WordPress-Mediathek** (Ctrl+Shift+L, primary menu) — browse and manage
++  the whole media library without opening wp-admin: a thumbnail grid
++  (WordPress's own generated thumbnails, type icons for documents/audio/
++  video), a type filter (Alle Medien/Bilder/Dokumente/Audio/Video),
++  server-side search, 48 items per page behind "Mehr laden", and a details
++  pane with file name, MIME type, dimensions, size, upload date, alt text
++  and URL - plus "URL kopieren", "Im Browser öffnen", "In Artikel
++  einfügen" (images) and "Endgültig löschen".
++- **KI-Artikel schreiben** (Ctrl+Shift+G, primary menu) — drafts a whole
++  article from a topic/brief with the active KI-Chat provider, at a chosen
++  length, optionally imitating your own writing style: your 1-5 most
++  recently published posts are sent along as style samples (style only,
++  not content). The result lands in an editable preview first and is only
++  then used "Als neues Dokument" (title taken from its `#` heading) or
++  inserted "An Cursor".
+ - **Medienverwaltung** (Ctrl+Shift+M, also embedded as a "Medien" tab in
+   the "Artikel exportieren" dialog next to "Vorschau" so it can be checked
+   right before publishing, and reachable per-image via "Alternativtext
+@@ -311,7 +335,8 @@ blocks. Implemented so far:
+   than the original, is uploaded completely unchanged; only what's *sent*
+   is ever affected, never the local file. Once published, the same dialog
+   offers a confirmed "Von WordPress löschen" to remove the post again.
+-- **Primary menu** (the header bar's hamburger button) — "Einstellungen",
++- **Primary menu** (the header bar's hamburger button) — "Neue Seite",
++  "WordPress-Mediathek", "KI-Artikel schreiben…", "Einstellungen",
+   "Tastenkürzel" (a native `Gtk.ShortcutsWindow`, also reachable via
+   Ctrl+?), and "Über Blocksmith", the latter a native `Adw.AboutDialog`
+   with the version (always in sync with `Cargo.toml`), GPL-3.0-or-later
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 800d720..0fa8a98 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -125,12 +125,10 @@ speculation.
+   native syntax for these; full round-trip both ways, and local images
+   inside a columns/gallery block now participate in Medienverwaltung's
+   alt-text/upload tracking like any other image.
+-- **Edit WordPress Pages, not just Posts.** `wpclient.rs` is hardcoded to
+-  the `posts` endpoint throughout; there's no `pages` support and no
+-  concept of post type in `Frontmatter` at all. A post-type picker in
+-  Artikel-Eigenschaften (defaulting to "Artikel", same as today) that
+-  swaps the REST endpoint would open the app to static/about-style pages
+-  without disrupting the current posts-only flow.
++- ~~**Edit WordPress Pages, not just Posts.**~~ Done (see CHANGELOG.md) -
++  `document::PostType` in the frontmatter, a "Typ" row in
++  Artikel-Eigenschaften, and every post-level REST call parameterized by
++  its `rest_base` (`posts`/`pages`).
+ 
+ ### Larger / architectural
+ 
+@@ -306,3 +304,33 @@ context-sensitive menus) surfaced a couple of these directly.
+ **Why:** same reason as the earlier passes - a periodic fresh look
+ grounded in the actual code, this time prompted directly by the
+ accessibility gaps the alt-text/caption work this cycle kept surfacing.
++
++## Comparison with Quill (2026-09-27 analysis)
++
++[Quill](https://quill.siolon.com/) is a native macOS WordPress editor
++with a very similar goal (write and publish to a self-hosted site via the
++REST API and an Application Password, no plugin needed). Comparing its
++feature set against Blocksmith's surfaced these gaps:
++
++- ~~**Pages, not just posts.**~~ Done (see above).
++- ~~**Trash a post/page from inside the app.**~~ Done - "In den
++  Papierkorb" in "Von WordPress öffnen".
++- ~~**A real media library manager**~~ (not just an image picker). Done -
++  "WordPress-Mediathek".
++- ~~**AI: write a whole post from a prompt, in the author's own voice.**~~
++  Done - "KI-Artikel schreiben", with the most recent published posts as
++  style samples.
++
++Still open from that comparison, roughly by value:
++
++- **Footnotes** (`core/footnotes`, stored in the `footnotes` post meta
++  since WordPress 6.3) - Markdown's `[^1]` syntax maps onto it naturally,
++  but the block needs the meta field written alongside the content.
++- **Accordion / tabs blocks** - Quill supports both as extra container
++  blocks; they'd fit the existing fenced-block pattern (` ```details `
++  already covers a single disclosure).
++- **An update check on launch** (Quill shows a "new version available"
++  link) - only relevant for non-Flathub installs.
++- **Inline image resizing** (drag handles/width field) - would need a
++  width attribute on `wp:image`, which the Markdown syntax can't carry
++  today.
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index d160fce..51ea140 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -2,6 +2,7 @@ src/about.rs
+ src/aialt.rs
+ src/aimenu.rs
+ src/aiprompts.rs
++src/aiwriter.rs
+ src/appearance.rs
+ src/browser.rs
+ src/browsersettings.rs
+@@ -18,6 +19,7 @@ src/linkcheck.rs
+ src/linkpicker.rs
+ src/llm.rs
+ src/media.rs
++src/mediabrowser.rs
+ src/mediapanel.rs
+ src/preview.rs
+ src/promptsettings.rs
+diff --git a/po/en.po b/po/en.po
+index bd6a15c..34b6e75 100644
+--- a/po/en.po
++++ b/po/en.po
+@@ -1431,3 +1431,192 @@ msgstr "No post ID in the response"
+ #: src/wpclient.rs:506
+ msgid "Kein Term-ID für \"{name}\" erhalten"
+ msgstr "No term ID received for \"{name}\""
++
++msgid "(kein Alternativtext)"
++msgstr "(no alt text)"
++
++msgid "1 Datei angezeigt."
++msgstr "Showing 1 file."
++
++msgid "Abmessungen:"
++msgstr "Dimensions:"
++
++msgid "Alle Medien"
++msgstr "All media"
++
++msgid "Als neues Dokument"
++msgstr "As new document"
++
++msgid "Alt-Text:"
++msgstr "Alt text:"
++
++msgid "An Cursor einfügen"
++msgstr "Insert at cursor"
++
++msgid "Anzahl Beispielartikel"
++msgstr "Number of sample posts"
++
++msgid "Artikel generieren"
++msgstr "Generate post"
++
++msgid "Artikel"
++msgstr "Posts"
++
++msgid "Audio"
++msgstr "Audio"
++
++msgid "Bereits mit WordPress verknüpft - nicht mehr änderbar"
++msgstr "Already linked to WordPress - can no longer be changed"
++
++msgid "Bitte zuerst ein Thema oder Anweisungen eingeben."
++msgstr "Please enter a topic or instructions first."
++
++msgid "Datei endgültig löschen?"
++msgstr "Permanently delete file?"
++
++msgid "Datei:"
++msgstr "File:"
++
++msgid "Dokumente"
++msgstr "Documents"
++
++msgid "Eine Datei im Raster auswählen, um ihre Details zu sehen."
++msgstr "Select a file in the grid to see its details."
++
++msgid "Endgültig löschen"
++msgstr "Delete permanently"
++
++msgid "Fertig - vor dem Übernehmen prüfen und bei Bedarf direkt hier bearbeiten."
++msgstr "Done - review before using it, and edit it right here if needed."
++
++msgid "Für den eigenen Schreibstil muss eine WordPress-Verbindung eingerichtet sein."
++msgstr "Imitating your own writing style requires a WordPress connection."
++
++msgid "Größe:"
++msgstr "Size:"
++
++msgid "Hochgeladen:"
++msgstr "Uploaded:"
++
++msgid "Im Browser öffnen"
++msgstr "Open in browser"
++
++msgid "In Artikel einfügen"
++msgstr "Insert into post"
++
++msgid "In den Papierkorb verschieben?"
++msgstr "Move to trash?"
++
++msgid "In den Papierkorb"
++msgstr "Move to trash"
++
++msgid "Interner Fehler: Generierung hat kein Ergebnis geliefert."
++msgstr "Internal error: generation returned no result."
++
++msgid "KI-Artikel schreiben"
++msgstr "Write post with AI"
++
++msgid "KI-Artikel schreiben…"
++msgstr "Write Post with AI…"
++
++msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen und speichern."
++msgstr "AI draft created as a new document - please review and save it."
++
++msgid "Kategorien & Tags"
++msgstr "Categories & Tags"
++
++msgid "Keine Datei ausgewählt"
++msgstr "No file selected"
++
++msgid "Keine Medien gefunden."
++msgstr "No media found."
++
++msgid "Kurz (ca. 400 Wörter)"
++msgstr "Short (about 400 words)"
++
++msgid "Lade Mediathek …"
++msgstr "Loading media library …"
++
++msgid "Lade Seiten …"
++msgstr "Loading pages …"
++
++msgid "Lade Stilvorlagen und generiere …"
++msgstr "Loading style samples and generating …"
++
++msgid "Lang (ca. 1500 Wörter)"
++msgstr "Long (about 1500 words)"
++
++msgid "Länge"
++msgstr "Length"
++
++msgid "Mediathek durchsuchen…"
++msgstr "Search media library…"
++
++msgid "Mehr laden"
++msgstr "Load more"
++
++msgid "Meinen Schreibstil nachahmen"
++msgstr "Imitate my writing style"
++
++msgid "Mittel (ca. 800 Wörter)"
++msgstr "Medium (about 800 words)"
++
++msgid "Nach Medientyp filtern"
++msgstr "Filter by media type"
++
++msgid "Neue Seite"
++msgstr "New Page"
++
++msgid "Schickt die zuletzt veröffentlichten Artikel als Stilvorlage mit"
++msgstr "Sends your most recently published posts along as style samples"
++
++msgid "Seite"
++msgstr "Page"
++
++msgid "Seiten"
++msgstr "Pages"
++
++msgid "Thema und Anweisungen"
++msgstr "Topic and instructions"
++
++msgid "Typ"
++msgstr "Type"
++
++msgid "Typ:"
++msgstr "Type:"
++
++msgid "URL in die Zwischenablage kopiert."
++msgstr "URL copied to the clipboard."
++
++msgid "URL kopieren"
++msgstr "Copy URL"
++
++msgid "Unbenannte Seite"
++msgstr "Untitled page"
++
++msgid "Verschiebe „{title}“ in den Papierkorb …"
++msgstr "Moving “{title}” to the trash …"
++
++msgid "Video"
++msgstr "Video"
++
++msgid "WordPress-Mediathek"
++msgstr "WordPress Media Library"
++
++msgid "{n} Dateien angezeigt."
++msgstr "Showing {n} files."
++
++msgid "{n} Seiten gefunden. Zum Öffnen auswählen."
++msgstr "Found {n} pages. Select one to open it."
++
++msgid "„{name}“ gelöscht."
++msgstr "Deleted “{name}”."
++
++msgid "„{name}“ wird unwiderruflich aus der WordPress-Mediathek gelöscht. Artikel, die die Datei verwenden, zeigen sie danach nicht mehr an."
++msgstr "“{name}” will be permanently deleted from the WordPress media library. Posts that use the file will no longer show it."
++
++msgid "„{title}“ wird in den WordPress-Papierkorb verschoben und kann dort im WordPress-Backend wiederhergestellt werden."
++msgstr "“{title}” will be moved to the WordPress trash, where it can be restored from the WordPress admin."
++
++msgid "Blogartikel"
++msgstr "Blog post"
+diff --git a/src/aiwriter.rs b/src/aiwriter.rs
+new file mode 100644
+index 0000000..1b187ef
+--- /dev/null
++++ b/src/aiwriter.rs
+@@ -0,0 +1,368 @@
++//! "KI-Artikel schreiben": drafts a whole article from a topic/brief with
++//! whichever LLM provider is active in the KI-Chat settings - optionally in
++//! the author's own voice, learned from a few of their most recently
++//! published WordPress posts, which are sent along as style samples (only
++//! for style - the prompt tells the model not to reuse their content).
++//!
++//! Nothing is written into the editor until the user has seen the result:
++//! the generated Markdown lands in an editable text view first, and only
++//! "Als neues Dokument" / "An Cursor einfügen" hand it to the caller -
++//! the same "review before anything is written" rule `aialt.rs` and
++//! `tagsuggest.rs` already follow.
++
++use std::rc::Rc;
++use std::sync::mpsc;
++use std::time::Duration;
++
++use adw::prelude::*;
++use gtk4::glib;
++
++use crate::i18n::tr;
++use crate::{chatconfig, llm, secrets, wpclient, wpsite};
++
++/// How much of each style-sample post is sent - enough to carry tone,
++/// sentence rhythm and typical structure, without blowing past a small
++/// local (Ollama) model's context window with five long articles.
++const SAMPLE_CHAR_LIMIT: usize = 3000;
++pub const MAX_STYLE_SAMPLES: u32 = 5;
++
++const SYSTEM_PROMPT: &str = "Du bist ein erfahrener Blog-Autor und schreibst vollständige, \
++     veröffentlichungsreife Blogartikel auf Deutsch in Markdown. Beginne mit genau einer \
++     Überschrift erster Ebene (\"# Titel\") als Artikeltitel, danach folgt der Text mit \
++     sinnvollen Zwischenüberschriften (\"##\"), Absätzen und - wo passend - Listen oder \
++     Codeblöcken. Erfinde keine Fakten, Zahlen, Zitate oder Links; wo dir Informationen \
++     fehlen, formuliere allgemein oder markiere die Stelle mit [TODO: ...]. Antworte \
++     ausschließlich mit dem Artikel selbst - keine Einleitung wie \"Hier ist der Artikel\", \
++     keine Erklärung danach, kein umschließender Codeblock.";
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub enum Length {
++    Short,
++    Medium,
++    Long,
++}
++
++impl Length {
++    const ALL: [Length; 3] = [Length::Short, Length::Medium, Length::Long];
++
++    fn label(&self) -> String {
++        match self {
++            Length::Short => tr("Kurz (ca. 400 Wörter)"),
++            Length::Medium => tr("Mittel (ca. 800 Wörter)"),
++            Length::Long => tr("Lang (ca. 1500 Wörter)"),
++        }
++    }
++
++    fn words(&self) -> u32 {
++        match self {
++            Length::Short => 400,
++            Length::Medium => 800,
++            Length::Long => 1500,
++        }
++    }
++}
++
++/// What the dialog hands back: the title (from the model's leading `#`
++/// heading, empty if it didn't write one) and the body without it.
++#[derive(Debug, Clone, PartialEq, Eq)]
++pub struct GeneratedArticle {
++    pub title: String,
++    pub body: String,
++}
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub enum ApplyMode {
++    NewDocument,
++    InsertAtCursor,
++}
++
++/// Cuts `text` to at most `limit` characters, at a paragraph or at least a
++/// word boundary where one is reasonably close, marking the cut with "…".
++fn truncate_sample(text: &str, limit: usize) -> String {
++    let text = text.trim();
++    if text.chars().count() <= limit {
++        return text.to_string();
++    }
++    let cut: String = text.chars().take(limit).collect();
++    let boundary = cut.rfind("\n\n").filter(|&i| i > limit / 2).or_else(|| cut.rfind(' ')).unwrap_or(cut.len());
++    format!("{} …", cut[..boundary].trim_end())
++}
++
++pub(crate) fn build_prompt(brief: &str, length: Length, samples: &[String]) -> String {
++    let mut prompt = String::new();
++    if !samples.is_empty() {
++        prompt.push_str(
++            "Die folgenden Texte sind Beispiele aus meinem eigenen Blog. Übernimm ihren \
++             Schreibstil - Tonfall, Anrede, Satzlänge, Wortwahl, typischen Aufbau -, aber \
++             keine Inhalte daraus.\n\n",
++        );
++        for (index, sample) in samples.iter().enumerate() {
++            prompt.push_str(&format!("--- Beispiel {} ---\n{}\n\n", index + 1, sample));
++        }
++        prompt.push_str("--- Ende der Beispiele ---\n\n");
++    }
++    prompt.push_str(&format!("Schreibe einen Blogartikel mit etwa {} Wörtern.\n\nThema und Anweisungen:\n{}\n", length.words(), brief.trim()));
++    prompt
++}
++
++/// Splits the model's reply into title + body: drops a wrapping ```` ``` ````
++/// fence some models add despite being told not to, then takes a leading
++/// `# ` heading as the title.
++pub(crate) fn parse_generated(reply: &str) -> GeneratedArticle {
++    let mut text = reply.trim();
++    if text.starts_with("```") && text.ends_with("```") && text.len() > 6 {
++        text = text[3..text.len() - 3].trim();
++        // The fence's own language tag ("markdown", "md") on its first line.
++        if let Some((first, rest)) = text.split_once('\n') {
++            if !first.contains(' ') && !first.starts_with('#') {
++                text = rest.trim();
++            }
++        }
++    }
++    let (first_line, rest) = text.split_once('\n').unwrap_or((text, ""));
++    match first_line.trim().strip_prefix("# ") {
++        Some(title) => GeneratedArticle { title: title.trim().to_string(), body: format!("{}\n", rest.trim()) },
++        None => GeneratedArticle { title: String::new(), body: format!("{text}\n") },
++    }
++}
++
++/// Fetches the `count` most recently published posts' bodies as Markdown,
++/// for use as style samples. Runs on a background thread.
++fn fetch_style_samples(count: u32) -> Result<Vec<String>, String> {
++    let site = wpsite::load();
++    if site.url.is_empty() {
++        return Err(tr("Für den eigenen Schreibstil muss eine WordPress-Verbindung eingerichtet sein."));
++    }
++    let password = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
++        .map_err(|err| err.to_string())?
++        .ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden."))?;
++    let client = wpclient::Client::new(&site.url, &site.username, &password);
++    let posts = client.list_posts().map_err(|err| err.to_string())?;
++    let mut samples = Vec::new();
++    for post in posts.iter().filter(|p| p.status == "publish").take(count as usize) {
++        let detail = client.get_item("posts", post.id).map_err(|err| err.to_string())?;
++        let markdown = gutenberg::gutenberg_to_markdown(&detail.content);
++        if !markdown.trim().is_empty() {
++            samples.push(truncate_sample(&format!("# {}\n\n{}", detail.title, markdown), SAMPLE_CHAR_LIMIT));
++        }
++    }
++    Ok(samples)
++}
++
++fn llm_client() -> Result<llm::Client, String> {
++    let config = chatconfig::load_provider_config();
++    let provider = config.active;
++    let model = config.model_for(provider).to_string();
++    if provider.needs_api_key() {
++        let key = futures_lite::future::block_on(secrets::load_llm_api_key(provider.id()))
++            .map_err(|err| err.to_string())?
++            .ok_or_else(|| tr("Kein {provider}-API-Key in den Einstellungen hinterlegt.").replace("{provider}", provider.label()))?;
++        Ok(llm::Client::new(provider, &key, &model, &config.ollama_base_url))
++    } else {
++        Ok(llm::Client::new(provider, "", &model, &config.ollama_base_url))
++    }
++}
++
++/// Opens the dialog; `on_apply` is called once with the reviewed article
++/// and how the user chose to use it.
++pub fn open(window: &gtk4::Window, on_apply: impl Fn(GeneratedArticle, ApplyMode) + 'static) {
++    let brief_view = gtk4::TextView::builder().wrap_mode(gtk4::WrapMode::WordChar).top_margin(8).bottom_margin(8).left_margin(8).right_margin(8).accepts_tab(false).build();
++    let brief_scroller = gtk4::ScrolledWindow::builder().child(&brief_view).min_content_height(90).build();
++    brief_scroller.add_css_class("card");
++    let brief_label = gtk4::Label::builder().label(tr("Thema und Anweisungen")).xalign(0.0).build();
++    brief_label.add_css_class("heading");
++
++    let length_labels: Vec<String> = Length::ALL.iter().map(Length::label).collect();
++    let length_label_refs: Vec<&str> = length_labels.iter().map(String::as_str).collect();
++    let length_row = adw::ComboRow::builder().title(tr("Länge")).model(&gtk4::StringList::new(&length_label_refs)).selected(1).build();
++
++    let voice_row = adw::SwitchRow::builder()
++        .title(tr("Meinen Schreibstil nachahmen"))
++        .subtitle(tr("Schickt die zuletzt veröffentlichten Artikel als Stilvorlage mit"))
++        .active(!wpsite::load().url.is_empty())
++        .build();
++    let samples_row = adw::SpinRow::builder()
++        .title(tr("Anzahl Beispielartikel"))
++        .adjustment(&gtk4::Adjustment::new(3.0, 1.0, MAX_STYLE_SAMPLES as f64, 1.0, 1.0, 0.0))
++        .build();
++    voice_row.bind_property("active", &samples_row, "sensitive").sync_create().build();
++
++    let options_group = adw::PreferencesGroup::new();
++    options_group.add(&length_row);
++    options_group.add(&voice_row);
++    options_group.add(&samples_row);
++
++    let generate_button = gtk4::Button::with_label(&tr("Artikel generieren"));
++    generate_button.add_css_class("suggested-action");
++    generate_button.add_css_class("pill");
++    generate_button.set_halign(gtk4::Align::Center);
++
++    let status_label = gtk4::Label::builder().wrap(true).xalign(0.0).build();
++    status_label.add_css_class("dim-label");
++    status_label.set_visible(false);
++
++    let result_buffer = gtk4::TextBuffer::new(None);
++    let result_view = gtk4::TextView::builder().buffer(&result_buffer).wrap_mode(gtk4::WrapMode::WordChar).monospace(true).top_margin(8).bottom_margin(8).left_margin(8).right_margin(8).build();
++    let result_scroller = gtk4::ScrolledWindow::builder().child(&result_view).min_content_height(220).vexpand(true).build();
++    result_scroller.add_css_class("card");
++    result_scroller.set_visible(false);
++
++    let content = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(12).margin_top(18).margin_bottom(18).margin_start(18).margin_end(18).build();
++    content.append(&brief_label);
++    content.append(&brief_scroller);
++    content.append(&options_group);
++    content.append(&generate_button);
++    content.append(&status_label);
++    content.append(&result_scroller);
++    let content_scroller = gtk4::ScrolledWindow::builder().child(&content).hscrollbar_policy(gtk4::PolicyType::Never).vexpand(true).build();
++
++    let new_doc_button = gtk4::Button::with_label(&tr("Als neues Dokument"));
++    new_doc_button.add_css_class("suggested-action");
++    new_doc_button.set_sensitive(false);
++    let insert_button = gtk4::Button::with_label(&tr("An Cursor einfügen"));
++    insert_button.set_sensitive(false);
++
++    // Bottom bar, not the header: two text buttons there squeezed the
++    // dialog's own title off-center.
++    let action_bar = gtk4::Box::builder().orientation(gtk4::Orientation::Horizontal).spacing(6).halign(gtk4::Align::End).margin_top(6).margin_bottom(6).margin_start(12).margin_end(12).build();
++    action_bar.append(&insert_button);
++    action_bar.append(&new_doc_button);
++
++    let toolbar_view = adw::ToolbarView::new();
++    toolbar_view.add_top_bar(&adw::HeaderBar::new());
++    toolbar_view.add_bottom_bar(&action_bar);
++    toolbar_view.set_content(Some(&content_scroller));
++
++    let dialog = adw::Dialog::builder().title(tr("KI-Artikel schreiben")).content_width(640).content_height(700).child(&toolbar_view).build();
++
++    {
++        let generate_button_for_click = generate_button.clone();
++        let status_label = status_label.clone();
++        let result_buffer = result_buffer.clone();
++        let result_scroller = result_scroller.clone();
++        let new_doc_button = new_doc_button.clone();
++        let insert_button = insert_button.clone();
++        let brief_view = brief_view.clone();
++        generate_button.connect_clicked(move |_| {
++            let brief_buffer = brief_view.buffer();
++            let brief = brief_buffer.text(&brief_buffer.start_iter(), &brief_buffer.end_iter(), false).to_string();
++            if brief.trim().is_empty() {
++                status_label.set_label(&tr("Bitte zuerst ein Thema oder Anweisungen eingeben."));
++                status_label.set_visible(true);
++                return;
++            }
++            let length = Length::ALL.get(length_row.selected() as usize).copied().unwrap_or(Length::Medium);
++            let sample_count = if voice_row.is_active() { samples_row.value().round() as u32 } else { 0 };
++
++            generate_button_for_click.set_sensitive(false);
++            new_doc_button.set_sensitive(false);
++            insert_button.set_sensitive(false);
++            status_label.set_label(&if sample_count > 0 { tr("Lade Stilvorlagen und generiere …") } else { tr("Wird generiert …") });
++            status_label.set_visible(true);
++
++            let (tx, rx) = mpsc::channel::<Result<String, String>>();
++            std::thread::spawn(move || {
++                let outcome = (|| {
++                    let samples = if sample_count > 0 { fetch_style_samples(sample_count)? } else { Vec::new() };
++                    let prompt = build_prompt(&brief, length, &samples);
++                    llm_client()?.send(SYSTEM_PROMPT, &[llm::ChatMessage { role: llm::Role::User, text: prompt }]).map_err(|err| err.to_string())
++                })();
++                let _ = tx.send(outcome);
++            });
++
++            let generate_button = generate_button_for_click.clone();
++            let status_label = status_label.clone();
++            let result_buffer = result_buffer.clone();
++            let result_scroller = result_scroller.clone();
++            let new_doc_button = new_doc_button.clone();
++            let insert_button = insert_button.clone();
++            glib::timeout_add_local(Duration::from_millis(150), move || {
++                let outcome = match rx.try_recv() {
++                    Ok(outcome) => outcome,
++                    Err(mpsc::TryRecvError::Empty) => return glib::ControlFlow::Continue,
++                    Err(mpsc::TryRecvError::Disconnected) => Err(tr("Interner Fehler: Generierung hat kein Ergebnis geliefert.")),
++                };
++                generate_button.set_sensitive(true);
++                match outcome {
++                    Ok(text) => {
++                        result_buffer.set_text(text.trim());
++                        result_scroller.set_visible(true);
++                        new_doc_button.set_sensitive(true);
++                        insert_button.set_sensitive(true);
++                        status_label.set_label(&tr("Fertig - vor dem Übernehmen prüfen und bei Bedarf direkt hier bearbeiten."));
++                    }
++                    Err(err) => status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err)),
++                }
++                glib::ControlFlow::Break
++            });
++        });
++    }
++
++    let on_apply: Rc<dyn Fn(GeneratedArticle, ApplyMode)> = Rc::new(on_apply);
++    for (button, mode) in [(new_doc_button, ApplyMode::NewDocument), (insert_button, ApplyMode::InsertAtCursor)] {
++        let result_buffer = result_buffer.clone();
++        let dialog = dialog.clone();
++        let on_apply = on_apply.clone();
++        button.connect_clicked(move |_| {
++            let text = result_buffer.text(&result_buffer.start_iter(), &result_buffer.end_iter(), false).to_string();
++            on_apply(parse_generated(&text), mode);
++            dialog.close();
++        });
++    }
++
++    dialog.present(Some(window));
++    brief_view.grab_focus();
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn parse_generated_takes_the_leading_heading_as_title() {
++        let article = parse_generated("# Mein Titel\n\nErster Absatz.\n\n## Teil\n\nMehr.");
++        assert_eq!(article.title, "Mein Titel");
++        assert_eq!(article.body, "Erster Absatz.\n\n## Teil\n\nMehr.\n");
++    }
++
++    #[test]
++    fn parse_generated_strips_a_wrapping_markdown_fence() {
++        let article = parse_generated("```markdown\n# Titel\n\nText.\n```");
++        assert_eq!(article.title, "Titel");
++        assert_eq!(article.body, "Text.\n");
++    }
++
++    #[test]
++    fn parse_generated_without_heading_keeps_everything_as_body() {
++        let article = parse_generated("Nur Text.\n\nZweiter Absatz.");
++        assert_eq!(article.title, "");
++        assert_eq!(article.body, "Nur Text.\n\nZweiter Absatz.\n");
++    }
++
++    #[test]
++    fn build_prompt_includes_samples_only_when_given() {
++        let without = build_prompt("Über GNOME 50", Length::Short, &[]);
++        assert!(!without.contains("Beispiel 1"));
++        assert!(without.contains("etwa 400 Wörtern"));
++        assert!(without.contains("Über GNOME 50"));
++
++        let with = build_prompt("Über GNOME 50", Length::Long, &["# Alt\n\nText".to_string(), "# Alt 2".to_string()]);
++        assert!(with.contains("--- Beispiel 1 ---\n# Alt\n\nText"));
++        assert!(with.contains("--- Beispiel 2 ---"));
++        assert!(with.contains("etwa 1500 Wörtern"));
++    }
++
++    #[test]
++    fn truncate_sample_prefers_a_paragraph_boundary() {
++        let text = format!("{}\n\n{}", "a".repeat(80), "b".repeat(80));
++        let cut = truncate_sample(&text, 100);
++        assert_eq!(cut, format!("{} …", "a".repeat(80)));
++        assert_eq!(truncate_sample("kurz", 100), "kurz");
++    }
++
++    #[test]
++    fn truncate_sample_is_safe_on_multibyte_text() {
++        let cut = truncate_sample(&"ä".repeat(50), 10);
++        assert!(cut.starts_with("ää"));
++    }
++}
+diff --git a/src/document.rs b/src/document.rs
+index 5126f68..e1dcea8 100644
+--- a/src/document.rs
++++ b/src/document.rs
+@@ -119,7 +119,7 @@ impl PostType {
+     /// own literal" rule as `PostStatus::label`.
+     pub fn label(&self) -> String {
+         match self {
+-            PostType::Post => crate::i18n::tr("Artikel"),
++            PostType::Post => crate::i18n::tr("Blogartikel"),
+             PostType::Page => crate::i18n::tr("Seite"),
+         }
+     }
+diff --git a/src/main.rs b/src/main.rs
+index 490eca0..df38fb6 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -4,6 +4,7 @@ mod aialt;
+ mod aicaption;
+ mod aimenu;
+ mod aiprompts;
++mod aiwriter;
+ mod appearance;
+ mod autocomplete;
+ mod autosave;
+@@ -80,6 +81,7 @@ fn main() -> glib::ExitCode {
+     app.set_accels_for_action("win.publish", &["<Ctrl><Shift>p"]);
+     app.set_accels_for_action("win.media-manager", &["<Ctrl><Shift>m"]);
+     app.set_accels_for_action("win.media-library", &["<Ctrl><Shift>l"]);
++    app.set_accels_for_action("win.ai-write", &["<Ctrl><Shift>g"]);
+     app.set_accels_for_action("win.find", &["<Ctrl>f"]);
+     app.set_accels_for_action("win.toggle-focus-mode", &["<Ctrl><Shift>f"]);
+     app.set_accels_for_action("win.show-help-overlay", &["<Ctrl>question"]);
+diff --git a/src/mediabrowser.rs b/src/mediabrowser.rs
+index 5624d8e..bd14d61 100644
+--- a/src/mediabrowser.rs
++++ b/src/mediabrowser.rs
+@@ -165,7 +165,7 @@ pub fn open(parent: &adw::ApplicationWindow, on_insert: Option<Rc<dyn Fn(WpMedia
+ 
+     let flow_box = gtk4::FlowBox::builder()
+         .selection_mode(gtk4::SelectionMode::Single)
+-        .homogeneous(true)
++        .homogeneous(false)
+         .min_children_per_line(2)
+         .max_children_per_line(12)
+         .column_spacing(6)
+@@ -402,10 +402,16 @@ fn show_details(ctx: &BrowserCtx) {
+     // Re-use the tile's already-downloaded thumbnail if there is one - the
+     // full-size original can be many megabytes, not worth fetching just
+     // for a 280px-wide preview.
+-    let texture = ctx.selected.get().and_then(|i| ctx.tiles.borrow().get(i).cloned()).and_then(|tile| tile.first_child()).and_then(|child| child.downcast::<gtk4::Picture>().ok()).and_then(|picture| picture.paintable());
++    let texture = ctx.selected.get().and_then(|i| ctx.tiles.borrow().get(i).cloned()).and_then(|tile| tile.first_child()).and_then(|child| child.downcast::<gtk4::Image>().ok()).and_then(|image| image.paintable());
+     match texture {
+-        Some(paintable) => details.preview.set_paintable(Some(&paintable)),
++        Some(paintable) => {
++            details.preview.set_content_fit(gtk4::ContentFit::Contain);
++            details.preview.set_paintable(Some(&paintable));
++        }
+         None => {
++            // Shown at its own 96px size - `Contain` would blow a symbolic
++            // icon up to fill the whole preview card.
++            details.preview.set_content_fit(gtk4::ContentFit::ScaleDown);
+             let icon = gtk4::IconTheme::for_display(&details.preview.display()).lookup_icon(icon_for_mime(&entry.mime_type), &[], 96, 1, gtk4::TextDirection::None, gtk4::IconLookupFlags::empty());
+             details.preview.set_paintable(Some(&icon));
+         }
+@@ -568,6 +574,8 @@ fn fetch_page(ctx: &Rc<BrowserCtx>, fresh: bool) {
+                     let count = ctx.entries.borrow().len();
+                     ctx.status_label.set_label(&if count == 0 {
+                         tr("Keine Medien gefunden.")
++                    } else if count == 1 {
++                        tr("1 Datei angezeigt.")
+                     } else {
+                         tr("{n} Dateien angezeigt.").replace("{n}", &count.to_string())
+                     });
+@@ -643,8 +651,15 @@ fn load_thumbnails(ctx: &Rc<BrowserCtx>, generation: u64, first_index: usize, en
+                     while let Some(child) = holder.first_child() {
+                         holder.remove(&child);
+                     }
+-                    let picture = gtk4::Picture::builder().paintable(&texture).content_fit(gtk4::ContentFit::Cover).hexpand(true).overflow(gtk4::Overflow::Hidden).build();
+-                    holder.append(&picture);
++                    // A fixed-size `Gtk.Image`, not a `Gtk.Picture`: a
++                    // picture reports the texture's full pixel width as its
++                    // natural width, and `Gtk.FlowBox` lays out columns by
++                    // natural width - one 300px thumbnail was enough to
++                    // collapse the whole grid to two columns.
++                    let image = gtk4::Image::from_paintable(Some(&texture));
++                    image.set_pixel_size(TILE_SIZE);
++                    image.set_hexpand(true);
++                    holder.append(&image);
+                     if ctx.selected.get() == Some(index) {
+                         show_details(&ctx);
+                     }
+diff --git a/src/shortcuts.rs b/src/shortcuts.rs
+index 7b3bc74..6f8dfdb 100644
+--- a/src/shortcuts.rs
++++ b/src/shortcuts.rs
+@@ -26,6 +26,7 @@ pub fn build() -> gtk4::ShortcutsWindow {
+             (tr("Artikel exportieren"), "<Ctrl><Shift>P"),
+             (tr("Medienverwaltung"), "<Ctrl><Shift>M"),
+             (tr("WordPress-Mediathek"), "<Ctrl><Shift>L"),
++            (tr("KI-Artikel schreiben"), "<Ctrl><Shift>G"),
+             (tr("Fokus-Schreibmodus"), "<Ctrl><Shift>F"),
+             (tr("Einstellungen"), "<Ctrl>comma"),
+         ],
+diff --git a/src/window.rs b/src/window.rs
+index d552623..72fcfaa 100644
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -9,7 +9,7 @@ use gtk4::{gdk, gio, glib};
+ use crate::document::{Document, Frontmatter, PostType};
+ use crate::i18n::tr;
+ use crate::{
+-    about, aimenu, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, mediabrowser, medialibrary, mediapanel,
++    about, aimenu, aiwriter, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, mediabrowser, medialibrary, mediapanel,
+     preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
+ };
+ 
+@@ -260,10 +260,13 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
+     let new_section = gio::Menu::new();
+     new_section.append(Some(&tr("Neue Seite")), Some("win.new-page"));
+     new_section.append(Some(&tr("WordPress-Mediathek")), Some("win.media-library"));
++    new_section.append(Some(&tr("KI-Artikel schreiben…")), Some("win.ai-write"));
+     primary_menu.append_section(None, &new_section);
+-    primary_menu.append(Some(&tr("Einstellungen")), Some("win.settings"));
+-    primary_menu.append(Some(&tr("Tastenkürzel")), Some("win.show-help-overlay"));
+-    primary_menu.append(Some(&tr("Über Blocksmith")), Some("win.about"));
++    let app_section = gio::Menu::new();
++    app_section.append(Some(&tr("Einstellungen")), Some("win.settings"));
++    app_section.append(Some(&tr("Tastenkürzel")), Some("win.show-help-overlay"));
++    app_section.append(Some(&tr("Über Blocksmith")), Some("win.about"));
++    primary_menu.append_section(None, &app_section);
+ 
+     let settings_button = gtk4::MenuButton::new();
+     settings_button.set_icon_name("open-menu-symbolic");
+@@ -422,6 +425,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
+     wire_status_bar(&buffer, &status_bar);
+     wire_new_action(&window, &buffer, &current_path, &frontmatter, &title, &preview_pane, &saved_text);
+     wire_open_action(&window, &doc_ctx);
++    wire_ai_writer_action(&window, &doc_ctx);
+     wire_open_path_action(&window, &doc_ctx);
+     wire_open_from_wordpress_action(&window, &buffer, &current_path, &frontmatter, &title, &preview_pane, &saved_text);
+     wire_save_action(&window, &doc_ctx);
+@@ -1267,6 +1271,39 @@ fn insert_wordpress_image(buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell
+     }
+ }
+ 
++/// Opens "KI-Artikel schreiben" (`aiwriter.rs`) - the result either
++/// replaces the editor with a fresh, unsaved document (title taken from the
++/// generated heading) or is inserted at the cursor.
++fn wire_ai_writer_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
++    let action = gio::SimpleAction::new("ai-write", None);
++    let ctx = ctx.clone();
++    let window_weak = window.downgrade();
++    action.connect_activate(move |_, _| {
++        let Some(window) = window_weak.upgrade() else {
++            return;
++        };
++        let ctx = ctx.clone();
++        aiwriter::open(window.upcast_ref::<gtk4::Window>(), move |article, mode| match mode {
++            aiwriter::ApplyMode::InsertAtCursor => {
++                ctx.buffer.insert_at_cursor(&article.body);
++            }
++            aiwriter::ApplyMode::NewDocument => {
++                ctx.buffer.set_text(&article.body);
++                *ctx.current_path.borrow_mut() = None;
++                *ctx.frontmatter.borrow_mut() = Frontmatter { title: article.title.clone(), ..Frontmatter::default() };
++                ctx.title.set_subtitle(&subtitle_for(None, &ctx.frontmatter.borrow()));
++                ctx.preview_pane.set_doc_dir(None);
++                ctx.preview_pane.set_article_header(&ctx.frontmatter.borrow());
++                // Empty baseline: the generated text exists nowhere else,
++                // so it must count as unsaved (and be autosaved).
++                *ctx.saved_text.borrow_mut() = String::new();
++                ctx.toast_overlay.add_toast(adw::Toast::new(&tr("KI-Entwurf als neues Dokument angelegt - bitte prüfen und speichern.")));
++            }
++        });
++    });
++    window.add_action(&action);
++}
++
+ /// Opens the full "WordPress-Mediathek" browser (`mediabrowser.rs`).
+ fn wire_media_library_browser_action(window: &adw::ApplicationWindow, buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>) {
+     let action = gio::SimpleAction::new("media-library", None);
+-- 
+2.43.0
+

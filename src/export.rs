@@ -974,12 +974,17 @@ pub(crate) fn gutenberg_preview_html(markdown: &str, media: &[media::MediaItem])
 fn apply_media_metadata(blocks: &mut [gutenberg::Block], media: &[media::MediaItem]) {
     for block in blocks.iter_mut() {
         match block {
-            gutenberg::Block::Image { url, alt, title } => {
+            gutenberg::Block::Image { url, alt, title, media_id, width, height } => {
                 if let Some(item) = media.iter().find(|item| &item.source == url) {
                     if let Some(text) = item.alt.as_wordpress_value() {
                         *alt = text.to_string();
                     }
                     *title = item.caption.clone();
+                    if let Some(wp) = &item.wordpress {
+                        *media_id = Some(wp.media_id);
+                        *width = wp.width;
+                        *height = wp.height;
+                    }
                 }
             }
             gutenberg::Block::BlockQuote { blocks } => apply_media_metadata(blocks, media),
@@ -1157,7 +1162,7 @@ mod tests {
                 .collect();
         let mut blocks = vec![
             gutenberg::Block::Columns {
-                columns: vec![vec![gutenberg::Block::Image { url: "local-a.png".to_string(), alt: String::new(), title: None }]],
+                columns: vec![vec![gutenberg::Block::Image { url: "local-a.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0 }]],
             },
             gutenberg::Block::Gallery {
                 images: vec![gutenberg::GalleryImage { url: "local-b.png".to_string(), alt: String::new(), caption: None }],
@@ -1177,7 +1182,7 @@ mod tests {
         let urls: std::collections::HashMap<String, String> = [("local-c.png".to_string(), "https://example.com/c.png".to_string())].into_iter().collect();
         let mut blocks = vec![gutenberg::Block::Details {
             summary: "Mehr anzeigen".to_string(),
-            blocks: vec![gutenberg::Block::Image { url: "local-c.png".to_string(), alt: String::new(), title: None }],
+            blocks: vec![gutenberg::Block::Image { url: "local-c.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0 }],
         }];
         rewrite_image_urls(&mut blocks, &urls);
         let gutenberg::Block::Details { blocks: inner, .. } = &blocks[0] else { panic!("expected Details") };
@@ -1216,11 +1221,7 @@ mod tests {
             caption: Some("Our cat, sleeping".to_string()),
             wordpress: None,
         }];
-        let mut blocks = vec![gutenberg::Block::Image {
-            url: "cat.png".to_string(),
-            alt: String::new(),
-            title: None,
-        }];
+        let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0 }];
         apply_media_metadata(&mut blocks, &media);
         let gutenberg::Block::Image { alt, title, .. } = &blocks[0] else { panic!("expected Image") };
         assert_eq!(alt, "a red cat");
@@ -1237,14 +1238,27 @@ mod tests {
             caption: None,
             wordpress: None,
         }];
-        let mut blocks = vec![gutenberg::Block::Image {
-            url: "cat.png".to_string(),
-            alt: "from the markdown source".to_string(),
-            title: None,
-        }];
+        let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: "from the markdown source".to_string(), title: None, media_id: None, width: 0, height: 0 }];
         apply_media_metadata(&mut blocks, &media);
         let gutenberg::Block::Image { alt, .. } = &blocks[0] else { panic!("expected Image") };
         assert_eq!(alt, "from the markdown source");
+    }
+
+    #[test]
+    fn apply_media_metadata_fills_in_the_uploaded_attachment_id_and_dimensions() {
+        let media = vec![media::MediaItem {
+            id: "media-001".to_string(),
+            filename: "cat.png".to_string(),
+            source: "cat.png".to_string(),
+            alt: media::AltText::Undefined,
+            caption: None,
+            wordpress: Some(media::WordPressMediaRef { media_id: 123, url: "https://example.com/cat.png".to_string(), content_hash: "abc".to_string(), width: 640, height: 480 }),
+        }];
+        let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0 }];
+        apply_media_metadata(&mut blocks, &media);
+        let gutenberg::Block::Image { media_id, width, height, .. } = &blocks[0] else { panic!("expected Image") };
+        assert_eq!(*media_id, Some(123));
+        assert_eq!((*width, *height), (640, 480));
     }
 
     /// Exercises the "Als Entwurf hochladen" vs "Veröffentlichen" choice

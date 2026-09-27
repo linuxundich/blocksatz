@@ -104,6 +104,14 @@ pub struct WordPressMediaRef {
     /// edited/replaced the local image" without depending on mtimes, which
     /// a plain copy/touch can bump without any real content change.
     pub content_hash: String,
+    /// The uploaded file's real pixel dimensions - `0` when unknown, same
+    /// sentinel as `wpclient::MediaResult`'s own width/height (which this
+    /// is filled in from at upload time). A document written before this
+    /// field existed reads back as `0`/`0` (see `from_json`), the same
+    /// "unknown, not zero-sized" meaning it has for a fresh upload
+    /// WordPress genuinely didn't report a size for.
+    pub width: u64,
+    pub height: u64,
 }
 
 /// The transient state of an in-progress upload - unlike `WordPressMediaRef`,
@@ -438,7 +446,7 @@ pub fn sync_uploads(
         }
 
         urls.insert(item.source.clone(), media.source_url.clone());
-        item.wordpress = Some(WordPressMediaRef { media_id: media.id, url: media.source_url, content_hash: current_hash });
+        item.wordpress = Some(WordPressMediaRef { media_id: media.id, url: media.source_url, content_hash: current_hash, width: media.width, height: media.height });
     }
 
     Ok(urls)
@@ -461,7 +469,7 @@ pub fn to_json(items: &[MediaItem]) -> Value {
                     object["caption"] = Value::String(caption.clone());
                 }
                 if let Some(wp) = &item.wordpress {
-                    object["wordpress"] = serde_json::json!({ "mediaId": wp.media_id, "url": wp.url, "contentHash": wp.content_hash });
+                    object["wordpress"] = serde_json::json!({ "mediaId": wp.media_id, "url": wp.url, "contentHash": wp.content_hash, "width": wp.width, "height": wp.height });
                 }
                 object
             })
@@ -494,6 +502,8 @@ pub fn from_json(value: &Value) -> Vec<MediaItem> {
                             // from then on. Not data-destructive, just one
                             // redundant upload for pre-existing images.
                             content_hash: wp.get("contentHash").and_then(Value::as_str).unwrap_or_default().to_string(),
+                            width: wp.get("width").and_then(Value::as_u64).unwrap_or(0),
+                            height: wp.get("height").and_then(Value::as_u64).unwrap_or(0),
                         })
                     });
                     Some(MediaItem {
@@ -736,6 +746,8 @@ mod tests {
                 media_id: 42,
                 url: "https://example.com/cat.png".to_string(),
                 content_hash: "deadbeef".to_string(),
+                width: 0,
+                height: 0,
             }),
         }];
         let updated = reconcile(&existing, "![something else entirely](cat.png)\n");
@@ -800,7 +812,7 @@ mod tests {
                 source: "c.png".into(),
                 alt: AltText::Text("A description".into()),
                 caption: Some("A caption".into()),
-                wordpress: Some(WordPressMediaRef { media_id: 7, url: "https://example.com/c.png".into(), content_hash: "abc123".into() }),
+                wordpress: Some(WordPressMediaRef { media_id: 7, url: "https://example.com/c.png".into(), content_hash: "abc123".into(), width: 0, height: 0 }),
             },
         ];
         let round_tripped = from_json_str(&to_json_string(&items));

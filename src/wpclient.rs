@@ -48,6 +48,12 @@ pub struct PostResult {
 pub struct MediaResult {
     pub id: u64,
     pub source_url: String,
+    /// The uploaded file's real pixel dimensions, straight from
+    /// WordPress's own upload response - `0` when WordPress didn't record
+    /// them (same sentinel as `WpMediaEntry`'s own width/height), never
+    /// actually expected in practice for a real image upload.
+    pub width: u64,
+    pub height: u64,
 }
 
 /// Only used to verify uploads in integration tests (`get_media`/
@@ -388,7 +394,9 @@ impl Client {
             .and_then(Value::as_u64)
             .ok_or_else(|| ApiError { status, message: tr("Keine Medien-ID in der Antwort") })?;
         let source_url = value.get("source_url").and_then(Value::as_str).unwrap_or_default().to_string();
-        Ok(MediaResult { id, source_url })
+        let width = value.get("media_details").and_then(|d| d.get("width")).and_then(Value::as_u64).unwrap_or(0);
+        let height = value.get("media_details").and_then(|d| d.get("height")).and_then(Value::as_u64).unwrap_or(0);
+        Ok(MediaResult { id, source_url, width, height })
     }
 
     /// Sets alt text and/or caption on an already-uploaded media item -

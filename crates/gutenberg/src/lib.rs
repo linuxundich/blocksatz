@@ -16,7 +16,32 @@ pub enum Block {
     List { ordered: bool, items: Vec<Vec<Block>> },
     BlockQuote { blocks: Vec<Block> },
     CodeBlock { lang: Option<String>, text: String },
-    Image { url: String, alt: String, title: Option<String> },
+    Image {
+        url: String,
+        alt: String,
+        title: Option<String>,
+        /// The uploaded WordPress attachment's id - `None` for a plain
+        /// parse straight from Markdown text (there's no syntax slot to
+        /// carry it there); only `export.rs`'s `apply_media_metadata`
+        /// fills it in, from `Frontmatter.media`, right before rendering.
+        /// Not just cosmetic: WordPress's own `wp_filter_content_tags()`
+        /// keys off the `wp-image-<id>` class this produces on the
+        /// `<img>` to inject `srcset`/`width`/`height` into the *served*
+        /// page even when this block's own saved HTML has none - without
+        /// it, mobile visitors download the full-size original instead of
+        /// a properly small variant.
+        media_id: Option<u64>,
+        /// The source file's real pixel dimensions - written directly
+        /// onto the `<img>` tag when known (`0` means unknown, same
+        /// sentinel `wpclient::WpMediaEntry`'s own width/height use), so
+        /// the browser reserves the right space before the image itself
+        /// has loaded (avoids a layout shift) even before WordPress's own
+        /// content filter (see `media_id`) has a chance to do the same
+        /// server-side. Same "only `apply_media_metadata` fills these in,
+        /// from `Frontmatter.media`" reasoning as `media_id`.
+        width: u64,
+        height: u64,
+    },
     /// `wp:video` - see `as_lone_media` for how a Markdown image reference
     /// ends up here instead of `Image`.
     Video { url: String },
@@ -262,6 +287,9 @@ fn as_lone_media(events: &[Event]) -> Option<Block> {
                 url: dest_url.to_string(),
                 alt,
                 title,
+                media_id: None,
+                width: 0,
+                height: 0,
             })
         }
     }
@@ -874,7 +902,7 @@ fn render_block(block: &Block) -> String {
                 escape_html(text.trim_end_matches('\n'))
             ),
         ),
-        Block::Image { url, alt, title } => {
+        Block::Image { url, alt, title, media_id, width, height } => {
             // A markdown image "title" is the caption - rendered as a real
             // `<figcaption>` inside the figure, matching WordPress's own
             // image block markup, so it actually shows up on the published
@@ -885,11 +913,20 @@ fn render_block(block: &Block) -> String {
                 .filter(|t| !t.is_empty())
                 .map(|t| format!("<figcaption class=\"wp-element-caption\">{}</figcaption>", escape_html(t)))
                 .unwrap_or_default();
+            // `wp-image-<id>` is what WordPress's own `the_content` filter
+            // keys off to inject `srcset`/`sizes` (and, if missing,
+            // `width`/`height`) into the *served* page - see `media_id`'s
+            // doc comment. `width`/`height` are also written directly here
+            // so the browser reserves the right space even before that
+            // filter runs.
+            let img_class = media_id.map(|id| format!(" class=\"wp-image-{id}\"")).unwrap_or_default();
+            let dimensions = if *width > 0 && *height > 0 { format!(" width=\"{width}\" height=\"{height}\"") } else { String::new() };
+            let attrs = media_id.map(|id| format!("{{\"id\":{id}}}"));
             wrap(
                 "image",
-                None,
+                attrs,
                 &format!(
-                    "<figure class=\"wp-block-image\"><img src=\"{}\" alt=\"{}\"/>{figcaption}</figure>",
+                    "<figure class=\"wp-block-image\"><img src=\"{}\" alt=\"{}\"{img_class}{dimensions}/>{figcaption}</figure>",
                     escape_html(url),
                     escape_html(alt)
                 ),
@@ -1013,6 +1050,36 @@ mod tests {
             out,
             "<!-- wp:image -->\n<figure class=\"wp-block-image\">\
              <img src=\"https://example.com/cat.png\" alt=\"a cat\"/></figure>\n<!-- /wp:image -->"
+        );
+    }
+
+    #[test]
+    fn image_with_a_media_id_gets_the_wp_image_class_and_attrs() {
+        let block = Block::Image { url: "https://example.com/cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: Some(42), width: 0, height: 0 };
+        assert_eq!(
+            render_block(&block),
+            "<!-- wp:image {\"id\":42} -->\n<figure class=\"wp-block-image\">\
+             <img src=\"https://example.com/cat.png\" alt=\"a cat\" class=\"wp-image-42\"/></figure>\n<!-- /wp:image -->"
+        );
+    }
+
+    #[test]
+    fn image_with_known_dimensions_gets_width_and_height_attrs() {
+        let block = Block::Image { url: "https://example.com/cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: Some(42), width: 640, height: 480 };
+        assert_eq!(
+            render_block(&block),
+            "<!-- wp:image {\"id\":42} -->\n<figure class=\"wp-block-image\">\
+             <img src=\"https://example.com/cat.png\" alt=\"a cat\" class=\"wp-image-42\" width=\"640\" height=\"480\"/></figure>\n<!-- /wp:image -->"
+        );
+    }
+
+    #[test]
+    fn image_without_a_media_id_omits_class_and_attrs_as_before() {
+        let block = Block::Image { url: "https://example.com/cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: None, width: 640, height: 480 };
+        assert_eq!(
+            render_block(&block),
+            "<!-- wp:image -->\n<figure class=\"wp-block-image\">\
+             <img src=\"https://example.com/cat.png\" alt=\"a cat\" width=\"640\" height=\"480\"/></figure>\n<!-- /wp:image -->"
         );
     }
 

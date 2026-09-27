@@ -1357,6 +1357,8 @@ mod tests {
                 media_id: 1,
                 url: "https://example.com/cat.png".to_string(),
                 content_hash: "abc".to_string(),
+                width: 0,
+                height: 0,
             }),
         }
     }

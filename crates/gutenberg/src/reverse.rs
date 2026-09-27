@@ -161,6 +161,14 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str) -> Block 
             url: extract_attr(inner, "src").unwrap_or_default(),
             alt: extract_attr(inner, "alt").unwrap_or_default(),
             title: extract_attr(inner, "title").filter(|t| !t.is_empty()),
+            // Plain Markdown has no slot to carry these through a
+            // round-trip (see the field's own doc comment in `lib.rs`) -
+            // re-acquired fresh from `Frontmatter.media` on the next
+            // export instead, the same as importing never recovers a
+            // body image's own WordPress upload state in general.
+            media_id: None,
+            width: 0,
+            height: 0,
         },
         "separator" => Block::ThematicBreak,
         "video" => Block::Video { url: extract_attr(inner, "src").unwrap_or_default() },
@@ -650,7 +658,7 @@ fn render_block_markdown(block: &Block) -> String {
             .collect::<Vec<_>>()
             .join("\n"),
         Block::CodeBlock { lang, text } => format!("```{}\n{text}\n```", lang.clone().unwrap_or_default()),
-        Block::Image { url, alt, title } => {
+        Block::Image { url, alt, title, .. } => {
             let destination = markdown_destination(url);
             match title {
                 Some(title) => format!("![{alt}]({destination} \"{title}\")"),
@@ -857,7 +865,7 @@ mod tests {
 
     #[test]
     fn image_with_space_in_url_is_wrapped_in_angle_brackets() {
-        let block = Block::Image { url: "my cat.png".to_string(), alt: "a cat".to_string(), title: None };
+        let block = Block::Image { url: "my cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: None, width: 0, height: 0 };
         assert_eq!(render_block_markdown(&block), "![a cat](<my cat.png>)");
     }
 

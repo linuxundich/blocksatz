@@ -828,6 +828,8 @@ mod tests {
                         media_id: 42,
                         url: "https://example.com/cat.png".to_string(),
                         content_hash: "deadbeef".to_string(),
+                        width: 0,
+                        height: 0,
                     }),
                 }],
             },

@@ -35,9 +35,9 @@ const SEARCH_DEBOUNCE_MS: u64 = 400;
 const TILE_SIZE: i32 = 72;
 
 /// The fenced ` ```gallery ``` ` block text, plus each inserted image's
-/// `(media_id, source_url)` - the caller uses the latter to mark them as
-/// already-uploaded (see `window.rs`'s `wire_insert_gallery_action`).
-pub type OnInsertGallery = Rc<dyn Fn(String, Vec<(u64, String)>)>;
+/// `(media_id, source_url, width, height)` - the caller uses these to mark
+/// them as already-uploaded (see `window.rs`'s `wire_insert_gallery_action`).
+pub type OnInsertGallery = Rc<dyn Fn(String, Vec<(u64, String, u64, u64)>)>;
 
 /// One image the user has added to the gallery - alt/caption start as the
 /// media library's own values but are edited independently here, the same
@@ -287,7 +287,7 @@ pub fn open(parent: &adw::ApplicationWindow, on_insert: OnInsertGallery) {
                 .iter()
                 .map(|sel| gutenberg::GalleryImage { url: sel.entry.source_url.clone(), alt: sel.alt.clone(), caption: (!sel.caption.trim().is_empty()).then(|| sel.caption.clone()) })
                 .collect();
-            let media_refs: Vec<(u64, String)> = selected.iter().map(|sel| (sel.entry.id, sel.entry.source_url.clone())).collect();
+            let media_refs: Vec<(u64, String, u64, u64)> = selected.iter().map(|sel| (sel.entry.id, sel.entry.source_url.clone(), sel.entry.width, sel.entry.height)).collect();
             let fenced = gutenberg::render_gallery_fence(&images, &settings);
             (ctx.on_insert)(fenced, media_refs);
             if let Some(dialog) = ctx.dialog.upgrade() {

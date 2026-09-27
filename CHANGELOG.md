@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.60.3] - 2026-09-27
+
+### Fixed
+
+- The preview pane rendered a huge black box (with a broken-content
+  glyph) wherever a `wp:file` block had an inline PDF preview - WebKitGTK
+  has no PDF plugin, so that `<object>` is now hidden outright; the
+  block's own "Herunterladen" download link still works. Also capped
+  `video`/`audio`/`iframe` to the pane's width and gave `img` a
+  matching `height: auto`, so nothing in that family can blow up the
+  same way.
+
 ## [0.60.2] - 2026-09-27
 
 ### Fixed

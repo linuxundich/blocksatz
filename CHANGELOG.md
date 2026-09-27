@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.60.0] - 2026-09-27
+
+### Added
+
+- A "Willkommen bei Blocksmith" first-run setup wizard: a three-step
+  carousel (Willkommen/WordPress-Verbindung/Fertig) shown once on the
+  very first launch, in the same GNOME Tour-style step-flow shape the
+  export wizard already uses. Unlike the settings dialog's WordPress
+  page, the connection step actually tests the credentials against the
+  site before confirming. "Überspringen" skips it entirely; either way
+  it's never shown again, and it's skipped automatically for anyone
+  upgrading who already has a site configured.
+
 ## [0.59.1] - 2026-09-27
 
 ### Fixed

@@ -125,12 +125,10 @@ speculation.
   native syntax for these; full round-trip both ways, and local images
   inside a columns/gallery block now participate in Medienverwaltung's
   alt-text/upload tracking like any other image.
-- **Edit WordPress Pages, not just Posts.** `wpclient.rs` is hardcoded to
-  the `posts` endpoint throughout; there's no `pages` support and no
-  concept of post type in `Frontmatter` at all. A post-type picker in
-  Artikel-Eigenschaften (defaulting to "Artikel", same as today) that
-  swaps the REST endpoint would open the app to static/about-style pages
-  without disrupting the current posts-only flow.
+- ~~**Edit WordPress Pages, not just Posts.**~~ Done (see CHANGELOG.md) -
+  `document::PostType` in the frontmatter, a "Typ" row in
+  Artikel-Eigenschaften, and every post-level REST call parameterized by
+  its `rest_base` (`posts`/`pages`).
 
 ### Larger / architectural
 
@@ -306,3 +304,33 @@ context-sensitive menus) surfaced a couple of these directly.
 **Why:** same reason as the earlier passes - a periodic fresh look
 grounded in the actual code, this time prompted directly by the
 accessibility gaps the alt-text/caption work this cycle kept surfacing.
+
+## Comparison with Quill (2026-09-27 analysis)
+
+[Quill](https://quill.siolon.com/) is a native macOS WordPress editor
+with a very similar goal (write and publish to a self-hosted site via the
+REST API and an Application Password, no plugin needed). Comparing its
+feature set against Blocksmith's surfaced these gaps:
+
+- ~~**Pages, not just posts.**~~ Done (see above).
+- ~~**Trash a post/page from inside the app.**~~ Done - "In den
+  Papierkorb" in "Von WordPress öffnen".
+- ~~**A real media library manager**~~ (not just an image picker). Done -
+  "WordPress-Mediathek".
+- ~~**AI: write a whole post from a prompt, in the author's own voice.**~~
+  Done - "KI-Artikel schreiben", with the most recent published posts as
+  style samples.
+
+Still open from that comparison, roughly by value:
+
+- **Footnotes** (`core/footnotes`, stored in the `footnotes` post meta
+  since WordPress 6.3) - Markdown's `[^1]` syntax maps onto it naturally,
+  but the block needs the meta field written alongside the content.
+- **Accordion / tabs blocks** - Quill supports both as extra container
+  blocks; they'd fit the existing fenced-block pattern (` ```details `
+  already covers a single disclosure).
+- **An update check on launch** (Quill shows a "new version available"
+  link) - only relevant for non-Flathub installs.
+- **Inline image resizing** (drag handles/width field) - would need a
+  width attribute on `wp:image`, which the Markdown syntax can't carry
+  today.

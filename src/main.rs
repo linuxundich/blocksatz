@@ -4,6 +4,7 @@ mod aialt;
 mod aicaption;
 mod aimenu;
 mod aiprompts;
+mod aiwriter;
 mod appearance;
 mod autocomplete;
 mod autosave;
@@ -80,6 +81,7 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("win.publish", &["<Ctrl><Shift>p"]);
     app.set_accels_for_action("win.media-manager", &["<Ctrl><Shift>m"]);
     app.set_accels_for_action("win.media-library", &["<Ctrl><Shift>l"]);
+    app.set_accels_for_action("win.ai-write", &["<Ctrl><Shift>g"]);
     app.set_accels_for_action("win.find", &["<Ctrl>f"]);
     app.set_accels_for_action("win.toggle-focus-mode", &["<Ctrl><Shift>f"]);
     app.set_accels_for_action("win.show-help-overlay", &["<Ctrl>question"]);

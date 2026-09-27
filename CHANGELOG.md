@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- WordPress pages: a new "Typ" (Blogartikel/Seite) in Artikel-Eigenschaften,
+  written to the frontmatter as `post_type: page` (posts keep their
+  frontmatter unchanged). Export, preview, delete and the revision-conflict
+  check all use `/wp/v2/pages` for a page; categories/tags are skipped and
+  their tab hidden, since pages have neither. "Neue Seite" (Ctrl+Alt+N) in
+  the primary menu starts a blank page.
+- "Von WordPress öffnen" has an "Artikel"/"Seiten" toggle and a per-row
+  "In den Papierkorb" button, moving a post or page to WordPress's
+  recoverable trash after a confirmation.
+- "WordPress-Mediathek" (Ctrl+Shift+L): a full media library browser with
+  a thumbnail grid, type filter (Alle Medien/Bilder/Dokumente/Audio/
+  Video), search, paging ("Mehr laden"), a details pane (file name, type,
+  dimensions, size, upload date, alt text, URL) and "URL kopieren", "Im
+  Browser öffnen", "In Artikel einfügen" and "Endgültig löschen".
+- "KI-Artikel schreiben" (Ctrl+Shift+G): generates a complete article
+  draft from a topic/brief with the active KI-Chat provider, in three
+  lengths, optionally in your own writing style learned from your 1-5 most
+  recently published posts. Reviewed and editable before it's used as a
+  new document or inserted at the cursor.
+
 ## [0.58.0] - 2026-09-25
 
 ### Changed

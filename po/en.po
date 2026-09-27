@@ -1431,3 +1431,192 @@ msgstr "No post ID in the response"
 #: src/wpclient.rs:506
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr "No term ID received for \"{name}\""
+
+msgid "(kein Alternativtext)"
+msgstr "(no alt text)"
+
+msgid "1 Datei angezeigt."
+msgstr "Showing 1 file."
+
+msgid "Abmessungen:"
+msgstr "Dimensions:"
+
+msgid "Alle Medien"
+msgstr "All media"
+
+msgid "Als neues Dokument"
+msgstr "As new document"
+
+msgid "Alt-Text:"
+msgstr "Alt text:"
+
+msgid "An Cursor einfügen"
+msgstr "Insert at cursor"
+
+msgid "Anzahl Beispielartikel"
+msgstr "Number of sample posts"
+
+msgid "Artikel generieren"
+msgstr "Generate post"
+
+msgid "Artikel"
+msgstr "Posts"
+
+msgid "Audio"
+msgstr "Audio"
+
+msgid "Bereits mit WordPress verknüpft - nicht mehr änderbar"
+msgstr "Already linked to WordPress - can no longer be changed"
+
+msgid "Bitte zuerst ein Thema oder Anweisungen eingeben."
+msgstr "Please enter a topic or instructions first."
+
+msgid "Datei endgültig löschen?"
+msgstr "Permanently delete file?"
+
+msgid "Datei:"
+msgstr "File:"
+
+msgid "Dokumente"
+msgstr "Documents"
+
+msgid "Eine Datei im Raster auswählen, um ihre Details zu sehen."
+msgstr "Select a file in the grid to see its details."
+
+msgid "Endgültig löschen"
+msgstr "Delete permanently"
+
+msgid "Fertig - vor dem Übernehmen prüfen und bei Bedarf direkt hier bearbeiten."
+msgstr "Done - review before using it, and edit it right here if needed."
+
+msgid "Für den eigenen Schreibstil muss eine WordPress-Verbindung eingerichtet sein."
+msgstr "Imitating your own writing style requires a WordPress connection."
+
+msgid "Größe:"
+msgstr "Size:"
+
+msgid "Hochgeladen:"
+msgstr "Uploaded:"
+
+msgid "Im Browser öffnen"
+msgstr "Open in browser"
+
+msgid "In Artikel einfügen"
+msgstr "Insert into post"
+
+msgid "In den Papierkorb verschieben?"
+msgstr "Move to trash?"
+
+msgid "In den Papierkorb"
+msgstr "Move to trash"
+
+msgid "Interner Fehler: Generierung hat kein Ergebnis geliefert."
+msgstr "Internal error: generation returned no result."
+
+msgid "KI-Artikel schreiben"
+msgstr "Write post with AI"
+
+msgid "KI-Artikel schreiben…"
+msgstr "Write Post with AI…"
+
+msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen und speichern."
+msgstr "AI draft created as a new document - please review and save it."
+
+msgid "Kategorien & Tags"
+msgstr "Categories & Tags"
+
+msgid "Keine Datei ausgewählt"
+msgstr "No file selected"
+
+msgid "Keine Medien gefunden."
+msgstr "No media found."
+
+msgid "Kurz (ca. 400 Wörter)"
+msgstr "Short (about 400 words)"
+
+msgid "Lade Mediathek …"
+msgstr "Loading media library …"
+
+msgid "Lade Seiten …"
+msgstr "Loading pages …"
+
+msgid "Lade Stilvorlagen und generiere …"
+msgstr "Loading style samples and generating …"
+
+msgid "Lang (ca. 1500 Wörter)"
+msgstr "Long (about 1500 words)"
+
+msgid "Länge"
+msgstr "Length"
+
+msgid "Mediathek durchsuchen…"
+msgstr "Search media library…"
+
+msgid "Mehr laden"
+msgstr "Load more"
+
+msgid "Meinen Schreibstil nachahmen"
+msgstr "Imitate my writing style"
+
+msgid "Mittel (ca. 800 Wörter)"
+msgstr "Medium (about 800 words)"
+
+msgid "Nach Medientyp filtern"
+msgstr "Filter by media type"
+
+msgid "Neue Seite"
+msgstr "New Page"
+
+msgid "Schickt die zuletzt veröffentlichten Artikel als Stilvorlage mit"
+msgstr "Sends your most recently published posts along as style samples"
+
+msgid "Seite"
+msgstr "Page"
+
+msgid "Seiten"
+msgstr "Pages"
+
+msgid "Thema und Anweisungen"
+msgstr "Topic and instructions"
+
+msgid "Typ"
+msgstr "Type"
+
+msgid "Typ:"
+msgstr "Type:"
+
+msgid "URL in die Zwischenablage kopiert."
+msgstr "URL copied to the clipboard."
+
+msgid "URL kopieren"
+msgstr "Copy URL"
+
+msgid "Unbenannte Seite"
+msgstr "Untitled page"
+
+msgid "Verschiebe „{title}“ in den Papierkorb …"
+msgstr "Moving “{title}” to the trash …"
+
+msgid "Video"
+msgstr "Video"
+
+msgid "WordPress-Mediathek"
+msgstr "WordPress Media Library"
+
+msgid "{n} Dateien angezeigt."
+msgstr "Showing {n} files."
+
+msgid "{n} Seiten gefunden. Zum Öffnen auswählen."
+msgstr "Found {n} pages. Select one to open it."
+
+msgid "„{name}“ gelöscht."
+msgstr "Deleted “{name}”."
+
+msgid "„{name}“ wird unwiderruflich aus der WordPress-Mediathek gelöscht. Artikel, die die Datei verwenden, zeigen sie danach nicht mehr an."
+msgstr "“{name}” will be permanently deleted from the WordPress media library. Posts that use the file will no longer show it."
+
+msgid "„{title}“ wird in den WordPress-Papierkorb verschoben und kann dort im WordPress-Backend wiederhergestellt werden."
+msgstr "“{title}” will be moved to the WordPress trash, where it can be restored from the WordPress admin."
+
+msgid "Blogartikel"
+msgstr "Blog post"

@@ -161,13 +161,37 @@ blocks. Implemented so far:
   changes, a debounced background snapshot is kept in a local recovery
   slot; if Blocksmith is closed without saving (or crashes), the next
   launch offers to restore it, or discard it.
-- **Von WordPress öffnen** (Ctrl+Shift+O) — pick an existing post from the
+- **Von WordPress öffnen** (Ctrl+Shift+O) — pick an existing post - or,
+  via the "Artikel"/"Seiten" toggle in its header, a static page - from the
   configured site, grouped into "Entwürfe" and "Veröffentlicht" (drafts
   first), and edit it as Markdown: `crates/gutenberg`'s reverse converter
   turns its Gutenberg block HTML back into Markdown, categories/tags are
   resolved from ids back to names, and the post's id carries over so
   exporting afterward updates that same post instead of creating a
-  duplicate.
+  duplicate. Every row also has an "In den Papierkorb" button that moves
+  the post/page to WordPress's own (recoverable) trash after a
+  confirmation.
+- **WordPress pages** — besides blog posts, Blocksmith edits static pages
+  ("Impressum", "Über mich"): a "Typ" row in Artikel-Eigenschaften
+  (locked once the document is linked to WordPress), "Neue Seite"
+  (Ctrl+Alt+N) in the primary menu, and export/preview/delete/conflict
+  checks all targeting `/wp/v2/pages`. The "Kategorien & Tags" tab is
+  hidden for pages, which have neither taxonomy.
+- **WordPress-Mediathek** (Ctrl+Shift+L, primary menu) — browse and manage
+  the whole media library without opening wp-admin: a thumbnail grid
+  (WordPress's own generated thumbnails, type icons for documents/audio/
+  video), a type filter (Alle Medien/Bilder/Dokumente/Audio/Video),
+  server-side search, 48 items per page behind "Mehr laden", and a details
+  pane with file name, MIME type, dimensions, size, upload date, alt text
+  and URL - plus "URL kopieren", "Im Browser öffnen", "In Artikel
+  einfügen" (images) and "Endgültig löschen".
+- **KI-Artikel schreiben** (Ctrl+Shift+G, primary menu) — drafts a whole
+  article from a topic/brief with the active KI-Chat provider, at a chosen
+  length, optionally imitating your own writing style: your 1-5 most
+  recently published posts are sent along as style samples (style only,
+  not content). The result lands in an editable preview first and is only
+  then used "Als neues Dokument" (title taken from its `#` heading) or
+  inserted "An Cursor".
 - **Medienverwaltung** (Ctrl+Shift+M, also embedded as a "Medien" tab in
   the "Artikel exportieren" dialog next to "Vorschau" so it can be checked
   right before publishing, and reachable per-image via "Alternativtext
@@ -311,7 +335,8 @@ blocks. Implemented so far:
   than the original, is uploaded completely unchanged; only what's *sent*
   is ever affected, never the local file. Once published, the same dialog
   offers a confirmed "Von WordPress löschen" to remove the post again.
-- **Primary menu** (the header bar's hamburger button) — "Einstellungen",
+- **Primary menu** (the header bar's hamburger button) — "Neue Seite",
+  "WordPress-Mediathek", "KI-Artikel schreiben…", "Einstellungen",
   "Tastenkürzel" (a native `Gtk.ShortcutsWindow`, also reachable via
   Ctrl+?), and "Über Blocksmith", the latter a native `Adw.AboutDialog`
   with the version (always in sync with `Cargo.toml`), GPL-3.0-or-later

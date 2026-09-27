@@ -119,7 +119,7 @@ impl PostType {
     /// own literal" rule as `PostStatus::label`.
     pub fn label(&self) -> String {
         match self {
-            PostType::Post => crate::i18n::tr("Artikel"),
+            PostType::Post => crate::i18n::tr("Blogartikel"),
             PostType::Page => crate::i18n::tr("Seite"),
         }
     }

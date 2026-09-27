@@ -9,7 +9,7 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    about, aimenu, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, mediabrowser, medialibrary, mediapanel,
+    about, aimenu, aiwriter, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, mediabrowser, medialibrary, mediapanel,
     preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
 };
 
@@ -260,10 +260,13 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let new_section = gio::Menu::new();
     new_section.append(Some(&tr("Neue Seite")), Some("win.new-page"));
     new_section.append(Some(&tr("WordPress-Mediathek")), Some("win.media-library"));
+    new_section.append(Some(&tr("KI-Artikel schreiben…")), Some("win.ai-write"));
     primary_menu.append_section(None, &new_section);
-    primary_menu.append(Some(&tr("Einstellungen")), Some("win.settings"));
-    primary_menu.append(Some(&tr("Tastenkürzel")), Some("win.show-help-overlay"));
-    primary_menu.append(Some(&tr("Über Blocksmith")), Some("win.about"));
+    let app_section = gio::Menu::new();
+    app_section.append(Some(&tr("Einstellungen")), Some("win.settings"));
+    app_section.append(Some(&tr("Tastenkürzel")), Some("win.show-help-overlay"));
+    app_section.append(Some(&tr("Über Blocksmith")), Some("win.about"));
+    primary_menu.append_section(None, &app_section);
 
     let settings_button = gtk4::MenuButton::new();
     settings_button.set_icon_name("open-menu-symbolic");
@@ -422,6 +425,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_status_bar(&buffer, &status_bar);
     wire_new_action(&window, &buffer, &current_path, &frontmatter, &title, &preview_pane, &saved_text);
     wire_open_action(&window, &doc_ctx);
+    wire_ai_writer_action(&window, &doc_ctx);
     wire_open_path_action(&window, &doc_ctx);
     wire_open_from_wordpress_action(&window, &buffer, &current_path, &frontmatter, &title, &preview_pane, &saved_text);
     wire_save_action(&window, &doc_ctx);
@@ -1265,6 +1269,39 @@ fn insert_wordpress_image(buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell
             media_item.alt = media::AltText::Text(alt_text.to_string());
         }
     }
+}
+
+/// Opens "KI-Artikel schreiben" (`aiwriter.rs`) - the result either
+/// replaces the editor with a fresh, unsaved document (title taken from the
+/// generated heading) or is inserted at the cursor.
+fn wire_ai_writer_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
+    let action = gio::SimpleAction::new("ai-write", None);
+    let ctx = ctx.clone();
+    let window_weak = window.downgrade();
+    action.connect_activate(move |_, _| {
+        let Some(window) = window_weak.upgrade() else {
+            return;
+        };
+        let ctx = ctx.clone();
+        aiwriter::open(window.upcast_ref::<gtk4::Window>(), move |article, mode| match mode {
+            aiwriter::ApplyMode::InsertAtCursor => {
+                ctx.buffer.insert_at_cursor(&article.body);
+            }
+            aiwriter::ApplyMode::NewDocument => {
+                ctx.buffer.set_text(&article.body);
+                *ctx.current_path.borrow_mut() = None;
+                *ctx.frontmatter.borrow_mut() = Frontmatter { title: article.title.clone(), ..Frontmatter::default() };
+                ctx.title.set_subtitle(&subtitle_for(None, &ctx.frontmatter.borrow()));
+                ctx.preview_pane.set_doc_dir(None);
+                ctx.preview_pane.set_article_header(&ctx.frontmatter.borrow());
+                // Empty baseline: the generated text exists nowhere else,
+                // so it must count as unsaved (and be autosaved).
+                *ctx.saved_text.borrow_mut() = String::new();
+                ctx.toast_overlay.add_toast(adw::Toast::new(&tr("KI-Entwurf als neues Dokument angelegt - bitte prüfen und speichern.")));
+            }
+        });
+    });
+    window.add_action(&action);
 }
 
 /// Opens the full "WordPress-Mediathek" browser (`mediabrowser.rs`).

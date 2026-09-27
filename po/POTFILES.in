@@ -2,6 +2,7 @@ src/about.rs
 src/aialt.rs
 src/aimenu.rs
 src/aiprompts.rs
+src/aiwriter.rs
 src/appearance.rs
 src/browser.rs
 src/browsersettings.rs
@@ -18,6 +19,7 @@ src/linkcheck.rs
 src/linkpicker.rs
 src/llm.rs
 src/media.rs
+src/mediabrowser.rs
 src/mediapanel.rs
 src/preview.rs
 src/promptsettings.rs

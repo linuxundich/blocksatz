@@ -165,7 +165,7 @@ pub fn open(parent: &adw::ApplicationWindow, on_insert: Option<Rc<dyn Fn(WpMedia
 
     let flow_box = gtk4::FlowBox::builder()
         .selection_mode(gtk4::SelectionMode::Single)
-        .homogeneous(true)
+        .homogeneous(false)
         .min_children_per_line(2)
         .max_children_per_line(12)
         .column_spacing(6)
@@ -402,10 +402,16 @@ fn show_details(ctx: &BrowserCtx) {
     // Re-use the tile's already-downloaded thumbnail if there is one - the
     // full-size original can be many megabytes, not worth fetching just
     // for a 280px-wide preview.
-    let texture = ctx.selected.get().and_then(|i| ctx.tiles.borrow().get(i).cloned()).and_then(|tile| tile.first_child()).and_then(|child| child.downcast::<gtk4::Picture>().ok()).and_then(|picture| picture.paintable());
+    let texture = ctx.selected.get().and_then(|i| ctx.tiles.borrow().get(i).cloned()).and_then(|tile| tile.first_child()).and_then(|child| child.downcast::<gtk4::Image>().ok()).and_then(|image| image.paintable());
     match texture {
-        Some(paintable) => details.preview.set_paintable(Some(&paintable)),
+        Some(paintable) => {
+            details.preview.set_content_fit(gtk4::ContentFit::Contain);
+            details.preview.set_paintable(Some(&paintable));
+        }
         None => {
+            // Shown at its own 96px size - `Contain` would blow a symbolic
+            // icon up to fill the whole preview card.
+            details.preview.set_content_fit(gtk4::ContentFit::ScaleDown);
             let icon = gtk4::IconTheme::for_display(&details.preview.display()).lookup_icon(icon_for_mime(&entry.mime_type), &[], 96, 1, gtk4::TextDirection::None, gtk4::IconLookupFlags::empty());
             details.preview.set_paintable(Some(&icon));
         }
@@ -568,6 +574,8 @@ fn fetch_page(ctx: &Rc<BrowserCtx>, fresh: bool) {
                     let count = ctx.entries.borrow().len();
                     ctx.status_label.set_label(&if count == 0 {
                         tr("Keine Medien gefunden.")
+                    } else if count == 1 {
+                        tr("1 Datei angezeigt.")
                     } else {
                         tr("{n} Dateien angezeigt.").replace("{n}", &count.to_string())
                     });
@@ -643,8 +651,15 @@ fn load_thumbnails(ctx: &Rc<BrowserCtx>, generation: u64, first_index: usize, en
                     while let Some(child) = holder.first_child() {
                         holder.remove(&child);
                     }
-                    let picture = gtk4::Picture::builder().paintable(&texture).content_fit(gtk4::ContentFit::Cover).hexpand(true).overflow(gtk4::Overflow::Hidden).build();
-                    holder.append(&picture);
+                    // A fixed-size `Gtk.Image`, not a `Gtk.Picture`: a
+                    // picture reports the texture's full pixel width as its
+                    // natural width, and `Gtk.FlowBox` lays out columns by
+                    // natural width - one 300px thumbnail was enough to
+                    // collapse the whole grid to two columns.
+                    let image = gtk4::Image::from_paintable(Some(&texture));
+                    image.set_pixel_size(TILE_SIZE);
+                    image.set_hexpand(true);
+                    holder.append(&image);
                     if ctx.selected.get() == Some(index) {
                         show_details(&ctx);
                     }

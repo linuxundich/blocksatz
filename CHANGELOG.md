@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.60.1] - 2026-09-27
+
+### Fixed
+
+- The first-run wizard's WordPress-Verbindung page bled into its
+  neighboring carousel pages, and sat pinned to the top of the dialog
+  instead of centered like its Willkommen/Fertig siblings.
+
 ## [0.60.0] - 2026-09-27
 
 ### Added

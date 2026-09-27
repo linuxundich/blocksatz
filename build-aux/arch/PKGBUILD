@@ -14,7 +14,7 @@
 # `blocksmith.install` (see `install=` below) somewhere else first, e.g.
 # `cp PKGBUILD blocksmith.install /tmp/blocksmith-pkgbuild/ && cd /tmp/blocksmith-pkgbuild && makepkg -si`.
 pkgname=blocksmith
-pkgver=0.60.0
+pkgver=0.60.1
 pkgrel=1
 pkgdesc="Markdown-Editor für GNOME, der Artikel als WordPress-Gutenberg-Blöcke veröffentlicht"
 arch=('x86_64')

@@ -22,6 +22,7 @@ mod default_prompt;
 mod document;
 mod editor;
 mod export;
+mod firstrun;
 mod fontutil;
 mod formatting;
 mod gallerydialog;
@@ -102,6 +103,9 @@ fn main() -> glib::ExitCode {
         let initial_path = recentfiles::load().into_iter().next();
         let win = window::build(app, initial_path);
         win.present();
+        if firstrun::should_show() {
+            firstrun::open(&win);
+        }
     });
 
     // Single-window app (see ROADMAP.md's "Deliberately not recommended" -
@@ -123,6 +127,9 @@ fn main() -> glib::ExitCode {
         load_chat_bubble_css();
         let win = window::build(app, Some(path));
         win.present();
+        if firstrun::should_show() {
+            firstrun::open(&win);
+        }
     });
 
     app.run()

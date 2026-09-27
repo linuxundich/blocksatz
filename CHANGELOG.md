@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.61.0] - 2026-09-27
+
+### Added
+
+- A collapsible document-management sidebar (toggle button, leftmost in
+  the headerbar), with two pages: "Dokument" shows the open article's
+  type/status and publish/draft/private/schedule/delete/save-locally
+  actions right where you're already working, and "Durchsuchen" browses
+  recent local files and WordPress articles (grouped by status) in one
+  place. The export wizard ("Vor Veröffentlichung prüfen…") is still there
+  for its link-check/media-check/preview safeguards before a real publish.
+
+### Removed
+
+- The "Zuletzt geöffnet" popover and the "Von WordPress öffnen" dialog -
+  both folded into the new sidebar's "Durchsuchen" page.
+
 ## [0.60.4] - 2026-09-27
 
 ### Fixed

@@ -9,7 +9,7 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    about, aievaluate, aiinplace, aimenu, aiwriter, autosave, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, importer, linkpicker, media,
+    about, aievaluate, aiinplace, aimenu, aiwriter, autosave, browser, chat, codeview, docsidebar, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
     mediabrowser, medialibrary, mediapanel, preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
 };
 
@@ -222,6 +222,15 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let narrow_condition = adw::BreakpointCondition::new_length(adw::BreakpointConditionLengthType::MaxWidth, 700.0, adw::LengthUnit::Sp);
     let narrow_breakpoint = adw::Breakpoint::new(narrow_condition);
     narrow_breakpoint.add_setter(&layout_view, "layout-name", Some(&"narrow".to_value()));
+    // Cloned (a GObject reference, not a deep copy - both names point at
+    // the same breakpoint) since `window.add_breakpoint` below takes
+    // ownership of `narrow_breakpoint` itself; `docsidebar::build` needs to
+    // add one more setter to this *same* breakpoint later, once the
+    // sidebar's own `Adw.OverlaySplitView` exists, so both adaptive layers
+    // (this one, and the sidebar's own collapse-to-overlay) agree on
+    // exactly the same "narrow" width rather than fighting over two
+    // separate breakpoints.
+    let narrow_breakpoint_for_sidebar = narrow_breakpoint.clone();
 
     let title = adw::WindowTitle::new("Blocksmith", &tr("Unbenannt"));
 
@@ -233,19 +242,18 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     open_button.set_tooltip_text(Some(&tr("Öffnen (Strg+O)")));
     open_button.set_action_name(Some("win.open"));
 
-    let recent_button = gtk4::MenuButton::new();
-    recent_button.set_icon_name("document-open-recent-symbolic");
-    recent_button.set_tooltip_text(Some(&tr("Zuletzt geöffnet")));
-    let recent_list = gtk4::ListBox::new();
-    recent_list.add_css_class("boxed-list");
-    let recent_scroller = gtk4::ScrolledWindow::builder().child(&recent_list).min_content_width(320).max_content_height(360).propagate_natural_height(true).build();
-    let recent_popover = gtk4::Popover::new();
-    recent_popover.set_child(Some(&recent_scroller));
-    recent_button.set_popover(Some(&recent_popover));
-
-    let open_from_wp_button = gtk4::Button::from_icon_name("folder-remote-symbolic");
-    open_from_wp_button.set_tooltip_text(Some(&tr("Von WordPress öffnen (Strg+Umschalt+O)")));
-    open_from_wp_button.set_action_name(Some("win.open-from-wordpress"));
+    // Replaces the old "Zuletzt geöffnet" popover and "Von WordPress
+    // öffnen" modal dialog buttons that used to sit here - both folded
+    // into the sidebar's own "Durchsuchen" page (`docsidebar.rs`) instead,
+    // along with the currently-open document's publish state ("Dokument"
+    // page) that used to need a trip through the Eigenschaften dialog and
+    // the export wizard. Wired to the stateful `win.toggle-sidebar` action
+    // near `docsidebar::build`'s own call site below, the same
+    // `set_action_name`-on-a-`ToggleButton` recipe `preview_toggle_button`
+    // already uses.
+    let sidebar_toggle_button = gtk4::ToggleButton::builder().icon_name("sidebar-show-symbolic").build();
+    sidebar_toggle_button.set_tooltip_text(Some(&tr("Dokumentverwaltung ein-/ausblenden")));
+    sidebar_toggle_button.set_action_name(Some("win.toggle-sidebar"));
 
     let save_button = gtk4::Button::from_icon_name("document-save-symbolic");
     save_button.set_tooltip_text(Some(&tr("Speichern (Strg+S)")));
@@ -302,10 +310,9 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
 
     let header_bar = adw::HeaderBar::new();
     header_bar.set_title_widget(Some(&title));
+    header_bar.pack_start(&sidebar_toggle_button);
     header_bar.pack_start(&new_button);
     header_bar.pack_start(&open_button);
-    header_bar.pack_start(&recent_button);
-    header_bar.pack_start(&open_from_wp_button);
     header_bar.pack_start(&save_button);
     header_bar.pack_end(&settings_button);
     header_bar.pack_end(&properties_button);
@@ -318,7 +325,11 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
 
     let toolbar_view = adw::ToolbarView::new();
     toolbar_view.add_top_bar(&header_bar);
-    toolbar_view.set_content(Some(&layout_view));
+    // Content set later, once `docsidebar::build` has wrapped `layout_view`
+    // in the sidebar's own `Adw.OverlaySplitView` - setting it here first
+    // would parent `layout_view` into `toolbar_view` immediately, and
+    // `Adw.OverlaySplitView`'s own `content` setter asserts its widget has
+    // *no* parent yet (it doesn't reparent for you).
     toolbar_view.add_bottom_bar(&status_bar.widget);
 
     let toast_overlay = adw::ToastOverlay::new();
@@ -436,14 +447,21 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_open_action(&window, &doc_ctx);
     wire_ai_writer_action(&window, &doc_ctx);
     wire_open_path_action(&window, &doc_ctx);
-    wire_open_from_wordpress_action(&window, &buffer, &current_path, &frontmatter, &title, &preview_pane, &saved_text);
     wire_save_action(&window, &doc_ctx);
-    let recent_files_widgets = RecentFilesWidgets {
-        button: recent_button,
-        popover: recent_popover,
-        list: recent_list,
-    };
-    wire_recent_files_button(&recent_files_widgets, &doc_ctx);
+    let doc_sidebar_extras = docsidebar::DocSidebarExtras { view_stack: view_stack.clone(), browser_view: browser_view.clone() };
+    let doc_sidebar = docsidebar::build(&window, &doc_ctx, &doc_sidebar_extras, &layout_view);
+    toolbar_view.set_content(Some(&doc_sidebar.split_view));
+    narrow_breakpoint_for_sidebar.add_setter(&doc_sidebar.split_view, "collapsed", Some(&true.to_value()));
+    let toggle_sidebar_action = gio::SimpleAction::new_stateful("toggle-sidebar", None, &false.to_variant());
+    {
+        let split_view = doc_sidebar.split_view.clone();
+        toggle_sidebar_action.connect_activate(move |action, _| {
+            let visible = !action.state().and_then(|state| state.get::<bool>()).unwrap_or(false);
+            action.set_state(&visible.to_variant());
+            split_view.set_show_sidebar(visible);
+        });
+    }
+    window.add_action(&toggle_sidebar_action);
     wire_properties_action(&window, &buffer, &frontmatter, &term_caches, &current_path, &preview_pane);
     wire_settings_action(&window, &buffer, ai_menu_handles, &preview_pane, &browser_view);
     wire_about_action(&window);
@@ -468,11 +486,11 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     window
 }
 
-fn show_toast(overlay: &adw::ToastOverlay, message: &str) {
+pub(crate) fn show_toast(overlay: &adw::ToastOverlay, message: &str) {
     overlay.add_toast(adw::Toast::new(message));
 }
 
-fn subtitle_for(path: Option<&Path>, frontmatter: &Frontmatter) -> String {
+pub(crate) fn subtitle_for(path: Option<&Path>, frontmatter: &Frontmatter) -> String {
     if !frontmatter.title.is_empty() {
         return frontmatter.title.clone();
     }
@@ -850,15 +868,18 @@ fn wire_new_action(
 /// (clippy::too_many_arguments) - the same fix already used for
 /// `RecentFilesWidgets`. All fields are reference-counted/GObject handles,
 /// so cloning the whole bundle is as cheap as cloning any one field.
+/// `pub(crate)` (struct and fields both) so `docsidebar.rs` can reuse this
+/// directly rather than needing a second, field-for-field-identical bundle
+/// kept in sync by hand.
 #[derive(Clone)]
-struct DocContext {
-    buffer: sourceview5::Buffer,
-    current_path: Rc<RefCell<Option<PathBuf>>>,
-    frontmatter: Rc<RefCell<Frontmatter>>,
-    title: adw::WindowTitle,
-    toast_overlay: adw::ToastOverlay,
-    preview_pane: Rc<preview::PreviewPane>,
-    saved_text: Rc<RefCell<String>>,
+pub(crate) struct DocContext {
+    pub(crate) buffer: sourceview5::Buffer,
+    pub(crate) current_path: Rc<RefCell<Option<PathBuf>>>,
+    pub(crate) frontmatter: Rc<RefCell<Frontmatter>>,
+    pub(crate) title: adw::WindowTitle,
+    pub(crate) toast_overlay: adw::ToastOverlay,
+    pub(crate) preview_pane: Rc<preview::PreviewPane>,
+    pub(crate) saved_text: Rc<RefCell<String>>,
 }
 
 fn wire_open_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
@@ -914,7 +935,7 @@ fn wire_open_path_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
 /// Records the path into `recentfiles` on success, so opening the same
 /// article twice keeps it at the front of that list rather than piling up
 /// a duplicate entry.
-fn open_document_at_path(path: PathBuf, ctx: &DocContext) {
+pub(crate) fn open_document_at_path(path: PathBuf, ctx: &DocContext) {
     match document::read(&path) {
         Ok(doc) => {
             ctx.buffer.set_text(&doc.body);
@@ -944,100 +965,6 @@ fn register_recent_file(path: &Path) {
     gtk4::RecentManager::default().add_item(&uri);
 }
 
-/// The three widgets making up the "Zuletzt geöffnet" popover - bundled
-/// into one struct purely to keep `wire_recent_files_button`'s parameter
-/// count down, since they're always constructed and passed together.
-struct RecentFilesWidgets {
-    button: gtk4::MenuButton,
-    popover: gtk4::Popover,
-    list: gtk4::ListBox,
-}
-
-/// Rebuilds the "Zuletzt geöffnet" popover's row list every time the button
-/// becomes active (about to show its popover) - simpler than tracking
-/// whether the list changed since it was last shown, and cheap enough that
-/// rebuilding a ten-entry list on every click is not worth avoiding.
-fn wire_recent_files_button(widgets: &RecentFilesWidgets, ctx: &DocContext) {
-    let ctx = ctx.clone();
-    let recent_list = widgets.list.clone();
-    let recent_popover = widgets.popover.clone();
-    widgets.button.connect_active_notify(move |button| {
-        if !button.is_active() {
-            return;
-        }
-        while let Some(child) = recent_list.first_child() {
-            recent_list.remove(&child);
-        }
-
-        let entries = recentfiles::load();
-        if entries.is_empty() {
-            let row = adw::ActionRow::builder().title(tr("Keine zuletzt geöffneten Artikel")).activatable(false).build();
-            recent_list.append(&row);
-            return;
-        }
-
-        for path in entries {
-            let filename = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.display().to_string());
-            let parent = path.parent().map(|p| p.display().to_string()).unwrap_or_default();
-            let row = adw::ActionRow::builder().title(filename).subtitle(parent).activatable(true).use_markup(false).build();
-            {
-                let ctx = ctx.clone();
-                let recent_popover = recent_popover.clone();
-                row.connect_activated(move |_| {
-                    recent_popover.popdown();
-                    open_document_at_path(path.clone(), &ctx);
-                });
-            }
-            recent_list.append(&row);
-        }
-    });
-}
-
-fn wire_open_from_wordpress_action(
-    window: &adw::ApplicationWindow,
-    buffer: &sourceview5::Buffer,
-    current_path: &Rc<RefCell<Option<PathBuf>>>,
-    frontmatter: &Rc<RefCell<Frontmatter>>,
-    title: &adw::WindowTitle,
-    preview_pane: &Rc<preview::PreviewPane>,
-    saved_text: &Rc<RefCell<String>>,
-) {
-    let action = gio::SimpleAction::new("open-from-wordpress", None);
-    let buffer = buffer.clone();
-    let current_path = current_path.clone();
-    let frontmatter = frontmatter.clone();
-    let title = title.clone();
-    let preview_pane = preview_pane.clone();
-    let saved_text = saved_text.clone();
-    let window_weak = window.downgrade();
-    action.connect_activate(move |_, _| {
-        let Some(window) = window_weak.upgrade() else {
-            return;
-        };
-        let buffer = buffer.clone();
-        let current_path = current_path.clone();
-        let frontmatter = frontmatter.clone();
-        let title = title.clone();
-        let preview_pane = preview_pane.clone();
-        let saved_text = saved_text.clone();
-        importer::open(&window, move |imported| {
-            buffer.set_text(&imported.body);
-            title.set_subtitle(&subtitle_for(None, &imported.frontmatter));
-            // Baseline set to the just-imported text (not left stale, and
-            // not cleared to "") so a crash with zero local edits since the
-            // import doesn't manufacture a recovery snapshot for content
-            // that's trivially re-importable from the same WordPress post.
-            *saved_text.borrow_mut() = imported.body.clone();
-            *frontmatter.borrow_mut() = imported.frontmatter;
-            *current_path.borrow_mut() = None;
-            preview_pane.set_doc_dir(None);
-            preview_pane.set_article_header(&frontmatter.borrow());
-            autosave::clear();
-        });
-    });
-    window.add_action(&action);
-}
-
 fn wire_save_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
     let action = gio::SimpleAction::new("save", None);
     let ctx = ctx.clone();
@@ -1062,30 +989,46 @@ fn wire_save_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
             return;
         }
 
-        let dialog = gtk4::FileDialog::builder()
-            .title(tr("Markdown-Datei speichern"))
-            .initial_name("artikel.md")
-            .build();
-
-        let ctx = ctx.clone();
-        dialog.save(Some(&window), gio::Cancellable::NONE, move |result| {
-            let Ok(file) = result else { return };
-            let Some(path) = file.path() else { return };
-            if let Err(err) = document::write(&path, &doc) {
-                show_toast(&ctx.toast_overlay, &tr("Speichern fehlgeschlagen: {err}").replace("{err}", &err.to_string()));
-                return;
-            }
-            ctx.title.set_subtitle(&subtitle_for(Some(&path), &doc.frontmatter));
-            let doc_dir = path.parent().map(Path::to_path_buf);
-            let _ = recentfiles::record(&path);
-            register_recent_file(&path);
-            *ctx.current_path.borrow_mut() = Some(path);
-            ctx.preview_pane.set_doc_dir(doc_dir);
-            *ctx.saved_text.borrow_mut() = doc.body.clone();
-            autosave::clear();
-        });
+        save_as(&window, &ctx, doc, || {});
     });
     window.add_action(&action);
+}
+
+/// Prompts for a place on disk and writes `doc` there - the "no
+/// `current_path` yet" half of `wire_save_action`'s own logic, pulled out
+/// so `docsidebar.rs`'s "Lokal speichern unter…" row (shown exactly when
+/// `current_path` is `None` - a brand new document, or one opened from
+/// WordPress and never yet given a local copy) can trigger the same
+/// dialog-and-write behavior as a plain `Ctrl+S` on such a document,
+/// without duplicating it. `on_saved` fires only on an actual successful
+/// write - `wire_save_action`'s own call site has nothing to react to and
+/// passes a no-op; the sidebar passes its own `refresh()` so that row
+/// disappears (and the rest of the "Dokument" page updates) the moment
+/// `current_path` actually becomes `Some`.
+pub(crate) fn save_as(window: &adw::ApplicationWindow, ctx: &DocContext, doc: Document, on_saved: impl Fn() + 'static) {
+    let dialog = gtk4::FileDialog::builder()
+        .title(tr("Markdown-Datei speichern"))
+        .initial_name("artikel.md")
+        .build();
+
+    let ctx = ctx.clone();
+    dialog.save(Some(window), gio::Cancellable::NONE, move |result| {
+        let Ok(file) = result else { return };
+        let Some(path) = file.path() else { return };
+        if let Err(err) = document::write(&path, &doc) {
+            show_toast(&ctx.toast_overlay, &tr("Speichern fehlgeschlagen: {err}").replace("{err}", &err.to_string()));
+            return;
+        }
+        ctx.title.set_subtitle(&subtitle_for(Some(&path), &doc.frontmatter));
+        let doc_dir = path.parent().map(Path::to_path_buf);
+        let _ = recentfiles::record(&path);
+        register_recent_file(&path);
+        *ctx.current_path.borrow_mut() = Some(path);
+        ctx.preview_pane.set_doc_dir(doc_dir);
+        *ctx.saved_text.borrow_mut() = doc.body.clone();
+        autosave::clear();
+        on_saved();
+    });
 }
 
 fn wire_properties_action(

@@ -1,13 +1,20 @@
-//! "Von WordPress öffnen" dialog: lists existing posts - or, switched via
-//! the "Artikel"/"Seiten" toggle in its header, static pages - on the
-//! configured site; picking one fetches its full content (raw Gutenberg
-//! block HTML), resolves its category/tag ids back to names, converts the
-//! content back to Markdown (`gutenberg::gutenberg_to_markdown`), and hands
-//! the result to the caller to populate the editor - `window.rs` owns what
-//! happens with that (filling the buffer, frontmatter, clearing
-//! `current_path` since there's no local file yet). Each row also carries a
-//! "In den Papierkorb" button, moving that post/page to WordPress's own
-//! (recoverable) trash without having to open wp-admin for it.
+//! The WordPress-article-browser embedded in `docsidebar.rs`'s
+//! "Durchsuchen" page: lists existing posts - or, switched via the
+//! "Artikel"/"Seiten" toggle at its top, static pages - on the configured
+//! site; picking one fetches its full content (raw Gutenberg block HTML),
+//! resolves its category/tag ids back to names, converts the content back
+//! to Markdown (`gutenberg::gutenberg_to_markdown`), and hands the result
+//! to the caller to populate the editor - `docsidebar.rs` owns what happens
+//! with that (filling the buffer, frontmatter, clearing `current_path`
+//! since there's no local file yet, then switching back to its own
+//! "Dokument" page). Each row also carries a "In den Papierkorb" button,
+//! moving that post/page to WordPress's own (recoverable) trash without
+//! having to open wp-admin for it.
+//!
+//! `build_content` returns a plain widget, not a dialog - this used to be
+//! its own modal "Von WordPress öffnen" dialog, folded into the sidebar so
+//! browsing local files and WordPress articles both live in one place (see
+//! the sidebar's own module doc comment for why).
 
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
@@ -51,17 +58,17 @@ fn build_post_group(title: &str) -> PostGroup {
     PostGroup { wrap, list_box, posts: Rc::new(RefCell::new(Vec::new())) }
 }
 
-/// Everything the dialog's callbacks share - bundled into one `Rc` so a
+/// Everything the browser's callbacks share - bundled into one `Rc` so a
 /// row's "In den Papierkorb" button can trigger a full reload (which
 /// rebuilds that very row) without threading half a dozen clones through
-/// every closure. Row closures only ever hold a `Weak` to it, so the
-/// dialog's widgets don't keep themselves alive through it.
+/// every closure. Row closures only ever hold a `Weak` to it; `build_content`
+/// stashes the one strong reference as data on the returned widget (see its
+/// own comment), so it lives exactly as long as that widget does.
 struct ImporterCtx {
     site: wpsite::SiteConfig,
     status_label: gtk4::Label,
     groups: [PostGroup; 3],
     post_type: Cell<PostType>,
-    dialog: glib::WeakRef<adw::Dialog>,
 }
 
 impl ImporterCtx {
@@ -105,7 +112,11 @@ fn run_with_password<T: Send + 'static>(
 /// Wires one group's row activation - shared logic (fetch, convert, hand
 /// off to the caller) between the "Entwürfe"/"Veröffentlicht"/"Weitere"
 /// sections; every section's list gets disabled together while a post is
-/// loading, not just the one it was picked from.
+/// loading, not just the one it was picked from. Unlike the old modal
+/// dialog (which just closed itself on a successful pick), this widget
+/// stays mounted inside the sidebar and can be shown again later, so the
+/// lists are re-enabled either way - a stale "still loading" state would
+/// otherwise persist the next time this page is shown.
 fn wire_group_row_activation(group: &PostGroup, ctx: &Rc<ImporterCtx>, on_selected: Rc<dyn Fn(ImportedPost)>) {
     let posts = group.posts.clone();
     let ctx_weak = Rc::downgrade(ctx);
@@ -127,10 +138,9 @@ fn wire_group_row_activation(group: &PostGroup, ctx: &Rc<ImporterCtx>, on_select
                 let Some(ctx) = ctx_weak.upgrade() else { return };
                 match outcome {
                     Ok(imported) => {
+                        ctx.status_label.set_label(&tr("Ausgewählt: „{title}“").replace("{title}", &imported.frontmatter.title));
+                        ctx.set_lists_sensitive(true);
                         on_selected(imported);
-                        if let Some(dialog) = ctx.dialog.upgrade() {
-                            dialog.close();
-                        }
                     }
                     Err(err) => {
                         ctx.status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err));
@@ -142,7 +152,13 @@ fn wire_group_row_activation(group: &PostGroup, ctx: &Rc<ImporterCtx>, on_select
     });
 }
 
-pub fn open(parent: &adw::ApplicationWindow, on_selected: impl Fn(ImportedPost) + 'static) {
+/// Builds the WordPress-article-browser widget embedded in the sidebar's
+/// "Durchsuchen" page - status label, "Artikel"/"Seiten" toggle + refresh
+/// button, and the three status-grouped lists. `on_selected` fires once a
+/// row's post/page has actually been fetched and converted; the caller
+/// decides what that means (fill the editor, switch pages, ...) - this
+/// function's own job ends at handing over the `ImportedPost`.
+pub fn build_content(on_selected: impl Fn(ImportedPost) + 'static) -> gtk4::Widget {
     let site = wpsite::load();
 
     let status_label = gtk4::Label::new(None);
@@ -161,52 +177,36 @@ pub fn open(parent: &adw::ApplicationWindow, on_selected: impl Fn(ImportedPost) 
     lists_container.append(&published_group.wrap);
     lists_container.append(&other_group.wrap);
 
-    let list_scroller = gtk4::ScrolledWindow::builder().child(&lists_container).vexpand(true).min_content_height(360).build();
+    let list_scroller = gtk4::ScrolledWindow::builder().child(&lists_container).vexpand(true).build();
 
     let refresh_button = gtk4::Button::from_icon_name("view-refresh-symbolic");
     refresh_button.set_tooltip_text(Some(&tr("Aktualisieren")));
+    refresh_button.add_css_class("flat");
 
     // "Artikel" / "Seiten" - two linked toggle buttons rather than a
     // dropdown, since there are exactly two choices and switching between
     // them is the whole point of this control.
-    let posts_toggle = gtk4::ToggleButton::builder().label(tr("Artikel")).active(true).build();
-    let pages_toggle = gtk4::ToggleButton::builder().label(tr("Seiten")).group(&posts_toggle).build();
-    let type_switcher = gtk4::Box::builder().orientation(gtk4::Orientation::Horizontal).build();
+    let posts_toggle = gtk4::ToggleButton::builder().label(tr("Artikel")).active(true).hexpand(true).build();
+    let pages_toggle = gtk4::ToggleButton::builder().label(tr("Seiten")).group(&posts_toggle).hexpand(true).build();
+    let type_switcher = gtk4::Box::builder().orientation(gtk4::Orientation::Horizontal).hexpand(true).build();
     type_switcher.add_css_class("linked");
     type_switcher.append(&posts_toggle);
     type_switcher.append(&pages_toggle);
 
-    let header = adw::HeaderBar::new();
-    header.set_title_widget(Some(&type_switcher));
-    header.pack_end(&refresh_button);
+    let toolbar = gtk4::Box::builder().orientation(gtk4::Orientation::Horizontal).spacing(6).build();
+    toolbar.append(&type_switcher);
+    toolbar.append(&refresh_button);
 
-    let content_box = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Vertical)
-        .spacing(12)
-        .margin_top(18)
-        .margin_bottom(18)
-        .margin_start(18)
-        .margin_end(18)
-        .build();
+    let content_box = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(12).build();
+    content_box.append(&toolbar);
     content_box.append(&status_label);
     content_box.append(&list_scroller);
-
-    let toolbar_view = adw::ToolbarView::new();
-    toolbar_view.add_top_bar(&header);
-    toolbar_view.set_content(Some(&content_box));
-
-    let dialog = adw::Dialog::builder()
-        .title(tr("Von WordPress öffnen"))
-        .content_width(560)
-        .content_height(560)
-        .child(&toolbar_view)
-        .build();
 
     if site.url.is_empty() {
         status_label.set_label(&tr("Keine WordPress-Verbindung eingerichtet - bitte zuerst in den Einstellungen konfigurieren."));
         type_switcher.set_sensitive(false);
-        dialog.present(Some(parent));
-        return;
+        refresh_button.set_sensitive(false);
+        return content_box.upcast();
     }
 
     let ctx = Rc::new(ImporterCtx {
@@ -214,7 +214,6 @@ pub fn open(parent: &adw::ApplicationWindow, on_selected: impl Fn(ImportedPost) 
         status_label,
         groups: [drafts_group, published_group, other_group],
         post_type: Cell::new(PostType::Post),
-        dialog: dialog.downgrade(),
     });
 
     load_posts(&ctx);
@@ -240,14 +239,15 @@ pub fn open(parent: &adw::ApplicationWindow, on_selected: impl Fn(ImportedPost) 
         wire_group_row_activation(group, &ctx, on_selected.clone());
     }
 
-    // Every closure above only holds a `Weak` - this handler is the one
-    // strong reference, so the context lives exactly as long as the dialog
-    // (its signal handlers are dropped along with it).
-    dialog.connect_closed(move |_| {
-        let _keep_alive = &ctx;
-    });
+    // Every closure above only holds a `Weak` - stashing the one strong
+    // reference as data on the widget itself (rather than a dialog's
+    // `connect_closed`, which no longer exists here) keeps the context
+    // alive for exactly as long as this widget tree does.
+    unsafe {
+        content_box.set_data("importer-ctx", ctx);
+    }
 
-    dialog.present(Some(parent));
+    content_box.upcast()
 }
 
 fn load_posts(ctx: &Rc<ImporterCtx>) {

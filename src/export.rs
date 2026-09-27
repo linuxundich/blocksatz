@@ -329,84 +329,6 @@ pub fn open(
         let frontmatter = frontmatter.clone();
         let status_label = status_label.clone();
         let link_button = link_button.clone();
-        let publish_button = publish_button.clone();
-        let delete_button_for_click = delete_button.clone();
-        let dialog_for_confirm = dialog.clone();
-        delete_button.connect_clicked(move |_| {
-            let Some(post_id) = frontmatter.borrow().wp_post_id else { return };
-            let rest_base = frontmatter.borrow().post_type.rest_base();
-            let confirm = adw::AlertDialog::new(
-                Some(&tr("Artikel wirklich löschen?")),
-                Some(&tr("Der Artikel wird unwiderruflich von der WordPress-Seite gelöscht.")),
-            );
-            confirm.add_response("cancel", &tr("Abbrechen"));
-            confirm.add_response("delete", &tr("Löschen"));
-            confirm.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
-            confirm.set_default_response(Some("cancel"));
-            confirm.set_close_response("cancel");
-
-            let frontmatter = frontmatter.clone();
-            let status_label = status_label.clone();
-            let link_button = link_button.clone();
-            let publish_button = publish_button.clone();
-            let delete_button = delete_button_for_click.clone();
-            confirm.connect_response(None, move |_, response| {
-                if response != "delete" {
-                    return;
-                }
-                status_label.set_label(&tr("Wird gelöscht …"));
-                link_button.set_visible(false);
-                delete_button.set_sensitive(false);
-
-                let site = wpsite::load();
-                let (tx, rx) = mpsc::channel::<Result<(), String>>();
-                std::thread::spawn(move || {
-                    let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
-                        .map_err(|err| err.to_string())
-                        .and_then(|maybe_password| {
-                            maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden."))
-                        })
-                        .and_then(|password| {
-                            wpclient::Client::new(&site.url, &site.username, &password)
-                                .delete_item(rest_base, post_id)
-                                .map_err(|err| err.to_string())
-                        });
-                    let _ = tx.send(outcome);
-                });
-
-                let frontmatter = frontmatter.clone();
-                let status_label = status_label.clone();
-                let publish_button = publish_button.clone();
-                let delete_button = delete_button.clone();
-                glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
-                    Ok(Ok(())) => {
-                        frontmatter.borrow_mut().wp_post_id = None;
-                        status_label.set_label(&tr("Artikel wurde von WordPress gelöscht."));
-                        publish_button.set_label(&tr("Veröffentlichen"));
-                        delete_button.set_visible(false);
-                        glib::ControlFlow::Break
-                    }
-                    Ok(Err(err)) => {
-                        status_label.set_label(&tr("Fehler beim Löschen: {err}").replace("{err}", &err));
-                        delete_button.set_sensitive(true);
-                        glib::ControlFlow::Break
-                    }
-                    Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-                    Err(mpsc::TryRecvError::Disconnected) => {
-                        status_label.set_label(&tr("Interner Fehler: Lösch-Thread hat kein Ergebnis geliefert."));
-                        delete_button.set_sensitive(true);
-                        glib::ControlFlow::Break
-                    }
-                });
-            });
-            confirm.present(Some(&dialog_for_confirm));
-        });
-    }
-
-    {
-        let frontmatter = frontmatter.clone();
-        let status_label = status_label.clone();
-        let link_button = link_button.clone();
         let preview_button_for_click = preview_button.clone();
         let export_preview_stack = export_preview_stack.clone();
         let export_preview_web_view = export_preview_web_view.clone();
@@ -464,12 +386,7 @@ pub fn open(
         });
     }
 
-    let status = StatusWidgets {
-        label: status_label.clone(),
-        link: link_button.clone(),
-        preview_stack: export_preview_stack.clone(),
-        preview_web_view: export_preview_web_view.clone(),
-    };
+    let feedback = wizard_publish_feedback(&status_label, &link_button, &export_preview_stack, &export_preview_web_view);
     // `None` here means "leave whatever status the post already has on
     // WordPress alone" (the `status` field is omitted from the payload
     // entirely - see `run_export`) - this button is only ever labelled
@@ -481,27 +398,120 @@ pub fn open(
     // explicit choice of status, regardless of whether the post already
     // exists, so they keep forcing their own `target_status` unconditionally.
     let publish_target_status = if current_fm.wp_post_id.is_some() { None } else { Some(PostStatus::Publish) };
-    wire_publish_button(&publish_button, &[&draft_button, &schedule_button, &private_button], publish_target_status, &frontmatter, &body, &doc_dir, &status, &dialog);
-    wire_publish_button(&draft_button, &[&publish_button, &schedule_button, &private_button], Some(PostStatus::Draft), &frontmatter, &body, &doc_dir, &status, &dialog);
-    wire_publish_button(&schedule_button, &[&publish_button, &draft_button, &private_button], Some(PostStatus::Future), &frontmatter, &body, &doc_dir, &status, &dialog);
-    wire_publish_button(&private_button, &[&publish_button, &draft_button, &schedule_button], Some(PostStatus::Private), &frontmatter, &body, &doc_dir, &status, &dialog);
+    let dialog_widget: gtk4::Widget = dialog.clone().upcast();
+    // Fixed closures, not read live from anywhere - the wizard is rebuilt
+    // fresh from `body`/`doc_dir` every time it opens (see `open`'s own
+    // parameters), so a plain snapshot is exactly right here. Compare
+    // `docsidebar.rs`'s own providers, which read live instead, since that
+    // sidebar's buttons stay wired across the document's whole lifetime.
+    let get_body: BodyProvider = { let body = body.clone(); Rc::new(move || body.clone()) };
+    let get_doc_dir: DocDirProvider = { let doc_dir = doc_dir.clone(); Rc::new(move || doc_dir.clone()) };
+    wire_publish_button(&publish_button, &[&draft_button, &schedule_button, &private_button], publish_target_status, &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget);
+    wire_publish_button(&draft_button, &[&publish_button, &schedule_button, &private_button], Some(PostStatus::Draft), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget);
+    wire_publish_button(&schedule_button, &[&publish_button, &draft_button, &private_button], Some(PostStatus::Future), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget);
+    wire_publish_button(&private_button, &[&publish_button, &draft_button, &schedule_button], Some(PostStatus::Private), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget);
+    wire_delete_button(&delete_button, &frontmatter, &dialog_widget, &feedback, {
+        let status_label = status_label.clone();
+        let publish_button = publish_button.clone();
+        let delete_button = delete_button.clone();
+        move || {
+            status_label.set_label(&tr("Artikel wurde von WordPress gelöscht."));
+            publish_button.set_label(&tr("Veröffentlichen"));
+            delete_button.set_visible(false);
+        }
+    });
 
     dialog.present(Some(parent));
 }
 
-/// The status line, its accompanying permalink `LinkButton`, and the
-/// embedded preview browser - bundled purely to keep `wire_publish_button`'s
-/// parameter count down (clippy::too_many_arguments), the same fix already
-/// used for `DocContext`/`RecentFilesWidgets` in `window.rs`. Always shown/
-/// updated together: a status message about what just happened, a link to
-/// see it, and (once a publish actually succeeds) the live site loaded into
-/// `preview_web_view`.
+/// UI feedback hooks for the publish/delete flow (`wire_publish_button`,
+/// `start_export`, `wire_delete_button`) - lets that shared logic report
+/// progress/success/error without hard-coding which widgets show it, so the
+/// exact same network/conflict-check/threading code can run from the
+/// wizard's own status-label/link/embedded-preview-browser widgets (see
+/// `wizard_publish_feedback`) or from a much thinner surface elsewhere (e.g.
+/// a sidebar's toast + a `refresh()` call). The formatted message text
+/// itself is always built by the shared logic, not by a callback - a
+/// callback only ever renders whatever string it's given, so wording stays
+/// centralized in one place regardless of how many UIs call into it.
+type OnPublishSuccess = Rc<dyn Fn(&wpclient::PostResult, PostStatus)>;
+
+/// Reads the article body/doc-dir to send, at the moment a publish button
+/// is actually clicked rather than when it was wired up - the wizard's own
+/// buttons are rebuilt fresh every time it opens, so a plain snapshot value
+/// is equivalent there, but the document-management sidebar's buttons stay
+/// wired for as long as the app runs, across many different documents and
+/// edits - without this, they'd keep sending whatever content happened to
+/// be current the moment the sidebar was first built. `wire_publish_button`
+/// only ever calls these right before actually sending something.
+pub(crate) type BodyProvider = Rc<dyn Fn() -> String>;
+pub(crate) type DocDirProvider = Rc<dyn Fn() -> Option<PathBuf>>;
+
 #[derive(Clone)]
-struct StatusWidgets {
-    label: gtk4::Label,
-    link: gtk4::LinkButton,
-    preview_stack: gtk4::Stack,
-    preview_web_view: webkit6::WebView,
+pub(crate) struct PublishFeedback {
+    pub on_progress: Rc<dyn Fn(&str)>,
+    pub on_success: OnPublishSuccess,
+    pub on_error: Rc<dyn Fn(&str)>,
+}
+
+/// The wizard's own `PublishFeedback`: progress/error messages go to
+/// `status_label` (hiding `link_button` while in progress, exactly as the
+/// inline code used to), and a success loads the real post's permalink into
+/// `link_button` plus the embedded preview browser - unpublished statuses
+/// use WordPress's `?preview=true` convention (`preview_url_for`) since a
+/// plain permalink would just 404/login for those.
+pub(crate) fn wizard_publish_feedback(status_label: &gtk4::Label, link_button: &gtk4::LinkButton, preview_stack: &gtk4::Stack, preview_web_view: &webkit6::WebView) -> PublishFeedback {
+    let on_progress = {
+        let status_label = status_label.clone();
+        let link_button = link_button.clone();
+        move |message: &str| {
+            status_label.set_label(message);
+            link_button.set_visible(false);
+        }
+    };
+    let on_success = {
+        let status_label = status_label.clone();
+        let link_button = link_button.clone();
+        let preview_stack = preview_stack.clone();
+        let preview_web_view = preview_web_view.clone();
+        move |post: &wpclient::PostResult, final_status: PostStatus| {
+            status_label.set_label(&tr("Erfolgreich gesendet:"));
+            link_button.set_uri(&post.link);
+            link_button.set_label(&post.link);
+            link_button.set_visible(true);
+            let preview_url = if final_status == PostStatus::Publish { post.link.clone() } else { preview_url_for(&post.link) };
+            preview_web_view.load_uri(&preview_url);
+            preview_stack.set_visible_child_name("browser");
+        }
+    };
+    let on_error = {
+        let status_label = status_label.clone();
+        move |message: &str| status_label.set_label(message)
+    };
+    PublishFeedback { on_progress: Rc::new(on_progress), on_success: Rc::new(on_success), on_error: Rc::new(on_error) }
+}
+
+/// The document-management sidebar's own `PublishFeedback` - it has no
+/// embedded status label/link/preview-browser the way the wizard does, so
+/// progress/error just go to a toast (this app's usual "something
+/// happened" surface) and a success additionally calls `on_change`, so the
+/// sidebar's own "Dokument" page (title/status/button visibility, all read
+/// live from `Frontmatter`) can refresh itself to match what was actually
+/// just sent.
+pub(crate) fn sidebar_publish_feedback(toast_overlay: &adw::ToastOverlay, on_change: Rc<dyn Fn()>) -> PublishFeedback {
+    let on_progress = |_message: &str| {};
+    let on_success = {
+        let toast_overlay = toast_overlay.clone();
+        move |_post: &wpclient::PostResult, _final_status: PostStatus| {
+            crate::window::show_toast(&toast_overlay, &tr("Erfolgreich gesendet."));
+            on_change();
+        }
+    };
+    let on_error = {
+        let toast_overlay = toast_overlay.clone();
+        move |message: &str| crate::window::show_toast(&toast_overlay, message)
+    };
+    PublishFeedback { on_progress: Rc::new(on_progress), on_success: Rc::new(on_success), on_error: Rc::new(on_error) }
 }
 
 /// Appends WordPress's `preview=true` query parameter to a post's
@@ -554,21 +564,21 @@ fn has_conflicting_server_change(local_hash: Option<&str>, server_hash: &str) ->
 /// against yet) or a document opened from a `.md` file written before this
 /// field existed, so those publish immediately, same as before.
 #[allow(clippy::too_many_arguments)]
-fn wire_publish_button(
+pub(crate) fn wire_publish_button(
     button: &gtk4::Button,
     other_buttons: &[&gtk4::Button],
     target_status: Option<PostStatus>,
     frontmatter: &Rc<RefCell<Frontmatter>>,
-    body: &str,
-    doc_dir: &Option<PathBuf>,
-    status: &StatusWidgets,
-    dialog_parent: &adw::Dialog,
+    get_body: &BodyProvider,
+    get_doc_dir: &DocDirProvider,
+    feedback: &PublishFeedback,
+    dialog_parent: &gtk4::Widget,
 ) {
     let other_buttons: Vec<gtk4::Button> = other_buttons.iter().map(|b| (*b).clone()).collect();
     let frontmatter = frontmatter.clone();
-    let body = body.to_string();
-    let doc_dir = doc_dir.clone();
-    let status = status.clone();
+    let get_body = get_body.clone();
+    let get_doc_dir = get_doc_dir.clone();
+    let feedback = feedback.clone();
     let dialog_parent = dialog_parent.clone();
 
     let button_for_click = button.clone();
@@ -578,7 +588,7 @@ fn wire_publish_button(
             (fm.wp_post_id, fm.wp_content_hash.clone(), fm.post_type.rest_base())
         };
         let Some(post_id) = post_id.filter(|_| local_hash.is_some()) else {
-            start_export(target_status, &frontmatter, &body, &doc_dir, &status, &button_for_click, &other_buttons);
+            start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), &feedback, &button_for_click, &other_buttons);
             return;
         };
 
@@ -586,8 +596,7 @@ fn wire_publish_button(
         for b in &other_buttons {
             b.set_sensitive(false);
         }
-        status.label.set_label(&tr("Prüfe auf Änderungen auf WordPress …"));
-        status.link.set_visible(false);
+        (feedback.on_progress)(&tr("Prüfe auf Änderungen auf WordPress …"));
 
         let site = wpsite::load();
         let (tx, rx) = mpsc::channel::<Result<String, String>>();
@@ -608,15 +617,15 @@ fn wire_publish_button(
 
         let target_status = target_status;
         let frontmatter = frontmatter.clone();
-        let body = body.clone();
-        let doc_dir = doc_dir.clone();
-        let status = status.clone();
+        let get_body = get_body.clone();
+        let get_doc_dir = get_doc_dir.clone();
+        let feedback = feedback.clone();
         let button = button_for_click.clone();
         let other_buttons = other_buttons.clone();
         let dialog_parent = dialog_parent.clone();
         glib::timeout_add_local(Duration::from_millis(150), move || {
-            let proceed_directly = |status: &StatusWidgets| {
-                start_export(target_status, &frontmatter, &body, &doc_dir, status, &button, &other_buttons);
+            let proceed_directly = |feedback: &PublishFeedback| {
+                start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), feedback, &button, &other_buttons);
             };
             match rx.try_recv() {
                 Ok(Ok(server_hash)) => {
@@ -635,16 +644,16 @@ fn wire_publish_button(
 
                         let target_status = target_status;
                         let frontmatter = frontmatter.clone();
-                        let body = body.clone();
-                        let doc_dir = doc_dir.clone();
-                        let status = status.clone();
+                        let get_body = get_body.clone();
+                        let get_doc_dir = get_doc_dir.clone();
+                        let feedback = feedback.clone();
                         let button = button.clone();
                         let other_buttons = other_buttons.clone();
                         confirm.connect_response(None, move |_, response| {
                             if response == "overwrite" {
-                                start_export(target_status, &frontmatter, &body, &doc_dir, &status, &button, &other_buttons);
+                                start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), &feedback, &button, &other_buttons);
                             } else {
-                                status.label.set_label(&tr("Abgebrochen - lokale Änderungen wurden nicht gesendet."));
+                                (feedback.on_progress)(&tr("Abgebrochen - lokale Änderungen wurden nicht gesendet."));
                                 button.set_sensitive(true);
                                 for b in &other_buttons {
                                     b.set_sensitive(true);
@@ -653,7 +662,7 @@ fn wire_publish_button(
                         });
                         confirm.present(Some(&dialog_parent));
                     } else {
-                        proceed_directly(&status);
+                        proceed_directly(&feedback);
                     }
                     glib::ControlFlow::Break
                 }
@@ -666,7 +675,7 @@ fn wire_publish_button(
                     // Refusing to publish at all just because this extra
                     // check failed would trade a rare conflict risk for a
                     // much more common "can't publish edits at all" one.
-                    proceed_directly(&status);
+                    proceed_directly(&feedback);
                     glib::ControlFlow::Break
                 }
                 Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
@@ -680,12 +689,12 @@ fn wire_publish_button(
 /// either immediately (no conflict to check, or nothing to check against)
 /// or from the confirmation dialog's "Überschreiben" response.
 #[allow(clippy::too_many_arguments)]
-fn start_export(
+pub(crate) fn start_export(
     target_status: Option<PostStatus>,
     frontmatter: &Rc<RefCell<Frontmatter>>,
     body: &str,
     doc_dir: &Option<PathBuf>,
-    status: &StatusWidgets,
+    feedback: &PublishFeedback,
     button: &gtk4::Button,
     other_buttons: &[gtk4::Button],
 ) {
@@ -693,8 +702,7 @@ fn start_export(
     for b in other_buttons {
         b.set_sensitive(false);
     }
-    status.label.set_label(&tr("Wird gesendet …"));
-    status.link.set_visible(false);
+    (feedback.on_progress)(&tr("Wird gesendet …"));
 
     let site = wpsite::load();
     let mut current_fm = frontmatter.borrow().clone();
@@ -717,7 +725,7 @@ fn start_export(
     });
 
     let frontmatter = frontmatter.clone();
-    let status = status.clone();
+    let feedback = feedback.clone();
     let button = button.clone();
     let other_buttons: Vec<gtk4::Button> = other_buttons.to_vec();
     glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
@@ -732,19 +740,7 @@ fn start_export(
                 fm.wp_content_hash = content_hash;
                 (fm.title.clone(), fm.status)
             };
-            status.label.set_label(&tr("Erfolgreich gesendet:"));
-            status.link.set_uri(&post.link);
-            status.link.set_label(&post.link);
-            status.link.set_visible(true);
-            // A live `Publish`ed post is reachable at its plain permalink;
-            // anything else (Entwurf/Terminiert/Privat) needs WordPress's
-            // `?preview=true` convention instead (see `preview_url_for`) to
-            // show an unpublished post's content to a logged-in session -
-            // without it the embedded browser would just show a 404/login,
-            // not the article.
-            let preview_url = if final_status == PostStatus::Publish { post.link.clone() } else { preview_url_for(&post.link) };
-            status.preview_web_view.load_uri(&preview_url);
-            status.preview_stack.set_visible_child_name("browser");
+            (feedback.on_success)(&post, final_status);
             // Reflects what actually happened rather than always claiming
             // "Veröffentlicht" - `target_status` being `None` means the
             // status was deliberately left untouched (see `wire_publish_button`'s
@@ -759,7 +755,7 @@ fn start_export(
             glib::ControlFlow::Break
         }
         Ok(Err(err)) => {
-            status.label.set_label(&tr("Fehler: {err}").replace("{err}", &err));
+            (feedback.on_error)(&tr("Fehler: {err}").replace("{err}", &err));
             notify::send("export", &tr("Veröffentlichen fehlgeschlagen"), &err);
             button.set_sensitive(true);
             for b in &other_buttons {
@@ -769,13 +765,94 @@ fn start_export(
         }
         Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
         Err(mpsc::TryRecvError::Disconnected) => {
-            status.label.set_label(&tr("Interner Fehler: Export-Thread hat kein Ergebnis geliefert."));
+            (feedback.on_error)(&tr("Interner Fehler: Export-Thread hat kein Ergebnis geliefert."));
             button.set_sensitive(true);
             for b in &other_buttons {
                 b.set_sensitive(true);
             }
             glib::ControlFlow::Break
         }
+    });
+}
+
+/// Wires "Von WordPress löschen": confirms via an `Adw.AlertDialog`
+/// (parented to `dialog_parent`), then deletes the post via `wpclient` on a
+/// background thread. Shared by the export wizard and the sidebar's own
+/// delete action, same generalization as `wire_publish_button` above -
+/// `feedback.on_success` is unused here (there's no `PostResult` for a
+/// delete), only `on_progress`/`on_error`; `on_deleted` is the caller's own
+/// "now update your widgets/state" hook for the one outcome specific to
+/// this button.
+pub(crate) fn wire_delete_button(button: &gtk4::Button, frontmatter: &Rc<RefCell<Frontmatter>>, dialog_parent: &gtk4::Widget, feedback: &PublishFeedback, on_deleted: impl Fn() + 'static) {
+    let frontmatter = frontmatter.clone();
+    let feedback = feedback.clone();
+    let dialog_parent = dialog_parent.clone();
+    let on_deleted = Rc::new(on_deleted);
+    let button_for_click = button.clone();
+    button.connect_clicked(move |_| {
+        let Some(post_id) = frontmatter.borrow().wp_post_id else { return };
+        let rest_base = frontmatter.borrow().post_type.rest_base();
+        let confirm = adw::AlertDialog::new(
+            Some(&tr("Artikel wirklich löschen?")),
+            Some(&tr("Der Artikel wird unwiderruflich von der WordPress-Seite gelöscht.")),
+        );
+        confirm.add_response("cancel", &tr("Abbrechen"));
+        confirm.add_response("delete", &tr("Löschen"));
+        confirm.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
+        confirm.set_default_response(Some("cancel"));
+        confirm.set_close_response("cancel");
+
+        let frontmatter = frontmatter.clone();
+        let feedback = feedback.clone();
+        let button = button_for_click.clone();
+        let on_deleted = on_deleted.clone();
+        confirm.connect_response(None, move |_, response| {
+            if response != "delete" {
+                return;
+            }
+            (feedback.on_progress)(&tr("Wird gelöscht …"));
+            button.set_sensitive(false);
+
+            let site = wpsite::load();
+            let (tx, rx) = mpsc::channel::<Result<(), String>>();
+            std::thread::spawn(move || {
+                let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
+                    .map_err(|err| err.to_string())
+                    .and_then(|maybe_password| {
+                        maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden."))
+                    })
+                    .and_then(|password| {
+                        wpclient::Client::new(&site.url, &site.username, &password)
+                            .delete_item(rest_base, post_id)
+                            .map_err(|err| err.to_string())
+                    });
+                let _ = tx.send(outcome);
+            });
+
+            let frontmatter = frontmatter.clone();
+            let feedback = feedback.clone();
+            let button = button.clone();
+            let on_deleted = on_deleted.clone();
+            glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
+                Ok(Ok(())) => {
+                    frontmatter.borrow_mut().wp_post_id = None;
+                    on_deleted();
+                    glib::ControlFlow::Break
+                }
+                Ok(Err(err)) => {
+                    (feedback.on_error)(&tr("Fehler beim Löschen: {err}").replace("{err}", &err));
+                    button.set_sensitive(true);
+                    glib::ControlFlow::Break
+                }
+                Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    (feedback.on_error)(&tr("Interner Fehler: Lösch-Thread hat kein Ergebnis geliefert."));
+                    button.set_sensitive(true);
+                    glib::ControlFlow::Break
+                }
+            });
+        });
+        confirm.present(Some(&dialog_parent));
     });
 }
 

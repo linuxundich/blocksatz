@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.59.1] - 2026-09-27
+
+### Fixed
+
+- Exported `wp:image` blocks carried no attributes at all and no
+  `class="wp-image-<id>"` on the `<img>` - so WordPress's own content
+  filter had no way to tell which attachment the image was, and injected
+  neither `srcset` nor `width`/`height`. Mobile visitors downloaded the
+  full-size original instead of a properly sized variant, and the page
+  shifted while images loaded. Now writes the attachment id and, when
+  known, its real pixel dimensions.
+
 ## [0.59.0] - 2026-09-27
 
 ### Added

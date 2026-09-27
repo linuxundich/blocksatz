@@ -360,18 +360,54 @@ impl Client {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn create_post(&self, payload: &Value) -> Result<PostResult> {
-        self.send_post_payload(self.endpoint("posts"), payload)
+        self.create_item("posts", payload)
     }
 
+    #[cfg(test)]
     pub fn update_post(&self, post_id: u64, payload: &Value) -> Result<PostResult> {
-        self.send_post_payload(self.endpoint(&format!("posts/{post_id}")), payload)
+        self.update_item("posts", post_id, payload)
+    }
+
+    /// Like `create_post`, but for any post-like REST collection -
+    /// `"posts"` or `"pages"` (see `document::PostType::rest_base`).
+    pub fn create_item(&self, rest_base: &str, payload: &Value) -> Result<PostResult> {
+        self.send_post_payload(self.endpoint(rest_base), payload)
+    }
+
+    pub fn update_item(&self, rest_base: &str, id: u64, payload: &Value) -> Result<PostResult> {
+        self.send_post_payload(self.endpoint(&format!("{rest_base}/{id}")), payload)
+    }
+
+    /// Moves a post or page to WordPress's trash (a `DELETE` *without*
+    /// `force=true`) - unlike `delete_post`, recoverable from wp-admin's
+    /// own "Papierkorb" view, which is the only deletion the UI offers.
+    pub fn trash_item(&self, rest_base: &str, id: u64) -> Result<()> {
+        let mut response = self
+            .agent
+            .delete(self.endpoint(&format!("{rest_base}/{id}")))
+            .header("Authorization", self.auth_header.as_str())
+            .call()
+            .map_err(network_error)?;
+        let status = response.status().as_u16();
+        if !(200..300).contains(&status) {
+            let body_text = response.body_mut().read_to_string().unwrap_or_default();
+            return Err(error_from_body(status, &body_text));
+        }
+        Ok(())
     }
 
     /// Permanently deletes a post (bypassing trash). Mainly useful for
     /// cleaning up after integration tests against a real site.
+    #[cfg(test)]
     pub fn delete_post(&self, post_id: u64) -> Result<()> {
-        let url = format!("{}?force=true", self.endpoint(&format!("posts/{post_id}")));
+        self.delete_item("posts", post_id)
+    }
+
+    /// Like `delete_post`, for any post-like REST collection.
+    pub fn delete_item(&self, rest_base: &str, id: u64) -> Result<()> {
+        let url = format!("{}?force=true", self.endpoint(&format!("{rest_base}/{id}")));
         let mut response = self
             .agent
             .delete(url)
@@ -516,9 +552,15 @@ impl Client {
     /// see), for the "Von WordPress öffnen" picker. Doesn't paginate beyond
     /// the first 50 - fine for finding a recent article to edit.
     pub fn list_posts(&self) -> Result<Vec<PostSummary>> {
+        self.list_items("posts")
+    }
+
+    /// Like `list_posts`, for any post-like REST collection (`"posts"` or
+    /// `"pages"`).
+    pub fn list_items(&self, rest_base: &str) -> Result<Vec<PostSummary>> {
         let url = format!(
             "{}?per_page=50&orderby=date&order=desc&context=edit&status=publish,future,draft,pending,private&_fields=id,title,status,date,link",
-            self.endpoint("posts")
+            self.endpoint(rest_base)
         );
         let value = self.get_json(&url)?;
         Ok(value
@@ -544,10 +586,18 @@ impl Client {
     /// via `context=edit` - see [`PostDetail::content`]) plus the metadata
     /// needed to populate the properties dialog after converting it back to
     /// Markdown.
+    #[cfg(test)]
     pub fn get_post(&self, id: u64) -> Result<PostDetail> {
+        self.get_item("posts", id)
+    }
+
+    /// Like `get_post`, for any post-like REST collection - a page simply
+    /// comes back without `categories`/`tags` (WordPress doesn't register
+    /// either taxonomy for pages), which parses as two empty lists below.
+    pub fn get_item(&self, rest_base: &str, id: u64) -> Result<PostDetail> {
         let url = format!(
             "{}?context=edit&_fields=id,title,content,excerpt,status,slug,categories,tags,featured_media,author,wp-worthy-pixel,comment_status,date,meta,link",
-            self.endpoint(&format!("posts/{id}"))
+            self.endpoint(&format!("{rest_base}/{id}"))
         );
         let value = self.get_json(&url)?;
         let u64_array = |key: &str| -> Vec<u64> {

@@ -77,9 +77,61 @@ impl PostStatus {
     }
 }
 
+/// Which WordPress content type an article is - a regular blog post
+/// (`/wp/v2/posts`) or a static page (`/wp/v2/pages`, e.g. "Impressum",
+/// "Über mich"). Pages share nearly every field with posts; the only
+/// differences this app cares about are the REST endpoint and that pages
+/// have no categories/tags (WordPress's `page` type doesn't register
+/// either taxonomy, so sending them would just be dropped).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PostType {
+    #[default]
+    Post,
+    Page,
+}
+
+impl PostType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PostType::Post => "post",
+            PostType::Page => "page",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Self {
+        match s.trim() {
+            "page" => PostType::Page,
+            _ => PostType::Post,
+        }
+    }
+
+    /// The REST API collection this type lives under (`wp/v2/{rest_base}`).
+    pub fn rest_base(&self) -> &'static str {
+        match self {
+            PostType::Post => "posts",
+            PostType::Page => "pages",
+        }
+    }
+
+    pub const ALL: [PostType; 2] = [PostType::Post, PostType::Page];
+
+    /// Human-readable, translated label - same "each arm calls `tr()` on its
+    /// own literal" rule as `PostStatus::label`.
+    pub fn label(&self) -> String {
+        match self {
+            PostType::Post => crate::i18n::tr("Artikel"),
+            PostType::Page => crate::i18n::tr("Seite"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Frontmatter {
     pub title: String,
+    /// Post or page - `Post` (the default) is never written to the
+    /// frontmatter, so every file written before this field existed keeps
+    /// round-tripping byte-for-byte.
+    pub post_type: PostType,
     pub slug: String,
     pub status: PostStatus,
     /// When `status` is `PostStatus::Future`: the publish date/time, as the
@@ -234,6 +286,7 @@ pub fn parse(input: &str) -> Document {
             "title" => frontmatter.title = unquote(value),
             "slug" => frontmatter.slug = unquote(value),
             "status" => frontmatter.status = PostStatus::from_str(value),
+            "post_type" => frontmatter.post_type = PostType::from_str(value),
             "scheduled_at" => {
                 frontmatter.scheduled_at = (!value.is_empty()).then(|| unquote(value));
             }
@@ -300,6 +353,9 @@ pub fn serialize(doc: &Document) -> String {
     let mut out = String::from("---\n");
     out.push_str(&format!("title: \"{}\"\n", escape(&fm.title)));
     out.push_str(&format!("slug: \"{}\"\n", escape(&fm.slug)));
+    if fm.post_type != PostType::Post {
+        out.push_str(&format!("post_type: {}\n", fm.post_type.as_str()));
+    }
     out.push_str(&format!("status: {}\n", fm.status.as_str()));
     if let Some(scheduled_at) = &fm.scheduled_at {
         out.push_str(&format!("scheduled_at: \"{}\"\n", escape(scheduled_at)));
@@ -717,6 +773,7 @@ mod tests {
         let doc = Document {
             frontmatter: Frontmatter {
                 title: "A \"quoted\" title".to_string(),
+                post_type: PostType::Post,
                 slug: "a-quoted-title".to_string(),
                 status: PostStatus::Pending,
                 scheduled_at: Some("2026-12-24T18:30:00".to_string()),
@@ -815,5 +872,28 @@ mod tests {
         assert_eq!(round_tripped.frontmatter.media.len(), 1);
         assert!(!round_tripped.frontmatter.media[0].alt.is_undefined());
         assert_eq!(round_tripped.frontmatter.media[0].alt.as_wordpress_value(), Some(""));
+    }
+
+    #[test]
+    fn post_type_defaults_to_post_and_is_not_written() {
+        let doc = Document { frontmatter: Frontmatter { title: "x".to_string(), ..Frontmatter::default() }, body: "Body.\n".to_string() };
+        let serialized = serialize(&doc);
+        assert!(!serialized.contains("post_type"), "{serialized}");
+        assert_eq!(parse(&serialized).frontmatter.post_type, PostType::Post);
+    }
+
+    #[test]
+    fn page_post_type_round_trips() {
+        let doc = Document { frontmatter: Frontmatter { title: "Impressum".to_string(), post_type: PostType::Page, ..Frontmatter::default() }, body: "Body.\n".to_string() };
+        let serialized = serialize(&doc);
+        assert!(serialized.contains("post_type: page\n"), "{serialized}");
+        assert_eq!(parse(&serialized), doc);
+    }
+
+    #[test]
+    fn post_type_rest_bases() {
+        assert_eq!(PostType::Post.rest_base(), "posts");
+        assert_eq!(PostType::Page.rest_base(), "pages");
+        assert_eq!(PostType::from_str("garbage"), PostType::Post);
     }
 }

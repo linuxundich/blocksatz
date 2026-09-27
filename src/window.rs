@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use adw::prelude::*;
 use gtk4::{gdk, gio, glib};
 
-use crate::document::{Document, Frontmatter};
+use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
     about, aimenu, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, medialibrary, mediapanel,
@@ -257,6 +257,9 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     // directly, since that's the action-level shortcut, independent of
     // how the button itself triggers it.
     let primary_menu = gio::Menu::new();
+    let new_section = gio::Menu::new();
+    new_section.append(Some(&tr("Neue Seite")), Some("win.new-page"));
+    primary_menu.append_section(None, &new_section);
     primary_menu.append(Some(&tr("Einstellungen")), Some("win.settings"));
     primary_menu.append(Some(&tr("Tastenkürzel")), Some("win.show-help-overlay"));
     primary_menu.append(Some(&tr("Über Blocksmith")), Some("win.about"));
@@ -799,24 +802,31 @@ fn wire_new_action(
     preview_pane: &Rc<preview::PreviewPane>,
     saved_text: &Rc<RefCell<String>>,
 ) {
-    let action = gio::SimpleAction::new("new", None);
-    let buffer = buffer.clone();
-    let current_path = current_path.clone();
-    let frontmatter = frontmatter.clone();
-    let title = title.clone();
-    let preview_pane = preview_pane.clone();
-    let saved_text = saved_text.clone();
-    action.connect_activate(move |_, _| {
-        buffer.set_text("");
-        *current_path.borrow_mut() = None;
-        *frontmatter.borrow_mut() = Frontmatter::default();
-        title.set_subtitle(&tr("Unbenannt"));
-        preview_pane.set_doc_dir(None);
-        preview_pane.set_article_header(&frontmatter.borrow());
-        *saved_text.borrow_mut() = String::new();
-        autosave::clear();
-    });
-    window.add_action(&action);
+    // "new" starts a blank blog post, "new-page" a blank static WordPress
+    // page - identical apart from the frontmatter's `post_type`.
+    for (name, post_type) in [("new", PostType::Post), ("new-page", PostType::Page)] {
+        let action = gio::SimpleAction::new(name, None);
+        let buffer = buffer.clone();
+        let current_path = current_path.clone();
+        let frontmatter = frontmatter.clone();
+        let title = title.clone();
+        let preview_pane = preview_pane.clone();
+        let saved_text = saved_text.clone();
+        action.connect_activate(move |_, _| {
+            buffer.set_text("");
+            *current_path.borrow_mut() = None;
+            *frontmatter.borrow_mut() = Frontmatter { post_type, ..Frontmatter::default() };
+            title.set_subtitle(&match post_type {
+                PostType::Post => tr("Unbenannt"),
+                PostType::Page => tr("Unbenannte Seite"),
+            });
+            preview_pane.set_doc_dir(None);
+            preview_pane.set_article_header(&frontmatter.borrow());
+            *saved_text.borrow_mut() = String::new();
+            autosave::clear();
+        });
+        window.add_action(&action);
+    }
 }
 
 /// The handles almost every "open something new into the editor" action

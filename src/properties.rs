@@ -13,7 +13,7 @@ use std::time::Duration;
 use adw::prelude::*;
 use gtk4::{gio, glib};
 
-use crate::document::{self, parse_list, Frontmatter, PostStatus};
+use crate::document::{self, parse_list, Frontmatter, PostStatus, PostType};
 use crate::i18n::tr;
 use crate::{aialt, autocomplete, media, preview, secrets, tagsuggest, taxonomy, termcache, wpclient, wpsite};
 
@@ -224,6 +224,23 @@ pub fn open(
     let termcache::TermCacheHandles { categories: category_terms, tags: tag_terms, category_slugs } = term_caches;
     let site = wpsite::load();
     let current = frontmatter.borrow().clone();
+
+    // "Artikel" or "Seite" - which REST collection (`/posts` vs `/pages`)
+    // export targets. Locked once the document is linked to an existing
+    // WordPress item (`wp_post_id` set): WordPress can't convert a post
+    // into a page in place, so switching then would just make the next
+    // export try to update a nonexistent page with that post's id.
+    let type_labels: Vec<String> = PostType::ALL.iter().map(|t| t.label()).collect();
+    let type_label_refs: Vec<&str> = type_labels.iter().map(String::as_str).collect();
+    let type_row = adw::ComboRow::builder()
+        .title(tr("Typ"))
+        .model(&gtk4::StringList::new(&type_label_refs))
+        .selected(PostType::ALL.iter().position(|t| *t == current.post_type).unwrap_or(0) as u32)
+        .sensitive(current.wp_post_id.is_none())
+        .build();
+    if current.wp_post_id.is_some() {
+        type_row.set_subtitle(&tr("Bereits mit WordPress verknüpft - nicht mehr änderbar"));
+    }
 
     let title_row = adw::EntryRow::builder().title(tr("Titel")).text(current.title.as_str()).build();
     let slug_row = adw::EntryRow::builder().title(tr("Slug")).text(current.slug.as_str()).build();
@@ -556,6 +573,7 @@ pub fn open(
     // tab page's leftover vertical space instead of leaving it as dead
     // white space below a short, fixed-height boxed list.
     let general_group = adw::PreferencesGroup::builder().title(tr("Allgemein")).vexpand(true).build();
+    general_group.add(&type_row);
     general_group.add(&title_row);
     general_group.add(&slug_row);
     general_group.add(&excerpt_row);
@@ -599,7 +617,10 @@ pub fn open(
     let view_stack = adw::ViewStack::new();
     view_stack.add_titled_with_icon(&tab_page(&general_group), Some("general"), &tr("Allgemein"), "document-properties-symbolic");
     view_stack.add_titled_with_icon(&tab_page(&publishing_group), Some("publishing"), &tr("Veröffentlichung"), "send-symbolic");
-    view_stack.add_titled_with_icon(&tab_page(&taxonomy_group), Some("taxonomy"), &tr("Kategorien & Tags"), "tag-symbolic");
+    let taxonomy_page = view_stack.add_titled_with_icon(&tab_page(&taxonomy_group), Some("taxonomy"), &tr("Kategorien & Tags"), "tag-symbolic");
+    // Pages have no categories/tags (see `PostType`), so the whole tab is
+    // hidden for one rather than offering fields export would ignore.
+    taxonomy_page.set_visible(current.post_type == PostType::Post);
     view_stack.add_titled_with_icon(&tab_page(&image_group), Some("image"), &tr("Bild"), "image-x-generic-symbolic");
     view_stack.add_titled_with_icon(&tab_page(&seo_group), Some("seo"), &tr("SEO"), "edit-find-symbolic");
     view_stack.set_vexpand(true);
@@ -794,6 +815,15 @@ pub fn open(
                 // Triggers the `connect_changed` handler above, which persists it.
                 featured_image_row.set_text(&reference);
             });
+        });
+    }
+    {
+        let frontmatter = frontmatter.clone();
+        type_row.connect_selected_notify(move |row| {
+            if let Some(post_type) = PostType::ALL.get(row.selected() as usize) {
+                frontmatter.borrow_mut().post_type = *post_type;
+                taxonomy_page.set_visible(*post_type == PostType::Post);
+            }
         });
     }
     {

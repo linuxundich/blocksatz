@@ -1,20 +1,23 @@
-//! "Von WordPress öffnen" dialog: lists existing posts on the configured
-//! site; picking one fetches its full content (raw Gutenberg block HTML),
-//! resolves its category/tag ids back to names, converts the content back
-//! to Markdown (`gutenberg::gutenberg_to_markdown`), and hands the result
-//! to the caller to populate the editor - `window.rs` owns what happens
-//! with that (filling the buffer, frontmatter, clearing `current_path`
-//! since there's no local file yet).
+//! "Von WordPress öffnen" dialog: lists existing posts - or, switched via
+//! the "Artikel"/"Seiten" toggle in its header, static pages - on the
+//! configured site; picking one fetches its full content (raw Gutenberg
+//! block HTML), resolves its category/tag ids back to names, converts the
+//! content back to Markdown (`gutenberg::gutenberg_to_markdown`), and hands
+//! the result to the caller to populate the editor - `window.rs` owns what
+//! happens with that (filling the buffer, frontmatter, clearing
+//! `current_path` since there's no local file yet). Each row also carries a
+//! "In den Papierkorb" button, moving that post/page to WordPress's own
+//! (recoverable) trash without having to open wp-admin for it.
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::cell::{Cell, RefCell};
+use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::time::Duration;
 
 use adw::prelude::*;
 use gtk4::glib;
 
-use crate::document::{self, Frontmatter, PostStatus};
+use crate::document::{self, Frontmatter, PostStatus, PostType};
 use crate::i18n::tr;
 use crate::{secrets, wpclient, wpsite};
 
@@ -48,69 +51,94 @@ fn build_post_group(title: &str) -> PostGroup {
     PostGroup { wrap, list_box, posts: Rc::new(RefCell::new(Vec::new())) }
 }
 
-/// Wires one group's row activation - shared logic (fetch, convert, hand
-/// off to the caller) between the "Entwürfe"/"Veröffentlicht"/"Weitere"
-/// sections, `all_list_boxes` being every section's list box so all three
-/// get disabled together while a post is loading, not just the one it was
-/// picked from.
-fn wire_group_row_activation(
-    group: &PostGroup,
+/// Everything the dialog's callbacks share - bundled into one `Rc` so a
+/// row's "In den Papierkorb" button can trigger a full reload (which
+/// rebuilds that very row) without threading half a dozen clones through
+/// every closure. Row closures only ever hold a `Weak` to it, so the
+/// dialog's widgets don't keep themselves alive through it.
+struct ImporterCtx {
     site: wpsite::SiteConfig,
     status_label: gtk4::Label,
-    on_selected: Rc<dyn Fn(ImportedPost)>,
-    dialog_weak: glib::WeakRef<adw::Dialog>,
-    all_list_boxes: Vec<gtk4::ListBox>,
+    groups: [PostGroup; 3],
+    post_type: Cell<PostType>,
+    dialog: glib::WeakRef<adw::Dialog>,
+}
+
+impl ImporterCtx {
+    fn set_lists_sensitive(&self, sensitive: bool) {
+        for group in &self.groups {
+            group.list_box.set_sensitive(sensitive);
+        }
+    }
+}
+
+/// Runs `job` (given the stored Application Password) on a background
+/// thread and hands its outcome to `on_done` on the GTK thread - the same
+/// spawn-then-poll shape every other network call in this dialog uses.
+fn run_with_password<T: Send + 'static>(
+    site: &wpsite::SiteConfig,
+    job: impl FnOnce(&wpsite::SiteConfig, &str) -> Result<T, String> + Send + 'static,
+    on_done: impl Fn(Result<T, String>) + 'static,
 ) {
+    let site = site.clone();
+    let (tx, rx) = mpsc::channel::<Result<T, String>>();
+    std::thread::spawn(move || {
+        let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
+            .map_err(|err| err.to_string())
+            .and_then(|maybe_password| maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden.")))
+            .and_then(|password| job(&site, &password));
+        let _ = tx.send(outcome);
+    });
+    glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
+        Ok(outcome) => {
+            on_done(outcome);
+            glib::ControlFlow::Break
+        }
+        Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+        Err(mpsc::TryRecvError::Disconnected) => {
+            on_done(Err(tr("Interner Fehler: Lade-Thread hat kein Ergebnis geliefert.")));
+            glib::ControlFlow::Break
+        }
+    });
+}
+
+/// Wires one group's row activation - shared logic (fetch, convert, hand
+/// off to the caller) between the "Entwürfe"/"Veröffentlicht"/"Weitere"
+/// sections; every section's list gets disabled together while a post is
+/// loading, not just the one it was picked from.
+fn wire_group_row_activation(group: &PostGroup, ctx: &Rc<ImporterCtx>, on_selected: Rc<dyn Fn(ImportedPost)>) {
     let posts = group.posts.clone();
+    let ctx_weak = Rc::downgrade(ctx);
     group.list_box.connect_row_activated(move |_list_box, row| {
+        let Some(ctx) = ctx_weak.upgrade() else { return };
         let Some(post) = posts.borrow().get(row.index() as usize).cloned() else {
             return;
         };
-        for list_box in &all_list_boxes {
-            list_box.set_sensitive(false);
-        }
-        status_label.set_label(&tr("Lade „{title}“ …").replace("{title}", &post.title));
+        ctx.set_lists_sensitive(false);
+        ctx.status_label.set_label(&tr("Lade „{title}“ …").replace("{title}", &post.title));
 
-        let site = site.clone();
-        let (tx, rx) = mpsc::channel::<Result<ImportedPost, String>>();
-        std::thread::spawn(move || {
-            let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
-                .map_err(|err| err.to_string())
-                .and_then(|maybe_password| {
-                    maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden."))
-                })
-                .and_then(|password| fetch_and_convert(&site, &password, post.id));
-            let _ = tx.send(outcome);
-        });
-
-        let status_label = status_label.clone();
-        let all_list_boxes = all_list_boxes.clone();
+        let post_type = ctx.post_type.get();
         let on_selected = on_selected.clone();
-        let dialog_weak = dialog_weak.clone();
-        glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
-            Ok(Ok(imported)) => {
-                on_selected(imported);
-                if let Some(dialog) = dialog_weak.upgrade() {
-                    dialog.close();
+        let ctx_weak = Rc::downgrade(&ctx);
+        run_with_password(
+            &ctx.site,
+            move |site, password| fetch_and_convert(site, password, post_type, post.id),
+            move |outcome| {
+                let Some(ctx) = ctx_weak.upgrade() else { return };
+                match outcome {
+                    Ok(imported) => {
+                        on_selected(imported);
+                        if let Some(dialog) = ctx.dialog.upgrade() {
+                            dialog.close();
+                        }
+                    }
+                    Err(err) => {
+                        ctx.status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err));
+                        ctx.set_lists_sensitive(true);
+                    }
                 }
-                glib::ControlFlow::Break
-            }
-            Ok(Err(err)) => {
-                status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err));
-                for list_box in &all_list_boxes {
-                    list_box.set_sensitive(true);
-                }
-                glib::ControlFlow::Break
-            }
-            Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-            Err(mpsc::TryRecvError::Disconnected) => {
-                status_label.set_label(&tr("Interner Fehler: Ladevorgang hat kein Ergebnis geliefert."));
-                for list_box in &all_list_boxes {
-                    list_box.set_sensitive(true);
-                }
-                glib::ControlFlow::Break
-            }
-        });
+            },
+        );
     });
 }
 
@@ -138,7 +166,18 @@ pub fn open(parent: &adw::ApplicationWindow, on_selected: impl Fn(ImportedPost) 
     let refresh_button = gtk4::Button::from_icon_name("view-refresh-symbolic");
     refresh_button.set_tooltip_text(Some(&tr("Aktualisieren")));
 
+    // "Artikel" / "Seiten" - two linked toggle buttons rather than a
+    // dropdown, since there are exactly two choices and switching between
+    // them is the whole point of this control.
+    let posts_toggle = gtk4::ToggleButton::builder().label(tr("Artikel")).active(true).build();
+    let pages_toggle = gtk4::ToggleButton::builder().label(tr("Seiten")).group(&posts_toggle).build();
+    let type_switcher = gtk4::Box::builder().orientation(gtk4::Orientation::Horizontal).build();
+    type_switcher.add_css_class("linked");
+    type_switcher.append(&posts_toggle);
+    type_switcher.append(&pages_toggle);
+
     let header = adw::HeaderBar::new();
+    header.set_title_widget(Some(&type_switcher));
     header.pack_end(&refresh_button);
 
     let content_box = gtk4::Box::builder()
@@ -165,97 +204,101 @@ pub fn open(parent: &adw::ApplicationWindow, on_selected: impl Fn(ImportedPost) 
 
     if site.url.is_empty() {
         status_label.set_label(&tr("Keine WordPress-Verbindung eingerichtet - bitte zuerst in den Einstellungen konfigurieren."));
+        type_switcher.set_sensitive(false);
         dialog.present(Some(parent));
         return;
     }
 
-    let all_list_boxes = vec![drafts_group.list_box.clone(), published_group.list_box.clone(), other_group.list_box.clone()];
+    let ctx = Rc::new(ImporterCtx {
+        site,
+        status_label,
+        groups: [drafts_group, published_group, other_group],
+        post_type: Cell::new(PostType::Post),
+        dialog: dialog.downgrade(),
+    });
 
-    load_posts(site.clone(), &drafts_group, &published_group, &other_group, status_label.clone());
+    load_posts(&ctx);
     {
-        let site = site.clone();
-        let drafts_group = drafts_group.clone();
-        let published_group = published_group.clone();
-        let other_group = other_group.clone();
-        let status_label = status_label.clone();
+        let ctx_weak = Rc::downgrade(&ctx);
         refresh_button.connect_clicked(move |_| {
-            load_posts(site.clone(), &drafts_group, &published_group, &other_group, status_label.clone());
+            if let Some(ctx) = ctx_weak.upgrade() {
+                load_posts(&ctx);
+            }
+        });
+    }
+    {
+        let ctx_weak = Rc::downgrade(&ctx);
+        pages_toggle.connect_toggled(move |toggle| {
+            let Some(ctx) = ctx_weak.upgrade() else { return };
+            ctx.post_type.set(if toggle.is_active() { PostType::Page } else { PostType::Post });
+            load_posts(&ctx);
         });
     }
 
     let on_selected: Rc<dyn Fn(ImportedPost)> = Rc::new(on_selected);
-    let dialog_weak = dialog.downgrade();
-    wire_group_row_activation(&drafts_group, site.clone(), status_label.clone(), on_selected.clone(), dialog_weak.clone(), all_list_boxes.clone());
-    wire_group_row_activation(&published_group, site.clone(), status_label.clone(), on_selected.clone(), dialog_weak.clone(), all_list_boxes.clone());
-    wire_group_row_activation(&other_group, site, status_label, on_selected, dialog_weak, all_list_boxes);
+    for group in &ctx.groups {
+        wire_group_row_activation(group, &ctx, on_selected.clone());
+    }
+
+    // Every closure above only holds a `Weak` - this handler is the one
+    // strong reference, so the context lives exactly as long as the dialog
+    // (its signal handlers are dropped along with it).
+    dialog.connect_closed(move |_| {
+        let _keep_alive = &ctx;
+    });
 
     dialog.present(Some(parent));
 }
 
-fn load_posts(
-    site: wpsite::SiteConfig,
-    drafts_group: &PostGroup,
-    published_group: &PostGroup,
-    other_group: &PostGroup,
-    status_label: gtk4::Label,
-) {
-    status_label.set_label(&tr("Lade Artikel …"));
-    let (tx, rx) = mpsc::channel::<Result<Vec<wpclient::PostSummary>, String>>();
-    std::thread::spawn(move || {
-        let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
-            .map_err(|err| err.to_string())
-            .and_then(|maybe_password| {
-                maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden."))
-            })
-            .and_then(|password| wpclient::Client::new(&site.url, &site.username, &password).list_posts().map_err(|err| err.to_string()));
-        let _ = tx.send(outcome);
+fn load_posts(ctx: &Rc<ImporterCtx>) {
+    let post_type = ctx.post_type.get();
+    ctx.status_label.set_label(&match post_type {
+        PostType::Post => tr("Lade Artikel …"),
+        PostType::Page => tr("Lade Seiten …"),
     });
-
-    let drafts_list_box = drafts_group.list_box.clone();
-    let drafts_wrap = drafts_group.wrap.clone();
-    let drafts_posts = drafts_group.posts.clone();
-    let published_list_box = published_group.list_box.clone();
-    let published_wrap = published_group.wrap.clone();
-    let published_posts = published_group.posts.clone();
-    let other_list_box = other_group.list_box.clone();
-    let other_wrap = other_group.wrap.clone();
-    let other_posts = other_group.posts.clone();
-
-    glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
-        Ok(Ok(fetched)) => {
-            let mut drafts = Vec::new();
-            let mut published = Vec::new();
-            let mut other = Vec::new();
-            for post in fetched {
-                match post.status.as_str() {
-                    "draft" => drafts.push(post),
-                    "publish" => published.push(post),
-                    _ => other.push(post),
+    let ctx_weak = Rc::downgrade(ctx);
+    run_with_password(
+        &ctx.site,
+        move |site, password| {
+            wpclient::Client::new(&site.url, &site.username, password).list_items(post_type.rest_base()).map_err(|err| err.to_string())
+        },
+        move |outcome| {
+            let Some(ctx) = ctx_weak.upgrade() else { return };
+            // The user may have flipped the "Artikel"/"Seiten" toggle again
+            // while this request was in flight - a stale result for the
+            // other type must not overwrite the newer one's list.
+            if ctx.post_type.get() != post_type {
+                return;
+            }
+            match outcome {
+                Ok(fetched) => {
+                    let mut buckets: [Vec<wpclient::PostSummary>; 3] = [Vec::new(), Vec::new(), Vec::new()];
+                    for post in fetched {
+                        let bucket = match post.status.as_str() {
+                            "draft" => 0,
+                            "publish" => 1,
+                            _ => 2,
+                        };
+                        buckets[bucket].push(post);
+                    }
+                    let total: usize = buckets.iter().map(Vec::len).sum();
+                    for (index, (group, posts)) in ctx.groups.iter().zip(buckets).enumerate() {
+                        populate_group(group, &posts, index == 2, &Rc::downgrade(&ctx));
+                        *group.posts.borrow_mut() = posts;
+                    }
+                    ctx.set_lists_sensitive(true);
+                    let message = match post_type {
+                        PostType::Post => tr("{n} Artikel gefunden. Zum Öffnen auswählen."),
+                        PostType::Page => tr("{n} Seiten gefunden. Zum Öffnen auswählen."),
+                    };
+                    ctx.status_label.set_label(&message.replace("{n}", &total.to_string()));
+                }
+                Err(err) => {
+                    ctx.status_label.set_label(&tr("Fehler beim Laden: {err}").replace("{err}", &err));
                 }
             }
-            let total = drafts.len() + published.len() + other.len();
-
-            populate_group(&drafts_list_box, &drafts_wrap, &drafts, false);
-            populate_group(&published_list_box, &published_wrap, &published, false);
-            populate_group(&other_list_box, &other_wrap, &other, true);
-
-            *drafts_posts.borrow_mut() = drafts;
-            *published_posts.borrow_mut() = published;
-            *other_posts.borrow_mut() = other;
-
-            status_label.set_label(&tr("{n} Artikel gefunden. Zum Öffnen auswählen.").replace("{n}", &total.to_string()));
-            glib::ControlFlow::Break
-        }
-        Ok(Err(err)) => {
-            status_label.set_label(&tr("Fehler beim Laden: {err}").replace("{err}", &err));
-            glib::ControlFlow::Break
-        }
-        Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-        Err(mpsc::TryRecvError::Disconnected) => {
-            status_label.set_label(&tr("Interner Fehler: Lade-Thread hat kein Ergebnis geliefert."));
-            glib::ControlFlow::Break
-        }
-    });
+        },
+    );
 }
 
 /// Rebuilds one group's rows from `posts` and shows/hides the whole group
@@ -263,17 +306,70 @@ fn load_posts(
 /// the status word in each row's subtitle (used for the catch-all "Weitere"
 /// group, which mixes several statuses) - the "Entwürfe"/"Veröffentlicht"
 /// groups don't need it, since their heading already says which.
-fn populate_group(list_box: &gtk4::ListBox, wrap: &gtk4::Box, posts: &[wpclient::PostSummary], show_status: bool) {
-    while let Some(child) = list_box.first_child() {
-        list_box.remove(&child);
+fn populate_group(group: &PostGroup, posts: &[wpclient::PostSummary], show_status: bool, ctx: &Weak<ImporterCtx>) {
+    while let Some(child) = group.list_box.first_child() {
+        group.list_box.remove(&child);
     }
     for post in posts {
         let date = post.date.split('T').next().unwrap_or(&post.date);
         let subtitle = if show_status { format!("{} · {date}", status_display(&post.status)) } else { date.to_string() };
         let row = adw::ActionRow::builder().title(glib::markup_escape_text(&post.title).as_str()).subtitle(subtitle).activatable(true).build();
-        list_box.append(&row);
+
+        let trash_button = gtk4::Button::from_icon_name("user-trash-symbolic");
+        trash_button.set_tooltip_text(Some(&tr("In den Papierkorb")));
+        trash_button.set_valign(gtk4::Align::Center);
+        trash_button.add_css_class("flat");
+        let ctx = ctx.clone();
+        let post = post.clone();
+        trash_button.connect_clicked(move |button| confirm_trash(button, &ctx, &post));
+        row.add_suffix(&trash_button);
+
+        group.list_box.append(&row);
     }
-    wrap.set_visible(!posts.is_empty());
+    group.wrap.set_visible(!posts.is_empty());
+}
+
+/// Asks before moving `post` to WordPress's trash - recoverable from
+/// wp-admin, but still not something a stray click should do silently.
+fn confirm_trash(anchor: &gtk4::Button, ctx: &Weak<ImporterCtx>, post: &wpclient::PostSummary) {
+    let confirm = adw::AlertDialog::new(
+        Some(&tr("In den Papierkorb verschieben?")),
+        Some(&tr("„{title}“ wird in den WordPress-Papierkorb verschoben und kann dort im WordPress-Backend wiederhergestellt werden.").replace("{title}", &post.title)),
+    );
+    confirm.add_response("cancel", &tr("Abbrechen"));
+    confirm.add_response("trash", &tr("In den Papierkorb"));
+    confirm.set_response_appearance("trash", adw::ResponseAppearance::Destructive);
+    confirm.set_default_response(Some("cancel"));
+    confirm.set_close_response("cancel");
+
+    let ctx = ctx.clone();
+    let post = post.clone();
+    confirm.connect_response(None, move |_, response| {
+        if response != "trash" {
+            return;
+        }
+        let Some(strong) = ctx.upgrade() else { return };
+        strong.set_lists_sensitive(false);
+        strong.status_label.set_label(&tr("Verschiebe „{title}“ in den Papierkorb …").replace("{title}", &post.title));
+        let rest_base = strong.post_type.get().rest_base();
+        let post_id = post.id;
+        let ctx = ctx.clone();
+        run_with_password(
+            &strong.site,
+            move |site, password| wpclient::Client::new(&site.url, &site.username, password).trash_item(rest_base, post_id).map_err(|err| err.to_string()),
+            move |outcome| {
+                let Some(ctx) = ctx.upgrade() else { return };
+                match outcome {
+                    Ok(()) => load_posts(&ctx),
+                    Err(err) => {
+                        ctx.status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err));
+                        ctx.set_lists_sensitive(true);
+                    }
+                }
+            },
+        );
+    });
+    confirm.present(Some(anchor));
 }
 
 fn status_display(status: &str) -> String {
@@ -287,9 +383,9 @@ fn status_display(status: &str) -> String {
     }
 }
 
-fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_id: u64) -> Result<ImportedPost, String> {
+fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_type: PostType, post_id: u64) -> Result<ImportedPost, String> {
     let client = wpclient::Client::new(&site.url, &site.username, password);
-    let detail = client.get_post(post_id).map_err(|err| err.to_string())?;
+    let detail = client.get_item(post_type.rest_base(), post_id).map_err(|err| err.to_string())?;
 
     let mut categories = Vec::new();
     for id in &detail.categories {
@@ -309,6 +405,7 @@ fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_id: u64) ->
     let is_future = detail.status == "future";
     let frontmatter = Frontmatter {
         title: detail.title,
+        post_type,
         slug: detail.slug,
         status: PostStatus::from_str(&detail.status),
         scheduled_at: is_future.then_some(detail.date).filter(|d| !d.is_empty()),
@@ -360,7 +457,7 @@ mod tests {
         // "Rutile 0.2.2 – Eine moderne Alternative zu Tilix" on
         // linuxundich.de: category "GNU/Linux", tags including "Gnome", and
         // a featured image (media id 45270 as of writing).
-        let imported = fetch_and_convert(&site, &password, 45269).expect("fetch_and_convert failed");
+        let imported = fetch_and_convert(&site, &password, PostType::Post, 45269).expect("fetch_and_convert failed");
 
         assert!(!imported.frontmatter.categories.is_empty(), "expected at least one category, got none");
         assert!(!imported.frontmatter.tags.is_empty(), "expected at least one tag, got none");
@@ -406,7 +503,7 @@ mod tests {
             }))
             .expect("create_post failed");
 
-        let imported = fetch_and_convert(&site, &password, created.id).expect("fetch_and_convert failed");
+        let imported = fetch_and_convert(&site, &password, PostType::Post, created.id).expect("fetch_and_convert failed");
 
         assert_eq!(imported.frontmatter.title, "Blocksmith round-trip test");
         assert_eq!(imported.frontmatter.wp_post_id, Some(created.id));

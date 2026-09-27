@@ -19,6 +19,7 @@ pub fn build() -> gtk4::ShortcutsWindow {
         tr("Allgemein"),
         &[
             (tr("Neuer Artikel"), "<Ctrl>N"),
+            (tr("Neue Seite"), "<Ctrl><Alt>N"),
             (tr("Öffnen"), "<Ctrl>O"),
             (tr("Von WordPress öffnen"), "<Ctrl><Shift>O"),
             (tr("Speichern"), "<Ctrl>S"),

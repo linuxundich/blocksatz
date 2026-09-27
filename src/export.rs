@@ -18,7 +18,7 @@ use adw::prelude::*;
 use gtk4::glib;
 use webkit6::prelude::*;
 
-use crate::document::{self, Frontmatter, PostStatus};
+use crate::document::{self, Frontmatter, PostStatus, PostType};
 use crate::i18n::tr;
 use crate::{browser, linkcheck, media, mediapanel, notify, preview, secrets, wpclient, wpsite};
 
@@ -334,6 +334,7 @@ pub fn open(
         let dialog_for_confirm = dialog.clone();
         delete_button.connect_clicked(move |_| {
             let Some(post_id) = frontmatter.borrow().wp_post_id else { return };
+            let rest_base = frontmatter.borrow().post_type.rest_base();
             let confirm = adw::AlertDialog::new(
                 Some(&tr("Artikel wirklich löschen?")),
                 Some(&tr("Der Artikel wird unwiderruflich von der WordPress-Seite gelöscht.")),
@@ -367,7 +368,7 @@ pub fn open(
                         })
                         .and_then(|password| {
                             wpclient::Client::new(&site.url, &site.username, &password)
-                                .delete_post(post_id)
+                                .delete_item(rest_base, post_id)
                                 .map_err(|err| err.to_string())
                         });
                     let _ = tx.send(outcome);
@@ -411,6 +412,7 @@ pub fn open(
         let export_preview_web_view = export_preview_web_view.clone();
         preview_button.connect_clicked(move |_| {
             let Some(post_id) = frontmatter.borrow().wp_post_id else { return };
+            let rest_base = frontmatter.borrow().post_type.rest_base();
             preview_button_for_click.set_sensitive(false);
             status_label.set_label(&tr("Vorschau wird geladen …"));
             link_button.set_visible(false);
@@ -425,7 +427,7 @@ pub fn open(
                     })
                     .and_then(|password| {
                         wpclient::Client::new(&site.url, &site.username, &password)
-                            .get_post(post_id)
+                            .get_item(rest_base, post_id)
                             .map(|detail| detail.link)
                             .map_err(|err| err.to_string())
                     })
@@ -571,9 +573,9 @@ fn wire_publish_button(
 
     let button_for_click = button.clone();
     button.connect_clicked(move |_| {
-        let (post_id, local_hash) = {
+        let (post_id, local_hash, rest_base) = {
             let fm = frontmatter.borrow();
-            (fm.wp_post_id, fm.wp_content_hash.clone())
+            (fm.wp_post_id, fm.wp_content_hash.clone(), fm.post_type.rest_base())
         };
         let Some(post_id) = post_id.filter(|_| local_hash.is_some()) else {
             start_export(target_status, &frontmatter, &body, &doc_dir, &status, &button_for_click, &other_buttons);
@@ -597,7 +599,7 @@ fn wire_publish_button(
                 })
                 .and_then(|password| {
                     wpclient::Client::new(&site.url, &site.username, &password)
-                        .get_post(post_id)
+                        .get_item(rest_base, post_id)
                         .map(|detail| document::content_hash(&detail.content))
                         .map_err(|err| err.to_string())
                 });
@@ -804,21 +806,25 @@ fn run_export(
     rewrite_image_urls(&mut blocks, &uploaded_urls);
     let content = gutenberg::render_blocks(&blocks);
 
-    let mut category_ids = Vec::new();
-    for name in &frontmatter.categories {
-        category_ids.push(client.resolve_or_create_term("categories", name).map_err(|err| err.to_string())?);
-    }
-    let mut tag_ids = Vec::new();
-    for name in &frontmatter.tags {
-        tag_ids.push(client.resolve_or_create_term("tags", name).map_err(|err| err.to_string())?);
-    }
-
     let mut payload = serde_json::json!({
         "title": frontmatter.title,
         "content": content,
-        "categories": category_ids,
-        "tags": tag_ids,
     });
+    // Pages don't have categories/tags at all (WordPress registers neither
+    // taxonomy for the `page` type) - skipped entirely rather than
+    // resolving/creating terms that would then just be silently dropped.
+    if frontmatter.post_type == PostType::Post {
+        let mut category_ids = Vec::new();
+        for name in &frontmatter.categories {
+            category_ids.push(client.resolve_or_create_term("categories", name).map_err(|err| err.to_string())?);
+        }
+        let mut tag_ids = Vec::new();
+        for name in &frontmatter.tags {
+            tag_ids.push(client.resolve_or_create_term("tags", name).map_err(|err| err.to_string())?);
+        }
+        payload["categories"] = serde_json::json!(category_ids);
+        payload["tags"] = serde_json::json!(tag_ids);
+    }
     // Omitted entirely (not just "left at whatever `frontmatter.status`
     // says") when `target_status` is `None` - WordPress's REST API leaves
     // an existing post's status untouched when the field is absent from
@@ -906,9 +912,10 @@ fn run_export(
         payload["comment_status"] = serde_json::Value::String(if open { "open" } else { "closed" }.to_string());
     }
 
+    let rest_base = frontmatter.post_type.rest_base();
     let result = match frontmatter.wp_post_id {
-        Some(id) => client.update_post(id, &payload),
-        None => client.create_post(&payload),
+        Some(id) => client.update_item(rest_base, id, &payload),
+        None => client.create_item(rest_base, &payload),
     }
     .map_err(|err| err.to_string())?;
     // `content` is exactly what the server now stores (WordPress's REST API
@@ -1249,6 +1256,7 @@ mod tests {
         let body = "Ein Testartikel für Entwurf/Veröffentlichen.\n";
         let mut frontmatter = Frontmatter {
             title: "Blocksmith draft/publish status test".to_string(),
+            post_type: PostType::Post,
             slug: String::new(),
             status: crate::document::PostStatus::Draft,
             scheduled_at: None,
@@ -1300,6 +1308,7 @@ mod tests {
         let body = "Ein Testartikel für das Aktualisieren-ohne-Statuswechsel-Verhalten.\n";
         let mut frontmatter = Frontmatter {
             title: "Blocksmith update-without-status-change test".to_string(),
+            post_type: PostType::Post,
             slug: String::new(),
             status: crate::document::PostStatus::Draft,
             scheduled_at: None,
@@ -1350,6 +1359,7 @@ mod tests {
         let body = "Ein Testartikel für den VG-Wort-Toggle.\n";
         let mut frontmatter = Frontmatter {
             title: "Blocksmith vgwort_ignored round-trip test".to_string(),
+            post_type: PostType::Post,
             slug: String::new(),
             status: crate::document::PostStatus::Draft,
             scheduled_at: None,
@@ -1399,6 +1409,7 @@ mod tests {
         let body = "Ein Testartikel für den Kommentar-Status-Toggle.\n";
         let mut frontmatter = Frontmatter {
             title: "Blocksmith comment_status round-trip test".to_string(),
+            post_type: PostType::Post,
             slug: String::new(),
             status: crate::document::PostStatus::Draft,
             scheduled_at: None,
@@ -1451,6 +1462,7 @@ mod tests {
 
         let mut frontmatter = Frontmatter {
             title: "Blocksmith export test post".to_string(),
+            post_type: PostType::Post,
             slug: String::new(),
             status: crate::document::PostStatus::Draft,
             scheduled_at: None,
@@ -1508,6 +1520,7 @@ mod tests {
 
         let mut frontmatter = Frontmatter {
             title: "Blocksmith re-export test post".to_string(),
+            post_type: PostType::Post,
             slug: String::new(),
             status: crate::document::PostStatus::Draft,
             scheduled_at: None,

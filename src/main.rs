@@ -71,6 +71,7 @@ fn main() -> glib::ExitCode {
     let app = adw::Application::builder().application_id(APP_ID).flags(gio::ApplicationFlags::HANDLES_OPEN).build();
 
     app.set_accels_for_action("win.new", &["<Ctrl>n"]);
+    app.set_accels_for_action("win.new-page", &["<Ctrl><Alt>n"]);
     app.set_accels_for_action("win.open", &["<Ctrl>o"]);
     app.set_accels_for_action("win.open-from-wordpress", &["<Ctrl><Shift>o"]);
     app.set_accels_for_action("win.save", &["<Ctrl>s"]);

@@ -400,6 +400,10 @@ fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_type: PostT
     // lookup failure just leaves the name blank (the id itself is still
     // kept below) rather than surfacing as an import error.
     let author_name = (detail.author != 0).then(|| client.get_user_name(detail.author).ok()).flatten();
+    // Best-effort, same reasoning as `author_name` above - an inaccessible
+    // or already-deleted parent page shouldn't block importing this one;
+    // its id is kept below regardless, just without a cached title.
+    let parent_name = (detail.parent != 0).then(|| client.get_item(post_type.rest_base(), detail.parent).ok().map(|d| d.title)).flatten();
 
     let body = gutenberg::gutenberg_to_markdown(&detail.content);
     let is_future = detail.status == "future";
@@ -427,6 +431,8 @@ fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_type: PostT
         featured_media_id: (detail.featured_media != 0).then_some(detail.featured_media),
         author_id: (detail.author != 0).then_some(detail.author),
         author_name,
+        parent_id: (detail.parent != 0).then_some(detail.parent),
+        parent_name,
         vgwort_ignored: detail.vgwort_ignored,
         comment_status: Some(detail.comment_status == "open"),
         media: crate::media::reconcile(&[], &body),

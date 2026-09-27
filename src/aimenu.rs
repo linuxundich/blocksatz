@@ -23,6 +23,7 @@ use std::rc::Rc;
 use adw::prelude::*;
 use gtk4::{gio, glib};
 
+use crate::aiinplace::{self, InPlaceBar};
 use crate::aiprompts::{self, CustomPrompt};
 use crate::chat::ChatView;
 use crate::i18n::tr;
@@ -41,6 +42,7 @@ pub fn install(
     chat_view: Rc<ChatView>,
     spelling_menu: &gio::MenuModel,
     image_alt_menu: &gio::MenuModel,
+    inplace_bar: Rc<InPlaceBar>,
 ) -> AiMenuHandles {
     let custom_prompts_menu = gio::Menu::new();
     rebuild_custom_prompts_menu(&custom_prompts_menu, &aiprompts::load_custom_prompts());
@@ -56,10 +58,22 @@ pub fn install(
         }
     }
 
+    // A second, non-customizable set of the same four actions that, unlike
+    // the "KI-Aktionen" section above, replace the selection in place
+    // instead of sending it to the Chat tab - see `aiinplace.rs`.
+    let inplace_actions = gio::Menu::new();
+    for action in ["style", "spelling", "punctuation"] {
+        let item = gio::MenuItem::new(Some(&aiinplace::action_label(action)), None);
+        item.set_action_and_target_value(Some("ai.inplace-run"), Some(&action.to_variant()));
+        inplace_actions.append_item(&item);
+    }
+    inplace_actions.append_item(&gio::MenuItem::new(Some(&format!("{} …", aiinplace::action_label("length"))), Some("ai.inplace-length")));
+
     let combined_extra_menu = gio::Menu::new();
     combined_extra_menu.append_section(None, spelling_menu);
     combined_extra_menu.append_section(None, image_alt_menu);
     combined_extra_menu.append_section(Some(&tr("KI-Aktionen")), &builtin_actions);
+    combined_extra_menu.append_section(Some(&tr("Direkt im Text korrigieren")), &inplace_actions);
     combined_extra_menu.append_section(None, &custom_prompts_menu);
     view.set_extra_menu(Some(&combined_extra_menu));
 
@@ -91,6 +105,30 @@ pub fn install(
         });
     }
     actions.add_action(&adjust_length_action);
+
+    let inplace_run_action = gio::SimpleAction::new("inplace-run", Some(&String::static_variant_type()));
+    {
+        let inplace_bar = inplace_bar.clone();
+        inplace_run_action.connect_activate(move |_, param| {
+            let Some(action) = param.and_then(glib::Variant::str) else { return };
+            let Some(instruction) = aiinplace::instruction_for(action, None) else { return };
+            inplace_bar.run(&aiinplace::action_label(action), instruction);
+        });
+    }
+    actions.add_action(&inplace_run_action);
+
+    let inplace_length_action = gio::SimpleAction::new("inplace-length", None);
+    {
+        let inplace_bar = inplace_bar.clone();
+        let view_weak = view.downgrade();
+        inplace_length_action.connect_activate(move |_, _| {
+            let Some(view) = view_weak.upgrade() else { return };
+            let Some(root) = view.root() else { return };
+            let Ok(window) = root.downcast::<gtk4::Window>() else { return };
+            open_inplace_length_dialog(&window, inplace_bar.clone());
+        });
+    }
+    actions.add_action(&inplace_length_action);
 
     view.insert_action_group("ai", Some(&actions));
 
@@ -138,7 +176,11 @@ fn trigger_prompt_run(buffer: &sourceview5::Buffer, view_stack: &adw::ViewStack,
     dispatch_to_chat(view_stack, chat_view, &title, full_prompt);
 }
 
-fn open_adjust_length_dialog(window: &gtk4::Window, buffer: &sourceview5::Buffer, view_stack: &adw::ViewStack, chat_view: Rc<ChatView>) {
+/// Shared by both "Länge anpassen" dialogs (the chat-based one below and
+/// `aiinplace`'s in-place one) - collects a target length/unit/precision
+/// and hands the resulting instruction plus a display label to `on_apply`,
+/// which each caller turns into its own kind of request.
+fn open_length_dialog(window: &gtk4::Window, on_apply: impl Fn(String, String) + 'static) {
     let dialog = adw::AlertDialog::builder()
         .heading(tr("Länge anpassen"))
         .body(tr("Wie soll die Auswahl (oder der ganze Artikel, falls nichts markiert ist) angepasst werden?"))
@@ -175,8 +217,6 @@ fn open_adjust_length_dialog(window: &gtk4::Window, buffer: &sourceview5::Buffer
     content.append(&precision_box);
     dialog.set_extra_child(Some(&content));
 
-    let buffer = buffer.clone();
-    let view_stack = view_stack.clone();
     dialog.connect_response(None, move |_, response| {
         if response != "apply" {
             return;
@@ -185,12 +225,27 @@ fn open_adjust_length_dialog(window: &gtk4::Window, buffer: &sourceview5::Buffer
         let unit = if chars_toggle.is_active() { "Zeichen" } else { "Wörter" };
         let precision = if exact_toggle.is_active() { "genau" } else { "etwa" };
         let length_instruction = format!("auf {precision} {amount} {unit}");
-
-        let content = crate::editor::selected_or_full_text(&buffer);
-        let template = aiprompts::load_prompt_text("adjust-length").replace("{length_instruction}", &length_instruction);
-        let full_prompt = format!("{template}\n\n---\n\n{content}");
-        dispatch_to_chat(&view_stack, &chat_view, &format!("{} ({length_instruction})", tr("Länge anpassen")), full_prompt);
+        let label = format!("{} ({length_instruction})", tr("Länge anpassen"));
+        on_apply(length_instruction, label);
     });
 
     dialog.present(Some(window));
+}
+
+fn open_adjust_length_dialog(window: &gtk4::Window, buffer: &sourceview5::Buffer, view_stack: &adw::ViewStack, chat_view: Rc<ChatView>) {
+    let buffer = buffer.clone();
+    let view_stack = view_stack.clone();
+    open_length_dialog(window, move |length_instruction, label| {
+        let content = crate::editor::selected_or_full_text(&buffer);
+        let template = aiprompts::load_prompt_text("adjust-length").replace("{length_instruction}", &length_instruction);
+        let full_prompt = format!("{template}\n\n---\n\n{content}");
+        dispatch_to_chat(&view_stack, &chat_view, &label, full_prompt);
+    });
+}
+
+fn open_inplace_length_dialog(window: &gtk4::Window, bar: Rc<InPlaceBar>) {
+    open_length_dialog(window, move |length_instruction, label| {
+        let Some(instruction) = aiinplace::instruction_for("length", Some(&length_instruction)) else { return };
+        bar.run(&label, instruction);
+    });
 }

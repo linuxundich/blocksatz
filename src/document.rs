@@ -223,6 +223,16 @@ pub struct Frontmatter {
     /// `Some(false)` send WordPress's own `comment_status` field as
     /// `"open"`/`"closed"`.
     pub comment_status: Option<bool>,
+    /// The parent page's WordPress id - `page` post type only, WordPress's
+    /// own hierarchical-pages feature (e.g. "Impressum" nested under "Über
+    /// uns"). `None` means top-level (no parent), sent as `parent: 0` on
+    /// export - the same "explicit unset, not a sentinel zero" convention
+    /// as `author_id`.
+    pub parent_id: Option<u64>,
+    /// The parent page's title, cached alongside `parent_id` purely so
+    /// "Artikel-Eigenschaften" can show it immediately without waiting on a
+    /// fresh page-list fetch - same reasoning as `author_name`.
+    pub parent_name: Option<String>,
     /// Per-image alt text/caption/WordPress-upload metadata (`media.rs`) -
     /// rebuilt from the current body on every properties/media-panel open
     /// via `media::reconcile`, so this only needs to persist what a plain
@@ -319,6 +329,10 @@ pub fn parse(input: &str) -> Document {
             "author_name" => {
                 frontmatter.author_name = (!value.is_empty()).then(|| unquote(value));
             }
+            "parent_id" => frontmatter.parent_id = value.parse::<u64>().ok(),
+            "parent_name" => {
+                frontmatter.parent_name = (!value.is_empty()).then(|| unquote(value));
+            }
             "vgwort_ignored" => frontmatter.vgwort_ignored = value.trim() == "true",
             "comment_status" => {
                 frontmatter.comment_status = match value.trim() {
@@ -394,6 +408,12 @@ pub fn serialize(doc: &Document) -> String {
     }
     if let Some(name) = &fm.author_name {
         out.push_str(&format!("author_name: \"{}\"\n", escape(name)));
+    }
+    if let Some(id) = fm.parent_id {
+        out.push_str(&format!("parent_id: {id}\n"));
+    }
+    if let Some(name) = &fm.parent_name {
+        out.push_str(&format!("parent_name: \"{}\"\n", escape(name)));
     }
     if fm.vgwort_ignored {
         out.push_str("vgwort_ignored: true\n");
@@ -732,6 +752,8 @@ mod tests {
                      wp_content_hash: \"abc123\"\n\
                      author_id: 3\n\
                      author_name: \"Jane Editor\"\n\
+                     parent_id: 12\n\
+                     parent_name: \"Über uns\"\n\
                      vgwort_ignored: true\n\
                      comment_status: closed\n\
                      ---\n\
@@ -754,6 +776,8 @@ mod tests {
         assert_eq!(doc.frontmatter.wp_content_hash.as_deref(), Some("abc123"));
         assert_eq!(doc.frontmatter.author_id, Some(3));
         assert_eq!(doc.frontmatter.author_name.as_deref(), Some("Jane Editor"));
+        assert_eq!(doc.frontmatter.parent_id, Some(12));
+        assert_eq!(doc.frontmatter.parent_name.as_deref(), Some("Über uns"));
         assert!(doc.frontmatter.vgwort_ignored);
         assert_eq!(doc.frontmatter.comment_status, Some(false));
         assert_eq!(doc.body, "Body text here.\n");
@@ -790,6 +814,8 @@ mod tests {
                 featured_media_id: Some(99),
                 author_id: Some(3),
                 author_name: Some("Jane Editor".to_string()),
+                parent_id: Some(12),
+                parent_name: Some("Über uns".to_string()),
                 vgwort_ignored: true,
                 comment_status: Some(false),
                 media: vec![MediaItem {

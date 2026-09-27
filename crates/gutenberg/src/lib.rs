@@ -7,7 +7,7 @@
 use pulldown_cmark::{Alignment, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
 mod reverse;
-pub use reverse::gutenberg_to_markdown;
+pub use reverse::{gutenberg_to_markdown, render_gallery_fence};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Block {
@@ -48,9 +48,14 @@ pub enum Block {
     /// see `parse_fenced_buttons`.
     Buttons { buttons: Vec<ButtonItem> },
     /// `wp:gallery` - a photo gallery. Written as a fenced ` ```gallery `
-    /// block containing one Markdown image reference per line - see
+    /// block containing one Markdown image reference per line, each
+    /// optionally carrying a caption via CommonMark's own image title
+    /// syntax (`![alt](url "caption")` - same convention `Image.title`
+    /// uses) - and, only when it differs from `GallerySettings::default`,
+    /// an options line ahead of a `+++` separator (same shape `Pullquote`/
+    /// `Details` use for their own optional second section) - see
     /// `parse_fenced_gallery`.
-    Gallery { images: Vec<GalleryImage> },
+    Gallery { images: Vec<GalleryImage>, settings: GallerySettings },
     /// `wp:pullquote` - a highlighted, larger-type quote pulled out of the
     /// article, with an optional attribution. Unlike `wp:quote` this isn't
     /// an `InnerBlocks` container in WordPress - it's plain RichText, so
@@ -85,6 +90,32 @@ pub struct ButtonItem {
 pub struct GalleryImage {
     pub url: String,
     pub alt: String,
+    pub caption: Option<String>,
+}
+
+/// `wp:gallery`'s own attributes, plus each image's `sizeSlug` (WordPress
+/// sets the same size on every image in a gallery, so this crate's simpler
+/// data model keeps it here at the gallery level rather than per-image).
+#[derive(Debug, Clone, PartialEq)]
+pub struct GallerySettings {
+    /// `None` is WordPress's own "Auto" - the number of columns adapts to
+    /// however many images there are, up to a theme-defined max.
+    pub columns: Option<u8>,
+    /// `wp:gallery`'s `imageCrop` attribute - `true` (WordPress's own
+    /// default) squares every thumbnail; `false` keeps each image's
+    /// original aspect ratio.
+    pub cropped: bool,
+    /// `"none"` or `"media"` (link each image to its own full-size file) -
+    /// WordPress also offers `"attachment"` (its own attachment page), not
+    /// modeled here since this crate never has a page to link to.
+    pub link_to: String,
+    pub size_slug: String,
+}
+
+impl Default for GallerySettings {
+    fn default() -> Self {
+        GallerySettings { columns: None, cropped: true, link_to: "none".to_string(), size_slug: "large".to_string() }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -330,28 +361,66 @@ fn parse_fenced_buttons(text: &str) -> Block {
     Block::Buttons { buttons }
 }
 
-/// Splits a ` ```gallery ` block's raw text into one image per Markdown
-/// image reference found in it (one per line is the intended usage, same
-/// scanning approach as `parse_fenced_buttons`).
+/// Splits a ` ```gallery ` block's raw text on a `+++` line (see
+/// `split_on_plus_separator`) into an optional settings line and the image
+/// list, same "one optional second section" shape as `parse_fenced_pullquote`/
+/// `parse_fenced_details` - except here it's the *first* section that's
+/// optional, so a gallery with no `+++` at all (every gallery this crate
+/// wrote before `GallerySettings` existed, or one hand-written without
+/// caring about them) is just its plain image list with every setting at
+/// its default.
 fn parse_fenced_gallery(text: &str) -> Block {
+    let sections = split_on_plus_separator(text);
+    match sections.get(1) {
+        Some(images_text) => Block::Gallery { images: parse_gallery_images(images_text), settings: parse_gallery_settings_line(sections[0].trim()) },
+        None => Block::Gallery { images: parse_gallery_images(&sections[0]), settings: GallerySettings::default() },
+    }
+}
+
+/// One image per Markdown image reference found in `text` (one per line is
+/// the intended usage, same scanning approach as `parse_fenced_buttons`) -
+/// a title (`![alt](url "caption")`, same convention `as_lone_media` uses
+/// for a body image's own caption) becomes that image's gallery caption.
+fn parse_gallery_images(text: &str) -> Vec<GalleryImage> {
     let mut options = Options::empty();
     options.insert(Options::ENABLE_STRIKETHROUGH);
     let events: Vec<Event> = Parser::new_ext(text, options).collect();
     let mut images = Vec::new();
     let mut i = 0;
     while i < events.len() {
-        if let Event::Start(Tag::Image { dest_url, .. }) = &events[i] {
+        if let Event::Start(Tag::Image { dest_url, title, .. }) = &events[i] {
             let end = find_matching_end(&events, i, &TagEnd::Image);
             images.push(GalleryImage {
                 alt: collect_text(&events[i + 1..end]),
                 url: dest_url.to_string(),
+                caption: (!title.is_empty()).then(|| title.to_string()),
             });
             i = end + 1;
         } else {
             i += 1;
         }
     }
-    Block::Gallery { images }
+    images
+}
+
+/// Parses a gallery's optional settings line - space-separated `key=value`
+/// tokens, an unknown key or an unparseable value simply left at its
+/// default rather than rejecting the whole line (keeps a hand-edited or
+/// slightly-stale line harmless instead of silently losing every setting
+/// over one typo).
+fn parse_gallery_settings_line(line: &str) -> GallerySettings {
+    let mut settings = GallerySettings::default();
+    for token in line.split_whitespace() {
+        let Some((key, value)) = token.split_once('=') else { continue };
+        match key {
+            "columns" => settings.columns = value.parse().ok(),
+            "crop" => settings.cropped = value == "true",
+            "link" => settings.link_to = value.to_string(),
+            "size" => settings.size_slug = value.to_string(),
+            _ => {}
+        }
+    }
+    settings
 }
 
 /// Splits a fenced block's raw text into sections on any line containing
@@ -718,26 +787,43 @@ fn render_buttons(buttons: &[ButtonItem]) -> String {
     wrap("buttons", None, &format!("<div class=\"wp-block-buttons\">\n{inner}\n</div>"))
 }
 
-fn render_gallery(images: &[GalleryImage]) -> String {
+fn render_gallery(images: &[GalleryImage], settings: &GallerySettings) -> String {
     let inner = images
         .iter()
         .map(|img| {
+            let img_tag = format!("<img src=\"{}\" alt=\"{}\"/>", escape_html(&img.url), escape_html(&img.alt));
+            // WordPress links each image to its own full-size file for
+            // `linkTo:"media"` - this crate has no separate "full size" URL
+            // of its own to link to instead, so the image's own `url` (the
+            // same one `<img src>` already uses) doubles as that target.
+            let linked_img = if settings.link_to == "media" { format!("<a href=\"{}\">{img_tag}</a>", escape_html(&img.url)) } else { img_tag };
+            let figcaption = img
+                .caption
+                .as_ref()
+                .filter(|c| !c.is_empty())
+                .map(|c| format!("<figcaption class=\"wp-element-caption\">{}</figcaption>", escape_html(c)))
+                .unwrap_or_default();
             wrap(
                 "image",
-                Some("{\"sizeSlug\":\"large\"}".to_string()),
-                &format!(
-                    "<figure class=\"wp-block-image size-large\"><img src=\"{}\" alt=\"{}\"/></figure>",
-                    escape_html(&img.url),
-                    escape_html(&img.alt)
-                ),
+                Some(format!("{{\"sizeSlug\":\"{}\",\"linkDestination\":\"{}\"}}", settings.size_slug, if settings.link_to == "media" { "media" } else { "none" })),
+                &format!("<figure class=\"wp-block-image size-{}\">{linked_img}{figcaption}</figure>", settings.size_slug),
             )
         })
         .collect::<Vec<_>>()
         .join("\n\n");
+    let columns_class = settings.columns.map(|n| format!("columns-{n}")).unwrap_or_else(|| "columns-default".to_string());
+    let crop_class = if settings.cropped { " is-cropped" } else { "" };
+    let mut attrs = format!("\"linkTo\":\"{}\"", settings.link_to);
+    if let Some(columns) = settings.columns {
+        attrs.push_str(&format!(",\"columns\":{columns}"));
+    }
+    if !settings.cropped {
+        attrs.push_str(",\"imageCrop\":false");
+    }
     wrap(
         "gallery",
-        Some("{\"linkTo\":\"none\"}".to_string()),
-        &format!("<figure class=\"wp-block-gallery has-nested-images columns-default is-cropped\">\n{inner}\n</figure>"),
+        Some(format!("{{{attrs}}}")),
+        &format!("<figure class=\"wp-block-gallery has-nested-images {columns_class}{crop_class}\">\n{inner}\n</figure>"),
     )
 }
 
@@ -824,7 +910,7 @@ fn render_block(block: &Block) -> String {
         } => render_table(alignments, header, rows),
         Block::Columns { columns } => render_columns(columns),
         Block::Buttons { buttons } => render_buttons(buttons),
-        Block::Gallery { images } => render_gallery(images),
+        Block::Gallery { images, settings } => render_gallery(images, settings),
         Block::Pullquote { paragraphs, citation } => render_pullquote(paragraphs, citation),
         Block::Details { summary, blocks } => render_details(summary, blocks),
         // WordPress's "Weiterlesen" marker is, unusually among Gutenberg
@@ -1085,10 +1171,35 @@ mod tests {
         assert_eq!(
             out,
             "<!-- wp:gallery {\"linkTo\":\"none\"} -->\n<figure class=\"wp-block-gallery has-nested-images columns-default is-cropped\">\n\
-             <!-- wp:image {\"sizeSlug\":\"large\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"one.jpg\" alt=\"First\"/></figure>\n<!-- /wp:image -->\n\n\
-             <!-- wp:image {\"sizeSlug\":\"large\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"two.jpg\" alt=\"Second\"/></figure>\n<!-- /wp:image -->\n\
+             <!-- wp:image {\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"one.jpg\" alt=\"First\"/></figure>\n<!-- /wp:image -->\n\n\
+             <!-- wp:image {\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"two.jpg\" alt=\"Second\"/></figure>\n<!-- /wp:image -->\n\
              </figure>\n<!-- /wp:gallery -->"
         );
+    }
+
+    #[test]
+    fn fenced_gallery_with_custom_settings_becomes_wp_gallery_with_matching_attrs() {
+        let out = markdown_to_gutenberg("```gallery\ncolumns=4 crop=false link=media size=full\n+++\n![First](one.jpg)\n```");
+        assert_eq!(
+            out,
+            "<!-- wp:gallery {\"linkTo\":\"media\",\"columns\":4,\"imageCrop\":false} -->\n<figure class=\"wp-block-gallery has-nested-images columns-4\">\n\
+             <!-- wp:image {\"sizeSlug\":\"full\",\"linkDestination\":\"media\"} -->\n<figure class=\"wp-block-image size-full\"><a href=\"one.jpg\"><img src=\"one.jpg\" alt=\"First\"/></a></figure>\n<!-- /wp:image -->\n\
+             </figure>\n<!-- /wp:gallery -->"
+        );
+    }
+
+    #[test]
+    fn parse_gallery_settings_line_ignores_unknown_keys_and_bad_values() {
+        let settings = parse_gallery_settings_line("columns=oops crop=false bogus=1 size=full");
+        assert_eq!(settings.columns, None);
+        assert!(!settings.cropped);
+        assert_eq!(settings.link_to, "none");
+        assert_eq!(settings.size_slug, "full");
+    }
+
+    #[test]
+    fn parse_gallery_settings_line_on_an_empty_string_is_the_default() {
+        assert_eq!(parse_gallery_settings_line(""), GallerySettings::default());
     }
 
     #[test]

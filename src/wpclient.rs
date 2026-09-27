@@ -124,6 +124,9 @@ pub struct WpMediaEntry {
     pub media_type: String,
     pub mime_type: String,
     pub alt_text: String,
+    /// The media item's own caption, for `gallerydialog.rs`'s per-image
+    /// caption field - not shown anywhere in `mediabrowser.rs` itself.
+    pub caption: String,
     /// Site-local `"YYYY-MM-DDTHH:MM:SS"` upload date.
     pub date: String,
     /// Pixel dimensions - `0` for anything that isn't an image (or an image
@@ -160,6 +163,18 @@ impl MediaFilter {
     }
 }
 
+/// Only `caption.rendered` is ever actually available (`list_media_library`
+/// doesn't request `context=edit`, so `caption.raw` never comes back) - and
+/// WordPress always wraps a plain-text caption in a single `<p>...</p>`,
+/// which would otherwise show up literally in `gallerydialog.rs`'s
+/// plain-text caption field. Only strips that one common shape; anything
+/// else (a caption with its own inline HTML) is left as-is rather than
+/// guessing.
+fn strip_wrapping_p_tag(html: &str) -> String {
+    let trimmed = html.trim();
+    trimmed.strip_prefix("<p>").and_then(|s| s.strip_suffix("</p>")).unwrap_or(trimmed).trim().to_string()
+}
+
 fn media_entry_from_json(item: &Value) -> Option<WpMediaEntry> {
     let details = item.get("media_details");
     let detail_u64 = |key: &str| details.and_then(|d| d.get(key)).and_then(Value::as_u64).unwrap_or(0);
@@ -180,6 +195,7 @@ fn media_entry_from_json(item: &Value) -> Option<WpMediaEntry> {
         media_type: item.get("media_type").and_then(Value::as_str).unwrap_or_default().to_string(),
         mime_type: item.get("mime_type").and_then(Value::as_str).unwrap_or_default().to_string(),
         alt_text: item.get("alt_text").and_then(Value::as_str).unwrap_or_default().to_string(),
+        caption: strip_wrapping_p_tag(item.get("caption").and_then(|c| c.get("raw").or_else(|| c.get("rendered"))).and_then(Value::as_str).unwrap_or_default()),
         date: item.get("date").and_then(Value::as_str).unwrap_or_default().to_string(),
         width: detail_u64("width"),
         height: detail_u64("height"),
@@ -230,6 +246,12 @@ pub struct PostDetail {
     /// WordPress's own `comment_status` field, verbatim (`"open"` or
     /// `"closed"`) - see `Frontmatter::comment_status`.
     pub comment_status: String,
+    /// The parent page's id (`page` post type only) - `0` means top-level,
+    /// same sentinel convention as `featured_media` above. Always
+    /// requested regardless of `rest_base`; WordPress's REST API simply
+    /// omits a field a post type doesn't register (`posts` has no
+    /// `parent`), so this comes back `0` there rather than erroring.
+    pub parent: u64,
     /// Site-local `"YYYY-MM-DDTHH:MM:SS"` - the post's publish date, or for
     /// a `status == "future"` post, its scheduled publish date/time.
     pub date: String,
@@ -673,7 +695,7 @@ impl Client {
     /// either taxonomy for pages), which parses as two empty lists below.
     pub fn get_item(&self, rest_base: &str, id: u64) -> Result<PostDetail> {
         let url = format!(
-            "{}?context=edit&_fields=id,title,content,excerpt,status,slug,categories,tags,featured_media,author,wp-worthy-pixel,comment_status,date,meta,link",
+            "{}?context=edit&_fields=id,title,content,excerpt,status,slug,categories,tags,featured_media,author,wp-worthy-pixel,comment_status,date,meta,link,parent",
             self.endpoint(&format!("{rest_base}/{id}"))
         );
         let value = self.get_json(&url)?;
@@ -704,6 +726,7 @@ impl Client {
             comment_status: value.get("comment_status").and_then(Value::as_str).unwrap_or("open").to_string(),
             date: value.get("date").and_then(Value::as_str).unwrap_or_default().to_string(),
             link: value.get("link").and_then(Value::as_str).unwrap_or_default().to_string(),
+            parent: value.get("parent").and_then(Value::as_u64).unwrap_or(0),
         })
     }
 
@@ -766,7 +789,7 @@ impl Client {
     /// up front.
     pub fn list_media_library(&self, filter: MediaFilter, search: Option<&str>, page: u32) -> Result<(Vec<WpMediaEntry>, u32)> {
         let mut url = format!(
-            "{}?per_page=48&page={page}&orderby=date&order=desc&_fields=id,date,title,source_url,media_type,mime_type,alt_text,media_details",
+            "{}?per_page=48&page={page}&orderby=date&order=desc&_fields=id,date,title,source_url,media_type,mime_type,alt_text,caption,media_details",
             self.endpoint("media")
         );
         if let Some(media_type) = filter.query_value() {

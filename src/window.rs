@@ -9,8 +9,8 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    about, aievaluate, aimenu, aiwriter, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, mediabrowser, medialibrary,
-    mediapanel, preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
+    about, aievaluate, aiinplace, aimenu, aiwriter, autosave, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, importer, linkpicker, media,
+    mediabrowser, medialibrary, mediapanel, preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
 };
 
 const DEBOUNCE_MS: u64 = 250;
@@ -58,6 +58,8 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         .child(&search_bar.widget)
         .build();
     editor_pane.append(&search_bar_scroller);
+    let inplace_bar = aiinplace::InPlaceBar::new(&view, &buffer);
+    editor_pane.append(&inplace_bar.widget);
 
     let chat_view = Rc::new(chat::ChatView::new(&buffer));
     let code_view = Rc::new(codeview::CodeView::new());
@@ -267,6 +269,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let new_section = gio::Menu::new();
     new_section.append(Some(&tr("Neue Seite")), Some("win.new-page"));
     new_section.append(Some(&tr("WordPress-Mediathek")), Some("win.media-library"));
+    new_section.append(Some(&tr("Galerie einfügen…")), Some("win.insert-gallery"));
     new_section.append(Some(&tr("KI-Artikel schreiben…")), Some("win.ai-write"));
     primary_menu.append_section(None, &new_section);
     let app_section = gio::Menu::new();
@@ -414,7 +417,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
             view_stack.set_visible_child_name("browser");
         });
     }
-    let ai_menu_handles = aimenu::install(&view, &buffer, &view_stack, chat_view.clone(), &spelling_menu, image_alt_menu.upcast_ref());
+    let ai_menu_handles = aimenu::install(&view, &buffer, &view_stack, chat_view.clone(), &spelling_menu, image_alt_menu.upcast_ref(), inplace_bar.clone());
 
     let doc_ctx = DocContext {
         buffer: buffer.clone(),
@@ -450,6 +453,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_insert_media_action(&window, &buffer, &current_path);
     wire_insert_media_library_action(&window, &buffer, &frontmatter);
     wire_media_library_browser_action(&window, &buffer, &frontmatter);
+    wire_insert_gallery_action(&window, &buffer, &frontmatter);
     wire_insert_post_link_action(&window, &buffer);
     wire_paste_shortcut(&view, &buffer, &current_path, &toast_overlay);
     wire_drop_target(&view, &buffer, &current_path);
@@ -1326,6 +1330,38 @@ fn wire_media_library_browser_action(window: &adw::ApplicationWindow, buffer: &s
             insert_wordpress_image(&buffer, &frontmatter, entry.id, &entry.source_url, &entry.alt_text);
         });
         mediabrowser::open(&window, Some(on_insert));
+    });
+    window.add_action(&action);
+}
+
+/// Opens "Galerie einfügen" (`gallerydialog.rs`) - inserts the fenced
+/// ` ```gallery ``` ` block text at the cursor, then marks each image as
+/// already-uploaded (same reasoning as `insert_wordpress_image`) so export
+/// doesn't try to re-upload a file that's already sitting in the media
+/// library.
+fn wire_insert_gallery_action(window: &adw::ApplicationWindow, buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>) {
+    let action = gio::SimpleAction::new("insert-gallery", None);
+    let buffer = buffer.clone();
+    let frontmatter = frontmatter.clone();
+    let window_weak = window.downgrade();
+    action.connect_activate(move |_, _| {
+        let Some(window) = window_weak.upgrade() else {
+            return;
+        };
+        let buffer = buffer.clone();
+        let frontmatter = frontmatter.clone();
+        let on_insert: gallerydialog::OnInsertGallery = Rc::new(move |fenced, media_refs| {
+            buffer.insert_at_cursor(&format!("\n\n{fenced}\n\n"));
+            let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
+            let mut fm = frontmatter.borrow_mut();
+            fm.media = media::reconcile(&fm.media, &text);
+            for (media_id, url) in &media_refs {
+                if let Some(media_item) = fm.media.iter_mut().find(|m| &m.source == url) {
+                    media_item.wordpress = Some(media::WordPressMediaRef { media_id: *media_id, url: url.clone(), content_hash: String::new() });
+                }
+            }
+        });
+        gallerydialog::open(&window, on_insert);
     });
     window.add_action(&action);
 }

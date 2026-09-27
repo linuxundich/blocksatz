@@ -825,6 +825,15 @@ fn run_export(
         payload["categories"] = serde_json::json!(category_ids);
         payload["tags"] = serde_json::json!(tag_ids);
     }
+    // Pages only, mirroring the categories/tags guard above - WordPress's
+    // hierarchical-pages `parent` field doesn't exist on posts at all. Sent
+    // unconditionally (unlike `author_id`'s "only when set"): `parent_id`
+    // being `None` is itself a meaningful choice (top-level) that needs to
+    // reach the server as `parent: 0`, not be left as a silent no-op that
+    // could leave a stale parent from before in place.
+    if frontmatter.post_type == PostType::Page {
+        payload["parent"] = serde_json::json!(frontmatter.parent_id.unwrap_or(0));
+    }
     // Omitted entirely (not just "left at whatever `frontmatter.status`
     // says") when `target_status` is `None` - WordPress's REST API leaves
     // an existing post's status untouched when the field is absent from
@@ -1014,7 +1023,7 @@ fn rewrite_image_urls(blocks: &mut [gutenberg::Block], urls: &std::collections::
                     rewrite_image_urls(column, urls);
                 }
             }
-            gutenberg::Block::Gallery { images } => {
+            gutenberg::Block::Gallery { images, .. } => {
                 for image in images.iter_mut() {
                     if let Some(new_url) = urls.get(&image.url) {
                         image.url = new_url.clone();
@@ -1151,14 +1160,15 @@ mod tests {
                 columns: vec![vec![gutenberg::Block::Image { url: "local-a.png".to_string(), alt: String::new(), title: None }]],
             },
             gutenberg::Block::Gallery {
-                images: vec![gutenberg::GalleryImage { url: "local-b.png".to_string(), alt: String::new() }],
+                images: vec![gutenberg::GalleryImage { url: "local-b.png".to_string(), alt: String::new(), caption: None }],
+                settings: gutenberg::GallerySettings::default(),
             },
         ];
         rewrite_image_urls(&mut blocks, &urls);
         let gutenberg::Block::Columns { columns } = &blocks[0] else { panic!("expected Columns") };
         let gutenberg::Block::Image { url, .. } = &columns[0][0] else { panic!("expected Image") };
         assert_eq!(url, "https://example.com/a.png");
-        let gutenberg::Block::Gallery { images } = &blocks[1] else { panic!("expected Gallery") };
+        let gutenberg::Block::Gallery { images, .. } = &blocks[1] else { panic!("expected Gallery") };
         assert_eq!(images[0].url, "https://example.com/b.png");
     }
 
@@ -1273,6 +1283,8 @@ mod tests {
             featured_media_id: None,
             author_id: None,
             author_name: None,
+            parent_id: None,
+            parent_name: None,
             vgwort_ignored: false,
             comment_status: None,
             media: Vec::new(),
@@ -1325,6 +1337,8 @@ mod tests {
             featured_media_id: None,
             author_id: None,
             author_name: None,
+            parent_id: None,
+            parent_name: None,
             vgwort_ignored: false,
             comment_status: None,
             media: Vec::new(),
@@ -1376,6 +1390,8 @@ mod tests {
             featured_media_id: None,
             author_id: None,
             author_name: None,
+            parent_id: None,
+            parent_name: None,
             vgwort_ignored: true,
             comment_status: None,
             media: Vec::new(),
@@ -1426,6 +1442,8 @@ mod tests {
             featured_media_id: None,
             author_id: None,
             author_name: None,
+            parent_id: None,
+            parent_name: None,
             vgwort_ignored: false,
             comment_status: Some(false),
             media: Vec::new(),
@@ -1479,6 +1497,8 @@ mod tests {
             featured_media_id: None,
             author_id: None,
             author_name: None,
+            parent_id: None,
+            parent_name: None,
             vgwort_ignored: false,
             comment_status: None,
             media: Vec::new(),
@@ -1537,6 +1557,8 @@ mod tests {
             featured_media_id: None,
             author_id: None,
             author_name: None,
+            parent_id: None,
+            parent_name: None,
             vgwort_ignored: false,
             comment_status: None,
             media: Vec::new(),

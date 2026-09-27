@@ -15,7 +15,7 @@
 //! full original block comment included, rather than silently losing
 //! content - see `make_block`'s fallback arm.
 
-use crate::{Block, ButtonItem, ColumnAlignment, GalleryImage};
+use crate::{Block, ButtonItem, ColumnAlignment, GalleryImage, GallerySettings};
 
 pub fn gutenberg_to_markdown(html: &str) -> String {
     render_markdown(&parse_gutenberg_blocks(html))
@@ -173,9 +173,18 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str) -> Block 
         "buttons" => Block::Buttons {
             buttons: parse_buttons(&strip_wrapper_tag(inner, "div")),
         },
-        "gallery" => Block::Gallery {
-            images: parse_gallery(&strip_wrapper_tag(inner, "figure")),
-        },
+        "gallery" => {
+            let (images, size_slug) = parse_gallery(&strip_wrapper_tag(inner, "figure"));
+            Block::Gallery {
+                images,
+                settings: GallerySettings {
+                    columns: extract_json_number(attrs, "columns"),
+                    cropped: !attr_is_false(attrs, "imageCrop"),
+                    link_to: extract_json_string(attrs, "linkTo").unwrap_or_else(|| "none".to_string()),
+                    size_slug: size_slug.unwrap_or_else(|| "large".to_string()),
+                },
+            }
+        }
         "pullquote" => parse_pullquote_block(inner),
         "details" => parse_details_block(inner),
         // Our own "html" passthrough, and WordPress's own unusual "more"
@@ -203,6 +212,23 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str) -> Block 
 
 fn attr_flag(attrs: Option<&str>, key: &str) -> bool {
     attrs.is_some_and(|a| a.contains(&format!("\"{key}\":true")))
+}
+
+/// `attr_flag`'s inverse for a boolean that defaults to `true` - WordPress's
+/// `imageCrop` gallery attribute, whose absence means "still true", not
+/// "unset".
+fn attr_is_false(attrs: Option<&str>, key: &str) -> bool {
+    attrs.is_some_and(|a| a.contains(&format!("\"{key}\":false")))
+}
+
+/// Reads a bare (unquoted) numeric JSON attr, e.g. `wp:gallery`'s own
+/// `columns` - the numeric-value equivalent of `extract_json_string`.
+fn extract_json_number(attrs: Option<&str>, key: &str) -> Option<u8> {
+    let attrs = attrs?;
+    let needle = format!("\"{key}\":");
+    let start = attrs.find(&needle)? + needle.len();
+    let digits: String = attrs[start..].chars().take_while(char::is_ascii_digit).collect();
+    digits.parse().ok()
 }
 
 /// Reads a `"key":"value"` string out of a block's JSON attrs comment -
@@ -377,8 +403,13 @@ fn button_from_html(html: &str) -> ButtonItem {
 /// Scans a `wp:gallery` block's stripped `<figure>` content for its
 /// `wp:image` children, reading each one's `src`/`alt` directly - same
 /// reasoning as `parse_buttons` above.
-fn parse_gallery(gallery_inner: &str) -> Vec<GalleryImage> {
+/// Also returns the first image's own `sizeSlug` - WordPress sets it
+/// per-image, but this crate's simpler data model keeps a single size for
+/// the whole gallery (see `GallerySettings::size_slug`), so only the first
+/// one actually needs reading.
+fn parse_gallery(gallery_inner: &str) -> (Vec<GalleryImage>, Option<String>) {
     let mut images = Vec::new();
+    let mut size_slug = None;
     let mut pos = 0;
     while pos < gallery_inner.len() {
         let Some((inner, _cstart, cend)) = next_comment(gallery_inner, pos) else {
@@ -392,6 +423,9 @@ fn parse_gallery(gallery_inner: &str) -> Vec<GalleryImage> {
             pos = cend;
             continue;
         }
+        if size_slug.is_none() {
+            size_slug = extract_json_string(parsed.attrs, "sizeSlug");
+        }
         match find_block_end(gallery_inner, cend, "image") {
             Some((inner_end, after)) => {
                 images.push(image_from_html(&gallery_inner[cend..inner_end]));
@@ -403,13 +437,19 @@ fn parse_gallery(gallery_inner: &str) -> Vec<GalleryImage> {
             }
         }
     }
-    images
+    (images, size_slug)
 }
 
 fn image_from_html(html: &str) -> GalleryImage {
+    let caption = html
+        .find("<figcaption")
+        .and_then(|idx| extract_between(&html[idx..], ">", "</figcaption>"))
+        .map(|c| unescape_entities(c.trim()))
+        .filter(|c| !c.is_empty());
     GalleryImage {
         url: extract_attr(html, "src").unwrap_or_default(),
         alt: extract_attr(html, "alt").unwrap_or_default(),
+        caption,
     }
 }
 
@@ -624,7 +664,7 @@ fn render_block_markdown(block: &Block) -> String {
         Block::Table { alignments, header, rows } => render_table_markdown(alignments, header, rows),
         Block::Columns { columns } => render_columns_markdown(columns),
         Block::Buttons { buttons } => render_buttons_markdown(buttons),
-        Block::Gallery { images } => render_gallery_markdown(images),
+        Block::Gallery { images, settings } => render_gallery_fence(images, settings),
         Block::Pullquote { paragraphs, citation } => render_pullquote_markdown(paragraphs, citation),
         Block::Details { summary, blocks } => render_details_markdown(summary, blocks),
         Block::RawHtml { html } => html.clone(),
@@ -682,9 +722,48 @@ fn render_buttons_markdown(buttons: &[ButtonItem]) -> String {
     format!("```buttons\n{body}\n```")
 }
 
-fn render_gallery_markdown(images: &[GalleryImage]) -> String {
-    let body = images.iter().map(|img| format!("![{}]({})", img.alt, markdown_destination(&img.url))).collect::<Vec<_>>().join("\n");
-    format!("```gallery\n{body}\n```")
+/// Builds a ` ```gallery ``` ` fenced block's text from scratch - public so
+/// `gallerydialog.rs` can generate one directly from what the user picked,
+/// not just as this module's own reverse-HTML-to-Markdown step.
+pub fn render_gallery_fence(images: &[GalleryImage], settings: &GallerySettings) -> String {
+    let body = images
+        .iter()
+        .map(|img| {
+            let destination = markdown_destination(&img.url);
+            match img.caption.as_ref().filter(|c| !c.is_empty()) {
+                Some(caption) => format!("![{}]({destination} \"{caption}\")", img.alt),
+                None => format!("![{}]({destination})", img.alt),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    match format_gallery_settings_line(settings) {
+        Some(line) => format!("```gallery\n{line}\n+++\n{body}\n```"),
+        None => format!("```gallery\n{body}\n```"),
+    }
+}
+
+/// The inverse of `parse_gallery_settings_line` - `None` when `settings` is
+/// entirely at its default, so a plain gallery still round-trips to the
+/// exact same clean, options-line-free Markdown it always has.
+fn format_gallery_settings_line(settings: &GallerySettings) -> Option<String> {
+    if *settings == GallerySettings::default() {
+        return None;
+    }
+    let mut parts = Vec::new();
+    if let Some(columns) = settings.columns {
+        parts.push(format!("columns={columns}"));
+    }
+    if !settings.cropped {
+        parts.push("crop=false".to_string());
+    }
+    if settings.link_to != "none" {
+        parts.push(format!("link={}", settings.link_to));
+    }
+    if settings.size_slug != "large" {
+        parts.push(format!("size={}", settings.size_slug));
+    }
+    Some(parts.join(" "))
 }
 
 /// The `+++`-separator inverse of `parse_fenced_pullquote` - see
@@ -897,6 +976,22 @@ mod tests {
         assert_eq!(
             round_trip("```gallery\n![First](one.jpg)\n![Second](two.jpg)\n```"),
             "```gallery\n![First](one.jpg)\n![Second](two.jpg)\n```"
+        );
+    }
+
+    #[test]
+    fn fenced_gallery_with_captions_round_trips() {
+        assert_eq!(
+            round_trip("```gallery\n![First](one.jpg \"A caption\")\n![Second](two.jpg)\n```"),
+            "```gallery\n![First](one.jpg \"A caption\")\n![Second](two.jpg)\n```"
+        );
+    }
+
+    #[test]
+    fn fenced_gallery_with_settings_round_trips() {
+        assert_eq!(
+            round_trip("```gallery\ncolumns=4 crop=false link=media size=full\n+++\n![First](one.jpg)\n![Second](two.jpg)\n```"),
+            "```gallery\ncolumns=4 crop=false link=media size=full\n+++\n![First](one.jpg)\n![Second](two.jpg)\n```"
         );
     }
 

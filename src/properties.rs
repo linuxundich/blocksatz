@@ -242,6 +242,105 @@ pub fn open(
         type_row.set_subtitle(&tr("Bereits mit WordPress verknüpft - nicht mehr änderbar"));
     }
 
+    // WordPress's hierarchical-pages feature (e.g. "Impressum" nested under
+    // "Über uns") - posts have no such concept, so this row only ever shows
+    // for `PostType::Page` (see `type_row`'s own `connect_selected_notify`
+    // below for how it toggles live as the Typ picker changes). Same
+    // "insensitive placeholder until list_items() resolves, populating flag
+    // guards the notify handler" shape as `author_row` above it.
+    let parent_options: Rc<RefCell<Vec<wpclient::PostSummary>>> = Rc::new(RefCell::new(Vec::new()));
+    let parent_populating = Rc::new(Cell::new(true));
+    let initial_parent_label = current.parent_name.clone().unwrap_or_else(|| tr("Wird geladen …"));
+    let parent_row = adw::ComboRow::builder()
+        .title(tr("Übergeordnete Seite"))
+        .model(&gtk4::StringList::new(&[tr("Keine (oberste Ebene)").as_str(), initial_parent_label.as_str()]))
+        .selected(if current.parent_id.is_some() { 1 } else { 0 })
+        .sensitive(false)
+        .visible(current.post_type == PostType::Page)
+        .build();
+    {
+        let site = site.clone();
+        let parent_row = parent_row.clone();
+        let parent_options = parent_options.clone();
+        let parent_populating = parent_populating.clone();
+        let current_parent_id = current.parent_id;
+        let current_parent_name = current.parent_name.clone();
+        let current_wp_post_id = current.wp_post_id;
+        let (tx, rx) = mpsc::channel::<Result<Vec<wpclient::PostSummary>, String>>();
+        std::thread::spawn(move || {
+            let outcome = if site.url.is_empty() {
+                Err(tr("Keine WordPress-Verbindung eingerichtet."))
+            } else {
+                futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
+                    .map_err(|err| err.to_string())
+                    .and_then(|maybe_password| maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden.")))
+                    .and_then(|password| wpclient::Client::new(&site.url, &site.username, &password).list_items("pages").map_err(|err| err.to_string()))
+            };
+            // A page can't be its own parent - excluded here rather than
+            // left in the list for the user to (harmlessly, WordPress would
+            // just reject it) pick by mistake.
+            let outcome = outcome.map(|pages: Vec<wpclient::PostSummary>| pages.into_iter().filter(|p| Some(p.id) != current_wp_post_id).collect());
+            let _ = tx.send(outcome);
+        });
+        glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
+            Ok(Ok(mut pages)) => {
+                // Same "keep a since-deleted/inaccessible existing value
+                // visible via its cached name" reasoning as `author_row`.
+                let known = current_parent_id.is_some_and(|id| pages.iter().any(|p| p.id == id));
+                if let (false, Some(id)) = (known, current_parent_id) {
+                    pages.push(wpclient::PostSummary { id, title: current_parent_name.clone().unwrap_or_else(|| id.to_string()), status: String::new(), date: String::new(), link: String::new() });
+                }
+                let mut labels = vec![tr("Keine (oberste Ebene)")];
+                labels.extend(pages.iter().map(|p| p.title.clone()));
+                let label_refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+                let selected = current_parent_id
+                    .and_then(|id| pages.iter().position(|p| p.id == id))
+                    .map(|pos| pos as u32 + 1)
+                    .unwrap_or(0);
+                *parent_options.borrow_mut() = pages;
+                parent_row.set_model(Some(&gtk4::StringList::new(&label_refs)));
+                parent_row.set_selected(selected);
+                parent_row.set_sensitive(true);
+                parent_populating.set(false);
+                glib::ControlFlow::Break
+            }
+            Ok(Err(err)) => {
+                parent_row.set_model(Some(&gtk4::StringList::new(&[&tr("Keine (oberste Ebene)"), &tr("Fehler beim Laden: {err}").replace("{err}", &err)])));
+                parent_row.set_selected(0);
+                parent_populating.set(false);
+                glib::ControlFlow::Break
+            }
+            Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+            Err(mpsc::TryRecvError::Disconnected) => {
+                parent_row.set_model(Some(&gtk4::StringList::new(&[&tr("Keine (oberste Ebene)"), &tr("Interner Fehler: kein Ergebnis vom Ladevorgang.")])));
+                parent_row.set_selected(0);
+                parent_populating.set(false);
+                glib::ControlFlow::Break
+            }
+        });
+    }
+    {
+        let frontmatter = frontmatter.clone();
+        let parent_options = parent_options.clone();
+        let parent_populating = parent_populating.clone();
+        parent_row.connect_selected_notify(move |row| {
+            if parent_populating.get() {
+                return;
+            }
+            let mut fm = frontmatter.borrow_mut();
+            match row.selected().checked_sub(1).and_then(|index| parent_options.borrow().get(index as usize).cloned()) {
+                Some(page) => {
+                    fm.parent_id = Some(page.id);
+                    fm.parent_name = Some(page.title);
+                }
+                None => {
+                    fm.parent_id = None;
+                    fm.parent_name = None;
+                }
+            }
+        });
+    }
+
     let title_row = adw::EntryRow::builder().title(tr("Titel")).text(current.title.as_str()).build();
     let slug_row = adw::EntryRow::builder().title(tr("Slug")).text(current.slug.as_str()).build();
     let slug_generate_button = gtk4::Button::from_icon_name("view-refresh-symbolic");
@@ -574,6 +673,7 @@ pub fn open(
     // white space below a short, fixed-height boxed list.
     let general_group = adw::PreferencesGroup::builder().title(tr("Allgemein")).vexpand(true).build();
     general_group.add(&type_row);
+    general_group.add(&parent_row);
     general_group.add(&title_row);
     general_group.add(&slug_row);
     general_group.add(&excerpt_row);
@@ -819,10 +919,12 @@ pub fn open(
     }
     {
         let frontmatter = frontmatter.clone();
+        let parent_row = parent_row.clone();
         type_row.connect_selected_notify(move |row| {
             if let Some(post_type) = PostType::ALL.get(row.selected() as usize) {
                 frontmatter.borrow_mut().post_type = *post_type;
                 taxonomy_page.set_visible(*post_type == PostType::Post);
+                parent_row.set_visible(*post_type == PostType::Page);
             }
         });
     }

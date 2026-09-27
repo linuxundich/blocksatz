@@ -25,6 +25,7 @@ pub fn build() -> gtk4::ShortcutsWindow {
             (tr("Speichern"), "<Ctrl>S"),
             (tr("Artikel exportieren"), "<Ctrl><Shift>P"),
             (tr("Medienverwaltung"), "<Ctrl><Shift>M"),
+            (tr("WordPress-Mediathek"), "<Ctrl><Shift>L"),
             (tr("Fokus-Schreibmodus"), "<Ctrl><Shift>F"),
             (tr("Einstellungen"), "<Ctrl>comma"),
         ],

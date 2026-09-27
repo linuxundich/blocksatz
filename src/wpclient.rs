@@ -111,6 +111,83 @@ pub struct WpMediaItem {
     pub alt_text: String,
 }
 
+/// A media library item with everything the "WordPress-Mediathek" browser
+/// (`mediabrowser.rs`) shows in its details pane - unlike `WpMediaItem`,
+/// covers every media type (documents, audio, video too), not just images.
+#[derive(Debug, Clone, Default)]
+pub struct WpMediaEntry {
+    pub id: u64,
+    pub title: String,
+    pub source_url: String,
+    /// WordPress's own coarse bucket: `"image"`, `"file"` (documents,
+    /// audio and video alike - the finer split lives in `mime_type`).
+    pub media_type: String,
+    pub mime_type: String,
+    pub alt_text: String,
+    /// Site-local `"YYYY-MM-DDTHH:MM:SS"` upload date.
+    pub date: String,
+    /// Pixel dimensions - `0` for anything that isn't an image (or an image
+    /// WordPress couldn't read the size of).
+    pub width: u64,
+    pub height: u64,
+    /// File size in bytes, `0` when WordPress didn't record it.
+    pub filesize: u64,
+    /// A small, server-generated thumbnail for the grid, when WordPress
+    /// made one (images only) - `None` means "show a type icon instead".
+    pub thumbnail_url: Option<String>,
+}
+
+/// Filter for `Client::list_media_library` - `Documents` is WordPress's
+/// own `application` media type (PDFs, office files, archives).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MediaFilter {
+    All,
+    Images,
+    Documents,
+    Audio,
+    Video,
+}
+
+impl MediaFilter {
+    fn query_value(&self) -> Option<&'static str> {
+        match self {
+            MediaFilter::All => None,
+            MediaFilter::Images => Some("image"),
+            MediaFilter::Documents => Some("application"),
+            MediaFilter::Audio => Some("audio"),
+            MediaFilter::Video => Some("video"),
+        }
+    }
+}
+
+fn media_entry_from_json(item: &Value) -> Option<WpMediaEntry> {
+    let details = item.get("media_details");
+    let detail_u64 = |key: &str| details.and_then(|d| d.get(key)).and_then(Value::as_u64).unwrap_or(0);
+    // Prefer WordPress's own square "thumbnail" size, falling back to
+    // "medium" - a site can disable either in Settings → Media.
+    let thumbnail_url = ["thumbnail", "medium"].iter().find_map(|size| {
+        details
+            .and_then(|d| d.get("sizes"))
+            .and_then(|s| s.get(*size))
+            .and_then(|s| s.get("source_url"))
+            .and_then(Value::as_str)
+            .map(str::to_string)
+    });
+    Some(WpMediaEntry {
+        id: item.get("id")?.as_u64()?,
+        title: post_title(item),
+        source_url: item.get("source_url").and_then(Value::as_str).unwrap_or_default().to_string(),
+        media_type: item.get("media_type").and_then(Value::as_str).unwrap_or_default().to_string(),
+        mime_type: item.get("mime_type").and_then(Value::as_str).unwrap_or_default().to_string(),
+        alt_text: item.get("alt_text").and_then(Value::as_str).unwrap_or_default().to_string(),
+        date: item.get("date").and_then(Value::as_str).unwrap_or_default().to_string(),
+        width: detail_u64("width"),
+        height: detail_u64("height"),
+        filesize: detail_u64("filesize"),
+        thumbnail_url,
+    })
+}
+
 #[derive(Debug, Clone)]
 pub struct PostDetail {
     pub id: u64,
@@ -682,6 +759,27 @@ impl Client {
             .unwrap_or_default())
     }
 
+    /// One page (`page`, 1-based) of the full media library, most recent
+    /// first, optionally narrowed by type and/or `search` - returns the
+    /// items plus WordPress's `X-WP-TotalPages`, so the browser can offer
+    /// "Mehr laden" instead of fetching a possibly thousands-strong library
+    /// up front.
+    pub fn list_media_library(&self, filter: MediaFilter, search: Option<&str>, page: u32) -> Result<(Vec<WpMediaEntry>, u32)> {
+        let mut url = format!(
+            "{}?per_page=48&page={page}&orderby=date&order=desc&_fields=id,date,title,source_url,media_type,mime_type,alt_text,media_details",
+            self.endpoint("media")
+        );
+        if let Some(media_type) = filter.query_value() {
+            url.push_str(&format!("&media_type={media_type}"));
+        }
+        if let Some(search) = search.filter(|s| !s.trim().is_empty()) {
+            url.push_str(&format!("&search={}", percent_encode(search.trim())));
+        }
+        let (value, total_pages) = self.get_json_with_total_pages(&url)?;
+        let items = value.as_array().map(|items| items.iter().filter_map(media_entry_from_json).collect()).unwrap_or_default();
+        Ok((items, total_pages))
+    }
+
     fn send_post_payload(&self, url: String, payload: &Value) -> Result<PostResult> {
         let mut response = self
             .agent
@@ -776,6 +874,36 @@ fn percent_encode(s: &str) -> String {
 mod tests {
     use super::*;
     use crate::{secrets, wpsite};
+
+    #[test]
+    fn media_entry_from_json_reads_details_and_thumbnail() {
+        let item = serde_json::json!({
+            "id": 7,
+            "date": "2026-09-01T10:00:00",
+            "title": { "rendered": "Screenshot" },
+            "source_url": "https://example.com/wp-content/uploads/shot.png",
+            "media_type": "image",
+            "mime_type": "image/png",
+            "alt_text": "Ein Fenster",
+            "media_details": {
+                "width": 1920, "height": 1080, "filesize": 12345,
+                "sizes": { "thumbnail": { "source_url": "https://example.com/shot-150x150.png" } }
+            }
+        });
+        let entry = media_entry_from_json(&item).expect("parsed");
+        assert_eq!(entry.id, 7);
+        assert_eq!(entry.title, "Screenshot");
+        assert_eq!((entry.width, entry.height, entry.filesize), (1920, 1080, 12345));
+        assert_eq!(entry.thumbnail_url.as_deref(), Some("https://example.com/shot-150x150.png"));
+    }
+
+    #[test]
+    fn media_entry_from_json_without_sizes_has_no_thumbnail() {
+        let item = serde_json::json!({ "id": 8, "media_type": "file", "mime_type": "application/pdf", "media_details": {} });
+        let entry = media_entry_from_json(&item).expect("parsed");
+        assert_eq!(entry.thumbnail_url, None);
+        assert_eq!(entry.width, 0);
+    }
 
     /// Backs the categories/tags autocomplete in `properties.rs` - checks
     /// it actually gets real term names back, not just a 200 with an empty

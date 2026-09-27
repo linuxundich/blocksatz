@@ -31,6 +31,7 @@ mod linkpicker;
 mod llm;
 mod mdpango;
 mod media;
+mod mediabrowser;
 mod medialibrary;
 mod mediapanel;
 mod notify;
@@ -78,6 +79,7 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("win.settings", &["<Ctrl>comma"]);
     app.set_accels_for_action("win.publish", &["<Ctrl><Shift>p"]);
     app.set_accels_for_action("win.media-manager", &["<Ctrl><Shift>m"]);
+    app.set_accels_for_action("win.media-library", &["<Ctrl><Shift>l"]);
     app.set_accels_for_action("win.find", &["<Ctrl>f"]);
     app.set_accels_for_action("win.toggle-focus-mode", &["<Ctrl><Shift>f"]);
     app.set_accels_for_action("win.show-help-overlay", &["<Ctrl>question"]);

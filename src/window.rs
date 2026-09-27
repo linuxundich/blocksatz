@@ -9,7 +9,7 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    about, aimenu, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, medialibrary, mediapanel,
+    about, aimenu, autosave, browser, chat, codeview, document, editor, export, formatting, imagealt, importer, linkpicker, media, mediabrowser, medialibrary, mediapanel,
     preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
 };
 
@@ -259,6 +259,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let primary_menu = gio::Menu::new();
     let new_section = gio::Menu::new();
     new_section.append(Some(&tr("Neue Seite")), Some("win.new-page"));
+    new_section.append(Some(&tr("WordPress-Mediathek")), Some("win.media-library"));
     primary_menu.append_section(None, &new_section);
     primary_menu.append(Some(&tr("Einstellungen")), Some("win.settings"));
     primary_menu.append(Some(&tr("Tastenkürzel")), Some("win.show-help-overlay"));
@@ -438,6 +439,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_insert_image_action(&window, &buffer, &current_path);
     wire_insert_media_action(&window, &buffer, &current_path);
     wire_insert_media_library_action(&window, &buffer, &frontmatter);
+    wire_media_library_browser_action(&window, &buffer, &frontmatter);
     wire_insert_post_link_action(&window, &buffer);
     wire_paste_shortcut(&view, &buffer, &current_path, &toast_overlay);
     wire_drop_target(&view, &buffer, &current_path);
@@ -1242,17 +1244,45 @@ fn wire_insert_media_library_action(window: &adw::ApplicationWindow, buffer: &so
         let buffer = buffer.clone();
         let frontmatter = frontmatter.clone();
         medialibrary::open(window.upcast_ref::<gtk4::Window>(), move |item| {
-            formatting::insert_image(&buffer, &item.source_url);
-            let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
-            let mut fm = frontmatter.borrow_mut();
-            fm.media = media::reconcile(&fm.media, &text);
-            if let Some(media_item) = fm.media.iter_mut().find(|m| m.source == item.source_url) {
-                media_item.wordpress = Some(media::WordPressMediaRef { media_id: item.id, url: item.source_url.clone(), content_hash: String::new() });
-                if !item.alt_text.trim().is_empty() {
-                    media_item.alt = media::AltText::Text(item.alt_text.clone());
-                }
-            }
+            insert_wordpress_image(&buffer, &frontmatter, item.id, &item.source_url, &item.alt_text);
         });
+    });
+    window.add_action(&action);
+}
+
+/// Inserts an image that already lives in the WordPress media library -
+/// shared by "Aus Mediathek wählen…" and the "WordPress-Mediathek"
+/// browser's "In Artikel einfügen" (see `wire_insert_media_library_action`
+/// for why the `MediaItem` gets patched right away).
+fn insert_wordpress_image(buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>, media_id: u64, source_url: &str, alt_text: &str) {
+    formatting::insert_image(buffer, source_url);
+    let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
+    let mut fm = frontmatter.borrow_mut();
+    fm.media = media::reconcile(&fm.media, &text);
+    if let Some(media_item) = fm.media.iter_mut().find(|m| m.source == source_url) {
+        media_item.wordpress = Some(media::WordPressMediaRef { media_id, url: source_url.to_string(), content_hash: String::new() });
+        if !alt_text.trim().is_empty() {
+            media_item.alt = media::AltText::Text(alt_text.to_string());
+        }
+    }
+}
+
+/// Opens the full "WordPress-Mediathek" browser (`mediabrowser.rs`).
+fn wire_media_library_browser_action(window: &adw::ApplicationWindow, buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>) {
+    let action = gio::SimpleAction::new("media-library", None);
+    let buffer = buffer.clone();
+    let frontmatter = frontmatter.clone();
+    let window_weak = window.downgrade();
+    action.connect_activate(move |_, _| {
+        let Some(window) = window_weak.upgrade() else {
+            return;
+        };
+        let buffer = buffer.clone();
+        let frontmatter = frontmatter.clone();
+        let on_insert: Rc<dyn Fn(crate::wpclient::WpMediaEntry)> = Rc::new(move |entry| {
+            insert_wordpress_image(&buffer, &frontmatter, entry.id, &entry.source_url, &entry.alt_text);
+        });
+        mediabrowser::open(&window, Some(on_insert));
     });
     window.add_action(&action);
 }

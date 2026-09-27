@@ -67,7 +67,11 @@ pub enum Block {
     Details { summary: String, blocks: Vec<Block> },
     /// Passthrough for constructs not (yet) mapped to a specific Gutenberg
     /// block (footnotes, definition lists, ...) and for raw HTML the author
-    /// wrote directly in the Markdown source.
+    /// wrote directly in the Markdown source. Also how `gutenberg_to_markdown`
+    /// (`reverse.rs`) represents a block-comment it doesn't recognize - there
+    /// `html` is the ENTIRE original `<!-- wp:name -->...<!-- /wp:name -->`
+    /// comment, not just its inner HTML, and `render_block` below re-emits
+    /// that form byte-for-byte instead of wrapping it in a fresh `wp:html`.
     RawHtml { html: String },
 }
 
@@ -829,6 +833,15 @@ fn render_block(block: &Block) -> String {
         // ordinary raw-HTML block, so recognizing this one exact case here
         // is enough; everything else still passes through as `wp:html`.
         Block::RawHtml { html } if html.trim() == "<!--more-->" => wrap("more", None, "<!--more-->"),
+        // A block-comment `gutenberg_to_markdown` (reverse.rs) couldn't
+        // recognize and kept verbatim, wrapper comment included (see its
+        // `make_block` fallback) - re-emit it exactly as WordPress
+        // originally wrote it rather than nesting it inside a fresh
+        // `wp:html` block, which would strip its identity/attrs and, for a
+        // dynamic block (a Synced Pattern reference, Page Break, ...),
+        // leave it inert as inert literal comment text instead of the
+        // actual functioning block.
+        Block::RawHtml { html } if html.trim_start().starts_with("<!-- wp:") => html.trim().to_string(),
         Block::RawHtml { html } => wrap("html", None, html.trim()),
     }
 }

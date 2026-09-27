@@ -10,8 +10,10 @@
 //! `<!-- wp:name /-->`), and the HTML *inside* each block is exactly what
 //! WordPress's own block library renders for that block type. Round-trip
 //! fidelity is solid for content this crate produced (or plain, standard
-//! Gutenberg blocks); anything unrecognized passes through as raw HTML
-//! rather than silently losing content.
+//! Gutenberg blocks); anything unrecognized (a third-party plugin block, a
+//! Synced Pattern reference, Page Break, Query Loop, ...) is kept verbatim,
+//! full original block comment included, rather than silently losing
+//! content - see `make_block`'s fallback arm.
 
 use crate::{Block, ButtonItem, ColumnAlignment, GalleryImage};
 
@@ -104,17 +106,17 @@ fn parse_gutenberg_blocks(html: &str) -> Vec<Block> {
             push_stray(&mut blocks, &html[pos..cstart]);
         }
         if parsed.self_closing {
-            blocks.push(make_block(parsed.name, parsed.attrs, ""));
+            blocks.push(make_block(parsed.name, parsed.attrs, "", &html[cstart..cend]));
             pos = cend;
             continue;
         }
         match find_block_end(html, cend, parsed.name) {
             Some((inner_end, after)) => {
-                blocks.push(make_block(parsed.name, parsed.attrs, &html[cend..inner_end]));
+                blocks.push(make_block(parsed.name, parsed.attrs, &html[cend..inner_end], &html[cstart..after]));
                 pos = after;
             }
             None => {
-                blocks.push(make_block(parsed.name, parsed.attrs, &html[cend..]));
+                blocks.push(make_block(parsed.name, parsed.attrs, &html[cend..], &html[cstart..]));
                 pos = html.len();
             }
         }
@@ -122,7 +124,14 @@ fn parse_gutenberg_blocks(html: &str) -> Vec<Block> {
     blocks
 }
 
-fn make_block(name: &str, attrs: Option<&str>, inner: &str) -> Block {
+/// `raw` is the whole original block-comment span (opening comment through
+/// closing comment, or the single comment for a self-closing block) -
+/// unused by every recognized block type below, which only need `inner`,
+/// but load-bearing for the `_` fallback: a *self-closing* unrecognized
+/// block (a Synced Pattern reference, a Page Break, ...) has no `inner` at
+/// all, so falling back to `inner` there would silently turn it into an
+/// empty block - see the fallback arm below and `render_block` in `lib.rs`.
+fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str) -> Block {
     match name {
         "paragraph" => Block::Paragraph {
             html: inline_html_to_markdown(&strip_wrapper_tag(inner, "p")),
@@ -169,9 +178,26 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str) -> Block {
         },
         "pullquote" => parse_pullquote_block(inner),
         "details" => parse_details_block(inner),
-        // Unrecognized block types (custom blocks, embeds, ...) and our own
-        // "html" passthrough both just keep their raw HTML - nothing lost.
-        _ => Block::RawHtml { html: inner.trim().to_string() },
+        // Our own "html" passthrough, and WordPress's own unusual "more"
+        // block (whose inner content already just *is* the bare
+        // `<!--more-->` marker - see the matching arm in `lib.rs`'s
+        // `render_block`) both keep only their inner content, same as
+        // before - `inner` is exactly what's wanted for the Markdown these
+        // two produce, and neither is ever self-closing (an empty `raw`
+        // fallback risk, see below, doesn't apply to either).
+        "html" | "more" => Block::RawHtml { html: inner.trim().to_string() },
+        // Any other unrecognized block type (third-party plugin blocks,
+        // Synced Patterns, Page Break, Query Loop, ...) keeps its ENTIRE
+        // original `<!-- wp:name {...} -->...<!-- /wp:name -->` markup
+        // verbatim instead - many of these are dynamic/server-rendered
+        // blocks whose raw markup is self-closing with no inner HTML at
+        // all, so keeping only `inner` would silently discard them outright
+        // (the block simply vanishes on save, with no attrs left behind to
+        // even show what was lost). `render_block` in `lib.rs` recognizes
+        // this verbatim form and re-emits it unchanged instead of
+        // re-wrapping it as a generic (and, for these blocks, likely
+        // non-functional) Custom HTML block.
+        _ => Block::RawHtml { html: raw.trim().to_string() },
     }
 }
 
@@ -780,6 +806,36 @@ mod tests {
     #[test]
     fn more_marker_round_trips() {
         assert_eq!(round_trip("Erster Absatz.\n\n<!--more-->\n\nZweiter Absatz."), "Erster Absatz.\n\n<!--more-->\n\nZweiter Absatz.");
+    }
+
+    #[test]
+    fn self_closing_unrecognized_block_keeps_its_full_comment_verbatim() {
+        // e.g. a Synced Pattern reference (`core/block`) - dynamic, no
+        // inner HTML of its own at all in the raw markup, so losing the
+        // wrapper here would lose the whole block outright.
+        let html = "<!-- wp:paragraph --><p>Vorher.</p><!-- /wp:paragraph -->\
+                     <!-- wp:block {\"ref\":123} /-->\
+                     <!-- wp:paragraph --><p>Nachher.</p><!-- /wp:paragraph -->";
+        assert_eq!(
+            gutenberg_to_markdown(html),
+            "Vorher.\n\n<!-- wp:block {\"ref\":123} /-->\n\nNachher."
+        );
+    }
+
+    #[test]
+    fn wrapped_unrecognized_block_keeps_its_full_comment_verbatim() {
+        let html = "<!-- wp:my-plugin/thing {\"x\":true} --><div class=\"thing\">Inhalt</div><!-- /wp:my-plugin/thing -->";
+        assert_eq!(
+            gutenberg_to_markdown(html),
+            "<!-- wp:my-plugin/thing {\"x\":true} --><div class=\"thing\">Inhalt</div><!-- /wp:my-plugin/thing -->"
+        );
+    }
+
+    #[test]
+    fn self_closing_unrecognized_block_round_trips_through_markdown_unchanged() {
+        let original = "<!-- wp:block {\"ref\":123} /-->";
+        let markdown = gutenberg_to_markdown(original);
+        assert_eq!(markdown_to_gutenberg(&markdown), original);
     }
 
     #[test]

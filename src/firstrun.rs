@@ -79,6 +79,7 @@ pub fn open(parent: &adw::ApplicationWindow) {
             "Schreibe Artikel in Markdown und veröffentliche sie direkt als native WordPress-Gutenberg-Blöcke - mit Live-Vorschau, KI-Unterstützung und allem, was ein Artikel sonst noch braucht.",
         ))
         .vexpand(true)
+        .hexpand(true)
         .build();
 
     let url_row = adw::EntryRow::builder().title(tr("Website-URL")).text(config.url.as_str()).build();
@@ -101,11 +102,18 @@ pub fn open(parent: &adw::ApplicationWindow) {
     connection_status.add_css_class("dim-label");
     connection_status.set_visible(false);
 
-    let connection_content = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(12).build();
+    // `valign(Center)`, not `vexpand`, on the inner box - it's the
+    // *scroller* around it that needs to fill the carousel page (see
+    // above), but the content itself should sit centered in that space
+    // like its Willkommen/Fertig StatusPage siblings do, not pinned to
+    // the top with all the leftover room dumped below it. Still scrolls
+    // normally top-down if the content ever needs more height than the
+    // page has.
+    let connection_content = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(12).valign(gtk4::Align::Center).build();
     connection_content.append(&connection_group);
     connection_content.append(&test_button);
     connection_content.append(&connection_status);
-    let connection_scroller = gtk4::ScrolledWindow::builder().child(&connection_content).hscrollbar_policy(gtk4::PolicyType::Never).vexpand(true).build();
+    let connection_scroller = gtk4::ScrolledWindow::builder().child(&connection_content).hscrollbar_policy(gtk4::PolicyType::Never).vexpand(true).hexpand(true).build();
     connection_scroller.set_margin_top(24);
     connection_scroller.set_margin_bottom(24);
     connection_scroller.set_margin_start(24);
@@ -120,6 +128,7 @@ pub fn open(parent: &adw::ApplicationWindow) {
         .description(tr("Die Verbindung lässt sich jederzeit in den Einstellungen ändern."))
         .child(&finish_button)
         .vexpand(true)
+        .hexpand(true)
         .build();
 
     let pages: Vec<gtk4::Widget> = vec![welcome_page.clone().upcast(), connection_scroller.clone().upcast(), done_page.clone().upcast()];

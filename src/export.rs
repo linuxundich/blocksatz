@@ -93,6 +93,7 @@ fn wizard_nav_bar(carousel: &adw::Carousel, pages: Vec<gtk4::Widget>) -> gtk4::W
     bar.upcast()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn open(
     parent: &adw::ApplicationWindow,
     body: String,
@@ -101,6 +102,7 @@ pub fn open(
     preview_pane: Rc<preview::PreviewPane>,
     app_view_stack: &adw::ViewStack,
     browser_view: &Rc<browser::BrowserView>,
+    save_document: DocumentSaver,
 ) {
     let site = wpsite::load();
     let current_fm = frontmatter.borrow().clone();
@@ -406,10 +408,10 @@ pub fn open(
     // sidebar's buttons stay wired across the document's whole lifetime.
     let get_body: BodyProvider = { let body = body.clone(); Rc::new(move || body.clone()) };
     let get_doc_dir: DocDirProvider = { let doc_dir = doc_dir.clone(); Rc::new(move || doc_dir.clone()) };
-    wire_publish_button(&publish_button, &[&draft_button, &schedule_button, &private_button], publish_target_status, &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget);
-    wire_publish_button(&draft_button, &[&publish_button, &schedule_button, &private_button], Some(PostStatus::Draft), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget);
-    wire_publish_button(&schedule_button, &[&publish_button, &draft_button, &private_button], Some(PostStatus::Future), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget);
-    wire_publish_button(&private_button, &[&publish_button, &draft_button, &schedule_button], Some(PostStatus::Private), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget);
+    wire_publish_button(&publish_button, &[&draft_button, &schedule_button, &private_button], publish_target_status, &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
+    wire_publish_button(&draft_button, &[&publish_button, &schedule_button, &private_button], Some(PostStatus::Draft), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
+    wire_publish_button(&schedule_button, &[&publish_button, &draft_button, &private_button], Some(PostStatus::Future), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
+    wire_publish_button(&private_button, &[&publish_button, &draft_button, &schedule_button], Some(PostStatus::Private), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
     wire_delete_button(&delete_button, &frontmatter, &dialog_widget, &feedback, {
         let status_label = status_label.clone();
         let publish_button = publish_button.clone();
@@ -446,6 +448,24 @@ type OnPublishSuccess = Rc<dyn Fn(&wpclient::PostResult, PostStatus)>;
 /// only ever calls these right before actually sending something.
 pub(crate) type BodyProvider = Rc<dyn Fn() -> String>;
 pub(crate) type DocDirProvider = Rc<dyn Fn() -> Option<PathBuf>>;
+/// Writes the document back to disk after a successful export.
+///
+/// A successful send fills in `wp_post_id`, the per-image
+/// `WordPressMediaRef`s and `wp_content_hash` - all of it in the shared
+/// `Rc<RefCell<Frontmatter>>` and none of it in the editor's text buffer.
+/// Without this, nothing ever persisted that: the "unsaved changes" check
+/// compares the buffer against `saved_text`, so a frontmatter-only change
+/// leaves the document looking untouched, and both autosave and the close
+/// handler follow that same signal. Reopening the file therefore lost the
+/// post id (the draft could no longer be updated, only published a second
+/// time) and the upload refs (images looked local again and `sync_uploads`
+/// re-uploaded them, creating duplicate attachments).
+///
+/// Deliberately takes no arguments: the caller owns the same
+/// `Rc<RefCell<Frontmatter>>` this module just mutated, plus the buffer and
+/// the path, so it reads the current state itself rather than being handed
+/// a snapshot that could be stale by the time the upload finishes.
+pub(crate) type DocumentSaver = Rc<dyn Fn()>;
 
 #[derive(Clone)]
 pub(crate) struct PublishFeedback {
@@ -573,11 +593,13 @@ pub(crate) fn wire_publish_button(
     get_doc_dir: &DocDirProvider,
     feedback: &PublishFeedback,
     dialog_parent: &gtk4::Widget,
+    save_document: &DocumentSaver,
 ) {
     let other_buttons: Vec<gtk4::Button> = other_buttons.iter().map(|b| (*b).clone()).collect();
     let frontmatter = frontmatter.clone();
     let get_body = get_body.clone();
     let get_doc_dir = get_doc_dir.clone();
+    let save_document = save_document.clone();
     let feedback = feedback.clone();
     let dialog_parent = dialog_parent.clone();
 
@@ -588,7 +610,7 @@ pub(crate) fn wire_publish_button(
             (fm.wp_post_id, fm.wp_content_hash.clone(), fm.post_type.rest_base())
         };
         let Some(post_id) = post_id.filter(|_| local_hash.is_some()) else {
-            start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), &feedback, &button_for_click, &other_buttons);
+            start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), &feedback, &button_for_click, &other_buttons, &save_document);
             return;
         };
 
@@ -623,9 +645,10 @@ pub(crate) fn wire_publish_button(
         let button = button_for_click.clone();
         let other_buttons = other_buttons.clone();
         let dialog_parent = dialog_parent.clone();
+        let save_document = save_document.clone();
         glib::timeout_add_local(Duration::from_millis(150), move || {
             let proceed_directly = |feedback: &PublishFeedback| {
-                start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), feedback, &button, &other_buttons);
+                start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), feedback, &button, &other_buttons, &save_document);
             };
             match rx.try_recv() {
                 Ok(Ok(server_hash)) => {
@@ -649,9 +672,10 @@ pub(crate) fn wire_publish_button(
                         let feedback = feedback.clone();
                         let button = button.clone();
                         let other_buttons = other_buttons.clone();
+                        let save_document = save_document.clone();
                         confirm.connect_response(None, move |_, response| {
                             if response == "overwrite" {
-                                start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), &feedback, &button, &other_buttons);
+                                start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), &feedback, &button, &other_buttons, &save_document);
                             } else {
                                 (feedback.on_progress)(&tr("Abgebrochen - lokale Änderungen wurden nicht gesendet."));
                                 button.set_sensitive(true);
@@ -697,6 +721,7 @@ pub(crate) fn start_export(
     feedback: &PublishFeedback,
     button: &gtk4::Button,
     other_buttons: &[gtk4::Button],
+    save_document: &DocumentSaver,
 ) {
     button.set_sensitive(false);
     for b in other_buttons {
@@ -728,6 +753,7 @@ pub(crate) fn start_export(
     let feedback = feedback.clone();
     let button = button.clone();
     let other_buttons: Vec<gtk4::Button> = other_buttons.to_vec();
+    let save_document = save_document.clone();
     glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
         Ok(Ok((post, media, content_hash))) => {
             let (title, final_status) = {
@@ -740,6 +766,10 @@ pub(crate) fn start_export(
                 fm.wp_content_hash = content_hash;
                 (fm.title.clone(), fm.status)
             };
+            // After the `borrow_mut` above has ended: `save_document`
+            // borrows the same `RefCell` again, and doing this inside the
+            // block would panic.
+            save_document();
             (feedback.on_success)(&post, final_status);
             // Reflects what actually happened rather than always claiming
             // "Veröffentlicht" - `target_status` being `None` means the

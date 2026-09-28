@@ -465,7 +465,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_properties_action(&window, &buffer, &frontmatter, &term_caches, &current_path, &preview_pane);
     wire_settings_action(&window, &buffer, ai_menu_handles, &preview_pane, &browser_view);
     wire_about_action(&window);
-    wire_publish_action(&window, &buffer, &current_path, &frontmatter, &preview_pane, &view_stack, &browser_view);
+    wire_publish_action(&window, &buffer, &current_path, &frontmatter, &preview_pane, &view_stack, &browser_view, document_saver(&doc_ctx));
     wire_media_action(&window, &buffer, &current_path, &frontmatter, &preview_pane);
     wire_insert_image_action(&window, &buffer, &current_path);
     wire_insert_media_action(&window, &buffer, &current_path);
@@ -900,6 +900,32 @@ fn wire_save_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
     window.add_action(&action);
 }
 
+/// Writes the document back to disk with whatever is currently in the
+/// frontmatter and the buffer - handed to `export.rs` so a successful
+/// publish can persist the `wp_post_id` and the per-image upload refs it
+/// just received. Without a local path there is nothing to write to (a
+/// document opened straight from WordPress and never saved locally), and
+/// the call is a no-op.
+pub(crate) fn document_saver(ctx: &DocContext) -> export::DocumentSaver {
+    let ctx = ctx.clone();
+    std::rc::Rc::new(move || {
+        let Some(path) = ctx.current_path.borrow().clone() else {
+            return;
+        };
+        let body = ctx.buffer.text(&ctx.buffer.start_iter(), &ctx.buffer.end_iter(), false).to_string();
+        let doc = Document {
+            frontmatter: ctx.frontmatter.borrow().clone(),
+            body,
+        };
+        if let Err(err) = document::write(&path, &doc) {
+            show_toast(&ctx.toast_overlay, &tr("Speichern fehlgeschlagen: {err}").replace("{err}", &err.to_string()));
+            return;
+        }
+        *ctx.saved_text.borrow_mut() = doc.body.clone();
+        autosave::clear();
+    })
+}
+
 /// Prompts for a place on disk and writes `doc` there - the "no
 /// `current_path` yet" half of `wire_save_action`'s own logic, pulled out
 /// so `docsidebar.rs`'s "Lokal speichern unter…" row (shown exactly when
@@ -993,6 +1019,7 @@ fn wire_about_action(window: &adw::ApplicationWindow) {
     window.add_action(&action);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn wire_publish_action(
     window: &adw::ApplicationWindow,
     buffer: &sourceview5::Buffer,
@@ -1001,6 +1028,7 @@ fn wire_publish_action(
     preview_pane: &Rc<preview::PreviewPane>,
     view_stack: &adw::ViewStack,
     browser_view: &Rc<browser::BrowserView>,
+    save_document: export::DocumentSaver,
 ) {
     let action = gio::SimpleAction::new("publish", None);
     let buffer = buffer.clone();
@@ -1016,7 +1044,7 @@ fn wire_publish_action(
         };
         let body = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
         let doc_dir = current_path.borrow().as_ref().and_then(|p| p.parent().map(Path::to_path_buf));
-        export::open(&window, body, frontmatter.clone(), doc_dir, preview_pane.clone(), &view_stack, &browser_view);
+        export::open(&window, body, frontmatter.clone(), doc_dir, preview_pane.clone(), &view_stack, &browser_view, save_document.clone());
     });
     window.add_action(&action);
 }

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.63.1] - 2026-09-28
+
+### Fixed
+
+- A successful export now writes the document back to disk, so an article
+  keeps its link to the WordPress post across a restart. Publishing filled
+  in `wp_post_id`, the per-image upload references and `wp_content_hash` in
+  the shared frontmatter and nowhere else: the "unsaved changes" check
+  compares the editor buffer against what was last saved, so a
+  frontmatter-only change left the document looking untouched, and autosave
+  and the close handler follow that same signal. Reopening the file
+  therefore lost the post id - the existing draft could no longer be
+  updated, only published a second time - and lost the upload references,
+  so every image looked local again and the next export re-uploaded all of
+  them, collecting duplicate attachments in the media library. The write
+  goes through the same path as `Ctrl+S` (current buffer text, refreshed
+  "last saved" marker, autosave snapshot cleared) and is a no-op for a
+  document that has no local file yet.
+
 ## [0.63.0] - 2026-09-28
 
 ### Added

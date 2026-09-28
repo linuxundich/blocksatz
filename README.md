@@ -302,7 +302,11 @@ blocks. Implemented so far:
   "Artikel-Eigenschaften" dialog's status field currently holds - so
   publishing directly vs. uploading a draft first is an unambiguous choice
   made right in this dialog, and either one updates the same tracked post
-  rather than creating a new one. A third "Terminieren" button appears once
+  rather than creating a new one. A successful send writes the article back
+  to disk right away: the post id and each image's upload reference live in
+  the frontmatter, not in the editor buffer, so nothing else would ever
+  mark the document as changed - closing the app would silently drop the
+  link to the existing post and make every image look local again. A third "Terminieren" button appears once
   "Geplant" is picked in Artikel-Eigenschaften with a valid publish
   date/time set there - exporting without one is refused with a clear
   error rather than silently publishing immediately, which is what

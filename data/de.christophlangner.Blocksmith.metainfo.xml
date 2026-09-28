@@ -22,6 +22,11 @@
   <url type="homepage">https://github.com/linuxundich/blocksmith</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksmith</url>
   <releases>
+    <release version="0.63.1" date="2026-09-28">
+      <description>
+        <p>Nach dem Veröffentlichen wird der Artikel sofort gespeichert. Damit bleiben die Verknüpfung zum WordPress-Beitrag und der Upload-Zustand der Bilder auch nach einem Neustart erhalten - der Entwurf lässt sich weiter aktualisieren, und bereits hochgeladene Bilder landen nicht ein zweites Mal in der Mediathek.</p>
+      </description>
+    </release>
     <release version="0.63.0" date="2026-09-28">
       <description>
         <p>Groq als weiterer KI-Anbieter, zum Beispiel mit Llama 3.3 70B - im KI-Chat, bei der Modellprüfung und bei der Modellwahl je Aufgabe.</p>

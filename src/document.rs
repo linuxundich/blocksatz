@@ -621,6 +621,53 @@ mod tests {
     use super::*;
 
     #[test]
+    fn an_export_result_survives_a_round_trip_through_a_file() {
+        // Regression guard: a successful export fills in `wp_post_id`, the
+        // per-image `WordPressMediaRef`s and `wp_content_hash`, and all of
+        // it has to still be there after the document is written out and
+        // read back. When `export.rs` only ever updated the in-memory
+        // frontmatter, reopening the file lost the post id (so the existing
+        // draft could no longer be updated, only published a second time)
+        // and the upload refs (so `sync_uploads` re-uploaded every image
+        // and WordPress collected duplicate attachments).
+        let item = crate::media::MediaItem {
+            id: "media-001".to_string(),
+            filename: "bild.webp".to_string(),
+            source: "bild.webp".to_string(),
+            alt: crate::media::AltText::Text("Ein Testbild".to_string()),
+            caption: Some("Eine Unterschrift".to_string()),
+            wordpress: Some(crate::media::WordPressMediaRef {
+                media_id: 99,
+                url: "https://example.org/bild.webp".to_string(),
+                content_hash: "deadbeef".to_string(),
+                width: 1280,
+                height: 720,
+            }),
+            last_markdown_caption: None,
+        };
+        let doc = Document {
+            frontmatter: Frontmatter {
+                title: "Testbeitrag".to_string(),
+                wp_post_id: Some(4711),
+                wp_content_hash: Some("abc123".to_string()),
+                media: vec![item.clone()],
+                ..Frontmatter::default()
+            },
+            body: "Hallo Welt\n".to_string(),
+        };
+
+        let path = std::env::temp_dir().join(format!("blocksmith-export-roundtrip-{}.md", std::process::id()));
+        write(&path, &doc).expect("Dokument schreiben");
+        let loaded = read(&path).expect("Dokument lesen");
+        let _ = std::fs::remove_file(&path);
+
+        assert_eq!(loaded.frontmatter.wp_post_id, Some(4711));
+        assert_eq!(loaded.frontmatter.wp_content_hash.as_deref(), Some("abc123"));
+        assert_eq!(loaded.frontmatter.media.len(), 1);
+        assert_eq!(loaded.frontmatter.media[0].upload_status(), crate::media::UploadStatus::Uploaded(item.wordpress.clone().unwrap()));
+    }
+
+    #[test]
     fn parse_scheduled_at_normalizes_a_space_separated_date_and_time() {
         assert_eq!(parse_scheduled_at("2026-12-24 18:30"), Some("2026-12-24T18:30:00".to_string()));
     }

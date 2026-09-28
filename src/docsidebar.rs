@@ -190,13 +190,14 @@ fn build_document_page(window: &adw::ApplicationWindow, ctx: &DocContext, extras
         Rc::new(move || doc_dir(&ctx))
     };
     let dialog_parent: gtk4::Widget = window.clone().upcast();
+    let save_document = crate::window::document_saver(ctx);
     let feedback = export::sidebar_publish_feedback(&ctx.toast_overlay, refresh.clone());
 
     let publish_target_status = if ctx.frontmatter.borrow().wp_post_id.is_some() { None } else { Some(PostStatus::Publish) };
-    export::wire_publish_button(&publish_button, &[&draft_button, &schedule_button, &private_button], publish_target_status, &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent);
-    export::wire_publish_button(&draft_button, &[&publish_button, &schedule_button, &private_button], Some(PostStatus::Draft), &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent);
-    export::wire_publish_button(&schedule_button, &[&publish_button, &draft_button, &private_button], Some(PostStatus::Future), &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent);
-    export::wire_publish_button(&private_button, &[&publish_button, &draft_button, &schedule_button], Some(PostStatus::Private), &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent);
+    export::wire_publish_button(&publish_button, &[&draft_button, &schedule_button, &private_button], publish_target_status, &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document);
+    export::wire_publish_button(&draft_button, &[&publish_button, &schedule_button, &private_button], Some(PostStatus::Draft), &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document);
+    export::wire_publish_button(&schedule_button, &[&publish_button, &draft_button, &private_button], Some(PostStatus::Future), &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document);
+    export::wire_publish_button(&private_button, &[&publish_button, &draft_button, &schedule_button], Some(PostStatus::Private), &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document);
     export::wire_delete_button(&delete_button, &ctx.frontmatter, &dialog_parent, &feedback, {
         let refresh = refresh.clone();
         move || refresh()
@@ -219,7 +220,7 @@ fn build_document_page(window: &adw::ApplicationWindow, ctx: &DocContext, extras
         let extras = extras.clone();
         check_button.connect_clicked(move |_| {
             let body = ctx.buffer.text(&ctx.buffer.start_iter(), &ctx.buffer.end_iter(), false).to_string();
-            export::open(&window, body, ctx.frontmatter.clone(), doc_dir(&ctx), ctx.preview_pane.clone(), &extras.view_stack, &extras.browser_view);
+            export::open(&window, body, ctx.frontmatter.clone(), doc_dir(&ctx), ctx.preview_pane.clone(), &extras.view_stack, &extras.browser_view, crate::window::document_saver(&ctx));
         });
     }
 

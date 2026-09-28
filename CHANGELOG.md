@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.63.3] - 2026-09-28
+
+### Fixed
+
+- The English translation is complete and correct again. `po/en.po` had
+  fallen behind the source strings: 45 were missing entirely, so the
+  English UI showed German in their place, and 64 were marked fuzzy, which
+  gettext ignores at runtime - so those showed German too, and several of
+  `msgmerge`'s guesses behind them were simply wrong text ("Keine Artikel
+  gefunden" paired with "{n} articles found.", "Beispielartikel auswählen"
+  with "Choose Image…"). All 517 strings are now translated, none fuzzy,
+  14 obsolete entries dropped, and every named placeholder verified to
+  survive translation. `po/README.md` says how to keep it that way.
+
 ## [0.63.2] - 2026-09-28
 
 ### Fixed

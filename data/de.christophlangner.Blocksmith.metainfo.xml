@@ -22,6 +22,11 @@
   <url type="homepage">https://github.com/linuxundich/blocksmith</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksmith</url>
   <releases>
+    <release version="0.63.3" date="2026-09-28">
+      <description>
+        <p>Die englische Übersetzung ist wieder vollständig: 109 Texte waren veraltet oder fehlten und erschienen in der englischen Oberfläche auf Deutsch.</p>
+      </description>
+    </release>
     <release version="0.63.2" date="2026-09-28">
       <description>
         <p>Die Anmeldung bei wp-admin bleibt im Browser-Tab gespeichert und gilt auch für die Live-Vorschau. Damit zeigt "Vorschau öffnen" bei einem Entwurf den Artikel statt einer 404-Seite - einmal anmelden genügt, auch über einen Neustart hinweg.</p>

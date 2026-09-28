@@ -11,7 +11,19 @@ Internationalization is set up and working end-to-end (locale detection,
 catalog lookup, a real translation), and applied throughout essentially the
 whole UI - every file in `POTFILES.in` (all dialogs, menus, toolbars,
 tooltips, toasts, and status/error messages). `po/en.po` is a complete,
-real English translation of all ~270 extracted strings.
+real English translation of all 517 extracted strings - no untranslated,
+fuzzy or obsolete entries left.
+
+The catalogs drift as soon as source strings are added or reworded, and
+nothing in the build fails when they do: `tr()` simply falls back to the
+German original, so an out-of-date `en.po` shows up as a German string in
+an otherwise English UI rather than as an error. Re-run the extraction and
+merge below after any round of UI work, and check the result with
+`msgattrib --untranslated po/en.po` and `msgattrib --only-fuzzy po/en.po`
+before committing - a `fuzzy` entry is *not* used at runtime, and
+`msgmerge`'s guesses are frequently wrong (it once paired "Keine Artikel
+gefunden" with "{n} articles found."), so every one of them needs reading
+rather than just unmarking.
 
 Deliberately **not** translated, by design:
 

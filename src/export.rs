@@ -1283,6 +1283,7 @@ mod tests {
             alt: media::AltText::Text("a red cat".to_string()),
             caption: Some("Our cat, sleeping".to_string()),
             wordpress: None,
+            last_markdown_caption: None,
         }];
         let html = gutenberg_preview_html("![a red cat](cat.png)", &media);
         assert!(html.contains("<figcaption class=\"wp-element-caption\">Our cat, sleeping</figcaption>"), "{html}");
@@ -1297,6 +1298,7 @@ mod tests {
             alt: media::AltText::Text("a red cat".to_string()),
             caption: Some("Our cat, sleeping".to_string()),
             wordpress: None,
+            last_markdown_caption: None,
         }];
         let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0 }];
         apply_media_metadata(&mut blocks, &media);
@@ -1314,6 +1316,7 @@ mod tests {
             alt: media::AltText::Undefined,
             caption: None,
             wordpress: None,
+            last_markdown_caption: None,
         }];
         let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: "from the markdown source".to_string(), title: None, media_id: None, width: 0, height: 0 }];
         apply_media_metadata(&mut blocks, &media);
@@ -1330,6 +1333,7 @@ mod tests {
             alt: media::AltText::Undefined,
             caption: None,
             wordpress: Some(media::WordPressMediaRef { media_id: 123, url: "https://example.com/cat.png".to_string(), content_hash: "abc".to_string(), width: 640, height: 480 }),
+            last_markdown_caption: None,
         }];
         let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0 }];
         apply_media_metadata(&mut blocks, &media);

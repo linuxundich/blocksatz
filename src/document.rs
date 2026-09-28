@@ -831,6 +831,7 @@ mod tests {
                         width: 0,
                         height: 0,
                     }),
+                    last_markdown_caption: None,
                 }],
             },
             body: "Some **body**.\n".to_string(),
@@ -891,6 +892,7 @@ mod tests {
                     alt: crate::media::AltText::Empty,
                     caption: None,
                     wordpress: None,
+                    last_markdown_caption: None,
                 }],
                 ..Frontmatter::default()
             },

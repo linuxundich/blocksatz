@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.61.2] - 2026-09-28
+
+### Fixed
+
+- A caption typed straight into an inserted image's brackets
+  (`![Bildunterschrift](bild.png)`) now shows up under the image in the
+  preview and is published as its `<figcaption>`. Before, only a caption
+  changed in the Bildbeschriftung dialog reached either - the cached media
+  metadata never picked up later edits to the Markdown bracket text of an
+  image it already knew about. A caption set in Medienverwaltung is still
+  kept as long as the bracket text itself isn't touched.
+
 ## [0.61.1] - 2026-09-27
 
 ### Fixed

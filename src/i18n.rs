@@ -59,12 +59,12 @@ pub fn init() {
     // catalogs straight from the source tree (`build.rs` writes them to
     // `po/locale/<lang>/LC_MESSAGES/blocksmith.mo` on every build).
     // `bindtextdomain` wants the directory containing those `<lang>/...`
-    // subdirectories directly, i.e. `po/locale`. An installed/Flatpak
-    // build would need this pointed at its own installed locale directory
-    // instead (not yet wired up - the Flatpak manifest doesn't install
-    // any translations yet, tracked as follow-up work in `po/README.md`).
-    let dev_locale_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/po/locale");
-    if let Err(err) = gettextrs::bindtextdomain(DOMAIN, dev_locale_dir) {
+    // subdirectories directly, i.e. `po/locale`. The Flatpak build sets
+    // `BLOCKSMITH_LOCALEDIR` at compile time (`/app/share/locale`, where
+    // its manifest installs those same catalogs), since the source tree
+    // it was built from no longer exists at runtime.
+    let locale_dir = option_env!("BLOCKSMITH_LOCALEDIR").unwrap_or(concat!(env!("CARGO_MANIFEST_DIR"), "/po/locale"));
+    if let Err(err) = gettextrs::bindtextdomain(DOMAIN, locale_dir) {
         eprintln!("i18n: bindtextdomain fehlgeschlagen ({err}) - falle auf Deutsch zurück.");
         return;
     }

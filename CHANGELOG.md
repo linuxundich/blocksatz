@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Packaging switched from a local Arch `PKGBUILD` to Flatpak:
+  `build-aux/flatpak/build.sh` vendors the crates, builds against GNOME 50
+  and installs the app for the current user. The old PKGBUILD is gone.
+
+### Fixed
+
+- Translations now load in an installed (Flatpak) build too - the
+  compiled catalogs are installed to `/app/share/locale`, which the app
+  binds to instead of the no-longer-existing build directory.
+
 ## [0.61.2] - 2026-09-28
 
 ### Fixed

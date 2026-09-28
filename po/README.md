@@ -51,14 +51,12 @@ support wired up. Two conventions handle this without it:
    repetition in the Rust source, but each translation is a real,
    grammatically correct sentence in the target language.
 
-**Known limitation:** translations only actually load for a `cargo build`/
-`cargo run` from this source tree right now - `src/i18n.rs` points
-`bindtextdomain` at `po/locale` via `CARGO_MANIFEST_DIR`, a path baked in
-at compile time that only exists on the machine that built the binary.
-A real installed/Flatpak build would need the Flatpak manifest's install
-step to place compiled `.mo` files under the app's own
-`/app/share/locale/<lang>/LC_MESSAGES/blocksmith.mo` and `i18n::init()`
-updated to bind there instead (or in addition) - not done yet.
+**Installed builds:** a `cargo build`/`cargo run` from this source tree
+reads `po/locale` via `CARGO_MANIFEST_DIR`. The Flatpak manifest instead
+installs the compiled `.mo` files to
+`/app/share/locale/<lang>/LC_MESSAGES/blocksmith.mo` and sets
+`BLOCKSMITH_LOCALEDIR=/app/share/locale` at compile time, which
+`i18n::init()` prefers when set.
 
 Adding a genuinely new string anywhere in the app is the same mechanical
 step as always: wrap the literal in `i18n::tr("...")` (see

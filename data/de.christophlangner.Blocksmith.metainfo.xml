@@ -22,6 +22,11 @@
   <url type="homepage">https://github.com/linuxundich/blocksmith</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksmith</url>
   <releases>
+    <release version="0.61.2" date="2026-09-28">
+      <description>
+        <p>Bildunterschriften, die direkt im Editor in die Klammern eines Bildes getippt werden, erscheinen jetzt in der Vorschau und beim Veröffentlichen.</p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-09-01">
       <description>
         <p>WordPress-REST-API-Export: Artikel als Entwurf/Update veröffentlichen, Medien-Upload, Kategorien/Tags-Auflösung.</p>

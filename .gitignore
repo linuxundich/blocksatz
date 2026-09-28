@@ -5,4 +5,5 @@
 /build-aux/flatpak/.flatpak-builder/
 /build-aux/flatpak/build-dir/
 /build-aux/flatpak/repo/
-/build-aux/arch/*.pkg.tar.zst
+/build-aux/flatpak/.cache/
+/blocksmith.flatpak

@@ -351,8 +351,9 @@ blocks. Implemented so far:
   tree). AI prompt content and proper nouns (WordPress, provider names)
   deliberately stay untranslated by design - see `po/README.md` for the
   full translator/contributor workflow.
-- **Flatpak packaging** — manifest, desktop entry, AppStream metainfo, and
-  icon under `data/` and `build-aux/flatpak/`.
+- **Flatpak packaging** — manifest and build script under
+  `build-aux/flatpak/`, desktop entry, AppStream metainfo and icons under
+  `data/`.
 - **GNOME desktop integration** — the `.desktop` file declares
   `MimeType=text/markdown;` and the app handles being launched with a file
   argument, so double-clicking a `.md` file (or "Open With" → Blocksmith)
@@ -395,29 +396,35 @@ cargo test --workspace -- --ignored
 
 ## Packaging (Flatpak)
 
-The manifest at `build-aux/flatpak/de.christophlangner.Blocksmith.json`
-targets `org.gnome.Platform` 49, which already bundles GTK4, libadwaita,
-GtkSourceView5 and WebKitGTK 6.0 - no extra runtime modules needed, only the
-`org.freedesktop.Sdk.Extension.rust-stable` SDK extension for the Rust
-toolchain itself:
+Blocksmith is packaged and installed as a Flatpak. The manifest at
+`build-aux/flatpak/de.christophlangner.Blocksmith.json` targets
+`org.gnome.Platform` 50, which already bundles GTK4, libadwaita,
+GtkSourceView5 and WebKitGTK 6.0 - only libspelling is built as an extra
+module, plus the `org.freedesktop.Sdk.Extension.rust-stable` SDK extension
+for the Rust toolchain itself.
+
+One script builds the current checkout and installs it for the current
+user (it also installs the runtime/SDK/extension if they're missing):
 
 ```sh
-flatpak install flathub org.gnome.Platform//49 org.gnome.Sdk//49 \
-  org.freedesktop.Sdk.Extension.rust-stable//25.08
-cd build-aux/flatpak
-flatpak-builder --force-clean --user --install build-dir \
-  de.christophlangner.Blocksmith.json
+build-aux/flatpak/build.sh            # build + install
+build-aux/flatpak/build.sh --run      # ... and launch it afterwards
+build-aux/flatpak/build.sh --bundle   # ... and also write blocksmith.flatpak
 ```
 
-Builds run fully offline inside the sandbox against vendored crate sources
-listed in `cargo-sources.json`. That file is generated from `Cargo.lock` -
-regenerate it whenever dependencies change, using the
-[flatpak-cargo-generator](https://github.com/flatpak/flatpak-builder-tools/tree/master/cargo)
-script:
+The sandboxed build runs fully offline: the script first vendors every
+crate from `Cargo.lock` into `build-aux/flatpak/.cache/vendor` with
+`cargo vendor`, so a dependency change needs no separate manual step.
+Compiled translations are installed to `/app/share/locale` (see
+`po/README.md`). The app icon ships only as the pre-rendered PNGs under
+`data/icons/hicolor/`, not the SVG: `flatpak build-export` validates icons
+with the host's gdk-pixbuf, which has no SVG loader on systems where
+librsvg no longer ships one, and then refuses the whole export.
 
-```sh
-python3 flatpak-cargo-generator.py ../../Cargo.lock -o cargo-sources.json
-```
+Secrets (WordPress application password, AI API keys) go through `oo7`,
+which inside the sandbox uses the Secret portal's own per-app keyring
+rather than the host's GNOME Keyring - so they have to be entered once
+again after switching from a non-Flatpak build.
 
 ## Versioning
 

@@ -93,10 +93,8 @@ what's already shipped.
   now wrapped in `i18n::tr("...")`, with a complete, real English
   translation (`po/en.po`, ~270 strings) proving it end to end. AI prompt
   content and proper nouns deliberately stay German/untranslated by
-  design - see `po/README.md`. Still open: wiring a real installed/
-  Flatpak build to find its compiled translations at all (`po/README.md`'s
-  "Known limitation" - right now only a `cargo run` from source finds
-  them).
+  design - see `po/README.md`. The Flatpak build installs and finds its
+  compiled translations too (`BLOCKSMITH_LOCALEDIR`).
 - ~~**A CI pipeline.**~~ Done (see CHANGELOG.md) -
   `.github/workflows/ci.yml` runs `cargo build`/`test`/`clippy` on every
   push/PR, in an `archlinux:latest` container (not Ubuntu's default

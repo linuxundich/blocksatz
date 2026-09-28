@@ -1,7 +1,7 @@
 {
-    "app-id": "de.christophlangner.Blocksmith",
+    "id": "de.christophlangner.Blocksmith",
     "runtime": "org.gnome.Platform",
-    "runtime-version": "49",
+    "runtime-version": "50",
     "sdk": "org.gnome.Sdk",
     "sdk-extensions": [
         "org.freedesktop.Sdk.Extension.rust-stable"
@@ -18,9 +18,16 @@
     "build-options": {
         "append-path": "/usr/lib/sdk/rust-stable/bin",
         "env": {
-            "CARGO_HOME": "/run/build/blocksmith/cargo"
+            "CARGO_HOME": "/run/build/blocksmith/cargo-home",
+            "BLOCKSMITH_LOCALEDIR": "/app/share/locale"
         }
     },
+    "cleanup": [
+        "/include",
+        "/lib/pkgconfig",
+        "/share/gir-1.0",
+        "/share/vala"
+    ],
     "modules": [
         {
             "name": "libspelling",
@@ -41,20 +48,38 @@
             "name": "blocksmith",
             "buildsystem": "simple",
             "build-commands": [
-                "mkdir -p .cargo",
-                "cp cargo/config .cargo/config.toml",
+                "install -Dm644 cargo-vendor-config.toml .cargo/config.toml",
                 "cargo --offline build --release",
                 "install -Dm755 target/release/blocksmith /app/bin/blocksmith",
+                "for mo in po/locale/*/LC_MESSAGES/blocksmith.mo; do install -Dm644 \"$mo\" \"/app/share/locale/${mo#po/locale/}\"; done",
                 "install -Dm644 data/de.christophlangner.Blocksmith.desktop /app/share/applications/de.christophlangner.Blocksmith.desktop",
                 "install -Dm644 data/de.christophlangner.Blocksmith.metainfo.xml /app/share/metainfo/de.christophlangner.Blocksmith.metainfo.xml",
-                "install -Dm644 data/icons/de.christophlangner.Blocksmith.svg /app/share/icons/hicolor/scalable/apps/de.christophlangner.Blocksmith.svg"
+                "for size in 48 64 128 256; do install -Dm644 data/icons/hicolor/${size}x${size}/apps/de.christophlangner.Blocksmith.png /app/share/icons/hicolor/${size}x${size}/apps/de.christophlangner.Blocksmith.png; done"
             ],
             "sources": [
                 {
                     "type": "dir",
-                    "path": "../.."
+                    "path": "../..",
+                    "skip": [
+                        "target",
+                        "po/locale",
+                        "build-aux/flatpak/.flatpak-builder",
+                        "build-aux/flatpak/build-dir",
+                        "build-aux/flatpak/repo",
+                        "build-aux/flatpak/.cache",
+                        ".claude",
+                        "blocksmith-quill-features.mbox"
+                    ]
                 },
-                "cargo-sources.json"
+                {
+                    "type": "dir",
+                    "path": ".cache/vendor",
+                    "dest": "vendor"
+                },
+                {
+                    "type": "file",
+                    "path": ".cache/cargo-vendor-config.toml"
+                }
             ]
         }
     ]

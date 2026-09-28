@@ -316,10 +316,14 @@ blocks. Implemented so far:
   clickable link right in the dialog. Once an article already exists on
   WordPress but isn't published yet, a "Vorschau öffnen" button opens
   WordPress's own unpublished-post preview link in the app's Browser tab
-  (switching to it automatically) - it only actually shows the live
-  preview if that tab's WebKit session already happens to be logged into
-  wp-admin, otherwise a login page appears instead, which the button's
-  tooltip notes up front. Re-exporting an already-published post first
+  (switching to it automatically). WordPress shows a draft only to a
+  session allowed to edit it, so this needs a wp-admin login - without
+  one, the site answers with a login page or its 404 page, which the
+  button's tooltip notes up front. That login is only needed once: the
+  Browser tab and the dialog's own Live-Vorschau share a single network
+  session whose cookies are kept on disk (`blocksmith/webkit/cookies.sqlite`
+  under the user's data directory), so signing in there once covers both
+  views and outlives restarts of the app. Re-exporting an already-published post first
   re-fetches its current server content and compares it against a
   locally-remembered baseline (set on import and after every successful
   publish/update) - if the post changed on WordPress since (edited

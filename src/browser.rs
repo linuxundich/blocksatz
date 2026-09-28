@@ -58,7 +58,10 @@ impl BrowserView {
         let content_manager = webkit6::UserContentManager::new();
         adblock::install(&content_manager);
 
-        let web_view = webkit6::WebView::builder().user_content_manager(&content_manager).build();
+        // The session is the app's shared one (`websession::shared`) so a
+        // wp-admin login made here is also what the export dialog's
+        // Live-Vorschau sees, and so it survives a restart.
+        let web_view = webkit6::WebView::builder().user_content_manager(&content_manager).network_session(&crate::websession::shared()).build();
         web_view.set_hexpand(true);
         web_view.set_vexpand(true);
 

@@ -22,6 +22,11 @@
   <url type="homepage">https://github.com/linuxundich/blocksmith</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksmith</url>
   <releases>
+    <release version="0.63.2" date="2026-09-28">
+      <description>
+        <p>Die Anmeldung bei wp-admin bleibt im Browser-Tab gespeichert und gilt auch für die Live-Vorschau. Damit zeigt "Vorschau öffnen" bei einem Entwurf den Artikel statt einer 404-Seite - einmal anmelden genügt, auch über einen Neustart hinweg.</p>
+      </description>
+    </release>
     <release version="0.63.1" date="2026-09-28">
       <description>
         <p>Nach dem Veröffentlichen wird der Artikel sofort gespeichert. Damit bleiben die Verknüpfung zum WordPress-Beitrag und der Upload-Zustand der Bilder auch nach einem Neustart erhalten - der Entwurf lässt sich weiter aktualisieren, und bereits hochgeladene Bilder landen nicht ein zweites Mal in der Mediathek.</p>

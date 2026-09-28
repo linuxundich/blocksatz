@@ -59,6 +59,7 @@ mod statuscontrols;
 mod tagsuggest;
 mod taxonomy;
 mod termcache;
+mod websession;
 mod window;
 mod windowstate;
 mod wpclient;

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.63.2] - 2026-09-28
+
+### Fixed
+
+- The Browser tab and the export dialog's Live-Vorschau now share one
+  network session that keeps its cookies on disk, so a wp-admin login made
+  once in the Browser tab also reaches the preview and survives a restart.
+  Both views used to be built without a session of their own, which meant
+  WebKit's default one - and nobody had ever given that a cookie jar, so
+  every login was gone with the app. WordPress shows an unpublished post
+  only to a session allowed to edit it, so "Vorschau öffnen" on a draft
+  answered with the site's own 404 page instead of the article. The jar
+  lives in `blocksmith/webkit/cookies.sqlite` under the user's data
+  directory.
+
 ## [0.63.1] - 2026-09-28
 
 ### Fixed

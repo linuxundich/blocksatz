@@ -205,15 +205,17 @@ pub fn open(
     // Only useful for a post that already exists on WordPress but isn't
     // publicly published yet - once it's `Publish`, the real permalink
     // shown via `link_button` after a successful send already covers this.
-    // Uncertain by nature (see the tooltip): WordPress's `?preview=true`
+    // Needs a login, once (see the tooltip): WordPress's `?preview=true`
     // convention only shows the current draft content to a session that's
-    // logged into wp-admin as a user allowed to edit this post, and the
-    // Browser tab this opens it in has no share to that session unless the
-    // user has separately logged in there themselves.
+    // logged into wp-admin as a user allowed to edit this post, and shows
+    // an anonymous visitor the site's 404 page instead, because a draft
+    // simply isn't public content. The Browser tab this opens it in and
+    // the Live-Vorschau below both run on `websession::shared`, so one
+    // login in either place covers both and outlives the app's restart.
     let preview_button = gtk4::Button::with_label(&tr("Vorschau öffnen"));
     preview_button.set_halign(gtk4::Align::End);
     preview_button.set_tooltip_text(Some(&tr(
-        "Öffnet die WordPress-Vorschau im Browser-Tab. Dafür muss dort eine bei wp-admin angemeldete Sitzung bestehen - falls nicht, erscheint dort ein Login statt der Vorschau.",
+        "Öffnet die WordPress-Vorschau im Browser-Tab. Entwürfe zeigt WordPress nur einer bei wp-admin angemeldeten Sitzung - andernfalls erscheint dort ein Login oder eine 404-Seite. Die Anmeldung im Browser-Tab bleibt gespeichert.",
     )));
     preview_button.set_visible(current_fm.wp_post_id.is_some() && current_fm.status != PostStatus::Publish);
 
@@ -248,9 +250,11 @@ pub fn open(
     // space, especially before anything's been sent yet. A plain embedded
     // `WebKit.WebView`, not the fuller `browser::BrowserView` (no address
     // bar/adblock/back-forward needed for a one-shot "did this actually
-    // work" check), and `Adw.StatusPage` as a placeholder until there's
-    // something to show.
-    let export_preview_web_view = webkit6::WebView::builder().vexpand(true).hexpand(true).build();
+    // work" check), but on the app's shared network session, so a draft
+    // shows its content here rather than a 404 once the Browser tab has
+    // been logged into wp-admin. `Adw.StatusPage` as a placeholder until
+    // there's something to show.
+    let export_preview_web_view = webkit6::WebView::builder().vexpand(true).hexpand(true).network_session(&crate::websession::shared()).build();
     let export_preview_placeholder = adw::StatusPage::builder()
         .icon_name("web-browser-symbolic")
         .title(tr("Noch keine Vorschau"))

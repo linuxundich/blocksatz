@@ -609,222 +609,128 @@ fn wire_status_bar(buffer: &sourceview5::Buffer, status_bar: &Rc<statusbar::Stat
     });
 }
 
-const SCROLL_SYNC_THROTTLE_MS: u64 = 60;
-
 /// How long the editor->preview direction ignores the editor's own
-/// `vadjustment` after the *preview->editor* direction just moved it - long
-/// enough to absorb `scroll_to_iter`'s layout settling, short enough that a
-/// genuine user scroll starting right after is never mistaken for the echo
-/// of a sync that was already applied. See `wire_scroll_sync`'s doc comment
-/// for why each direction needs its own echo guard.
-const SCROLL_SYNC_ECHO_GUARD_MS: u64 = 250;
+/// `vadjustment` after the *preview->editor* direction last moved it. The
+/// user is scrolling the preview during that time; the editor merely
+/// follows, and its layout settling (GTK validating line heights as they
+/// come into view) must not be sent back to fight the user's gesture.
+const SCROLL_SYNC_ECHO_GUARD_MS: u64 = 200;
 
 /// Wires scroll-sync in both directions between the editor and the preview.
 ///
-/// Editor -> preview: on every editor scroll, finds the source line
-/// currently at the top of the editor's viewport and asks the preview (via
-/// `preview::render_html`'s embedded `scrollToLine`) to bring the block
-/// starting at or before that line to its own top. The line lookup goes
-/// through the real widget (`TextView::visible_rect` + `line_at_y`) rather
-/// than a scroll-fraction-times-line-count estimate - the editor has word
-/// wrap enabled (`editor::build`'s `WrapMode::WordChar`), so a document
-/// mixing long wrapped paragraphs with short lines has no fixed
-/// pixels-per-line ratio a fraction-based estimate could rely on;
-/// `line_at_y` asks GTK's own layout directly, sidestepping that entirely.
-/// (An earlier attempt at pixel-based lookup via `TextView::iter_at_location`
-/// at `x=0` ran into that call unreliably returning `None` once the
-/// line-number gutter is showing - `line_at_y` takes no `x` at all, so that
-/// specific failure mode doesn't apply here.)
+/// Both directions exchange the same position: the *fractional* 1-based
+/// source line at the top of the viewport (line 12 scrolled a third of the
+/// way past = 12.33), plus two 0..1 blend factors for how far the viewport
+/// is into the first/last screenful. The preview interpolates between its
+/// block anchors for fractional lines (see `preview::render_html`'s
+/// `syncTo`), so the two panes track each other continuously instead of the
+/// preview holding still through a long paragraph and then jumping a whole
+/// block; the bottom blend pulls the position toward the other pane's real
+/// bottom over the last screenful, so the ends line up without a hard snap -
+/// a tall image near the end makes the preview's remaining scroll range
+/// disproportionate to the editor's, which a pure line mapping can't
+/// absorb. The top blend only brings the preview's article header (above
+/// the first block) into view; the editor has no such header, so the
+/// reverse direction doesn't need it.
 ///
-/// Preview -> editor: the rendered page's own `scroll` listener (see
-/// `render_html`'s script) reports the source line nearest the top of the
-/// preview's viewport back through `PreviewPane::connect_scroll`, and this
-/// scrolls the editor to show that same line at its own top
-/// (`TextView::scroll_to_iter`).
+/// Editor -> preview: every `vadjustment` change schedules one sync for
+/// the next main-loop idle (coalescing a burst of kinetic-scroll updates
+/// into one per frame); the preview jumps there instantly - it follows at
+/// frame rate, so an animated scroll per update would only stutter. The
+/// line lookup goes through the real widget (`visible_rect`, `line_at_y`,
+/// `line_yrange`) rather than a scroll fraction, because word wrap gives
+/// the editor no fixed pixels-per-line ratio.
 ///
-/// Each direction's *own* programmatic scroll would otherwise immediately
-/// trigger the *other* direction's listener, which re-syncs back, which
-/// re-triggers the first again - an infinite echo. Both directions guard
-/// against this, but differently, matched to how each round-trip actually
-/// happens: the preview's own script sets `__suppressScrollEcho` around
-/// every scroll *it* performs (a same-document, synchronous-enough JS
-/// concern, so a short timeout-based flag inside the page itself is
-/// simplest); the editor side instead uses `ignore_editor_scroll_until`
-/// here, set right before `sync_preview_to_editor` moves the editor, since
-/// the trigger for the echo (`vadjustment`'s `value-changed`) fires on the
-/// Rust side, not inside the WebView.
+/// Preview -> editor: the page reports the user's own scrolling (at most
+/// once per frame, and never for a scroll it performed itself - see
+/// `render_html`'s `__programmaticY`), and the editor's `vadjustment` is
+/// set to the matching pixel offset. For the reverse echo, the editor
+/// direction is muted for `SCROLL_SYNC_ECHO_GUARD_MS` after each such move.
 ///
-/// Both directions are throttled (not debounced): a debounce only fires
-/// once scrolling has *stopped*, so the other side sits frozen for the
-/// whole gesture and then snaps to the final position - exactly the "jumps
-/// instead of scrolling" symptom this was built to avoid. A throttle
-/// instead fires at most once per interval *while* scrolling continues
-/// (leading edge immediately, a single trailing-edge call queued for
-/// whatever's left of the window so the final position is never dropped),
-/// so each side visibly tracks the other the whole time. The preview's own
-/// debounce for its outgoing messages lives in its script (`render_html`);
-/// only the editor->preview leg needs a matching one here in Rust.
+/// Moving the cursor deliberately doesn't sync on its own: the preview
+/// follows what the editor *shows*, and the cursor is always inside that -
+/// pulling the cursor's block to the preview's top on every click or
+/// keystroke was the main source of the preview jumping around while the
+/// editor itself stood still.
 fn wire_scroll_sync(scroller: &gtk4::ScrolledWindow, view: &sourceview5::View, buffer: &sourceview5::Buffer, preview_pane: &Rc<preview::PreviewPane>) {
-    let throttle_interval = Duration::from_millis(SCROLL_SYNC_THROTTLE_MS);
-    let last_synced: Rc<Cell<Instant>> = Rc::new(Cell::new(Instant::now() - throttle_interval));
-    let trailing: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
     let ignore_editor_scroll_until: Rc<Cell<Instant>> = Rc::new(Cell::new(Instant::now()));
-    let scroller = scroller.clone();
-    let view = view.clone();
-    let buffer = buffer.clone();
-    let preview_pane = preview_pane.clone();
+    let sync_pending: Rc<Cell<bool>> = Rc::new(Cell::new(false));
 
     {
+        let scroller_for_sync = scroller.clone();
         let view = view.clone();
         let buffer = buffer.clone();
         let preview_pane = preview_pane.clone();
         let ignore_editor_scroll_until = ignore_editor_scroll_until.clone();
         scroller.vadjustment().connect_value_changed(move |_adjustment| {
-            if Instant::now() < ignore_editor_scroll_until.get() {
+            if Instant::now() < ignore_editor_scroll_until.get() || sync_pending.replace(true) {
                 return;
             }
-            let elapsed = last_synced.get().elapsed();
-            if elapsed >= throttle_interval {
-                if let Some(id) = trailing.borrow_mut().take() {
-                    id.remove();
-                }
-                sync_editor_to_preview(&view, &buffer, &preview_pane);
-                last_synced.set(Instant::now());
-                return;
-            }
-            if trailing.borrow().is_some() {
-                return;
-            }
+            let scroller = scroller_for_sync.clone();
             let view = view.clone();
             let buffer = buffer.clone();
             let preview_pane = preview_pane.clone();
-            let last_synced = last_synced.clone();
-            let trailing_inner = trailing.clone();
-            let id = glib::timeout_add_local(throttle_interval - elapsed, move || {
-                sync_editor_to_preview(&view, &buffer, &preview_pane);
-                last_synced.set(Instant::now());
-                *trailing_inner.borrow_mut() = None;
-                glib::ControlFlow::Break
+            let sync_pending = sync_pending.clone();
+            glib::idle_add_local_once(move || {
+                sync_pending.set(false);
+                let (line, top_t, bottom_t) = editor_sync_position(&scroller, &view);
+                preview_pane.sync_to(line, top_t, bottom_t, buffer.line_count());
             });
-            *trailing.borrow_mut() = Some(id);
         });
     }
 
-    // Same throttle shape as the scroll listener above, but its own
-    // `last_synced`/`trailing` pair (not shared) - typing or moving the
-    // cursor with the arrow keys never touches `vadjustment` unless it
-    // also happens to scroll the view, so without this the preview only
-    // ever followed where the editor *happened to be scrolled*, not where
-    // the user was actually working if that was already on-screen (e.g.
-    // typing in the middle of a tall visible paragraph). Cursor-driven and
-    // scroll-driven syncs targeting the same line in quick succession are
-    // harmless - the second call just re-confirms the first.
-    {
-        let buffer_for_cursor = buffer.clone();
-        let preview_pane_for_cursor = preview_pane.clone();
-        let ignore_editor_scroll_until = ignore_editor_scroll_until.clone();
-        let cursor_last_synced: Rc<Cell<Instant>> = Rc::new(Cell::new(Instant::now() - throttle_interval));
-        let cursor_trailing: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
-        buffer.connect_cursor_position_notify(move |_buffer| {
-            if Instant::now() < ignore_editor_scroll_until.get() {
-                return;
-            }
-            let elapsed = cursor_last_synced.get().elapsed();
-            if elapsed >= throttle_interval {
-                if let Some(id) = cursor_trailing.borrow_mut().take() {
-                    id.remove();
-                }
-                sync_cursor_to_preview(&buffer_for_cursor, &preview_pane_for_cursor);
-                cursor_last_synced.set(Instant::now());
-                return;
-            }
-            if cursor_trailing.borrow().is_some() {
-                return;
-            }
-            let buffer_for_cursor = buffer_for_cursor.clone();
-            let preview_pane_for_cursor = preview_pane_for_cursor.clone();
-            let cursor_last_synced = cursor_last_synced.clone();
-            let cursor_trailing_inner = cursor_trailing.clone();
-            let id = glib::timeout_add_local(throttle_interval - elapsed, move || {
-                sync_cursor_to_preview(&buffer_for_cursor, &preview_pane_for_cursor);
-                cursor_last_synced.set(Instant::now());
-                *cursor_trailing_inner.borrow_mut() = None;
-                glib::ControlFlow::Break
-            });
-            *cursor_trailing.borrow_mut() = Some(id);
-        });
-    }
-
-    preview_pane.connect_scroll(move |line| {
+    let scroller = scroller.clone();
+    let view = view.clone();
+    let buffer = buffer.clone();
+    preview_pane.connect_scroll(move |line, _top_t, bottom_t| {
         ignore_editor_scroll_until.set(Instant::now() + Duration::from_millis(SCROLL_SYNC_ECHO_GUARD_MS));
-        sync_preview_to_editor(&view, &buffer, line);
+        scroll_editor_to(&scroller, &view, &buffer, line, bottom_t);
     });
 }
 
-/// Maps the cursor's current line onto the preview - the same top/bottom
-/// edge-snapping `sync_editor_to_preview` does, just keyed off where the
-/// cursor actually is rather than the top of the visible viewport (see
-/// `wire_scroll_sync`'s doc comment on why typing needs its own trigger).
-fn sync_cursor_to_preview(buffer: &sourceview5::Buffer, preview_pane: &preview::PreviewPane) {
-    let cursor_line = buffer.iter_at_mark(&buffer.get_insert()).line();
-    let last_line = buffer.end_iter().line();
-    if cursor_line >= last_line {
-        preview_pane.scroll_to_edge(true);
-    } else if cursor_line <= 0 {
-        preview_pane.scroll_to_edge(false);
-    } else {
-        preview_pane.scroll_to_line(cursor_line + 1);
+/// How far (0..1) a viewport at `value` is into its first and its last
+/// screenful - the blend factors `wire_scroll_sync` describes. A document
+/// shorter than one screen is at both ends at once.
+fn edge_blend(value: f64, page: f64, upper: f64) -> (f64, f64) {
+    if page <= 0.0 {
+        return (0.0, 0.0);
     }
+    let remaining = (upper - value - page).max(0.0);
+    let top_t = if value < page { 1.0 - value.max(0.0) / page } else { 0.0 };
+    let bottom_t = if remaining < page { 1.0 - remaining / page } else { 0.0 };
+    (top_t, bottom_t)
 }
 
-/// Maps the editor's current scroll position onto the preview - `line_at_y`
-/// against the top *and* bottom of the editor's own visible rect (see
-/// `wire_scroll_sync`'s doc comment for why a real widget lookup beats a
-/// scroll-fraction estimate), snapped to the preview's true top/bottom
-/// instead whenever the visible range already reaches line 0 or the
-/// buffer's last line.
-///
-/// Deliberately compares *logical* line numbers, not `vadjustment`'s pixel
-/// `value`/`upper`/`page_size` - `GtkTextView` only validates the exact
-/// pixel height of lines near the viewport, so `upper()` is an *estimate*
-/// for a document that hasn't been fully scrolled through yet, and stays
-/// stale (too small) for a while after a big jump like Ctrl+End. Comparing
-/// `value + page_size` against that stale `upper` undershot "are we at the
-/// bottom" by a wide margin in exactly the case this whole check exists
-/// for; the buffer's own line count doesn't have that problem.
-fn sync_editor_to_preview(view: &sourceview5::View, buffer: &sourceview5::Buffer, preview_pane: &preview::PreviewPane) {
-    let visible_rect = view.visible_rect();
-    let (top_iter, _) = view.line_at_y(visible_rect.y());
-    let (bottom_iter, _) = view.line_at_y(visible_rect.y() + visible_rect.height());
-    if bottom_iter.line() >= buffer.end_iter().line() {
-        preview_pane.scroll_to_edge(true);
-        return;
-    }
-    if top_iter.line() <= 0 {
-        preview_pane.scroll_to_edge(false);
-        return;
-    }
-    preview_pane.scroll_to_line(top_iter.line() + 1);
+/// The editor's scroll position as `(fractional 1-based line at the top of
+/// the viewport, top blend, bottom blend)`.
+fn editor_sync_position(scroller: &gtk4::ScrolledWindow, view: &sourceview5::View) -> (f64, f64, f64) {
+    let adjustment = scroller.vadjustment();
+    let top_y = view.visible_rect().y();
+    let (iter, line_top) = view.line_at_y(top_y);
+    let (_, line_height) = view.line_yrange(&iter);
+    let fraction = if line_height > 0 { (f64::from(top_y - line_top) / f64::from(line_height)).clamp(0.0, 1.0) } else { 0.0 };
+    let (top_t, bottom_t) = edge_blend(adjustment.value(), adjustment.page_size(), adjustment.upper());
+    (f64::from(iter.line()) + 1.0 + fraction, top_t, bottom_t)
 }
 
-/// `line` is either a real source line, or one of the two sentinels
-/// `preview::PreviewPane::connect_scroll`'s doc comment describes (`-1`
-/// top, `-2` bottom) - reported by the preview's own script when *it* is
-/// at its true top/bottom, so the editor snaps to its real top/bottom too.
-/// Scrolls the buffer's own start/end iter into view (`yalign` 0.0/1.0)
-/// rather than setting `vadjustment`'s pixel value directly, for the same
-/// "logical position, not a possibly-stale pixel estimate" reason
-/// `sync_editor_to_preview` compares line numbers instead of `upper()`.
-fn sync_preview_to_editor(view: &sourceview5::View, buffer: &sourceview5::Buffer, line: i32) {
-    match line {
-        -2 => view.scroll_to_iter(&mut buffer.end_iter(), 0.0, true, 0.0, 1.0),
-        -1 => view.scroll_to_iter(&mut buffer.start_iter(), 0.0, true, 0.0, 0.0),
-        _ => {
-            let target_line = (line - 1).clamp(0, buffer.end_iter().line());
-            let Some(mut iter) = buffer.iter_at_line(target_line) else { return };
-            view.scroll_to_iter(&mut iter, 0.0, true, 0.0, 0.0)
-        }
-    };
+/// The inverse of `editor_sync_position`: scrolls the editor so the
+/// fractional source `line` sits at the top of its viewport, blended toward
+/// its real bottom by `bottom_t`. (The preview's header region already maps
+/// to line 1, i.e. the editor's top, so there's no top blend to undo.)
+fn scroll_editor_to(scroller: &gtk4::ScrolledWindow, view: &sourceview5::View, buffer: &sourceview5::Buffer, line: f64, bottom_t: f64) {
+    let adjustment = scroller.vadjustment();
+    let whole = line.floor();
+    let fraction = (line - whole).clamp(0.0, 1.0);
+    let target_line = (whole as i32 - 1).clamp(0, buffer.end_iter().line());
+    let Some(iter) = buffer.iter_at_line(target_line) else { return };
+    let (line_y, line_height) = view.line_yrange(&iter);
+    // `line_yrange` is in buffer coordinates; the adjustment's value can be
+    // offset from those by the view's top margin.
+    let offset = adjustment.value() - f64::from(view.visible_rect().y());
+    let max = (adjustment.upper() - adjustment.page_size()).max(0.0);
+    let mapped = f64::from(line_y) + fraction * f64::from(line_height) + offset;
+    let blended = mapped * (1.0 - bottom_t) + max * bottom_t;
+    adjustment.set_value(blended.clamp(0.0, max));
 }
 
 fn wire_new_action(

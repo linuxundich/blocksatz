@@ -10,7 +10,7 @@
 //! source line but can be many times taller than a text line once
 //! rendered, so a naive "scroll to the same percentage" would drift. Sync
 //! runs the other way too (scrolling the preview moves the editor) via
-//! `connect_scroll`/`window.currentTopLine` - see `window.rs::wire_scroll_sync`
+//! `connect_scroll`/`window.__currentSyncState` - see `window.rs::wire_scroll_sync`
 //! for how both directions are wired together without echoing back and
 //! forth.
 //!
@@ -234,7 +234,7 @@ impl PreviewPane {
                     style.get(),
                     style_manager.is_dark(),
                     &last_media.borrow(),
-                    0.0,
+                    ScrollRestore::Top,
                     &last_frontmatter.borrow(),
                     show_header.get(),
                     appearance::current_scheme_colors(),
@@ -266,21 +266,14 @@ impl PreviewPane {
 
     /// Same as `update`, but keeps the current scroll position instead of
     /// resetting to the top - for `window.rs`'s live-preview debounce on
-    /// every body edit. Without this, each debounced re-render (every body
-    /// keystroke, ~`DEBOUNCE_MS` after typing pauses) snapped the preview
-    /// back to the top regardless of where the editor's cursor-sync
-    /// (`window.rs::sync_cursor_to_preview`) had *just* scrolled it to -
-    /// harmless when that sync only reacted to actual scrolling (which
-    /// rarely lines up with a content reload happening on the very same
-    /// keystroke), but jarring once the preview started tracking the
-    /// cursor while typing too: every pause became a visible snap back to
-    /// line one before the next cursor-sync tick corrected it again one
-    /// frame later. Opening a *different* document still lands at the top
-    /// as expected - every document-loading call site already calls
-    /// `set_doc_dir` right after `buffer.set_text`, whose own plain
-    /// `rerender()` (always top, not preserved) runs synchronously before
-    /// this debounced update fires, so there's nothing meaningful left to
-    /// preserve by the time it reads the current scroll position.
+    /// every body edit, which would otherwise snap the preview back to the
+    /// top on every pause in typing. Restored by content, not pixels (see
+    /// `rerender_preserving_scroll`). Opening a *different* document still
+    /// lands at the top as expected - every document-loading call site
+    /// already calls `set_doc_dir` right after `buffer.set_text`, whose own
+    /// plain `rerender()` (always top) runs synchronously before this
+    /// debounced update fires, so there's nothing meaningful left to
+    /// preserve by the time it reads the current position.
     pub fn update_preserving_scroll(&self, markdown: &str, media: &[MediaItem]) {
         *self.last_markdown.borrow_mut() = markdown.to_string();
         *self.last_media.borrow_mut() = media.to_vec();
@@ -412,24 +405,14 @@ impl PreviewPane {
         });
     }
 
-    pub fn scroll_to_line(&self, line: i32) {
-        self.web_view.evaluate_javascript(&format!("window.scrollToLine && window.scrollToLine({line});"), None, None, gio::Cancellable::NONE, |_| {});
-    }
-
-    /// Snaps the preview to its true top/bottom rather than "the block
-    /// starting at line N" - `scroll_to_line`'s closest-preceding-block
-    /// mapping is the right general-purpose sync, but at either end of the
-    /// editor it systematically falls short: once the editor is scrolled as
-    /// far as it goes, the line sitting at the *top* of its viewport (what
-    /// `sync_editor_to_preview` reports) is rarely the article's actual
-    /// last block, especially when a tall element (an image, an embed
-    /// placeholder) makes the preview's scrollable range disproportionate
-    /// to the editor's. `window.rs::sync_editor_to_preview` calls this
-    /// instead of `scroll_to_line` specifically when the editor's own
-    /// `vadjustment` is already at its min/max.
-    pub fn scroll_to_edge(&self, bottom: bool) {
-        let edge = if bottom { "bottom" } else { "top" };
-        self.web_view.evaluate_javascript(&format!("window.scrollToEdge && window.scrollToEdge('{edge}');"), None, None, gio::Cancellable::NONE, |_| {});
+    /// Scrolls the preview to the editor's position: `line` is the
+    /// fractional 1-based source line at the top of the editor's viewport,
+    /// `top_t`/`bottom_t` how far (0..1) the editor is into its first/last
+    /// screenful, and `total_lines` the buffer's line count (the anchor for
+    /// interpolating past the last block). See `render_html`'s `syncTo`.
+    pub fn sync_to(&self, line: f64, top_t: f64, bottom_t: f64, total_lines: i32) {
+        let script = format!("window.syncTo && window.syncTo({line:.4}, {top_t:.4}, {bottom_t:.4}, {total_lines});");
+        self.web_view.evaluate_javascript(&script, None, None, gio::Cancellable::NONE, |_| {});
     }
 
     /// The preview is a rendered *article*, not a browsing session (see the
@@ -464,25 +447,23 @@ impl PreviewPane {
         });
     }
 
-    /// Wires the reverse leg of scroll-sync: `callback` fires with a source
-    /// line number whenever the user scrolls the preview itself (not when a
-    /// `scroll_to_line`/`scroll_to_edge` call from this side moves it - the
-    /// rendered HTML's own script guards against echoing those back, see
-    /// `render_html`'s `__suppressScrollEcho`). Two sentinel values stand
-    /// in for "the preview is at its true top/bottom" rather than a real
-    /// line number - `-1` for top, `-2` for bottom - the same "snap to the
-    /// real edge instead of the nearest block" case `scroll_to_edge`'s own
-    /// doc comment explains, just detected on the preview's side of the
-    /// sync instead of the editor's. Every `WebView` has a
-    /// `UserContentManager` of its own, so this only needs calling once,
-    /// independent of how many times the page itself gets reloaded
-    /// (`register_script_message_handler` isn't tied to a specific loaded
-    /// document).
-    pub fn connect_scroll(&self, callback: impl Fn(i32) + 'static) {
+    /// Wires the reverse leg of scroll-sync: `callback` fires with the same
+    /// `(line, top_t, bottom_t)` triple `sync_to` takes, whenever the user
+    /// scrolls the preview itself - never for a scroll `sync_to` or a
+    /// restore performed (the page's script recognizes its own scrolls, see
+    /// `render_html`'s `__programmaticY`). Reported at most once per frame.
+    /// Every `WebView` has a `UserContentManager` of its own, so this only
+    /// needs calling once, independent of how many times the page itself
+    /// gets reloaded.
+    pub fn connect_scroll(&self, callback: impl Fn(f64, f64, f64) + 'static) {
         let Some(manager) = self.web_view.user_content_manager() else { return };
         manager.register_script_message_handler(SCROLL_SYNC_HANDLER, None);
         manager.connect_script_message_received(Some(SCROLL_SYNC_HANDLER), move |_manager, value| {
-            callback(value.to_int32());
+            let payload = value.to_str();
+            let parts: Vec<f64> = payload.split(';').filter_map(|part| part.trim().parse().ok()).collect();
+            if let [line, top_t, bottom_t] = parts[..] {
+                callback(line, top_t, bottom_t);
+            }
         });
     }
 
@@ -561,7 +542,7 @@ impl PreviewPane {
             self.style.get(),
             dark,
             &self.last_media.borrow(),
-            0.0,
+            ScrollRestore::Top,
             &self.last_frontmatter.borrow(),
             self.show_header.get(),
             appearance::current_scheme_colors(),
@@ -569,14 +550,15 @@ impl PreviewPane {
         self.web_view.load_html(&html, base_uri(self.doc_dir.borrow().as_deref()).as_deref());
     }
 
-    /// Same full-page reload as `rerender`, but reads the `WebView`'s
-    /// current scroll position first and bakes it into the freshly
-    /// rendered HTML (via `render_html`'s `scroll_y`) so the reload lands
-    /// back where it started - `load_html` always resets scroll to the top
-    /// on its own, and there's no "restore scroll after this specific load
-    /// finishes" hook to use instead, so the position is baked directly
-    /// into the page's own startup script rather than applied from the
-    /// Rust side after the fact.
+    /// Same full-page reload as `rerender`, but reads the page's current
+    /// scroll-sync position first and bakes it into the freshly rendered
+    /// HTML (`ScrollRestore::Sync`) so the reload lands back on the same
+    /// content - `load_html` always resets scroll to the top on its own,
+    /// and there's no "restore scroll after this specific load finishes"
+    /// hook to use instead. Restoring by source line rather than by pixel
+    /// offset is what keeps the view still while typing: text growing
+    /// above, or images loading after the restore, would otherwise push
+    /// the content away from a fixed pixel position.
     fn rerender_preserving_scroll(&self) {
         let style = self.style.get();
         let last_markdown = self.last_markdown.clone();
@@ -585,10 +567,10 @@ impl PreviewPane {
         let last_frontmatter = self.last_frontmatter.clone();
         let show_header = self.show_header.get();
         let web_view = self.web_view.clone();
-        self.web_view.evaluate_javascript("window.scrollY", None, None, gio::Cancellable::NONE, move |result| {
-            let scroll_y = result.map(|value| value.to_double()).unwrap_or(0.0);
+        self.web_view.evaluate_javascript("JSON.stringify(window.__currentSyncState ? window.__currentSyncState() : null)", None, None, gio::Cancellable::NONE, move |result| {
+            let restore = result.map(|value| ScrollRestore::from_state_json(&value.to_str())).unwrap_or(ScrollRestore::Top);
             let dark = adw::StyleManager::default().is_dark();
-            let html = render_html(&last_markdown.borrow(), style, dark, &last_media.borrow(), scroll_y, &last_frontmatter.borrow(), show_header, appearance::current_scheme_colors());
+            let html = render_html(&last_markdown.borrow(), style, dark, &last_media.borrow(), restore, &last_frontmatter.borrow(), show_header, appearance::current_scheme_colors());
             web_view.load_html(&html, base_uri(doc_dir.as_deref()).as_deref());
         });
     }
@@ -704,8 +686,40 @@ fn code_block_css(code_colors: Option<(&str, &str)>) -> String {
     )
 }
 
+/// Where a freshly rendered page starts out - `load_html` always resets to
+/// the top, so the position is baked into the page's own startup script.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ScrollRestore {
+    Top,
+    /// A scroll-sync position (`window.syncTo`'s fractional source line
+    /// plus its top/bottom blend) - restored by *content*, not by pixel
+    /// offset, and re-applied as images load, so a re-render while typing
+    /// doesn't shift what's on screen.
+    Sync { line: f64, top_t: f64, bottom_t: f64 },
+}
+
+impl ScrollRestore {
+    fn script(&self) -> String {
+        match self {
+            ScrollRestore::Top => String::new(),
+            ScrollRestore::Sync { line, top_t, bottom_t } => {
+                format!("window.__lastSync = [{line}, {top_t}, {bottom_t}]; window.__reapplySync();")
+            }
+        }
+    }
+
+    /// Parses `window.__currentSyncState()`'s `[line, topT, bottomT]`.
+    fn from_state_json(json: &str) -> Self {
+        match serde_json::from_str::<Vec<f64>>(json).ok().as_deref() {
+            Some([line, top_t, bottom_t]) if line.is_finite() && top_t.is_finite() && bottom_t.is_finite() => ScrollRestore::Sync { line: *line, top_t: *top_t, bottom_t: *bottom_t },
+            _ => ScrollRestore::Top,
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
-pub fn render_html(markdown: &str, style: PreviewStyle, dark: bool, media: &[MediaItem], scroll_y: f64, frontmatter: &Frontmatter, show_header: bool, code_colors: Option<(String, String)>) -> String {
+pub fn render_html(markdown: &str, style: PreviewStyle, dark: bool, media: &[MediaItem], restore: ScrollRestore, frontmatter: &Frontmatter, show_header: bool, code_colors: Option<(String, String)>) -> String {
+    let restore_js = restore.script();
     let body = render_body_with_line_anchors(markdown, media);
     let header = if show_header { render_header(frontmatter) } else { String::new() };
     let css = style_css(style, dark);
@@ -781,78 +795,136 @@ th, td {{ border: 1px solid #ccc; padding: .4rem .6rem; }}
 {EMBED_CSS}
 {HEADER_CSS}
 </style></head><body>{header}{body}<script>
-// `__suppressScrollEcho` distinguishes a scroll *this script* performs
-// (restoring position after a reload, or `scrollToLine` driven by the
-// editor) from one the user just did by hand with the mouse/trackpad - the
-// DOM's plain `scroll` event can't tell those apart on its own, so every
-// programmatic scroll below sets this first and clears it shortly after,
-// and the listener that reports back to the editor (the reverse leg of
-// scroll-sync, see `PreviewPane::connect_scroll`) skips reporting while
-// it's set. Without this, every editor-driven preview scroll would
-// immediately echo back and nudge the editor again.
-window.__suppressScrollEcho = false;
-window.__scrollEchoReleaseTimer = null;
-// Arms the release of `__suppressScrollEcho` for a smooth-scroll call that
-// just started - `scrollend` fires once the animation genuinely settles
-// (its duration scales with distance, so a fixed short delay would let the
-// reverse-sync listener see mid-animation positions and jitter the editor
-// while the preview is still gliding); the timeout alongside it is only a
-// safety net in case `scrollend` never fires for some reason.
-window.__armScrollEchoRelease = function() {{
-  window.__suppressScrollEcho = true;
-  if (window.__scrollEchoReleaseTimer) {{ clearTimeout(window.__scrollEchoReleaseTimer); }}
-  const release = function() {{
-    window.__suppressScrollEcho = false;
-    window.__scrollEchoReleaseTimer = null;
-  }};
-  window.addEventListener('scrollend', release, {{once: true}});
-  window.__scrollEchoReleaseTimer = setTimeout(release, 1000);
-}};
-window.scrollToLine = function(line) {{
-  const blocks = document.querySelectorAll('[data-line]');
-  let target = null;
-  for (const b of blocks) {{
-    if (parseInt(b.getAttribute('data-line'), 10) <= line) {{ target = b; }} else {{ break; }}
+// Scroll-sync (see `window.rs::wire_scroll_sync`). Positions are mapped
+// through *fractional* source lines, interpolated between the
+// `[data-line]` anchors: line 12.5 sits halfway between where line 12's
+// anchor and the next anchor are rendered, so a long paragraph or a tall
+// image scrolls continuously instead of the preview standing still and then
+// jumping a whole block. `bottomT` (0..1) blends the mapped position toward
+// the page's real bottom over the editor's last screenful, so the end is
+// reached without a hard snap; `topT` does the same for the top, but only
+// for the stretch above the first block (the article header), so the
+// preview doesn't lag behind the editor through the whole first screen.
+window.__blocks = null;
+window.__totalLines = 0;
+// `[line, topT, bottomT]` of the last editor-driven sync, re-applied when
+// the layout shifts under it (images finishing loading, a resize) - null
+// once the user scrolls the preview by hand.
+window.__lastSync = null;
+// A scroll this script performs itself must not be reported back to the
+// editor as if the user did it: the `scroll` event it causes is recognized
+// by landing on the recorded target (or arriving within the short window
+// after it), not by a flag that has to be released at the right moment.
+window.__programmaticY = null;
+window.__ignoreScrollUntil = 0;
+// Every anchor as a (source line, page y) pair: a block's start line at
+// its top edge and, where it has one, its `data-line-end` at its bottom
+// edge. Sorted by line and kept strictly increasing in both, so nested
+// anchors (a code block's per-line spans) slot in between their block's
+// own start and end.
+window.__blockPositions = function() {{
+  if (window.__blocks) return window.__blocks;
+  const raw = [];
+  for (const b of document.querySelectorAll('[data-line]')) {{
+    const rect = b.getBoundingClientRect();
+    raw.push({{line: parseInt(b.getAttribute('data-line'), 10), y: rect.top + window.scrollY}});
+    const end = parseInt(b.getAttribute('data-line-end'), 10);
+    if (end > 0) raw.push({{line: end, y: rect.bottom + window.scrollY}});
   }}
-  if (target) {{
-    window.__armScrollEchoRelease();
-    target.scrollIntoView({{block: 'start', behavior: 'smooth'}});
+  raw.sort(function(a, b) {{ return a.line - b.line || a.y - b.y; }});
+  const list = [];
+  for (const a of raw) {{
+    const last = list[list.length - 1];
+    if (!last || (a.line > last.line && a.y >= last.y)) list.push(a);
   }}
+  const lastLine = list.length ? list[list.length - 1].line : 0;
+  list.push({{line: Math.max(window.__totalLines + 1, lastLine + 1), y: document.documentElement.scrollHeight}});
+  window.__blocks = list;
+  return list;
 }};
-// Snaps to the page's true top/bottom rather than a block boundary - see
-// `PreviewPane::scroll_to_edge`'s doc comment for why `scrollToLine` alone
-// can't reliably reach either end.
-window.scrollToEdge = function(edge) {{
-  window.__armScrollEchoRelease();
-  window.scrollTo({{top: edge === 'bottom' ? document.body.scrollHeight : 0, behavior: 'smooth'}});
+window.__maxScroll = function() {{
+  return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
 }};
-// The reverse of `scrollToLine`'s search: which block is at (or just above)
-// the current scroll position, i.e. what the user is looking at right now.
-window.currentTopLine = function() {{
-  const blocks = document.querySelectorAll('[data-line]');
-  let target = null;
-  for (const b of blocks) {{
-    if (b.offsetTop <= window.scrollY + 2) {{ target = b; }} else {{ break; }}
-  }}
-  return target ? parseInt(target.getAttribute('data-line'), 10) : 1;
-}};
-window.__scrollSyncTimer = null;
-window.addEventListener('scroll', function() {{
-  if (window.__suppressScrollEcho) return;
-  if (window.__scrollSyncTimer) clearTimeout(window.__scrollSyncTimer);
-  window.__scrollSyncTimer = setTimeout(function() {{
-    if (window.webkit && window.webkit.messageHandlers.{SCROLL_SYNC_HANDLER}) {{
-      // Sentinels for "already at the true top/bottom" (-1/-2) - see
-      // `PreviewPane::connect_scroll`'s doc comment for why the editor
-      // side needs to know this instead of just the nearest line.
-      const atBottom = (window.scrollY + window.innerHeight) >= (document.body.scrollHeight - 2);
-      const atTop = window.scrollY <= 2;
-      const payload = atBottom ? -2 : (atTop ? -1 : window.currentTopLine());
-      window.webkit.messageHandlers.{SCROLL_SYNC_HANDLER}.postMessage(payload);
+window.__yForLine = function(line) {{
+  const bl = window.__blockPositions();
+  if (line <= bl[0].line) return bl.length > 1 ? bl[0].y : 0;
+  for (let i = 0; i + 1 < bl.length; i++) {{
+    if (line < bl[i + 1].line) {{
+      const t = (line - bl[i].line) / (bl[i + 1].line - bl[i].line);
+      return bl[i].y + t * (bl[i + 1].y - bl[i].y);
     }}
-  }}, 80);
+  }}
+  return bl[bl.length - 1].y;
+}};
+window.__lineForY = function(y) {{
+  const bl = window.__blockPositions();
+  if (y <= bl[0].y) return bl[0].line;
+  for (let i = 0; i + 1 < bl.length; i++) {{
+    if (y < bl[i + 1].y) {{
+      const span = bl[i + 1].y - bl[i].y;
+      const t = span > 0 ? (y - bl[i].y) / span : 0;
+      return bl[i].line + t * (bl[i + 1].line - bl[i].line);
+    }}
+  }}
+  return bl[bl.length - 1].line;
+}};
+// Instant, not a smooth animation: the editor drives this once per frame
+// while it scrolls, and each call restarting a smooth animation from
+// wherever the previous one had got to is exactly what made the preview
+// stutter and overshoot.
+window.__scrollProgrammatically = function(y) {{
+  y = Math.max(0, Math.min(window.__maxScroll(), y));
+  window.__programmaticY = y;
+  window.__ignoreScrollUntil = performance.now() + 150;
+  window.scrollTo({{top: y, behavior: 'instant'}});
+}};
+window.syncTo = function(line, topT, bottomT, totalLines) {{
+  if (totalLines > 0 && totalLines !== window.__totalLines) {{
+    window.__totalLines = totalLines;
+    window.__blocks = null;
+  }}
+  window.__lastSync = [line, topT, bottomT];
+  let y = window.__yForLine(line);
+  y = y * (1 - bottomT) + window.__maxScroll() * bottomT;
+  y = y - topT * window.__blockPositions()[0].y;
+  window.__scrollProgrammatically(y);
+}};
+// The current position in `syncTo`'s terms - what a re-render restores, so
+// it lands on the same *content* even if the layout above it changed.
+window.__currentSyncState = function() {{
+  if (window.__lastSync) return window.__lastSync;
+  const y = window.scrollY;
+  const page = Math.max(1, window.innerHeight);
+  const rem = Math.max(0, window.__maxScroll() - y);
+  return [window.__lineForY(y), y < page ? 1 - y / page : 0, rem < page ? 1 - rem / page : 0];
+}};
+window.__reapplySync = function() {{
+  window.__blocks = null;
+  if (window.__lastSync) window.syncTo(window.__lastSync[0], window.__lastSync[1], window.__lastSync[2], 0);
+}};
+window.addEventListener('resize', window.__reapplySync);
+window.addEventListener('load', window.__reapplySync);
+// `load` doesn't bubble - captured here, every image finishing loading
+// (and so growing from 0 to its real height) re-anchors the position.
+document.addEventListener('load', function(e) {{
+  if (e.target && e.target.tagName === 'IMG') window.__reapplySync();
+}}, true);
+window.__reportPending = false;
+window.addEventListener('scroll', function() {{
+  const y = window.scrollY;
+  if (window.__programmaticY !== null && (Math.abs(y - window.__programmaticY) <= 1.5 || performance.now() < window.__ignoreScrollUntil)) return;
+  window.__programmaticY = null;
+  window.__lastSync = null;
+  if (window.__reportPending) return;
+  window.__reportPending = true;
+  requestAnimationFrame(function() {{
+    window.__reportPending = false;
+    if (!(window.webkit && window.webkit.messageHandlers.{SCROLL_SYNC_HANDLER})) return;
+    const state = window.__currentSyncState();
+    window.webkit.messageHandlers.{SCROLL_SYNC_HANDLER}.postMessage(state.join(';'));
+  }});
 }});
-if ({scroll_y} > 0) {{ window.__suppressScrollEcho = true; window.scrollTo(0, {scroll_y}); setTimeout(function() {{ window.__suppressScrollEcho = false; }}, 200); }}
+{restore_js}
 </script></body></html>"#
     )
 }
@@ -861,6 +933,17 @@ if ({scroll_y} > 0) {{ window.__suppressScrollEcho = true; window.scrollTo(0, {s
 /// wrappers, one per top-level Markdown block, using pulldown-cmark's own
 /// HTML renderer for each block's inner content so output stays consistent
 /// with plain rendering.
+/// The 1-based line just *after* a block's last source line - the block's
+/// `data-line-end`. Scroll-sync maps the block's source lines onto its
+/// rendered height and the blank lines up to the next block onto the gap
+/// between them; without it, a paragraph (one logical line, however many
+/// rows it wraps to) and the blank line after it got equal weight, so the
+/// panes drifted apart by several rows toward the end of every paragraph.
+fn block_end_line(markdown: &str, range: &std::ops::Range<usize>) -> usize {
+    let last_byte = range.end.saturating_sub(1).max(range.start);
+    line_number(markdown, last_byte) + 1
+}
+
 fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String {
     let options = Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
     let events: Vec<(Event, std::ops::Range<usize>)> = Parser::new_ext(markdown, options).into_offset_iter().collect();
@@ -873,14 +956,16 @@ fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String 
                 let kind = kind.clone();
                 let end = find_matching_end(&events, i, &TagEnd::CodeBlock);
                 let line = line_number(markdown, events[i].1.start);
+                let line_end = block_end_line(markdown, &events[i].1);
                 let inner = render_code_block_with_line_anchors(&events[i..=end], &kind, line);
-                out.push_str(&format!("<div data-line=\"{line}\">{inner}</div>\n"));
+                out.push_str(&format!("<div data-line=\"{line}\" data-line-end=\"{line_end}\">{inner}</div>\n"));
                 i = end + 1;
             }
             Event::Start(tag) => {
                 let end_marker = tag.to_end();
                 let end = find_matching_end(&events, i, &end_marker);
                 let line = line_number(markdown, events[i].1.start);
+                let line_end = block_end_line(markdown, &events[i].1);
                 let embed_url = matches!(tag, Tag::Paragraph)
                     .then(|| events[i + 1..end].iter().map(|(event, _)| event.clone()).collect::<Vec<_>>())
                     .and_then(|inner_events| gutenberg::lone_embed_url(&inner_events));
@@ -911,7 +996,7 @@ fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String 
                 // many divs as it has.
                 let div_balance = inner.matches("<div").count() as isize - inner.matches("</div>").count() as isize;
                 if div_balance == 0 {
-                    out.push_str(&format!("<div data-line=\"{line}\">{inner}</div>\n"));
+                    out.push_str(&format!("<div data-line=\"{line}\" data-line-end=\"{line_end}\">{inner}</div>\n"));
                 } else {
                     out.push_str(&inner);
                 }
@@ -919,7 +1004,7 @@ fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String 
             }
             Event::Rule => {
                 let line = line_number(markdown, events[i].1.start);
-                out.push_str(&format!("<div data-line=\"{line}\"><hr/></div>\n"));
+                out.push_str(&format!("<div data-line=\"{line}\" data-line-end=\"{}\"><hr/></div>\n", line + 1));
                 i += 1;
             }
             _ => i += 1,
@@ -1337,9 +1422,9 @@ fn image_format_label(filename: &str) -> Option<String> {
 /// scrolls through it, only jumping once you scroll past the block
 /// entirely. Each *line* of the block's content gets its own anchor
 /// instead (nested `<span data-line="N">` inside the shared `<pre><code>`),
-/// so `window.scrollToLine`'s "closest preceding data-line" search - which
-/// already walks every `[data-line]` element in document order, not just
-/// top-level blocks - keeps working smoothly inside long code samples too.
+/// so the scroll-sync interpolation (`window.__blockPositions`) - which
+/// walks every `[data-line]` element in document order, not just top-level
+/// blocks - has fine-grained anchors inside long code samples too.
 fn render_code_block_with_line_anchors(events: &[(Event, std::ops::Range<usize>)], kind: &CodeBlockKind, block_start_line: usize) -> String {
     let mut code = String::new();
     for (event, _) in events {
@@ -1434,7 +1519,7 @@ mod tests {
     #[test]
     fn single_paragraph_is_tagged_with_its_line() {
         let out = render_body_with_line_anchors("Hello world.\n", &[]);
-        assert_eq!(out, "<div data-line=\"1\"><p>Hello world.</p>\n</div>\n");
+        assert_eq!(out, "<div data-line=\"1\" data-line-end=\"2\"><p>Hello world.</p>\n</div>\n");
     }
 
     #[test]
@@ -1443,9 +1528,9 @@ mod tests {
         let out = render_body_with_line_anchors(markdown, &[]);
         assert_eq!(
             out,
-            "<div data-line=\"1\"><h1>Title</h1>\n</div>\n\
-             <div data-line=\"3\"><p>Second paragraph.</p>\n</div>\n\
-             <div data-line=\"5\"><p>Third paragraph.</p>\n</div>\n"
+            "<div data-line=\"1\" data-line-end=\"2\"><h1>Title</h1>\n</div>\n\
+             <div data-line=\"3\" data-line-end=\"4\"><p>Second paragraph.</p>\n</div>\n\
+             <div data-line=\"5\" data-line-end=\"6\"><p>Third paragraph.</p>\n</div>\n"
         );
     }
 
@@ -1457,9 +1542,9 @@ mod tests {
         // key off "line 3", not some fraction of the document's line count.
         let markdown = "Intro text.\n\n![a cat](cat.png)\n\nOutro text.\n";
         let out = render_body_with_line_anchors(markdown, &[]);
-        assert!(out.contains("<div data-line=\"1\"><p>Intro text.</p>"));
-        assert!(out.contains("<div data-line=\"3\"><p><span class=\"img-wrap\"><img src=\"cat.png\" alt=\"a cat\""), "{out}");
-        assert!(out.contains("<div data-line=\"5\"><p>Outro text.</p>"));
+        assert!(out.contains("<div data-line=\"1\" data-line-end=\"2\"><p>Intro text.</p>"));
+        assert!(out.contains("<div data-line=\"3\" data-line-end=\"4\"><p><span class=\"img-wrap\"><img src=\"cat.png\" alt=\"a cat\""), "{out}");
+        assert!(out.contains("<div data-line=\"5\" data-line-end=\"6\"><p>Outro text.</p>"));
     }
 
     #[test]
@@ -1492,7 +1577,7 @@ mod tests {
     fn a_lone_youtube_url_line_becomes_an_embed_placeholder() {
         let markdown = "Intro text.\n\nhttps://www.youtube.com/watch?v=dQw4w9WgXcQ\n\nOutro text.\n";
         let out = render_body_with_line_anchors(markdown, &[]);
-        assert!(out.contains("<div data-line=\"3\"><div class=\"embed-placeholder\">"), "{out}");
+        assert!(out.contains("<div data-line=\"3\" data-line-end=\"4\"><div class=\"embed-placeholder\">"), "{out}");
         assert!(out.contains("YouTube-Video"), "{out}");
         assert!(out.contains("https://www.youtube.com/watch?v=dQw4w9WgXcQ"), "{out}");
         // No live iframe/script is ever loaded for this - just a static card.
@@ -1519,26 +1604,21 @@ mod tests {
     }
 
     #[test]
-    fn full_html_embeds_the_reverse_scroll_sync_script() {
-        let html = render_html("Hello", PreviewStyle::Modern, false, &[], 0.0, &Frontmatter::default(), false, None);
-        assert!(html.contains("window.currentTopLine = function()"));
-        assert!(html.contains("messageHandlers.scrollSync"));
-        assert!(html.contains("__suppressScrollEcho"));
+    fn full_html_embeds_the_interpolating_scroll_sync_script() {
+        let html = render_html("Hello", PreviewStyle::Modern, false, &[], ScrollRestore::Top, &Frontmatter::default(), false, None);
+        assert!(html.contains("window.syncTo = function(line, topT, bottomT, totalLines)"), "{html}");
+        assert!(html.contains("window.__lineForY = function(y)"), "{html}");
+        assert!(html.contains("messageHandlers.scrollSync"), "{html}");
+        assert!(html.contains("behavior: 'instant'"), "{html}");
+        assert!(!html.contains("behavior: 'smooth'"), "a per-frame sync must not restart smooth animations: {html}");
     }
 
     #[test]
-    fn full_html_embeds_the_scroll_to_edge_script_and_its_sentinels() {
-        let html = render_html("Hello", PreviewStyle::Modern, false, &[], 0.0, &Frontmatter::default(), false, None);
-        assert!(html.contains("window.scrollToEdge = function(edge)"), "{html}");
-        assert!(html.contains("document.body.scrollHeight"), "{html}");
-        assert!(html.contains("atBottom ? -2"), "{html}");
-    }
-
-    #[test]
-    fn scroll_to_line_and_scroll_to_edge_both_glide_smoothly() {
-        let html = render_html("Hello", PreviewStyle::Modern, false, &[], 0.0, &Frontmatter::default(), false, None);
-        assert!(html.contains("behavior: 'smooth'"), "{html}");
-        assert!(html.contains("scrollend"), "{html}");
+    fn scroll_restore_parses_the_page_state_and_falls_back_to_top() {
+        assert_eq!(ScrollRestore::from_state_json("[12.5,0,0.25]"), ScrollRestore::Sync { line: 12.5, top_t: 0.0, bottom_t: 0.25 });
+        assert_eq!(ScrollRestore::from_state_json("null"), ScrollRestore::Top);
+        assert_eq!(ScrollRestore::from_state_json("[1,2]"), ScrollRestore::Top);
+        assert_eq!(ScrollRestore::from_state_json("garbage"), ScrollRestore::Top);
     }
 
     #[test]
@@ -1555,7 +1635,7 @@ mod tests {
 
     #[test]
     fn full_html_prefers_the_active_scheme_colors_over_the_style_defaults() {
-        let html = render_html("Hello", PreviewStyle::Modern, true, &[], 0.0, &Frontmatter::default(), false, Some(("#282a36".to_string(), "#f8f8f2".to_string())));
+        let html = render_html("Hello", PreviewStyle::Modern, true, &[], ScrollRestore::Top, &Frontmatter::default(), false, Some(("#282a36".to_string(), "#f8f8f2".to_string())));
         // The style's own hardcoded dark-mode `pre` background (see
         // `style_css`) must lose the cascade to the scheme's, which is
         // appended after it - not just be present somewhere in the page.
@@ -1566,7 +1646,7 @@ mod tests {
 
     #[test]
     fn full_html_keeps_the_style_default_code_colors_without_a_scheme() {
-        let html = render_html("Hello", PreviewStyle::Modern, true, &[], 0.0, &Frontmatter::default(), false, None);
+        let html = render_html("Hello", PreviewStyle::Modern, true, &[], ScrollRestore::Top, &Frontmatter::default(), false, None);
         assert!(html.contains("pre { background: #2d2d2d;"), "{html}");
         assert!(!html.contains("pre { background: none"), "{html}");
     }
@@ -1676,7 +1756,7 @@ mod tests {
     #[test]
     fn thematic_break_is_tagged() {
         let out = render_body_with_line_anchors("Text.\n\n---\n\nMore text.\n", &[]);
-        assert!(out.contains("<div data-line=\"3\"><hr/></div>"));
+        assert!(out.contains("<div data-line=\"3\" data-line-end=\"4\"><hr/></div>"));
     }
 
     #[test]
@@ -1687,11 +1767,11 @@ mod tests {
         // entirely. Each line inside it needs its own `data-line` now.
         let markdown = "Intro.\n\n```bash\nfirst\nsecond\nthird\n```\n\nOutro.\n";
         let out = render_body_with_line_anchors(markdown, &[]);
-        assert!(out.contains("<div data-line=\"3\">"), "{out}");
+        assert!(out.contains("<div data-line=\"3\" data-line-end=\"8\">"), "{out}");
         assert!(out.contains("<span data-line=\"4\">first</span>"), "{out}");
         assert!(out.contains("<span data-line=\"5\">second</span>"), "{out}");
         assert!(out.contains("<span data-line=\"6\">third</span>"), "{out}");
-        assert!(out.contains("<div data-line=\"9\">"), "{out}");
+        assert!(out.contains("<div data-line=\"9\" data-line-end=\"10\">"), "{out}");
     }
 
     #[test]
@@ -1811,22 +1891,15 @@ mod tests {
     }
 
     #[test]
-    fn full_html_embeds_the_scroll_to_line_script() {
-        let html = render_html("Hello", PreviewStyle::Modern, false, &[], 0.0, &Frontmatter::default(), false, None);
-        assert!(html.contains("window.scrollToLine = function(line)"));
+    fn full_html_anchors_blocks_to_their_source_line() {
+        let html = render_html("Hello", PreviewStyle::Modern, false, &[], ScrollRestore::Top, &Frontmatter::default(), false, None);
         assert!(html.contains("data-line=\"1\""));
     }
 
     #[test]
-    fn full_html_restores_a_positive_scroll_position() {
-        let html = render_html("Hello", PreviewStyle::Modern, false, &[], 240.0, &Frontmatter::default(), false, None);
-        assert!(html.contains("window.scrollTo(0, 240)"), "{html}");
-    }
-
-    #[test]
-    fn full_html_guards_the_scroll_restore_for_zero() {
-        let html = render_html("Hello", PreviewStyle::Modern, false, &[], 0.0, &Frontmatter::default(), false, None);
-        assert!(html.contains("if (0 > 0) { window.__suppressScrollEcho = true; window.scrollTo(0, 0);"), "{html}");
+    fn full_html_restores_a_sync_position_by_content() {
+        let html = render_html("Hello", PreviewStyle::Modern, false, &[], ScrollRestore::Sync { line: 7.5, top_t: 0.0, bottom_t: 0.0 }, &Frontmatter::default(), false, None);
+        assert!(html.contains("window.__lastSync = [7.5, 0, 0]; window.__reapplySync();"), "{html}");
     }
 
     #[test]
@@ -1985,8 +2058,8 @@ mod tests {
         // below checks for the actual rendered element, not the class name
         // alone, which would find a false positive in the CSS either way.
         let frontmatter = Frontmatter { title: "Ein Testartikel".to_string(), ..Frontmatter::default() };
-        let shown = render_html("Hello", PreviewStyle::Modern, false, &[], 0.0, &frontmatter, true, None);
-        let hidden = render_html("Hello", PreviewStyle::Modern, false, &[], 0.0, &frontmatter, false, None);
+        let shown = render_html("Hello", PreviewStyle::Modern, false, &[], ScrollRestore::Top, &frontmatter, true, None);
+        let hidden = render_html("Hello", PreviewStyle::Modern, false, &[], ScrollRestore::Top, &frontmatter, false, None);
         assert!(shown.contains("<h1 class=\"article-header-title\">"), "{shown}");
         assert!(!hidden.contains("<h1 class=\"article-header-title\">"), "{hidden}");
     }

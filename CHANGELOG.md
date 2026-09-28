@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.62.1] - 2026-09-28
+
+### Fixed
+
+- Editor/preview scroll-sync no longer jumps: the position is now mapped
+  continuously through fractional source lines, interpolated between each
+  block's rendered start *and* end, instead of snapping the preview to the
+  start of whichever block is at the top. The preview follows instantly per
+  frame rather than restarting a smooth-scroll animation on every update,
+  eases into the document's end over the last screenful instead of
+  snapping there, no longer moves at all when merely clicking or typing in
+  the editor, and keeps its place by content (not pixel offset) across the
+  re-render after each edit and while images finish loading.
+
 ## [0.62.0] - 2026-09-28
 
 ### Added

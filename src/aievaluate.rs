@@ -24,7 +24,7 @@ use gtk4::glib;
 
 use crate::document::Frontmatter;
 use crate::i18n::tr;
-use crate::{aiwriter, llm, searchbar};
+use crate::{aitasks, llm, searchbar};
 
 const SYSTEM_PROMPT: &str = "Du bist ein erfahrener Lektor und bewertest Blogartikel-Entwürfe auf Deutsch - sachlich, konkret und wohlwollend, aber ehrlich.";
 
@@ -189,13 +189,10 @@ impl EvaluateView {
                 findings_count_label.set_visible(false);
                 findings_list.set_visible(false);
 
-                let (tx, rx) = mpsc::channel::<Result<String, String>>();
+                let (tx, rx) = mpsc::channel::<Result<aitasks::Routed<String>, String>>();
                 std::thread::spawn(move || {
-                    let outcome = (|| {
-                        let prompt = build_prompt(&title, &body);
-                        aiwriter::llm_client()?.send(SYSTEM_PROMPT, &[llm::ChatMessage { role: llm::Role::User, text: prompt }]).map_err(|err| err.to_string())
-                    })();
-                    let _ = tx.send(outcome);
+                    let message = [llm::ChatMessage { role: llm::Role::User, text: build_prompt(&title, &body) }];
+                    let _ = tx.send(aitasks::run(aitasks::AiTask::TextEditing, |client| client.send(SYSTEM_PROMPT, &message)));
                 });
 
                 let view = view.clone();
@@ -208,7 +205,7 @@ impl EvaluateView {
                 let findings_list = findings_list.clone();
                 glib::timeout_add_local(Duration::from_millis(150), move || {
                     let outcome = match rx.try_recv() {
-                        Ok(outcome) => outcome,
+                        Ok(outcome) => aitasks::deliver(outcome),
                         Err(mpsc::TryRecvError::Empty) => return glib::ControlFlow::Continue,
                         Err(mpsc::TryRecvError::Disconnected) => Err(tr("Interner Fehler: Bewertung hat kein Ergebnis geliefert.")),
                     };

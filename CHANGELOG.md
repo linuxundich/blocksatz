@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.62.0] - 2026-09-28
+
+### Added
+
+- New Einstellungen page "KI-Modelle": a per-provider availability check
+  that dry-runs every listed model with a few tokens and shows which ones
+  the key can really use - and which need a paid plan or credit (including
+  Gemini free-tier models with a quota of 0), have exhausted their quota,
+  are blocked in the region, or are retired. Results are cached per key.
+- Each AI task - image descriptions (alt text/captions), editing
+  (rewrites, article evaluation, tag suggestions) and text generation (the
+  AI article draft) - can get its own primary and fallback model. When the
+  primary isn't usable, the fallback takes over automatically with a
+  notice. Without an assignment, a task keeps using the KI-Chat model.
+
 ### Changed
 
 - Packaging switched from a local Arch `PKGBUILD` to Flatpak:

@@ -2,6 +2,7 @@ src/about.rs
 src/aialt.rs
 src/aimenu.rs
 src/aiprompts.rs
+src/aitasks.rs
 src/aiwriter.rs
 src/appearance.rs
 src/browser.rs
@@ -21,6 +22,7 @@ src/llm.rs
 src/media.rs
 src/mediabrowser.rs
 src/mediapanel.rs
+src/modelsettings.rs
 src/preview.rs
 src/promptsettings.rs
 src/properties.rs

@@ -1620,3 +1620,114 @@ msgstr "“{title}” will be moved to the WordPress trash, where it can be rest
 
 msgid "Blogartikel"
 msgstr "Blog post"
+
+msgid "Nicht geprüft"
+msgstr "Not checked"
+
+msgid "Nutzbar"
+msgstr "Usable"
+
+msgid "Kontingent vorübergehend erschöpft"
+msgstr "Quota temporarily exhausted"
+
+msgid "Abo/Guthaben erforderlich"
+msgstr "Paid plan/credit required"
+
+msgid "Kein Zugriff mit diesem Key"
+msgstr "No access with this key"
+
+msgid "In deiner Region nicht verfügbar"
+msgstr "Not available in your region"
+
+msgid "Nicht (mehr) verfügbar"
+msgstr "Not available (anymore)"
+
+msgid "API-Key ungültig"
+msgstr "Invalid API key"
+
+msgid "Für diese Anfrage nicht geeignet"
+msgstr "Not suitable for this request"
+
+msgid "Anbieter gerade nicht erreichbar"
+msgstr "Provider currently unreachable"
+
+msgid "Bildbeschreibungen"
+msgstr "Image descriptions"
+
+msgid "kein API-Key hinterlegt"
+msgstr "no API key stored"
+
+msgid "Kein nutzbares Modell für „{task}“: {models}."
+msgstr "No usable model for “{task}”: {models}."
+
+msgid "KI-Alternativtext und KI-Bildunterschrift - braucht ein Modell, das Bilder versteht."
+msgstr "AI alt text and AI captions - needs a model that understands images."
+
+msgid "KI-Artikelentwurf aus Thema und Anweisungen."
+msgstr "AI article draft from a topic and instructions."
+
+msgid "Lektorat und Überarbeitung"
+msgstr "Editing and revision"
+
+msgid "Modelle je Aufgabe lassen sich unter Einstellungen → KI-Modelle festlegen."
+msgstr "Models per task can be set under Settings → AI Models."
+
+msgid "„{model}“ nicht nutzbar ({reason}) - stattdessen „{fallback}“ verwendet."
+msgstr "“{model}” not usable ({reason}) - used “{fallback}” instead."
+
+msgid "Texterstellung"
+msgstr "Text generation"
+
+msgid "Umformulieren und Korrigieren im Editor, Artikelbewertung, Tag-Vorschläge."
+msgstr "Rewriting and correcting in the editor, article evaluation, tag suggestions."
+
+msgid "Ersatzmodell"
+msgstr "Fallback model"
+
+msgid "Hauptmodell"
+msgstr "Primary model"
+
+msgid "Jede Aufgabe kann ein eigenes Modell nutzen. Ist das Hauptmodell nicht nutzbar (Abo nötig, Kontingent erschöpft, kein Zugriff), springt automatisch das Ersatzmodell ein - mit einem Hinweis. Zur Auswahl stehen alle geladenen Modelle, außer denen, die die Prüfung als gesperrt erkannt hat."
+msgstr "Each task can use its own model. If the primary model isn't usable (paid plan needed, quota exhausted, no access), the fallback model takes over automatically - with a notice. All loaded models are offered, except those the check found blocked."
+
+msgid "Kein Ersatzmodell"
+msgstr "No fallback model"
+
+msgid "KI-Modelle"
+msgstr "AI Models"
+
+msgid "Modelle je Aufgabe"
+msgstr "Models per task"
+
+msgid "{n} Modelle"
+msgstr "{n} models"
+
+msgid "Noch keine Modelle geladen - API-Key unter „KI-Chat“ eintragen, dann hier prüfen."
+msgstr "No models loaded yet - enter an API key under “AI Chat”, then check here."
+
+msgid "Noch keine Modelle geladen - Server unter „KI-Chat“ eintragen, dann hier prüfen."
+msgstr "No models loaded yet - enter a server under “AI Chat”, then check here."
+
+msgid "{provider}: {done} von {total} Modellen geprüft …"
+msgstr "{provider}: {done} of {total} models checked …"
+
+msgid "{provider}: Modellliste wird geladen …"
+msgstr "{provider}: loading model list …"
+
+msgid "{provider}: Prüfung abgeschlossen."
+msgstr "{provider}: check finished."
+
+msgid "Prüfen"
+msgstr "Check"
+
+msgid "Verfügbarkeit"
+msgstr "Availability"
+
+msgid "Wie KI-Chat ({model})"
+msgstr "Same as AI Chat ({model})"
+
+msgid "Wird genutzt, wenn das Hauptmodell nicht verfügbar ist"
+msgstr "Used when the primary model isn't available"
+
+msgid "„Prüfen“ lädt die Modellliste des Anbieters und schickt jedem Modell eine Mini-Anfrage mit wenigen Tokens. So zeigt sich, welche Modelle mit deinem Key wirklich nutzbar sind - und welche ein Abo oder Guthaben brauchen, ihr Kontingent erschöpft haben oder in deiner Region gesperrt sind. Die Ergebnisse werden zwischengespeichert."
+msgstr "“Check” loads the provider's model list and sends each model a tiny request of a few tokens. That shows which models are really usable with your key - and which need a paid plan or credit, have exhausted their quota or are blocked in your region. The results are cached."

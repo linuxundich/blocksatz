@@ -21,7 +21,7 @@ use gtk4::glib;
 
 use crate::document;
 use crate::i18n::tr;
-use crate::{chatconfig, llm, secrets, termcache};
+use crate::{aitasks, llm, termcache};
 
 const SYSTEM_PROMPT: &str = "Du schlägst passende Tags (Schlagwörter) für einen Blogartikel vor. \
      Analysiere Titel und Text und nenne 5 bis 8 treffende Tags. Bereits existierende Tags der \
@@ -179,34 +179,20 @@ fn run_generation(
     status_label.set_visible(true);
 
     let prompt = build_prompt(article_title, body, existing_tags);
-    let config = chatconfig::load_provider_config();
-    let provider = config.active;
-    let model = config.model_for(provider).to_string();
-    let base_url = config.ollama_base_url.clone();
     let current_tags = current_tags.to_vec();
     let existing_tags = existing_tags.to_vec();
 
-    let (tx, rx) = mpsc::channel::<Result<String, String>>();
+    let (tx, rx) = mpsc::channel::<Result<aitasks::Routed<String>, String>>();
     std::thread::spawn(move || {
-        let outcome = (|| {
-            let client = if provider.needs_api_key() {
-                let key = futures_lite::future::block_on(secrets::load_llm_api_key(provider.id()))
-                    .map_err(|err| err.to_string())?
-                    .ok_or_else(|| tr("Kein {provider}-API-Key in den Einstellungen hinterlegt.").replace("{provider}", provider.label()))?;
-                llm::Client::new(provider, &key, &model, &base_url)
-            } else {
-                llm::Client::new(provider, "", &model, &base_url)
-            };
-            client.send(SYSTEM_PROMPT, &[llm::ChatMessage { role: llm::Role::User, text: prompt }]).map_err(|err| err.to_string())
-        })();
-        let _ = tx.send(outcome);
+        let message = [llm::ChatMessage { role: llm::Role::User, text: prompt }];
+        let _ = tx.send(aitasks::run(aitasks::AiTask::TextEditing, |client| client.send(SYSTEM_PROMPT, &message)));
     });
 
     let generate_button = generate_button.clone();
     let status_label = status_label.clone();
     let suggestions_list = suggestions_list.clone();
     let apply_button = apply_button.clone();
-    glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
+    glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv().map(aitasks::deliver) {
         Ok(Ok(text)) => {
             let suggestions = parse_suggestions(&text, &current_tags);
             if suggestions.is_empty() {

@@ -25,7 +25,7 @@ use adw::prelude::*;
 use gtk4::glib;
 
 use crate::i18n::tr;
-use crate::{chatconfig, export, llm, secrets};
+use crate::{aitasks, export};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DetailLevel {
@@ -246,28 +246,14 @@ pub fn generate(source: &str, doc_dir: Option<PathBuf>, on_result: impl Fn(Resul
     let source = source.to_string();
     let mime_type = export::mime_from_extension(&source);
     let prompt = level.prompt().to_string();
-    let config = chatconfig::load_provider_config();
-    let provider = config.active;
-    let model = config.model_for(provider).to_string();
-    let base_url = config.ollama_base_url.clone();
-
-    let (tx, rx) = mpsc::channel::<Result<String, String>>();
+    let (tx, rx) = mpsc::channel::<Result<aitasks::Routed<String>, String>>();
     std::thread::spawn(move || {
-        let outcome = export::read_image_bytes(&source, doc_dir.as_deref()).and_then(|bytes| {
-            let client = if provider.needs_api_key() {
-                let key = futures_lite::future::block_on(secrets::load_llm_api_key(provider.id()))
-                    .map_err(|err| err.to_string())?
-                    .ok_or_else(|| tr("Kein {provider}-API-Key in den Einstellungen hinterlegt.").replace("{provider}", provider.label()))?;
-                llm::Client::new(provider, &key, &model, &base_url)
-            } else {
-                llm::Client::new(provider, "", &model, &base_url)
-            };
-            client.describe_image(&prompt, &bytes, mime_type).map_err(|err| err.to_string())
-        });
+        let outcome = export::read_image_bytes(&source, doc_dir.as_deref())
+            .and_then(|bytes| aitasks::run(aitasks::AiTask::ImageCaptioning, |client| client.describe_image(&prompt, &bytes, mime_type)));
         let _ = tx.send(outcome);
     });
 
-    glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
+    glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv().map(aitasks::deliver) {
         Ok(Ok(text)) => {
             on_result(Ok(text.trim().to_string()));
             glib::ControlFlow::Break

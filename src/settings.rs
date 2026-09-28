@@ -2,7 +2,8 @@
 //! metadata): a standard `Adw.PreferencesDialog` shell holding one page per
 //! concern - appearance (`appearance::build_page`), WordPress connection
 //! (`connection::build_page`), the chat's LLM provider/model/system prompt
-//! (`chatsettings::build_page`), and the editor context menu's AI prompts
+//! (`chatsettings::build_page`), the per-task AI model assignment and
+//! capability check (`modelsettings::build_page`), and the editor context menu's AI prompts
 //! (`promptsettings::build_page`). Further settings pages would just be
 //! additional `dialog.add(...)` calls here.
 
@@ -13,7 +14,7 @@ use adw::prelude::*;
 use crate::aimenu::AiMenuHandles;
 use crate::browser::BrowserView;
 use crate::i18n::tr;
-use crate::{appearance, browsersettings, chatsettings, connection, preview, promptsettings};
+use crate::{appearance, browsersettings, chatsettings, connection, modelsettings, preview, promptsettings};
 
 pub fn open(
     parent: &adw::ApplicationWindow,
@@ -30,6 +31,7 @@ pub fn open(
     dialog.add(&browsersettings::build_page(browser_view));
     dialog.add(&connection::build_page());
     dialog.add(&chatsettings::build_page());
+    dialog.add(&modelsettings::build_page());
     dialog.add(&promptsettings::build_page(ai_menu_handles.custom_prompts_menu.clone()));
     dialog.present(Some(parent));
 }

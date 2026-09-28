@@ -9,7 +9,7 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    about, aievaluate, aiinplace, aimenu, aiwriter, autosave, browser, chat, codeview, docsidebar, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
+    about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, autosave, browser, chat, codeview, docsidebar, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
     mediabrowser, medialibrary, mediapanel, preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
 };
 
@@ -333,6 +333,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
 
     let toast_overlay = adw::ToastOverlay::new();
     toast_overlay.set_child(Some(&toolbar_view));
+    aitasks::set_toast_overlay(&toast_overlay);
 
     let window = adw::ApplicationWindow::builder()
         .application(app)

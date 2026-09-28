@@ -277,9 +277,24 @@ blocks. Implemented so far:
   and a model picker populated from that account's actual available
   models, Ollama additionally getting a configurable base URL; plus a
   fully editable, resettable system prompt shared across all providers),
-  and a "KI-Prompts"
+  a "KI-Modelle" page (see "Per-task AI models" below), and a "KI-Prompts"
   page (the context menu's five built-in prompts and custom prompts - see
   above).
+- **Per-task AI models with a capability check** — Einstellungen →
+  "KI-Modelle" checks, per provider, which of the models the key *lists*
+  it can actually *use*: each model gets a tiny dry-run request, and the
+  outcome is classified (usable, quota temporarily exhausted, paid
+  plan/credit required - including Gemini's free tier `limit: 0` models -,
+  no access, blocked in the region, retired, invalid key) and cached per
+  key fingerprint with a status-dependent lifetime (`src/modelcheck.rs`,
+  the error matrix is `llm::classify`). Image descriptions (alt text and
+  captions), editing (in-place rewrites, article evaluation, tag
+  suggestions) and text generation (the AI article draft) can each get
+  their own primary and fallback model; unassigned tasks keep following
+  the KI-Chat model. A task skips a model known to be blocked, and falls
+  back automatically when a real call fails for a model/account reason,
+  with a toast saying so (`src/aitasks.rs`). The chat pane itself keeps
+  using the KI-Chat model.
 - **Publishing** — an "Artikel exportieren" dialog shows the generated
   Gutenberg HTML, then creates/updates the WordPress post via its REST API
   on a background thread. "Veröffentlichen" and "Als Entwurf hochladen"

@@ -24,7 +24,7 @@ use adw::prelude::*;
 use gtk4::glib;
 
 use crate::i18n::tr;
-use crate::{chatconfig, llm, secrets, wpclient, wpsite};
+use crate::{aitasks, llm, secrets, wpclient, wpsite};
 
 /// How much of each style-sample post is sent - enough to carry tone,
 /// sentence rhythm and typical structure, without blowing past a small
@@ -267,20 +267,6 @@ fn open_sample_picker(parent: &adw::Dialog, posts: &[wpclient::PostSummary], sel
     sheet.present(Some(parent));
 }
 
-pub(crate) fn llm_client() -> Result<llm::Client, String> {
-    let config = chatconfig::load_provider_config();
-    let provider = config.active;
-    let model = config.model_for(provider).to_string();
-    if provider.needs_api_key() {
-        let key = futures_lite::future::block_on(secrets::load_llm_api_key(provider.id()))
-            .map_err(|err| err.to_string())?
-            .ok_or_else(|| tr("Kein {provider}-API-Key in den Einstellungen hinterlegt.").replace("{provider}", provider.label()))?;
-        Ok(llm::Client::new(provider, &key, &model, &config.ollama_base_url))
-    } else {
-        Ok(llm::Client::new(provider, "", &model, &config.ollama_base_url))
-    }
-}
-
 /// Opens the dialog; `on_apply` is called once with the reviewed article
 /// and how the user chose to use it.
 pub fn open(window: &gtk4::Window, on_apply: impl Fn(GeneratedArticle, ApplyMode) + 'static) {
@@ -452,12 +438,12 @@ pub fn open(window: &gtk4::Window, on_apply: impl Fn(GeneratedArticle, ApplyMode
             status_label.set_label(&if sample_ids.is_empty() { tr("Wird generiert …") } else { tr("Lade Stilvorlagen und generiere …") });
             status_label.set_visible(true);
 
-            let (tx, rx) = mpsc::channel::<Result<String, String>>();
+            let (tx, rx) = mpsc::channel::<Result<aitasks::Routed<String>, String>>();
             std::thread::spawn(move || {
                 let outcome = (|| {
                     let samples = if sample_ids.is_empty() { Vec::new() } else { fetch_style_samples(&sample_ids)? };
-                    let prompt = build_prompt(&brief, length, &samples);
-                    llm_client()?.send(SYSTEM_PROMPT, &[llm::ChatMessage { role: llm::Role::User, text: prompt }]).map_err(|err| err.to_string())
+                    let message = [llm::ChatMessage { role: llm::Role::User, text: build_prompt(&brief, length, &samples) }];
+                    aitasks::run(aitasks::AiTask::TextGeneration, |client| client.send(SYSTEM_PROMPT, &message))
                 })();
                 let _ = tx.send(outcome);
             });
@@ -470,7 +456,7 @@ pub fn open(window: &gtk4::Window, on_apply: impl Fn(GeneratedArticle, ApplyMode
             let insert_button = insert_button.clone();
             glib::timeout_add_local(Duration::from_millis(150), move || {
                 let outcome = match rx.try_recv() {
-                    Ok(outcome) => outcome,
+                    Ok(outcome) => aitasks::deliver(outcome),
                     Err(mpsc::TryRecvError::Empty) => return glib::ControlFlow::Continue,
                     Err(mpsc::TryRecvError::Disconnected) => Err(tr("Interner Fehler: Generierung hat kein Ergebnis geliefert.")),
                 };

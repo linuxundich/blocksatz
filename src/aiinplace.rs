@@ -34,7 +34,7 @@ use std::time::Duration;
 use adw::prelude::*;
 use gtk4::glib;
 
-use crate::aiwriter;
+use crate::aitasks;
 use crate::i18n::tr;
 use crate::llm::{ChatMessage, Role};
 
@@ -183,10 +183,10 @@ impl InPlaceBar {
         self.widget.set_reveal_child(true);
 
         let user_prompt = format!("{instruction}\n\n---\n\n{original_text}");
-        let (tx, rx) = mpsc::channel::<Result<String, String>>();
+        let (tx, rx) = mpsc::channel::<Result<aitasks::Routed<String>, String>>();
         std::thread::spawn(move || {
-            let outcome = (|| aiwriter::llm_client()?.send(SYSTEM_PROMPT, &[ChatMessage { role: Role::User, text: user_prompt }]).map_err(|err| err.to_string()))();
-            let _ = tx.send(outcome);
+            let message = [ChatMessage { role: Role::User, text: user_prompt }];
+            let _ = tx.send(aitasks::run(aitasks::AiTask::TextEditing, |client| client.send(SYSTEM_PROMPT, &message)));
         });
 
         let this = self.clone();
@@ -195,7 +195,7 @@ impl InPlaceBar {
             if this.run_token.get() != token {
                 return glib::ControlFlow::Break;
             }
-            match rx.try_recv() {
+            match rx.try_recv().map(aitasks::deliver) {
                 Ok(outcome) => {
                     this.spinner.stop();
                     this.spinner.set_visible(false);

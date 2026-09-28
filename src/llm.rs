@@ -87,9 +87,119 @@ pub struct ChatMessage {
     pub text: String,
 }
 
+/// What a failed (or successful) call says about whether a model is usable
+/// with the current key - the error matrix `classify` maps HTTP statuses
+/// and provider-specific error texts onto. Doubles as the per-model status
+/// the capability check (`modelcheck.rs`) caches and the task routing
+/// (`aitasks.rs`) consults before picking a model.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModelStatus {
+    /// Never checked, or the last check has expired.
+    Unchecked,
+    Available,
+    /// Temporarily out of requests (per-minute/per-day limit) - worth
+    /// retrying later, not a reason to hide the model.
+    RateLimited,
+    /// Needs a paid plan, billing or credit: HTTP 402, OpenAI's
+    /// `insufficient_quota`, Anthropic's "credit balance is too low", or a
+    /// Gemini free-tier quota of `limit: 0` (models the free tier doesn't
+    /// include at all).
+    PaymentRequired,
+    /// 403 - the key/project isn't allowed to use this model.
+    NoAccess,
+    /// Not offered in the account's country/region.
+    RegionBlocked,
+    /// 404 - unknown, retired or not usable for generation.
+    NotFound,
+    /// 401 (or Gemini's 400 "API key not valid") - a key problem, not a
+    /// model problem.
+    InvalidKey,
+    /// The model rejected the kind of request (e.g. an image sent to a
+    /// text-only model) - specific to the task, so never cached.
+    Unsupported,
+    /// 5xx, overloaded, or unreachable - temporary.
+    ServerError,
+    /// Any other failure (malformed reply, safety filter, bad request) -
+    /// says nothing about the model's availability.
+    Other,
+}
+
+impl ModelStatus {
+    pub const ALL: [ModelStatus; 11] = [
+        ModelStatus::Unchecked,
+        ModelStatus::Available,
+        ModelStatus::RateLimited,
+        ModelStatus::PaymentRequired,
+        ModelStatus::NoAccess,
+        ModelStatus::RegionBlocked,
+        ModelStatus::NotFound,
+        ModelStatus::InvalidKey,
+        ModelStatus::Unsupported,
+        ModelStatus::ServerError,
+        ModelStatus::Other,
+    ];
+
+    pub fn id(&self) -> &'static str {
+        match self {
+            ModelStatus::Unchecked => "unchecked",
+            ModelStatus::Available => "available",
+            ModelStatus::RateLimited => "rate_limited",
+            ModelStatus::PaymentRequired => "payment_required",
+            ModelStatus::NoAccess => "no_access",
+            ModelStatus::RegionBlocked => "region_blocked",
+            ModelStatus::NotFound => "not_found",
+            ModelStatus::InvalidKey => "invalid_key",
+            ModelStatus::Unsupported => "unsupported",
+            ModelStatus::ServerError => "server_error",
+            ModelStatus::Other => "other",
+        }
+    }
+
+    pub fn from_id(s: &str) -> Self {
+        ModelStatus::ALL.into_iter().find(|status| status.id() == s).unwrap_or(ModelStatus::Unchecked)
+    }
+
+    /// Short UI label ("Free-Tier nutzbar", "Abo/Guthaben nötig", ...).
+    pub fn label(&self) -> String {
+        match self {
+            ModelStatus::Unchecked => tr("Nicht geprüft"),
+            ModelStatus::Available => tr("Nutzbar"),
+            ModelStatus::RateLimited => tr("Kontingent vorübergehend erschöpft"),
+            ModelStatus::PaymentRequired => tr("Abo/Guthaben erforderlich"),
+            ModelStatus::NoAccess => tr("Kein Zugriff mit diesem Key"),
+            ModelStatus::RegionBlocked => tr("In deiner Region nicht verfügbar"),
+            ModelStatus::NotFound => tr("Nicht (mehr) verfügbar"),
+            ModelStatus::InvalidKey => tr("API-Key ungültig"),
+            ModelStatus::Unsupported => tr("Für diese Anfrage nicht geeignet"),
+            ModelStatus::ServerError => tr("Anbieter gerade nicht erreichbar"),
+            ModelStatus::Other => tr("Fehler"),
+        }
+    }
+
+    /// Won't start working by just waiting - the model picker hides these
+    /// and the task routing skips them without even trying.
+    pub fn is_permanent_block(&self) -> bool {
+        matches!(self, ModelStatus::PaymentRequired | ModelStatus::NoAccess | ModelStatus::RegionBlocked | ModelStatus::NotFound | ModelStatus::InvalidKey)
+    }
+
+    /// Whether a call failing this way is a reason to try the task's
+    /// fallback model - everything that's about the model or the account,
+    /// not about the request's content.
+    pub fn warrants_fallback(&self) -> bool {
+        !matches!(self, ModelStatus::Available | ModelStatus::Unchecked | ModelStatus::Other)
+    }
+}
+
 #[derive(Debug)]
 pub struct ApiError {
     pub message: String,
+    pub status: ModelStatus,
+}
+
+impl ApiError {
+    fn other(message: String) -> Self {
+        Self { message, status: ModelStatus::Other }
+    }
 }
 
 impl std::fmt::Display for ApiError {
@@ -161,9 +271,7 @@ impl Client {
             .pointer("/candidates/0/content/parts/0/text")
             .and_then(Value::as_str)
             .map(str::to_string)
-            .ok_or_else(|| ApiError {
-                message: tr("Keine Antwort erhalten (möglicherweise durch einen Sicherheitsfilter blockiert)."),
-            })
+            .ok_or_else(|| ApiError::other(tr("Keine Antwort erhalten (möglicherweise durch einen Sicherheitsfilter blockiert).")))
     }
 
     fn send_openai(&self, system_prompt: &str, history: &[ChatMessage]) -> Result<String> {
@@ -189,7 +297,7 @@ impl Client {
             .pointer("/choices/0/message/content")
             .and_then(Value::as_str)
             .map(str::to_string)
-            .ok_or_else(|| ApiError { message: tr("Keine Antwort erhalten.") })
+            .ok_or_else(|| ApiError::other(tr("Keine Antwort erhalten.")))
     }
 
     fn send_claude(&self, system_prompt: &str, history: &[ChatMessage]) -> Result<String> {
@@ -220,7 +328,7 @@ impl Client {
             .pointer("/content/0/text")
             .and_then(Value::as_str)
             .map(str::to_string)
-            .ok_or_else(|| ApiError { message: tr("Keine Antwort erhalten.") })
+            .ok_or_else(|| ApiError::other(tr("Keine Antwort erhalten.")))
     }
 
     fn send_ollama(&self, system_prompt: &str, history: &[ChatMessage]) -> Result<String> {
@@ -264,6 +372,37 @@ impl Client {
         }
     }
 
+    /// The capability check's dry run: the smallest real generation request
+    /// this provider accepts ("ping", capped at a handful of output tokens),
+    /// so a model that's listed but not actually usable with this key -
+    /// no free tier, no access, retired - shows up as such without spending
+    /// more than a few tokens. Only the HTTP outcome matters; the reply
+    /// itself (often empty or cut off by the token cap) is ignored.
+    pub fn probe(&self) -> std::result::Result<(), ApiError> {
+        let auth = format!("Bearer {}", self.api_key);
+        let (status, body_text) = match self.provider {
+            Provider::Gemini => {
+                let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent", self.model);
+                self.post_json(&url, &[("x-goog-api-key", &self.api_key)], &probe_body(self.provider, &self.model))?
+            }
+            Provider::OpenAi => self.post_json("https://api.openai.com/v1/chat/completions", &[("Authorization", &auth)], &probe_body(self.provider, &self.model))?,
+            Provider::Claude => self.post_json(
+                "https://api.anthropic.com/v1/messages",
+                &[("x-api-key", &self.api_key), ("anthropic-version", "2023-06-01")],
+                &probe_body(self.provider, &self.model),
+            )?,
+            Provider::Ollama => {
+                let url = format!("{}/api/chat", self.base_url);
+                self.post_json(&url, &[], &probe_body(self.provider, &self.model))?
+            }
+        };
+        if (200..300).contains(&status) {
+            return Ok(());
+        }
+        let path: &[&str] = if self.provider == Provider::Ollama { &["error"] } else { &["error", "message"] };
+        Err(error_from_body(status, &body_text, path))
+    }
+
     fn describe_image_gemini(&self, prompt: &str, mime_type: &str, data: &str) -> Result<String> {
         let body = gemini_image_body(prompt, mime_type, data);
         let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent", self.model);
@@ -276,9 +415,7 @@ impl Client {
             .pointer("/candidates/0/content/parts/0/text")
             .and_then(Value::as_str)
             .map(str::to_string)
-            .ok_or_else(|| ApiError {
-                message: tr("Keine Antwort erhalten (möglicherweise durch einen Sicherheitsfilter blockiert)."),
-            })
+            .ok_or_else(|| ApiError::other(tr("Keine Antwort erhalten (möglicherweise durch einen Sicherheitsfilter blockiert).")))
     }
 
     fn describe_image_openai(&self, prompt: &str, mime_type: &str, data: &str) -> Result<String> {
@@ -293,7 +430,7 @@ impl Client {
             .pointer("/choices/0/message/content")
             .and_then(Value::as_str)
             .map(str::to_string)
-            .ok_or_else(|| ApiError { message: tr("Keine Antwort erhalten.") })
+            .ok_or_else(|| ApiError::other(tr("Keine Antwort erhalten.")))
     }
 
     fn describe_image_claude(&self, prompt: &str, mime_type: &str, data: &str) -> Result<String> {
@@ -311,7 +448,7 @@ impl Client {
             .pointer("/content/0/text")
             .and_then(Value::as_str)
             .map(str::to_string)
-            .ok_or_else(|| ApiError { message: tr("Keine Antwort erhalten.") })
+            .ok_or_else(|| ApiError::other(tr("Keine Antwort erhalten.")))
     }
 
     fn describe_image_ollama(&self, prompt: &str, data: &str) -> Result<String> {
@@ -333,7 +470,7 @@ impl Client {
         for (name, value) in headers {
             request = request.header(*name, *value);
         }
-        let mut response = request.send_json(body).map_err(|err| ApiError { message: err.to_string() })?;
+        let mut response = request.send_json(body).map_err(|err| ApiError { message: err.to_string(), status: ModelStatus::ServerError })?;
         let status = response.status().as_u16();
         let body_text = response.body_mut().read_to_string().unwrap_or_default();
         Ok((status, body_text))
@@ -344,7 +481,7 @@ impl Client {
         for (name, value) in headers {
             request = request.header(*name, *value);
         }
-        let mut response = request.call().map_err(|err| ApiError { message: err.to_string() })?;
+        let mut response = request.call().map_err(|err| ApiError { message: err.to_string(), status: ModelStatus::ServerError })?;
         let status = response.status().as_u16();
         let body_text = response.body_mut().read_to_string().unwrap_or_default();
         Ok((status, body_text))
@@ -444,6 +581,35 @@ fn claude_image_body(model: &str, prompt: &str, mime_type: &str, data: &str) -> 
     })
 }
 
+/// Request body for `Client::probe` - one "ping" user message with the
+/// output capped low. OpenAI's reasoning models reject a cap too small to
+/// finish any reply, and Gemini's thinking models spend tokens before
+/// answering, hence 16 rather than 1 - still a negligible cost.
+fn probe_body(provider: Provider, model: &str) -> Value {
+    match provider {
+        Provider::Gemini => serde_json::json!({
+            "contents": [{"role": "user", "parts": [{"text": "ping"}]}],
+            "generationConfig": {"maxOutputTokens": 16}
+        }),
+        Provider::OpenAi => serde_json::json!({
+            "model": model,
+            "messages": [{"role": "user", "content": "ping"}],
+            "max_completion_tokens": 16
+        }),
+        Provider::Claude => serde_json::json!({
+            "model": model,
+            "max_tokens": 1,
+            "messages": [{"role": "user", "content": "ping"}]
+        }),
+        Provider::Ollama => serde_json::json!({
+            "model": model,
+            "messages": [{"role": "user", "content": "ping"}],
+            "stream": false,
+            "options": {"num_predict": 1}
+        }),
+    }
+}
+
 /// Ollama's `/api/chat` takes images as a plain array of base64 strings
 /// alongside the message - no data-URL prefix and no per-image mime type,
 /// unlike the other three providers.
@@ -511,9 +677,7 @@ fn extract_ollama_models(value: &Value) -> Vec<String> {
 }
 
 fn parse_json(body_text: &str) -> Result<Value> {
-    serde_json::from_str(body_text).map_err(|err| ApiError {
-        message: tr("Antwort nicht lesbar: {err}").replace("{err}", &err.to_string()),
-    })
+    serde_json::from_str(body_text).map_err(|err| ApiError::other(tr("Antwort nicht lesbar: {err}").replace("{err}", &err.to_string())))
 }
 
 /// Digs an error message out of a provider's error response body, walking
@@ -533,6 +697,49 @@ fn error_from_body(status: u16, body_text: &str, path: &[&str]) -> ApiError {
         .unwrap_or_else(|| body_text.to_string());
     ApiError {
         message: format!("HTTP {status}: {message}"),
+        status: classify(status, body_text),
+    }
+}
+
+/// The error matrix: maps a failed call's HTTP status plus the provider's
+/// own error text onto a `ModelStatus`. The status code alone isn't
+/// enough - Gemini reports an invalid key as 400 and a model the free tier
+/// doesn't include as a 429 with `limit: 0`, OpenAI an unpaid account as a
+/// 429 `insufficient_quota`, and Anthropic an empty balance as a 400.
+pub fn classify(status: u16, body_text: &str) -> ModelStatus {
+    let body = body_text.to_lowercase();
+    let has = |needle: &str| body.contains(needle);
+    if (200..300).contains(&status) {
+        return ModelStatus::Available;
+    }
+    if has("location is not supported") || has("unsupported_country") || has("not available in your country") || has("region is not supported") {
+        return ModelStatus::RegionBlocked;
+    }
+    // Not a bare "billing" match: Gemini's ordinary per-minute 429 also
+    // says "check your plan and billing details".
+    if status == 402 || has("insufficient_quota") || has("credit balance is too low") {
+        return ModelStatus::PaymentRequired;
+    }
+    if has("api key not valid") || has("api_key_invalid") || has("invalid_api_key") || has("invalid x-api-key") {
+        return ModelStatus::InvalidKey;
+    }
+    match status {
+        401 => ModelStatus::InvalidKey,
+        403 => ModelStatus::NoAccess,
+        404 => ModelStatus::NotFound,
+        429 => {
+            // Gemini's free tier lists models it grants no quota for at
+            // all ("... free_tier_requests, limit: 0") - waiting won't help.
+            if has("limit: 0") || has("\"quota_value\":\"0\"") {
+                ModelStatus::PaymentRequired
+            } else {
+                ModelStatus::RateLimited
+            }
+        }
+        400 if has("image") && (has("support") || has("vision")) => ModelStatus::Unsupported,
+        400 if has("does not exist") || has("not found") || has("deprecated") || has("decommissioned") => ModelStatus::NotFound,
+        408 | 500..=599 => ModelStatus::ServerError,
+        _ => ModelStatus::Other,
     }
 }
 
@@ -599,6 +806,71 @@ mod tests {
     fn error_from_body_falls_back_to_raw_text_on_mismatch() {
         let err = error_from_body(500, "plain text error", &["error", "message"]);
         assert_eq!(err.message, "HTTP 500: plain text error");
+    }
+
+    #[test]
+    fn classify_maps_provider_errors_onto_the_error_matrix() {
+        let cases: &[(u16, &str, ModelStatus)] = &[
+            (200, "{}", ModelStatus::Available),
+            // Gemini
+            (400, r#"{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}"#, ModelStatus::InvalidKey),
+            (400, r#"{"error":{"message":"User location is not supported for the API use.","status":"FAILED_PRECONDITION"}}"#, ModelStatus::RegionBlocked),
+            (
+                429,
+                r#"{"error":{"message":"You exceeded your current quota, please check your plan and billing details. Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-pro","status":"RESOURCE_EXHAUSTED"}}"#,
+                ModelStatus::PaymentRequired,
+            ),
+            (
+                429,
+                r#"{"error":{"message":"You exceeded your current quota, please check your plan and billing details. Quota exceeded for metric: generate_content_free_tier_requests, limit: 10, model: gemini-2.5-flash","status":"RESOURCE_EXHAUSTED"}}"#,
+                ModelStatus::RateLimited,
+            ),
+            (404, r#"{"error":{"message":"models/gemini-1.0-pro is not found for API version v1beta","status":"NOT_FOUND"}}"#, ModelStatus::NotFound),
+            (403, r#"{"error":{"message":"Permission denied","status":"PERMISSION_DENIED"}}"#, ModelStatus::NoAccess),
+            (503, r#"{"error":{"message":"The model is overloaded.","status":"UNAVAILABLE"}}"#, ModelStatus::ServerError),
+            // OpenAI
+            (401, r#"{"error":{"message":"Incorrect API key provided","code":"invalid_api_key"}}"#, ModelStatus::InvalidKey),
+            (429, r#"{"error":{"message":"You exceeded your current quota","type":"insufficient_quota","code":"insufficient_quota"}}"#, ModelStatus::PaymentRequired),
+            (429, r#"{"error":{"message":"Rate limit reached for gpt-4o","code":"rate_limit_exceeded"}}"#, ModelStatus::RateLimited),
+            (403, r#"{"error":{"message":"Country, region, or territory not supported","code":"unsupported_country_region_territory"}}"#, ModelStatus::RegionBlocked),
+            (404, r#"{"error":{"message":"The model `gpt-5-pro` does not exist or you do not have access to it.","code":"model_not_found"}}"#, ModelStatus::NotFound),
+            (400, r#"{"error":{"message":"Invalid content type. image_url is only supported by certain models."}}"#, ModelStatus::Unsupported),
+            // Anthropic
+            (400, r#"{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API."}}"#, ModelStatus::PaymentRequired),
+            (429, r#"{"type":"error","error":{"type":"rate_limit_error","message":"Number of request tokens has exceeded your per-minute rate limit"}}"#, ModelStatus::RateLimited),
+            (529, r#"{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}"#, ModelStatus::ServerError),
+            (402, "", ModelStatus::PaymentRequired),
+            // A plain bad request says nothing about availability.
+            (400, r#"{"error":{"message":"Invalid value for temperature"}}"#, ModelStatus::Other),
+        ];
+        for (status, body, expected) in cases {
+            assert_eq!(classify(*status, body), *expected, "HTTP {status}: {body}");
+        }
+    }
+
+    #[test]
+    fn only_account_and_model_problems_trigger_a_fallback() {
+        assert!(ModelStatus::PaymentRequired.warrants_fallback());
+        assert!(ModelStatus::RateLimited.warrants_fallback());
+        assert!(ModelStatus::Unsupported.warrants_fallback());
+        assert!(!ModelStatus::Other.warrants_fallback());
+        assert!(!ModelStatus::RateLimited.is_permanent_block(), "a rate limit is temporary");
+        assert!(ModelStatus::RegionBlocked.is_permanent_block());
+    }
+
+    #[test]
+    fn model_status_round_trips_through_its_id() {
+        for status in ModelStatus::ALL {
+            assert_eq!(ModelStatus::from_id(status.id()), status);
+        }
+    }
+
+    #[test]
+    fn probe_bodies_cap_the_output() {
+        assert_eq!(probe_body(Provider::Gemini, "m").pointer("/generationConfig/maxOutputTokens").and_then(Value::as_u64), Some(16));
+        assert_eq!(probe_body(Provider::OpenAi, "m").get("max_completion_tokens").and_then(Value::as_u64), Some(16));
+        assert_eq!(probe_body(Provider::Claude, "m").get("max_tokens").and_then(Value::as_u64), Some(1));
+        assert_eq!(probe_body(Provider::Ollama, "m").pointer("/options/num_predict").and_then(Value::as_u64), Some(1));
     }
 
     #[test]

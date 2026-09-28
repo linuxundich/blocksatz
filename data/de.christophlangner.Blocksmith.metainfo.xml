@@ -22,6 +22,11 @@
   <url type="homepage">https://github.com/linuxundich/blocksmith</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksmith</url>
   <releases>
+    <release version="0.62.0" date="2026-09-28">
+      <description>
+        <p>Neue Einstellungsseite „KI-Modelle“: prüft, welche Modelle mit dem API-Key wirklich nutzbar sind, und erlaubt pro Aufgabe (Bildbeschreibungen, Lektorat, Texterstellung) ein eigenes Haupt- und Ersatzmodell mit automatischem Wechsel. Blocksmith wird jetzt als Flatpak gebaut und installiert.</p>
+      </description>
+    </release>
     <release version="0.61.2" date="2026-09-28">
       <description>
         <p>Bildunterschriften, die direkt im Editor in die Klammern eines Bildes getippt werden, erscheinen jetzt in der Vorschau und beim Veröffentlichen.</p>

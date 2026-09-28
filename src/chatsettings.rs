@@ -1,5 +1,5 @@
 //! The "KI-Chat" page of the Einstellungen dialog: provider selection
-//! (Gemini/ChatGPT/Claude/Ollama), that provider's API key (a secret,
+//! (Gemini/ChatGPT/Claude/Groq/Ollama), that provider's API key (a secret,
 //! stored via `secrets.rs`, verified live against the provider's API as
 //! soon as it's entered) and model (picked from the models the provider
 //! actually offers, fetched via `llm::Client::list_models`), Ollama's base

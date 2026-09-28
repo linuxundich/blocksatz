@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.63.0] - 2026-09-28
+
+### Added
+
+- Groq as a fifth AI provider (e.g. `llama-3.3-70b-versatile`, the
+  default): its API is OpenAI-compatible, so it reuses the ChatGPT request
+  code under `https://api.groq.com/openai/v1`, with its own API key in the
+  keyring, its own model choice, and speech/TTS/guard models and inactive
+  entries filtered out of the model list. Available everywhere the other
+  providers are - KI-Chat, the capability check and the per-task model
+  assignment.
+
 ## [0.62.1] - 2026-09-28
 
 ### Fixed

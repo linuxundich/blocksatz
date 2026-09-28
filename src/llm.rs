@@ -1,6 +1,7 @@
-//! Blocking REST clients for the chat pane's four supported providers -
-//! Gemini, ChatGPT (OpenAI), Claude (Anthropic), and Ollama (self-hosted,
-//! no API key). Blocking for the same reason as `wpclient` - see its
+//! Blocking REST clients for the chat pane's five supported providers -
+//! Gemini, ChatGPT (OpenAI), Claude (Anthropic), Groq (OpenAI-compatible
+//! API, so it shares the ChatGPT request code with a different base URL),
+//! and Ollama (self-hosted, no API key). Blocking for the same reason as `wpclient` - see its
 //! module docs: this app already committed to `oo7`'s async-std reactor
 //! for keyring access, so a blocking client run on a spawned thread is
 //! simpler than reconciling two async runtimes for one occasional call.
@@ -17,11 +18,12 @@ pub enum Provider {
     Gemini,
     OpenAi,
     Claude,
+    Groq,
     Ollama,
 }
 
 impl Provider {
-    pub const ALL: [Provider; 4] = [Provider::Gemini, Provider::OpenAi, Provider::Claude, Provider::Ollama];
+    pub const ALL: [Provider; 5] = [Provider::Gemini, Provider::OpenAi, Provider::Claude, Provider::Groq, Provider::Ollama];
 
     /// Stable identifier used in config files and keyring attributes - not
     /// shown to the user (see `label` for that).
@@ -30,6 +32,7 @@ impl Provider {
             Provider::Gemini => "gemini",
             Provider::OpenAi => "openai",
             Provider::Claude => "claude",
+            Provider::Groq => "groq",
             Provider::Ollama => "ollama",
         }
     }
@@ -38,6 +41,7 @@ impl Provider {
         match s.trim() {
             "openai" => Provider::OpenAi,
             "claude" => Provider::Claude,
+            "groq" => Provider::Groq,
             "ollama" => Provider::Ollama,
             _ => Provider::Gemini,
         }
@@ -48,6 +52,7 @@ impl Provider {
             Provider::Gemini => "Gemini",
             Provider::OpenAi => "ChatGPT",
             Provider::Claude => "Claude",
+            Provider::Groq => "Groq",
             Provider::Ollama => "Ollama",
         }
     }
@@ -57,7 +62,19 @@ impl Provider {
             Provider::Gemini => "gemini-2.5-flash",
             Provider::OpenAi => "gpt-4o-mini",
             Provider::Claude => "claude-sonnet-5",
+            Provider::Groq => "llama-3.3-70b-versatile",
             Provider::Ollama => "llama3.2",
+        }
+    }
+
+    /// Base URL of an OpenAI-compatible provider's API (`/chat/completions`,
+    /// `/models` below it) - `None` for the providers with their own API
+    /// shape.
+    fn openai_compatible_base(&self) -> Option<&'static str> {
+        match self {
+            Provider::OpenAi => Some("https://api.openai.com/v1"),
+            Provider::Groq => Some("https://api.groq.com/openai/v1"),
+            Provider::Gemini | Provider::Claude | Provider::Ollama => None,
         }
     }
 
@@ -240,7 +257,7 @@ impl Client {
     pub fn send(&self, system_prompt: &str, history: &[ChatMessage]) -> Result<String> {
         match self.provider {
             Provider::Gemini => self.send_gemini(system_prompt, history),
-            Provider::OpenAi => self.send_openai(system_prompt, history),
+            Provider::OpenAi | Provider::Groq => self.send_openai(system_prompt, history),
             Provider::Claude => self.send_claude(system_prompt, history),
             Provider::Ollama => self.send_ollama(system_prompt, history),
         }
@@ -288,7 +305,7 @@ impl Client {
         let body = serde_json::json!({ "model": self.model, "messages": messages });
 
         let auth = format!("Bearer {}", self.api_key);
-        let (status, body_text) = self.post_json("https://api.openai.com/v1/chat/completions", &[("Authorization", &auth)], &body)?;
+        let (status, body_text) = self.post_json(&self.openai_url("chat/completions"), &[("Authorization", &auth)], &body)?;
         if !(200..300).contains(&status) {
             return Err(error_from_body(status, &body_text, &["error", "message"]));
         }
@@ -366,7 +383,7 @@ impl Client {
         let data = base64::engine::general_purpose::STANDARD.encode(image_bytes);
         match self.provider {
             Provider::Gemini => self.describe_image_gemini(prompt, mime_type, &data),
-            Provider::OpenAi => self.describe_image_openai(prompt, mime_type, &data),
+            Provider::OpenAi | Provider::Groq => self.describe_image_openai(prompt, mime_type, &data),
             Provider::Claude => self.describe_image_claude(prompt, mime_type, &data),
             Provider::Ollama => self.describe_image_ollama(prompt, &data),
         }
@@ -385,7 +402,7 @@ impl Client {
                 let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent", self.model);
                 self.post_json(&url, &[("x-goog-api-key", &self.api_key)], &probe_body(self.provider, &self.model))?
             }
-            Provider::OpenAi => self.post_json("https://api.openai.com/v1/chat/completions", &[("Authorization", &auth)], &probe_body(self.provider, &self.model))?,
+            Provider::OpenAi | Provider::Groq => self.post_json(&self.openai_url("chat/completions"), &[("Authorization", &auth)], &probe_body(self.provider, &self.model))?,
             Provider::Claude => self.post_json(
                 "https://api.anthropic.com/v1/messages",
                 &[("x-api-key", &self.api_key), ("anthropic-version", "2023-06-01")],
@@ -421,7 +438,7 @@ impl Client {
     fn describe_image_openai(&self, prompt: &str, mime_type: &str, data: &str) -> Result<String> {
         let body = openai_image_body(&self.model, prompt, mime_type, data);
         let auth = format!("Bearer {}", self.api_key);
-        let (status, body_text) = self.post_json("https://api.openai.com/v1/chat/completions", &[("Authorization", &auth)], &body)?;
+        let (status, body_text) = self.post_json(&self.openai_url("chat/completions"), &[("Authorization", &auth)], &body)?;
         if !(200..300).contains(&status) {
             return Err(error_from_body(status, &body_text, &["error", "message"]));
         }
@@ -465,6 +482,11 @@ impl Client {
         Err(error_from_body(status, &body_text, &["error"]))
     }
 
+    /// `path` below the OpenAI-compatible base URL of this client's provider.
+    fn openai_url(&self, path: &str) -> String {
+        format!("{}/{path}", self.provider.openai_compatible_base().unwrap_or("https://api.openai.com/v1"))
+    }
+
     fn post_json(&self, url: &str, headers: &[(&str, &str)], body: &Value) -> Result<(u16, String)> {
         let mut request = self.agent.post(url).header("Content-Type", "application/json");
         for (name, value) in headers {
@@ -494,7 +516,7 @@ impl Client {
     pub fn list_models(&self) -> Result<Vec<String>> {
         match self.provider {
             Provider::Gemini => self.list_models_gemini(),
-            Provider::OpenAi => self.list_models_openai(),
+            Provider::OpenAi | Provider::Groq => self.list_models_openai(),
             Provider::Claude => self.list_models_claude(),
             Provider::Ollama => self.list_models_ollama(),
         }
@@ -511,7 +533,7 @@ impl Client {
 
     fn list_models_openai(&self) -> Result<Vec<String>> {
         let auth = format!("Bearer {}", self.api_key);
-        let (status, body_text) = self.get("https://api.openai.com/v1/models", &[("Authorization", &auth)])?;
+        let (status, body_text) = self.get(&self.openai_url("models"), &[("Authorization", &auth)])?;
         if !(200..300).contains(&status) {
             return Err(error_from_body(status, &body_text, &["error", "message"]));
         }
@@ -591,7 +613,7 @@ fn probe_body(provider: Provider, model: &str) -> Value {
             "contents": [{"role": "user", "parts": [{"text": "ping"}]}],
             "generationConfig": {"maxOutputTokens": 16}
         }),
-        Provider::OpenAi => serde_json::json!({
+        Provider::OpenAi | Provider::Groq => serde_json::json!({
             "model": model,
             "messages": [{"role": "user", "content": "ping"}],
             "max_completion_tokens": 16
@@ -641,15 +663,18 @@ fn extract_gemini_models(value: &Value) -> Vec<String> {
 }
 
 /// Excludes obviously non-chat model families (embeddings, audio, image
-/// generation, moderation) to keep the picker focused - OpenAI's `/models`
-/// endpoint lists everything the account can use, chat or not.
+/// generation, moderation, Groq's guard classifiers and TTS voices) to keep
+/// the picker focused - an OpenAI-compatible `/models` endpoint lists
+/// everything the account can use, chat or not. Groq also marks retired
+/// models `"active": false` instead of dropping them.
 fn extract_openai_models(value: &Value) -> Vec<String> {
-    const EXCLUDED_SUBSTRINGS: &[&str] = &["embedding", "whisper", "tts", "dall-e", "moderation"];
+    const EXCLUDED_SUBSTRINGS: &[&str] = &["embedding", "whisper", "tts", "dall-e", "moderation", "guard", "orpheus"];
     let mut models: Vec<String> = value
         .get("data")
         .and_then(Value::as_array)
         .map(|data| {
             data.iter()
+                .filter(|m| m.get("active").and_then(Value::as_bool) != Some(false))
                 .filter_map(|m| m.get("id").and_then(Value::as_str))
                 .filter(|id| !EXCLUDED_SUBSTRINGS.iter().any(|excluded| id.contains(excluded)))
                 .map(str::to_string)
@@ -893,6 +918,36 @@ mod tests {
         ]}"#;
         let value: Value = parse_json(body).unwrap();
         assert_eq!(extract_openai_models(&value), vec!["gpt-4o".to_string(), "gpt-4o-mini".to_string()]);
+    }
+
+    #[test]
+    fn groq_models_skip_audio_guard_and_inactive_entries() {
+        let body = r#"{"object":"list","data":[
+            {"id":"llama-3.3-70b-versatile","active":true},
+            {"id":"whisper-large-v3","active":true},
+            {"id":"meta-llama/llama-guard-4-12b","active":true},
+            {"id":"playai-tts","active":true},
+            {"id":"gemma2-9b-it","active":false},
+            {"id":"llama-3.1-8b-instant","active":true}
+        ]}"#;
+        let value: Value = parse_json(body).unwrap();
+        assert_eq!(extract_openai_models(&value), vec!["llama-3.1-8b-instant".to_string(), "llama-3.3-70b-versatile".to_string()]);
+    }
+
+    #[test]
+    fn groq_shares_the_openai_request_shape_under_its_own_base_url() {
+        assert_eq!(Provider::Groq.openai_compatible_base(), Some("https://api.groq.com/openai/v1"));
+        assert_eq!(Client::new(Provider::Groq, "k", "m", "").openai_url("models"), "https://api.groq.com/openai/v1/models");
+        assert_eq!(Client::new(Provider::OpenAi, "k", "m", "").openai_url("chat/completions"), "https://api.openai.com/v1/chat/completions");
+        assert!(Provider::Groq.needs_api_key());
+        assert!(!Provider::Groq.needs_base_url());
+    }
+
+    #[test]
+    fn classify_handles_groq_errors() {
+        assert_eq!(classify(429, r#"{"error":{"message":"Rate limit reached for model `llama-3.3-70b-versatile` on tokens per minute (TPM)","type":"tokens","code":"rate_limit_exceeded"}}"#), ModelStatus::RateLimited);
+        assert_eq!(classify(400, r#"{"error":{"message":"The model `mixtral-8x7b-32768` has been decommissioned and is no longer supported.","code":"model_decommissioned"}}"#), ModelStatus::NotFound);
+        assert_eq!(classify(401, r#"{"error":{"message":"Invalid API Key","code":"invalid_api_key"}}"#), ModelStatus::InvalidKey);
     }
 
     #[test]

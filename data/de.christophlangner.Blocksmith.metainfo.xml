@@ -22,6 +22,11 @@
   <url type="homepage">https://github.com/linuxundich/blocksmith</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksmith</url>
   <releases>
+    <release version="0.63.0" date="2026-09-28">
+      <description>
+        <p>Groq als weiterer KI-Anbieter, zum Beispiel mit Llama 3.3 70B - im KI-Chat, bei der Modellprüfung und bei der Modellwahl je Aufgabe.</p>
+      </description>
+    </release>
     <release version="0.62.1" date="2026-09-28">
       <description>
         <p>Die Vorschau scrollt jetzt ruckfrei und stufenlos mit dem Editor mit, statt blockweise zu springen, und bleibt beim Tippen und Nachladen von Bildern an ihrer Stelle.</p>

@@ -69,6 +69,7 @@ pub struct ProviderConfig {
     pub gemini_model: String,
     pub openai_model: String,
     pub claude_model: String,
+    pub groq_model: String,
     pub ollama_model: String,
     pub ollama_base_url: String,
 }
@@ -80,6 +81,7 @@ impl Default for ProviderConfig {
             gemini_model: Provider::Gemini.default_model().to_string(),
             openai_model: Provider::OpenAi.default_model().to_string(),
             claude_model: Provider::Claude.default_model().to_string(),
+            groq_model: Provider::Groq.default_model().to_string(),
             ollama_model: Provider::Ollama.default_model().to_string(),
             ollama_base_url: DEFAULT_OLLAMA_BASE_URL.to_string(),
         }
@@ -92,6 +94,7 @@ impl ProviderConfig {
             Provider::Gemini => &self.gemini_model,
             Provider::OpenAi => &self.openai_model,
             Provider::Claude => &self.claude_model,
+            Provider::Groq => &self.groq_model,
             Provider::Ollama => &self.ollama_model,
         }
     }
@@ -101,6 +104,7 @@ impl ProviderConfig {
             Provider::Gemini => &mut self.gemini_model,
             Provider::OpenAi => &mut self.openai_model,
             Provider::Claude => &mut self.claude_model,
+            Provider::Groq => &mut self.groq_model,
             Provider::Ollama => &mut self.ollama_model,
         };
         *field = model;
@@ -123,6 +127,7 @@ pub fn load_provider_config() -> ProviderConfig {
         gemini_model: string_or("gemini_model", &defaults.gemini_model),
         openai_model: string_or("openai_model", &defaults.openai_model),
         claude_model: string_or("claude_model", &defaults.claude_model),
+        groq_model: string_or("groq_model", &defaults.groq_model),
         ollama_model: string_or("ollama_model", &defaults.ollama_model),
         ollama_base_url: string_or("ollama_base_url", &defaults.ollama_base_url),
     }
@@ -134,6 +139,7 @@ pub fn save_provider_config(config: &ProviderConfig) -> std::io::Result<()> {
         "gemini_model": config.gemini_model,
         "openai_model": config.openai_model,
         "claude_model": config.claude_model,
+        "groq_model": config.groq_model,
         "ollama_model": config.ollama_model,
         "ollama_base_url": config.ollama_base_url,
     });

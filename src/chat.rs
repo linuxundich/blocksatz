@@ -1,4 +1,4 @@
-//! The "Chat" tab: an LLM-backed chat pane (Gemini/ChatGPT/Claude/Ollama,
+//! The "Chat" tab: an LLM-backed chat pane (Gemini/ChatGPT/Claude/Groq/Ollama,
 //! whichever is active in the KI-Chat settings) with message bubbles. Sends
 //! run on a background thread (see `llm.rs`'s module docs for why), polled
 //! back via the same thread+mpsc-channel+`glib::timeout_add_local` pattern

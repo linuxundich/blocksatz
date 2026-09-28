@@ -4,7 +4,7 @@ resolver = "2"
 
 [package]
 name = "blocksmith"
-version = "0.62.1"
+version = "0.63.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 

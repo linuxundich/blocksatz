@@ -88,7 +88,7 @@ blocks. Implemented so far:
   improving the score, derived from whichever of those two numbers is
   actually holding it down),
   and "Chat" - a writing assistant with message bubbles (replies rendered
-  as Markdown), backed by Gemini, ChatGPT, Claude, or Ollama (self-hosted,
+  as Markdown), backed by Gemini, ChatGPT, Claude, Groq, or Ollama (self-hosted,
   no API key), with a provider/model picker both in the tab itself and in
   Einstellungen. A message typed here gets the editor's current selection -
   or, if nothing's selected, the whole article - appended before it's sent,
@@ -271,7 +271,7 @@ blocks. Implemented so far:
   URL/username in a small config file, the Application Password in the
   Secret Service via [`oo7`](https://crates.io/crates/oo7), never written
   to disk in plain text), a "KI-Chat" page (a provider picker for
-  Gemini/ChatGPT/Claude/Ollama, each with its own API key - verified live
+  Gemini/ChatGPT/Claude/Groq/Ollama, each with its own API key - verified live
   against the provider's API as soon as it's entered, and saved
   automatically once that check succeeds, with no separate save button -
   and a model picker populated from that account's actual available

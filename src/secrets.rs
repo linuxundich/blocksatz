@@ -43,7 +43,7 @@ fn llm_attributes(provider_id: &str) -> HashMap<&'static str, &str> {
 }
 
 /// Stores the API key for one chat provider (`llm::Provider::id()`) -
-/// Gemini, ChatGPT, and Claude each get their own keyring entry, since a
+/// Gemini, ChatGPT, Claude and Groq each get their own keyring entry, since a
 /// user might have accounts (and keys) with more than one.
 pub async fn store_llm_api_key(provider_id: &str, key: &str) -> oo7::Result<()> {
     let keyring = oo7::Keyring::new().await?;

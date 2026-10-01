@@ -52,6 +52,7 @@ mod preview;
 mod promptsettings;
 mod properties;
 mod recentfiles;
+mod releasecheck;
 mod richtext;
 mod searchbar;
 mod secrets;

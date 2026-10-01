@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Release check** (GUI redesign, phase 5): "Veröffentlichen …",
+  "Planen …", "Änderungen veröffentlichen …" and Ctrl+Shift+P open one
+  dialog that lists what to look at before going live - title (missing
+  blocks publishing), excerpt, category, tags, featured image and its alt
+  text, images without alt text, links, focus keyword - each with its
+  state and "Beheben" (opens the "Beitrag" view). Images and links open
+  as sub-pages with the media manager and the link checker. "Sofort /
+  Geplant" with the date sits below; only the final button uploads.
+  Replaces the export wizard (carousel) and the plain confirmation. The
+  permanent "Von WordPress löschen" went with the wizard; posts are only
+  ever moved to the trash now.
+- **"Vorschau im Blog" for published posts**: shows local changes in the
+  blog's own theme without touching the live post. The app's browser view
+  saves them as a WordPress autosave (a separate revision) with its own
+  wp-admin login and opens the preview link from that answer - the
+  preview nonce only works for the session that created it.
+
 - **Right-hand pane in three views** (GUI redesign, phase 4): an
   `AdwToggleGroup` "Vorschau | Beitrag | Assistent" replaces the six tabs.
   Vorschau switches between the rendered preview, the Gutenberg code and

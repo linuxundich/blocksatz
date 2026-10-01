@@ -23,6 +23,7 @@ use crate::export::{self, BusySetter, PublishFeedback, TargetStatus};
 use crate::i18n::tr;
 use crate::syncstate::{self, PostState, Remote, SyncState};
 use crate::window::{self, DocContext};
+use crate::releasecheck::{self, Decision, Mode};
 use crate::{blogsync, importer, library, worksave, wpclient, wpsite};
 
 /// What the banner currently offers, so its single button knows what to do.
@@ -41,6 +42,7 @@ pub struct MainAction {
     ctx: DocContext,
     window: glib::WeakRef<adw::ApplicationWindow>,
     open_url: Rc<dyn Fn(String)>,
+    links: releasecheck::LinkTarget,
     banner_kind: Cell<BannerKind>,
     busy: Cell<bool>,
     /// Open the blog preview once the running upload is done.
@@ -51,7 +53,7 @@ pub struct MainAction {
 impl MainAction {
     /// `open_url` shows a page in the app's own browser view (it shares
     /// the wp-admin login, which draft previews need).
-    pub fn new(window: &adw::ApplicationWindow, ctx: &DocContext, open_url: Rc<dyn Fn(String)>) -> Rc<Self> {
+    pub fn new(window: &adw::ApplicationWindow, ctx: &DocContext, open_url: Rc<dyn Fn(String)>, links: releasecheck::LinkTarget) -> Rc<Self> {
         let button = adw::SplitButton::builder().label(tr("Als Entwurf hochladen")).dropdown_tooltip(tr("Weitere Aktionen")).build();
         let banner = adw::Banner::new("");
 
@@ -61,6 +63,7 @@ impl MainAction {
             ctx: ctx.clone(),
             window: window.downgrade(),
             open_url,
+            links,
             banner_kind: Cell::new(BannerKind::None),
             busy: Cell::new(false),
             preview_after_upload: Cell::new(false),
@@ -112,19 +115,19 @@ impl MainAction {
                 "main.upload-draft",
                 tr("Als Entwurf hochladen"),
                 true,
-                vec![(tr("Zur Prüfung einreichen"), "main.submit-review"), (tr("Veröffentlichen …"), "main.publish"), (tr("Vor Veröffentlichung prüfen …"), "win.publish")],
+                vec![(tr("Zur Prüfung einreichen"), "main.submit-review"), (tr("Veröffentlichen …"), "main.publish")],
             ),
             (Some(PostStatus::Draft | PostStatus::Pending), SyncState::InSync | SyncState::RemoteChanged) => (
                 "main.publish",
                 tr("Veröffentlichen …"),
                 true,
-                vec![(tr("Blog-Vorschau öffnen"), "main.open-preview"), (tr("Vor Veröffentlichung prüfen …"), "win.publish"), (tr("Planen …"), "win.publish")],
+                vec![(tr("Blog-Vorschau öffnen"), "main.open-preview"), (tr("Planen …"), "main.schedule")],
             ),
             (Some(PostStatus::Draft | PostStatus::Pending), _) => (
                 "main.update",
                 tr("Entwurf aktualisieren"),
                 true,
-                vec![(tr("Aktualisieren und Vorschau öffnen"), "main.update-preview"), (tr("Veröffentlichen …"), "main.publish"), (tr("Vor Veröffentlichung prüfen …"), "win.publish")],
+                vec![(tr("Aktualisieren und Vorschau öffnen"), "main.update-preview"), (tr("Veröffentlichen …"), "main.publish")],
             ),
             (Some(PostStatus::Future), SyncState::LocalChanges | SyncState::Conflict) => (
                 "main.update",
@@ -142,7 +145,7 @@ impl MainAction {
                 "main.publish-changes",
                 tr("Änderungen veröffentlichen …"),
                 true,
-                vec![(tr("Vor Veröffentlichung prüfen …"), "win.publish"), (tr("Änderungen verwerfen …"), "main.discard"), (tr("Auf Entwurf zurücksetzen …"), "main.revert-draft")],
+                vec![(tr("Vorschau im Blog"), "main.autosave-preview"), (tr("Änderungen verwerfen …"), "main.discard"), (tr("Auf Entwurf zurücksetzen …"), "main.revert-draft")],
             ),
             (Some(PostStatus::Publish | PostStatus::Private), _) => (
                 "main.open-preview",
@@ -208,17 +211,10 @@ impl MainAction {
         add("update", |this| this.upload(TargetStatus::PublishOrKeep, false));
         add("update-preview", |this| this.upload(TargetStatus::PublishOrKeep, true));
         add("open-preview", MainAction::open_preview);
-        // Until the release check of the next phase: a plain confirmation.
-        add("publish", |this| {
-            this.confirm(&tr("Jetzt veröffentlichen?"), &tr("Der Beitrag geht sofort online."), &tr("Veröffentlichen"), false, |this| {
-                this.upload(TargetStatus::Set(PostStatus::Publish), false)
-            })
-        });
-        add("publish-changes", |this| {
-            this.confirm(&tr("Änderungen veröffentlichen?"), &tr("Die Änderungen sind danach sofort im veröffentlichten Beitrag zu sehen."), &tr("Veröffentlichen"), false, |this| {
-                this.upload(TargetStatus::PublishOrKeep, false)
-            })
-        });
+        add("autosave-preview", MainAction::autosave_preview);
+        add("publish", |this| this.release_check(Mode::Publish { scheduled: false }));
+        add("schedule", |this| this.release_check(Mode::Publish { scheduled: true }));
+        add("publish-changes", |this| this.release_check(Mode::PublishChanges));
         add("publish-now", |this| {
             this.confirm(&tr("Jetzt veröffentlichen?"), &tr("Der geplante Termin entfällt, der Beitrag geht sofort online."), &tr("Veröffentlichen"), false, |this| {
                 this.upload(TargetStatus::Set(PostStatus::Publish), false)
@@ -233,6 +229,39 @@ impl MainAction {
             this.confirm(&tr("Änderungen verwerfen?"), &tr("Die Arbeitskopie wird durch die Fassung aus dem Blog ersetzt. Deine Änderungen gehen verloren."), &tr("Verwerfen"), true, MainAction::load_from_blog)
         });
         window.insert_action_group("main", Some(&group));
+
+        // Ctrl+Shift+P: the release check fitting the open article.
+        let check = gio::SimpleAction::new("publish", None);
+        let weak = self.weak.clone();
+        check.connect_activate(move |_, _| {
+            let Some(this) = weak.upgrade() else { return };
+            let (_, state, _) = this.state();
+            if matches!(state.status, Some(PostStatus::Publish | PostStatus::Private)) {
+                this.release_check(Mode::PublishChanges);
+            } else {
+                this.release_check(Mode::Publish { scheduled: false });
+            }
+        });
+        window.add_action(&check);
+    }
+
+    /// Opens the release check and uploads with the decision taken there.
+    fn release_check(&self, mode: Mode) {
+        let Some(window) = self.window.upgrade() else { return };
+        // The checks look at the current media list.
+        worksave::flush(&self.ctx, false);
+        let weak = self.weak.clone();
+        releasecheck::open(&window, &self.ctx, mode, &self.links, move |decision| {
+            let Some(this) = weak.upgrade() else { return };
+            match (mode, decision) {
+                (Mode::PublishChanges, _) => this.upload(TargetStatus::PublishOrKeep, false),
+                (_, Decision::Now) => this.upload(TargetStatus::Set(PostStatus::Publish), false),
+                (_, Decision::Scheduled(at)) => {
+                    this.ctx.frontmatter.borrow_mut().scheduled_at = Some(at);
+                    this.upload(TargetStatus::Set(PostStatus::Future), false);
+                }
+            }
+        });
     }
 
     fn set_busy(&self, busy: bool) {
@@ -280,6 +309,7 @@ impl MainAction {
                         TargetStatus::Set(PostStatus::Draft) => tr("Als Entwurf hochgeladen."),
                         TargetStatus::Set(PostStatus::Pending) => tr("Zur Prüfung eingereicht."),
                         TargetStatus::Set(PostStatus::Publish) => tr("Veröffentlicht."),
+                        TargetStatus::Set(PostStatus::Future) => tr("Geplant."),
                         _ => tr("Aktualisiert."),
                     };
                     window::show_toast(&this.ctx.toast_overlay, &message);
@@ -327,6 +357,50 @@ impl MainAction {
                 }
             },
         );
+    }
+
+    /// "Vorschau im Blog" for a published post: saves the local changes
+    /// as a WordPress autosave - a separate revision, the live post stays
+    /// as it is - and shows its preview. Done by the app's browser view
+    /// itself: the preview link's nonce only works for the session that
+    /// created it, which is that view's wp-admin login, not the REST
+    /// client's application password.
+    fn autosave_preview(&self) {
+        let doc = self.ctx.current_document();
+        let fm = &doc.frontmatter;
+        let Some(post_id) = fm.wp_post_id else { return };
+        let site = wpsite::load();
+        let (title, body) = match document::split_title_heading(&doc.body) {
+            Some((title, rest)) if fm.title.trim().is_empty() => (title, rest.to_string()),
+            _ => (fm.title.clone(), doc.body.clone()),
+        };
+        let payload = serde_json::json!({
+            "title": title,
+            "content": export::gutenberg_preview_html(&body, &fm.media),
+            "excerpt": fm.excerpt.clone().unwrap_or_default(),
+        });
+        let base = site.url.trim_end_matches('/');
+        let failed = serde_json::to_string(&tr("Vorschau fehlgeschlagen. Bist du im Browser-Tab bei WordPress angemeldet?")).unwrap_or_default();
+        let script = format!(
+            r#"(async () => {{
+                const nonce = document.body.innerText.trim();
+                const response = await fetch({endpoint}, {{
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {{ 'Content-Type': 'application/json', 'X-WP-Nonce': nonce }},
+                    body: JSON.stringify({payload}),
+                }});
+                const result = await response.json().catch(() => ({{}}));
+                if (result.preview_link) {{
+                    location.href = result.preview_link;
+                }} else {{
+                    document.body.innerText = {failed} + ' (' + (result.message || response.status) + ')';
+                }}
+            }})()"#,
+            endpoint = serde_json::to_string(&format!("{base}/wp-json/wp/v2/{}/{post_id}/autosaves?_fields=preview_link", fm.post_type.rest_base())).unwrap_or_default(),
+        );
+        self.links.browser_view.run_after_next_load(script);
+        (self.open_url)(format!("{base}/wp-admin/admin-ajax.php?action=rest-nonce"));
     }
 
     fn on_banner_button(&self) {

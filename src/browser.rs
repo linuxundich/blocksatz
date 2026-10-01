@@ -153,6 +153,25 @@ impl BrowserView {
     pub fn load_uri(&self, uri: &str) {
         self.web_view.load_uri(uri);
     }
+
+    /// Runs `script` in the page once the next load has finished - for a
+    /// step that needs this view's own (logged-in) session, like creating
+    /// the autosave behind "Vorschau im Blog" (`mainaction.rs`). Call it
+    /// right before the `load_uri` it belongs to.
+    pub fn run_after_next_load(&self, script: String) {
+        let handler: std::rc::Rc<std::cell::RefCell<Option<glib::SignalHandlerId>>> = std::rc::Rc::default();
+        let handler_for_closure = handler.clone();
+        let id = self.web_view.connect_load_changed(move |web_view, event| {
+            if event != webkit6::LoadEvent::Finished {
+                return;
+            }
+            web_view.evaluate_javascript(&script, None, None, gtk4::gio::Cancellable::NONE, |_| {});
+            if let Some(id) = handler_for_closure.borrow_mut().take() {
+                web_view.disconnect(id);
+            }
+        });
+        *handler.borrow_mut() = Some(id);
+    }
 }
 
 /// Turns whatever was typed into the address bar into a real URL to load -

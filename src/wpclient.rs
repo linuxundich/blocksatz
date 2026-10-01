@@ -532,20 +532,11 @@ impl Client {
 
     /// Permanently deletes a post (bypassing trash). Mainly useful for
     /// cleaning up after integration tests against a real site.
+    /// The app itself only ever moves posts to the trash (`trash_item`).
     #[cfg(test)]
     pub fn delete_post(&self, post_id: u64) -> Result<()> {
-        self.delete_item("posts", post_id)
-    }
-
-    /// Like `delete_post`, for any post-like REST collection.
-    pub fn delete_item(&self, rest_base: &str, id: u64) -> Result<()> {
-        let url = format!("{}?force=true", self.endpoint(&format!("{rest_base}/{id}")));
-        let mut response = self
-            .agent
-            .delete(url)
-            .header("Authorization", self.auth_header.as_str())
-            .call()
-            .map_err(network_error)?;
+        let url = format!("{}?force=true", self.endpoint(&format!("posts/{post_id}")));
+        let mut response = self.agent.delete(url).header("Authorization", self.auth_header.as_str()).call().map_err(network_error)?;
         let status = response.status().as_u16();
         if !(200..300).contains(&status) {
             let body_text = response.body_mut().read_to_string().unwrap_or_default();

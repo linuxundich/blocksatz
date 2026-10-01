@@ -10,7 +10,7 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    blogposts, blogsync, importer, library, librarysidebar, mainaction, postpane, syncstate, worksave,
+    blogposts, blogsync, importer, library, librarysidebar, mainaction, postpane, releasecheck, syncstate, worksave,
     about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
     mediabrowser, medialibrary, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
 };
@@ -543,7 +543,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     };
     let post_pane = postpane::PostPane::new(&window, &doc_ctx, &term_caches, &stats_view.widget, open_url.clone());
     post_slot.append(&post_pane.widget);
-    let main_action = mainaction::MainAction::new(&window, &doc_ctx, open_url);
+    let main_action = mainaction::MainAction::new(&window, &doc_ctx, open_url, releasecheck::LinkTarget { view_stack: view_stack.clone(), browser_view: browser_view.clone() });
     main_action_slot.append(&main_action.button);
     toolbar_view.add_top_bar(&main_action.banner);
     // Everything else only holds weak references to it; the window keeps
@@ -564,7 +564,6 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_properties_action(&window, &view_stack, &right_pane);
     wire_settings_action(&window, &buffer, ai_menu_handles, &preview_pane, &browser_view);
     wire_about_action(&window);
-    wire_publish_action(&window, &buffer, &current_path, &frontmatter, &preview_pane, &view_stack, &browser_view, document_saver(&doc_ctx));
     wire_media_action(&window, &buffer, &current_path, &frontmatter, &preview_pane);
     wire_insert_image_action(&window, &buffer, &current_path);
     wire_insert_media_action(&window, &buffer, &current_path);
@@ -1195,36 +1194,6 @@ fn wire_about_action(window: &adw::ApplicationWindow) {
         if let Some(window) = window_weak.upgrade() {
             about::open(&window);
         }
-    });
-    window.add_action(&action);
-}
-
-#[allow(clippy::too_many_arguments)]
-fn wire_publish_action(
-    window: &adw::ApplicationWindow,
-    buffer: &sourceview5::Buffer,
-    current_path: &Rc<RefCell<Option<PathBuf>>>,
-    frontmatter: &Rc<RefCell<Frontmatter>>,
-    preview_pane: &Rc<preview::PreviewPane>,
-    view_stack: &adw::ViewStack,
-    browser_view: &Rc<browser::BrowserView>,
-    save_document: export::DocumentSaver,
-) {
-    let action = gio::SimpleAction::new("publish", None);
-    let buffer = buffer.clone();
-    let current_path = current_path.clone();
-    let frontmatter = frontmatter.clone();
-    let preview_pane = preview_pane.clone();
-    let view_stack = view_stack.clone();
-    let browser_view = browser_view.clone();
-    let window_weak = window.downgrade();
-    action.connect_activate(move |_, _| {
-        let Some(window) = window_weak.upgrade() else {
-            return;
-        };
-        let body = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
-        let doc_dir = current_path.borrow().as_ref().and_then(|p| p.parent().map(Path::to_path_buf));
-        export::open(&window, body, frontmatter.clone(), doc_dir, preview_pane.clone(), &view_stack, &browser_view, save_document.clone());
     });
     window.add_action(&action);
 }

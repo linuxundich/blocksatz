@@ -181,6 +181,27 @@ pub struct Frontmatter {
     /// compare against then, so it's silently skipped rather than treated
     /// as a conflict.
     pub wp_content_hash: Option<String>,
+    /// Which WordPress site `wp_post_id` belongs to (`wpsite::site_id`,
+    /// e.g. `linuxundich.de`) - so a working copy stays tied to its blog
+    /// once more than one site can be configured. `None` for documents
+    /// synced before this field existed; they're treated as belonging to
+    /// the configured site.
+    pub wp_site: Option<String>,
+    /// The post's `modified_gmt` as of the last sync (import or upload) -
+    /// a newer value in a later list fetch means it was edited on the
+    /// server since (`syncstate.rs`).
+    pub wp_modified_gmt: Option<String>,
+    /// `syncstate::fingerprint` of the document as of the last sync - a
+    /// different fingerprint now means there are local changes that
+    /// haven't been uploaded yet. Unlike `wp_content_hash` (the Gutenberg
+    /// HTML as WordPress has it, image URLs already rewritten), this is
+    /// computed from the local Markdown and metadata, so it can be checked
+    /// on every keystroke without rendering or network access.
+    pub wp_synced_hash: Option<String>,
+    /// When the last sync happened, as RFC 3339 UTC - drives hiding
+    /// published, unchanged working copies from "In Arbeit" after a while
+    /// (`library::is_retired`).
+    pub wp_synced_at: Option<String>,
     /// The WordPress media id of the post's *current* featured image, when
     /// the document was opened from an existing post (`importer.rs`) - not
     /// user-editable. `featured_image` is a local path to *upload as a new*
@@ -324,6 +345,10 @@ pub fn parse(input: &str) -> Document {
             "wp_content_hash" => {
                 frontmatter.wp_content_hash = (!value.is_empty()).then(|| unquote(value));
             }
+            "wp_site" => frontmatter.wp_site = (!value.is_empty()).then(|| unquote(value)),
+            "wp_modified_gmt" => frontmatter.wp_modified_gmt = (!value.is_empty()).then(|| unquote(value)),
+            "wp_synced_hash" => frontmatter.wp_synced_hash = (!value.is_empty()).then(|| unquote(value)),
+            "wp_synced_at" => frontmatter.wp_synced_at = (!value.is_empty()).then(|| unquote(value)),
             "wp_featured_media_id" => frontmatter.featured_media_id = value.parse::<u64>().ok(),
             "author_id" => frontmatter.author_id = value.parse::<u64>().ok(),
             "author_name" => {
@@ -399,6 +424,16 @@ pub fn serialize(doc: &Document) -> String {
     }
     if let Some(hash) = &fm.wp_content_hash {
         out.push_str(&format!("wp_content_hash: \"{}\"\n", escape(hash)));
+    }
+    for (key, value) in [
+        ("wp_site", &fm.wp_site),
+        ("wp_modified_gmt", &fm.wp_modified_gmt),
+        ("wp_synced_hash", &fm.wp_synced_hash),
+        ("wp_synced_at", &fm.wp_synced_at),
+    ] {
+        if let Some(value) = value {
+            out.push_str(&format!("{key}: \"{}\"\n", escape(value)));
+        }
     }
     if let Some(id) = fm.featured_media_id {
         out.push_str(&format!("wp_featured_media_id: {id}\n"));
@@ -858,6 +893,10 @@ mod tests {
                 featured_image_alt: Some("a sleeping cat".to_string()),
                 wp_post_id: Some(7),
                 wp_content_hash: Some("deadbeef".to_string()),
+                wp_site: Some("example.org".to_string()),
+                wp_modified_gmt: Some("2026-10-01T10:00:00".to_string()),
+                wp_synced_hash: Some("cafe".to_string()),
+                wp_synced_at: Some("2026-10-01T10:00:05Z".to_string()),
                 featured_media_id: Some(99),
                 author_id: Some(3),
                 author_name: Some("Jane Editor".to_string()),

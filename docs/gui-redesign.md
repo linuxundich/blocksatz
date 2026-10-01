@@ -389,12 +389,13 @@ Gutenberg-HTML) sind in Prüfpunkte bzw. die Vorschau aufgegangen.
    für veröffentlichte Beiträge.
 6. **Schmale Layouts**, Tastenkürzel-Fenster, README/CHANGELOG, Übersetzung.
 
-## 9. Offene Fragen
+## 9. Entscheidungen (2026-10-01)
 
-1. Bibliotheksordner `~/Dokumente/Blocksatz/` – passt das, oder gibt es
-   schon einen Ort für Artikel (z. B. `00_artikel-scratchpad`)?
-2. Soll der freie Browser-Tab ganz entfallen oder zuschaltbar bleiben?
-3. „Zur Prüfung einreichen“ (pending) – wird das auf linuxundich.de genutzt?
-4. Veröffentlichte, unveränderte Arbeitskopien automatisch aufräumen – ja/nein?
-5. Mehrere Sites: jetzt schon im Datenmodell vorsehen (Site-ID im
-   Frontmatter), UI später?
+1. Bibliothek unter `~/Dokumente/Blocksatz/` (XDG-Dokumente-Ordner), später
+   in den Einstellungen änderbar.
+2. Freier Browser-Tab: in den Einstellungen zuschaltbar, standardmäßig aus.
+3. „Zur Prüfung einreichen“ (pending) bleibt als Menüeintrag der Hauptaktion.
+4. Veröffentlichte, unveränderte Arbeitskopien verschwinden nach 30 Tagen
+   aus „In Arbeit“ (die Dateien bleiben liegen).
+5. Site-ID kommt jetzt ins Frontmatter (`wp_site`), die Oberfläche für
+   mehrere Sites später.

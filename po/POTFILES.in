@@ -19,9 +19,9 @@ src/importer.rs
 src/linkcheck.rs
 src/linkpicker.rs
 src/llm.rs
-src/media.rs
 src/mediabrowser.rs
 src/mediapanel.rs
+src/media.rs
 src/modelsettings.rs
 src/preview.rs
 src/promptsettings.rs
@@ -33,4 +33,5 @@ src/stats.rs
 src/statusbar.rs
 src/taxonomy.rs
 src/window.rs
+src/worksave.rs
 src/wpclient.rs

@@ -61,7 +61,8 @@ what's already shipped.
 
 - ~~**Local autosave / crash-recovery.**~~ Done (see CHANGELOG.md) - a
   debounced background snapshot now survives a crash or a forgotten save,
-  with a restore-or-discard prompt on next launch.
+  with a restore-or-discard prompt on next launch. Superseded by the
+  library with continuous saving (`docs/gui-redesign.md`, phase 1).
 - ~~**Scheduled publishing.**~~ Done (see CHANGELOG.md) - a `Future`
   status, a publish date/time field in Artikel-Eigenschaften, and a
   "Terminieren" button in the export dialog (refusing to export with no

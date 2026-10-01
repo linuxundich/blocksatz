@@ -42,6 +42,10 @@ pub type Result<T> = std::result::Result<T, ApiError>;
 pub struct PostResult {
     pub id: u64,
     pub link: String,
+    /// WordPress's own last-modified time (UTC, `modified_gmt`) right after
+    /// this write - kept in `Frontmatter::wp_modified_gmt` so a later list
+    /// fetch can tell cheaply whether the post changed on the server since.
+    pub modified_gmt: String,
 }
 
 #[derive(Debug, Clone)]
@@ -258,6 +262,9 @@ pub struct PostDetail {
     /// omits a field a post type doesn't register (`posts` has no
     /// `parent`), so this comes back `0` there rather than erroring.
     pub parent: u64,
+    /// Last-modified time in UTC (`modified_gmt`) - see `PostResult`'s own
+    /// field of the same name.
+    pub modified_gmt: String,
     /// Site-local `"YYYY-MM-DDTHH:MM:SS"` - the post's publish date, or for
     /// a `status == "future"` post, its scheduled publish date/time.
     pub date: String,
@@ -703,7 +710,7 @@ impl Client {
     /// either taxonomy for pages), which parses as two empty lists below.
     pub fn get_item(&self, rest_base: &str, id: u64) -> Result<PostDetail> {
         let url = format!(
-            "{}?context=edit&_fields=id,title,content,excerpt,status,slug,categories,tags,featured_media,author,wp-worthy-pixel,comment_status,date,meta,link,parent",
+            "{}?context=edit&_fields=id,title,content,excerpt,status,slug,categories,tags,featured_media,author,wp-worthy-pixel,comment_status,date,meta,link,parent,modified_gmt",
             self.endpoint(&format!("{rest_base}/{id}"))
         );
         let value = self.get_json(&url)?;
@@ -735,6 +742,7 @@ impl Client {
             date: value.get("date").and_then(Value::as_str).unwrap_or_default().to_string(),
             link: value.get("link").and_then(Value::as_str).unwrap_or_default().to_string(),
             parent: value.get("parent").and_then(Value::as_u64).unwrap_or(0),
+            modified_gmt: value.get("modified_gmt").and_then(Value::as_str).unwrap_or_default().to_string(),
         })
     }
 
@@ -830,7 +838,8 @@ impl Client {
             .and_then(Value::as_u64)
             .ok_or_else(|| ApiError { status, message: tr("Keine Post-ID in der Antwort") })?;
         let link = value.get("link").and_then(Value::as_str).unwrap_or_default().to_string();
-        Ok(PostResult { id, link })
+        let modified_gmt = value.get("modified_gmt").and_then(Value::as_str).unwrap_or_default().to_string();
+        Ok(PostResult { id, link, modified_gmt })
     }
 
     /// Resolves a category/tag name to its term id, creating the term if no

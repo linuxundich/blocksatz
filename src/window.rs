@@ -9,7 +9,8 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, autosave, browser, chat, codeview, docsidebar, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
+    library, worksave,
+    about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, docsidebar, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
     mediabrowser, medialibrary, mediapanel, preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
 };
 
@@ -402,11 +403,9 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     window.add_action(&toggle_focus_mode_action);
 
     let current_path: Rc<RefCell<Option<PathBuf>>> = Rc::new(RefCell::new(None));
-    // What's currently safely on disk (or, for a still-unsaved document,
-    // just ""): the baseline `wire_live_preview`'s autosave tick compares
-    // the buffer against, so loading an already-saved article doesn't
-    // immediately manufacture a bogus "unsaved changes" recovery snapshot
-    // for content that was never actually edited - see `autosave.rs`.
+    // The body as currently on disk (or "" for a document without a file
+    // yet) - `worksave.rs` uses it to tell whether a file from outside the
+    // library was actually edited before writing to it.
     let saved_text: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
 
     let cached_terms = termcache::load();
@@ -438,12 +437,14 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         toast_overlay: toast_overlay.clone(),
         preview_pane: preview_pane.clone(),
         saved_text: saved_text.clone(),
+        written: Rc::new(RefCell::new(String::new())),
     };
 
-    wire_live_preview(&buffer, &preview_pane, &stats_view, &code_view, &frontmatter, &current_path, &saved_text);
+    wire_live_preview(&buffer, &preview_pane, &stats_view, &code_view, &frontmatter);
     wire_scroll_sync(&editor_scroller, &view, &buffer, &preview_pane);
     wire_status_bar(&buffer, &status_bar);
-    wire_new_action(&window, &buffer, &current_path, &frontmatter, &title, &preview_pane, &saved_text);
+    wire_new_action(&window, &doc_ctx);
+    worksave::wire(&window, &doc_ctx);
     wire_open_action(&window, &doc_ctx);
     wire_ai_writer_action(&window, &doc_ctx);
     wire_open_path_action(&window, &doc_ctx);
@@ -487,7 +488,6 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_insert_post_link_action(&window, &buffer);
     wire_paste_shortcut(&view, &buffer, &current_path, &toast_overlay);
     wire_drop_target(&view, &buffer, &current_path);
-    wire_startup_recovery(&window, &buffer, &current_path, &frontmatter, &title, &preview_pane);
     wire_find_action(&window, &search_bar);
     window.set_help_overlay(Some(&shortcuts::build()));
 
@@ -506,7 +506,10 @@ pub(crate) fn subtitle_for(path: Option<&Path>, frontmatter: &Frontmatter) -> St
     if !frontmatter.title.is_empty() {
         return frontmatter.title.clone();
     }
-    path.and_then(|p| p.file_name())
+    // Every library article is called `artikel.md`; its folder says more.
+    let name_source = path.map(|p| if p.file_name().is_some_and(|n| n == library::ARTICLE_FILE) { p.parent().unwrap_or(p) } else { p });
+    name_source
+        .and_then(Path::file_name)
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| tr("Unbenannt"))
 }
@@ -517,8 +520,6 @@ fn wire_live_preview(
     stats_view: &Rc<stats::StatsView>,
     code_view: &Rc<codeview::CodeView>,
     frontmatter: &Rc<RefCell<Frontmatter>>,
-    current_path: &Rc<RefCell<Option<PathBuf>>>,
-    saved_text: &Rc<RefCell<String>>,
 ) {
     let debounce: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
 
@@ -526,8 +527,6 @@ fn wire_live_preview(
     let stats_view_clone = stats_view.clone();
     let code_view_clone = code_view.clone();
     let frontmatter_clone = frontmatter.clone();
-    let current_path_clone = current_path.clone();
-    let saved_text_clone = saved_text.clone();
     let debounce_clone = debounce.clone();
     buffer.connect_changed(move |buf| {
         if let Some(id) = debounce_clone.borrow_mut().take() {
@@ -538,8 +537,6 @@ fn wire_live_preview(
         let stats_view = stats_view_clone.clone();
         let code_view = code_view_clone.clone();
         let frontmatter = frontmatter_clone.clone();
-        let current_path = current_path_clone.clone();
-        let saved_text = saved_text_clone.clone();
         let debounce_inner = debounce_clone.clone();
         let id = glib::timeout_add_local(Duration::from_millis(DEBOUNCE_MS), move || {
             // Reconciled here (not just relying on whatever the media list
@@ -555,15 +552,6 @@ fn wire_live_preview(
             preview_pane.update_preserving_scroll(&text, &media_items);
             stats_view.update(&text);
             code_view.update(&text, &media_items);
-            // Piggybacks on this same debounce instead of running its own
-            // timer - see `autosave.rs`. Skipped when the text still
-            // matches what's already safely on disk (e.g. right after
-            // opening a file, whose own `buffer.set_text` also runs through
-            // this same `changed` signal), so opening-and-not-editing an
-            // article never manufactures a bogus recovery prompt.
-            if text != *saved_text.borrow() {
-                autosave::save(&frontmatter.borrow(), &text, current_path.borrow().as_deref());
-            }
             *debounce_inner.borrow_mut() = None;
             glib::ControlFlow::Break
         });
@@ -745,37 +733,27 @@ fn scroll_editor_to(scroller: &gtk4::ScrolledWindow, view: &sourceview5::View, b
     adjustment.set_value(blended.clamp(0.0, max));
 }
 
-fn wire_new_action(
-    window: &adw::ApplicationWindow,
-    buffer: &sourceview5::Buffer,
-    current_path: &Rc<RefCell<Option<PathBuf>>>,
-    frontmatter: &Rc<RefCell<Frontmatter>>,
-    title: &adw::WindowTitle,
-    preview_pane: &Rc<preview::PreviewPane>,
-    saved_text: &Rc<RefCell<String>>,
-) {
+fn wire_new_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
     // "new" starts a blank blog post, "new-page" a blank static WordPress
-    // page - identical apart from the frontmatter's `post_type`.
+    // page - identical apart from the frontmatter's `post_type`. The
+    // article being replaced is saved first; the new one gets its library
+    // folder once something is typed (`worksave.rs`).
     for (name, post_type) in [("new", PostType::Post), ("new-page", PostType::Page)] {
         let action = gio::SimpleAction::new(name, None);
-        let buffer = buffer.clone();
-        let current_path = current_path.clone();
-        let frontmatter = frontmatter.clone();
-        let title = title.clone();
-        let preview_pane = preview_pane.clone();
-        let saved_text = saved_text.clone();
+        let ctx = ctx.clone();
         action.connect_activate(move |_, _| {
-            buffer.set_text("");
-            *current_path.borrow_mut() = None;
-            *frontmatter.borrow_mut() = Frontmatter { post_type, ..Frontmatter::default() };
-            title.set_subtitle(&match post_type {
+            worksave::flush(&ctx, false);
+            ctx.buffer.set_text("");
+            *ctx.current_path.borrow_mut() = None;
+            *ctx.frontmatter.borrow_mut() = Frontmatter { post_type, ..Frontmatter::default() };
+            ctx.title.set_subtitle(&match post_type {
                 PostType::Post => tr("Unbenannt"),
                 PostType::Page => tr("Unbenannte Seite"),
             });
-            preview_pane.set_doc_dir(None);
-            preview_pane.set_article_header(&frontmatter.borrow());
-            *saved_text.borrow_mut() = String::new();
-            autosave::clear();
+            ctx.preview_pane.set_doc_dir(None);
+            ctx.preview_pane.set_article_header(&ctx.frontmatter.borrow());
+            *ctx.saved_text.borrow_mut() = String::new();
+            *ctx.written.borrow_mut() = String::new();
         });
         window.add_action(&action);
     }
@@ -798,6 +776,9 @@ pub(crate) struct DocContext {
     pub(crate) toast_overlay: adw::ToastOverlay,
     pub(crate) preview_pane: Rc<preview::PreviewPane>,
     pub(crate) saved_text: Rc<RefCell<String>>,
+    /// The serialized document exactly as last written to (or read from)
+    /// `current_path` - `worksave.rs` skips writing while nothing differs.
+    pub(crate) written: Rc<RefCell<String>>,
 }
 
 fn wire_open_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
@@ -854,8 +835,10 @@ fn wire_open_path_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
 /// article twice keeps it at the front of that list rather than piling up
 /// a duplicate entry.
 pub(crate) fn open_document_at_path(path: PathBuf, ctx: &DocContext) {
+    worksave::flush(ctx, false);
     match document::read(&path) {
         Ok(doc) => {
+            *ctx.written.borrow_mut() = document::serialize(&doc);
             ctx.buffer.set_text(&doc.body);
             ctx.title.set_subtitle(&subtitle_for(Some(&path), &doc.frontmatter));
             *ctx.saved_text.borrow_mut() = doc.body.clone();
@@ -866,7 +849,6 @@ pub(crate) fn open_document_at_path(path: PathBuf, ctx: &DocContext) {
             *ctx.current_path.borrow_mut() = Some(path);
             ctx.preview_pane.set_doc_dir(doc_dir);
             ctx.preview_pane.set_article_header(&ctx.frontmatter.borrow());
-            autosave::clear();
         }
         Err(err) => show_toast(&ctx.toast_overlay, &tr("Öffnen fehlgeschlagen: {err}").replace("{err}", &err.to_string())),
     }
@@ -883,31 +865,14 @@ fn register_recent_file(path: &Path) {
     gtk4::RecentManager::default().add_item(&uri);
 }
 
+/// Ctrl+S: everything is saved continuously anyway (`worksave.rs`); this
+/// just does it right now, including for an unedited file from outside
+/// the library whose metadata changed.
 fn wire_save_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
     let action = gio::SimpleAction::new("save", None);
     let ctx = ctx.clone();
-    let window_weak = window.downgrade();
     action.connect_activate(move |_, _| {
-        let Some(window) = window_weak.upgrade() else {
-            return;
-        };
-        let body = ctx.buffer.text(&ctx.buffer.start_iter(), &ctx.buffer.end_iter(), false).to_string();
-        let doc = Document {
-            frontmatter: ctx.frontmatter.borrow().clone(),
-            body,
-        };
-
-        if let Some(path) = ctx.current_path.borrow().clone() {
-            if let Err(err) = document::write(&path, &doc) {
-                show_toast(&ctx.toast_overlay, &tr("Speichern fehlgeschlagen: {err}").replace("{err}", &err.to_string()));
-            } else {
-                *ctx.saved_text.borrow_mut() = doc.body.clone();
-                autosave::clear();
-            }
-            return;
-        }
-
-        save_as(&window, &ctx, doc, || {});
+        worksave::flush(&ctx, true);
     });
     window.add_action(&action);
 }
@@ -921,20 +886,7 @@ fn wire_save_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
 pub(crate) fn document_saver(ctx: &DocContext) -> export::DocumentSaver {
     let ctx = ctx.clone();
     std::rc::Rc::new(move || {
-        let Some(path) = ctx.current_path.borrow().clone() else {
-            return;
-        };
-        let body = ctx.buffer.text(&ctx.buffer.start_iter(), &ctx.buffer.end_iter(), false).to_string();
-        let doc = Document {
-            frontmatter: ctx.frontmatter.borrow().clone(),
-            body,
-        };
-        if let Err(err) = document::write(&path, &doc) {
-            show_toast(&ctx.toast_overlay, &tr("Speichern fehlgeschlagen: {err}").replace("{err}", &err.to_string()));
-            return;
-        }
-        *ctx.saved_text.borrow_mut() = doc.body.clone();
-        autosave::clear();
+        worksave::flush(&ctx, true);
     })
 }
 
@@ -970,7 +922,7 @@ pub(crate) fn save_as(window: &adw::ApplicationWindow, ctx: &DocContext, doc: Do
         *ctx.current_path.borrow_mut() = Some(path);
         ctx.preview_pane.set_doc_dir(doc_dir);
         *ctx.saved_text.borrow_mut() = doc.body.clone();
-        autosave::clear();
+        *ctx.written.borrow_mut() = document::serialize(&doc);
         on_saved();
     });
 }
@@ -1187,16 +1139,18 @@ fn wire_ai_writer_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
                 ctx.buffer.insert_at_cursor(&article.body);
             }
             aiwriter::ApplyMode::NewDocument => {
+                worksave::flush(&ctx, false);
                 ctx.buffer.set_text(&article.body);
                 *ctx.current_path.borrow_mut() = None;
                 *ctx.frontmatter.borrow_mut() = Frontmatter { title: article.title.clone(), ..Frontmatter::default() };
                 ctx.title.set_subtitle(&subtitle_for(None, &ctx.frontmatter.borrow()));
                 ctx.preview_pane.set_doc_dir(None);
                 ctx.preview_pane.set_article_header(&ctx.frontmatter.borrow());
-                // Empty baseline: the generated text exists nowhere else,
-                // so it must count as unsaved (and be autosaved).
+                // Empty baseline: the generated text exists nowhere else
+                // yet - `worksave.rs` gives it a library folder next tick.
                 *ctx.saved_text.borrow_mut() = String::new();
-                ctx.toast_overlay.add_toast(adw::Toast::new(&tr("KI-Entwurf als neues Dokument angelegt - bitte prüfen und speichern.")));
+                *ctx.written.borrow_mut() = String::new();
+                ctx.toast_overlay.add_toast(adw::Toast::new(&tr("KI-Entwurf als neues Dokument angelegt - bitte prüfen.")));
             }
         });
     });
@@ -1413,67 +1367,6 @@ fn wire_drop_target(view: &sourceview5::View, buffer: &sourceview5::Buffer, curr
         true
     });
     view.add_controller(drop_target);
-}
-
-/// Offers to restore a leftover autosave snapshot from a previous run - a
-/// crash, or the app being quit without saving - found on launch. Declining
-/// discards it outright; there's no "ask me again later", since the
-/// snapshot itself is the only copy of that unsaved text and leaving it
-/// around unresolved would just repeat the same prompt on every future
-/// launch until it's dealt with one way or the other.
-fn wire_startup_recovery(
-    window: &adw::ApplicationWindow,
-    buffer: &sourceview5::Buffer,
-    current_path: &Rc<RefCell<Option<PathBuf>>>,
-    frontmatter: &Rc<RefCell<Frontmatter>>,
-    title: &adw::WindowTitle,
-    preview_pane: &Rc<preview::PreviewPane>,
-) {
-    let Some(recovered) = autosave::recover() else {
-        return;
-    };
-    let name = recovered
-        .original_path
-        .as_deref()
-        .and_then(Path::file_name)
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| tr("einem unbenannten Artikel"));
-    let dialog = adw::AlertDialog::new(
-        Some(&tr("Nicht gespeicherter Stand gefunden")),
-        Some(
-            &tr("Von „{name}“ wurde ein nicht gespeicherter Stand gefunden - vermutlich nach einem Absturz oder weil Blocksatz ohne zu speichern beendet wurde. Wiederherstellen?")
-                .replace("{name}", &name),
-        ),
-    );
-    dialog.add_response("discard", &tr("Verwerfen"));
-    dialog.add_response("restore", &tr("Wiederherstellen"));
-    dialog.set_response_appearance("restore", adw::ResponseAppearance::Suggested);
-    dialog.set_default_response(Some("restore"));
-    dialog.set_close_response("discard");
-
-    let buffer = buffer.clone();
-    let current_path = current_path.clone();
-    let frontmatter = frontmatter.clone();
-    let title = title.clone();
-    let preview_pane = preview_pane.clone();
-    dialog.connect_response(None, move |_, response| {
-        if response != "restore" {
-            autosave::clear();
-            return;
-        }
-        buffer.set_text(&recovered.body);
-        title.set_subtitle(&subtitle_for(recovered.original_path.as_deref(), &recovered.frontmatter));
-        let doc_dir = recovered.original_path.as_deref().and_then(|p| p.parent().map(Path::to_path_buf));
-        *frontmatter.borrow_mut() = recovered.frontmatter.clone();
-        *current_path.borrow_mut() = recovered.original_path.clone();
-        preview_pane.set_doc_dir(doc_dir);
-        preview_pane.set_article_header(&frontmatter.borrow());
-        // `saved_text` deliberately stays at its initial "" here: this
-        // restored text is exactly the unsaved content the snapshot was
-        // protecting, so it should read as dirty (and keep being
-        // autosaved) until an explicit Save writes it out for real.
-    });
-    dialog.present(Some(window));
 }
 
 fn wire_find_action(window: &adw::ApplicationWindow, search_bar: &Rc<searchbar::SearchBar>) {

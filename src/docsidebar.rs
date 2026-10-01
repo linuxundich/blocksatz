@@ -27,7 +27,7 @@ use adw::prelude::*;
 use crate::document::{Document, PostStatus, PostType};
 use crate::i18n::tr;
 use crate::window::{self, DocContext};
-use crate::{autosave, browser, export, importer, recentfiles, statuscontrols};
+use crate::{browser, document, export, importer, library, recentfiles, statuscontrols, wpsite};
 
 pub struct DocSidebar {
     pub split_view: adw::OverlaySplitView,
@@ -356,18 +356,26 @@ fn build_local_page(ctx: &DocContext, on_document_loaded: Rc<dyn Fn()>) -> gtk4:
     page.upcast()
 }
 
-/// What `wire_open_from_wordpress_action` used to do inline - fills the
-/// editor from an `ImportedPost` and, since there's no local file for it
-/// yet, clears `current_path` (see `importer.rs`'s own module doc comment
-/// for why that stays a deliberate, separate step rather than something
-/// this function also does).
+/// Opens a post fetched from WordPress through its working copy in the
+/// library: an existing one for the same post is reopened as it is (it may
+/// hold local changes - those must not be overwritten by the server copy),
+/// otherwise a new library folder is created from `imported`.
 fn apply_imported_post(ctx: &DocContext, imported: importer::ImportedPost) {
-    ctx.buffer.set_text(&imported.body);
-    ctx.title.set_subtitle(&window::subtitle_for(None, &imported.frontmatter));
-    *ctx.saved_text.borrow_mut() = imported.body.clone();
-    *ctx.frontmatter.borrow_mut() = imported.frontmatter;
-    *ctx.current_path.borrow_mut() = None;
-    ctx.preview_pane.set_doc_dir(None);
-    ctx.preview_pane.set_article_header(&ctx.frontmatter.borrow());
-    autosave::clear();
+    let root = library::root();
+    let site_id = wpsite::load().site_id();
+    if let Some(post_id) = imported.frontmatter.wp_post_id {
+        if let Some(existing) = library::find_by_post_id(&root, &site_id, post_id) {
+            window::open_document_at_path(existing, ctx);
+            window::show_toast(&ctx.toast_overlay, &tr("Vorhandene Arbeitskopie geöffnet."));
+            return;
+        }
+    }
+    let fallback = library::untitled_name();
+    let doc = Document { frontmatter: imported.frontmatter, body: imported.body };
+    let title = (!doc.frontmatter.title.is_empty()).then_some(doc.frontmatter.title.as_str());
+    let written = library::create_entry(&root, title, &fallback).and_then(|path| document::write(&path, &doc).map(|()| path));
+    match written {
+        Ok(path) => window::open_document_at_path(path, ctx),
+        Err(err) => window::show_toast(&ctx.toast_overlay, &tr("Arbeitskopie konnte nicht angelegt werden: {err}").replace("{err}", &err.to_string())),
+    }
 }

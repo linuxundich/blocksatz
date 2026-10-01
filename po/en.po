@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-09-28 22:35+0200\n"
+"POT-Creation-Date: 2026-10-01 21:54+0200\n"
 "PO-Revision-Date: 2026-09-28 22:43+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -59,7 +59,7 @@ msgid "Wird generiert …"
 msgstr "Generating …"
 
 #: src/aialt.rs:213 src/aiwriter.rs:403 src/aiwriter.rs:472 src/chat.rs:181
-#: src/export.rs:792 src/imagealt.rs:401 src/imagealt.rs:503
+#: src/export.rs:835 src/imagealt.rs:401 src/imagealt.rs:503
 #: src/imageedit.rs:302 src/importer.rs:146 src/importer.rs:365
 #: src/mediabrowser.rs:494 src/mediabrowser.rs:583 src/mediapanel.rs:284
 #: src/mediapanel.rs:748
@@ -83,10 +83,14 @@ msgid "Länge anpassen"
 msgstr "Adjust Length"
 
 #: src/aimenu.rs:186
-msgid "Wie soll die Auswahl (oder der ganze Artikel, falls nichts markiert ist) angepasst werden?"
-msgstr "How should the selection (or the whole article, if nothing is selected) be adjusted?"
+msgid ""
+"Wie soll die Auswahl (oder der ganze Artikel, falls nichts markiert ist) "
+"angepasst werden?"
+msgstr ""
+"How should the selection (or the whole article, if nothing is selected) be "
+"adjusted?"
 
-#: src/aimenu.rs:188 src/export.rs:666 src/export.rs:833 src/importer.rs:339
+#: src/aimenu.rs:188 src/export.rs:702 src/export.rs:876 src/importer.rs:339
 #: src/mediabrowser.rs:548 src/taxonomy.rs:352 src/taxonomy.rs:666
 msgid "Abbrechen"
 msgstr "Cancel"
@@ -148,19 +152,24 @@ msgid "Texterstellung"
 msgstr "Text generation"
 
 #: src/aitasks.rs:58
-msgid "KI-Alternativtext und KI-Bildunterschrift - braucht ein Modell, das Bilder versteht."
+msgid ""
+"KI-Alternativtext und KI-Bildunterschrift - braucht ein Modell, das Bilder "
+"versteht."
 msgstr "AI alt text and AI captions - needs a model that understands images."
 
 #: src/aitasks.rs:59
-msgid "Umformulieren und Korrigieren im Editor, Artikelbewertung, Tag-Vorschläge."
-msgstr "Rewriting and correcting in the editor, article evaluation, tag suggestions."
+msgid ""
+"Umformulieren und Korrigieren im Editor, Artikelbewertung, Tag-Vorschläge."
+msgstr ""
+"Rewriting and correcting in the editor, article evaluation, tag suggestions."
 
 #: src/aitasks.rs:60
 msgid "KI-Artikelentwurf aus Thema und Anweisungen."
 msgstr "AI article draft from a topic and instructions."
 
 #: src/aitasks.rs:162
-msgid "„{model}“ nicht nutzbar ({reason}) - stattdessen „{fallback}“ verwendet."
+msgid ""
+"„{model}“ nicht nutzbar ({reason}) - stattdessen „{fallback}“ verwendet."
 msgstr "“{model}” not usable ({reason}) - used “{fallback}” instead."
 
 #: src/aitasks.rs:207
@@ -172,7 +181,8 @@ msgid "Kein nutzbares Modell für „{task}“: {models}."
 msgstr "No usable model for “{task}”: {models}."
 
 #: src/aitasks.rs:245
-msgid "Modelle je Aufgabe lassen sich unter Einstellungen → KI-Modelle festlegen."
+msgid ""
+"Modelle je Aufgabe lassen sich unter Einstellungen → KI-Modelle festlegen."
 msgstr "Models per task can be set under Settings → AI Models."
 
 #: src/aiwriter.rs:56
@@ -188,11 +198,12 @@ msgid "Lang (ca. 1500 Wörter)"
 msgstr "Long (about 1500 words)"
 
 #: src/aiwriter.rs:141 src/aiwriter.rs:156
-msgid "Für den eigenen Schreibstil muss eine WordPress-Verbindung eingerichtet sein."
+msgid ""
+"Für den eigenen Schreibstil muss eine WordPress-Verbindung eingerichtet sein."
 msgstr "Imitating your own writing style requires a WordPress connection."
 
-#: src/aiwriter.rs:145 src/aiwriter.rs:160 src/export.rs:354 src/export.rs:633
-#: src/export.rs:749 src/export.rs:856 src/importer.rs:95 src/linkpicker.rs:97
+#: src/aiwriter.rs:145 src/aiwriter.rs:160 src/export.rs:350 src/export.rs:670
+#: src/export.rs:787 src/export.rs:899 src/importer.rs:95 src/linkpicker.rs:97
 #: src/mediabrowser.rs:134 src/mediapanel.rs:203 src/mediapanel.rs:496
 #: src/mediapanel.rs:703 src/properties.rs:266 src/properties.rs:488
 #: src/taxonomy.rs:75 src/taxonomy.rs:223 src/taxonomy.rs:296
@@ -214,7 +225,8 @@ msgid "Keine Artikel gefunden"
 msgstr "No articles found"
 
 #: src/aiwriter.rs:236
-msgid "Veröffentliche zuerst einen Artikel, um ihn als Stilvorlage zu verwenden."
+msgid ""
+"Veröffentliche zuerst einen Artikel, um ihn als Stilvorlage zu verwenden."
 msgstr "Publish an article first to use it as a style sample."
 
 #: src/aiwriter.rs:247
@@ -294,7 +306,8 @@ msgid "Interner Fehler: Generierung hat kein Ergebnis geliefert."
 msgstr "Internal error: generation returned no result."
 
 #: src/aiwriter.rs:470
-msgid "Fertig - vor dem Übernehmen prüfen und bei Bedarf direkt hier bearbeiten."
+msgid ""
+"Fertig - vor dem Übernehmen prüfen und bei Bedarf direkt hier bearbeiten."
 msgstr "Done - review before using it, and edit it right here if needed."
 
 #: src/appearance.rs:349
@@ -353,7 +366,7 @@ msgstr "Choose Editor Font"
 msgid "Auf Systemschrift zurücksetzen"
 msgstr "Reset to System Font"
 
-#: src/appearance.rs:532 src/window.rs:76 src/window.rs:191
+#: src/appearance.rs:532 src/window.rs:77 src/window.rs:192
 msgid "Vorschau"
 msgstr "Preview"
 
@@ -361,7 +374,8 @@ msgstr "Preview"
 msgid ""
 "# Beispielartikel\n"
 "\n"
-"Dies ist ein **Beispieltext**, der zeigt, wie der gewählte *Stil* und die Schrift wirken.\n"
+"Dies ist ein **Beispieltext**, der zeigt, wie der gewählte *Stil* und die "
+"Schrift wirken.\n"
 "\n"
 "> Ein Zitat zur Veranschaulichung.\n"
 msgstr ""
@@ -415,7 +429,7 @@ msgstr "Block Ads"
 msgid "Blockiert bekannte Werbe- und Tracking-Domains, wie GNOME Web es tut."
 msgstr "Blocks known ad and tracking domains, the same way GNOME Web does."
 
-#: src/browsersettings.rs:20 src/browsersettings.rs:25 src/window.rs:81
+#: src/browsersettings.rs:20 src/browsersettings.rs:25 src/window.rs:82
 msgid "Browser"
 msgstr "Browser"
 
@@ -460,8 +474,14 @@ msgid "KI-Verbindung"
 msgstr "AI Connection"
 
 #: src/chatsettings.rs:39
-msgid "Der API-Key wird im Schlüsselbund gespeichert, nicht als Klartext. Er wird nach der Eingabe direkt gegen die API des Anbieters geprüft und bei Erfolg automatisch gespeichert."
-msgstr "The API key is stored in the keyring, not as plain text. It's checked directly against the provider's API right after you enter it, and saved automatically on success."
+msgid ""
+"Der API-Key wird im Schlüsselbund gespeichert, nicht als Klartext. Er wird "
+"nach der Eingabe direkt gegen die API des Anbieters geprüft und bei Erfolg "
+"automatisch gespeichert."
+msgstr ""
+"The API key is stored in the keyring, not as plain text. It's checked "
+"directly against the provider's API right after you enter it, and saved "
+"automatically on success."
 
 #: src/chatsettings.rs:95
 msgid "API-Key wird geprüft …"
@@ -523,7 +543,9 @@ msgid "WordPress-Verbindung"
 msgstr "WordPress Connection"
 
 #: src/connection.rs:33
-msgid "Zugangsdaten werden im Schlüsselbund gespeichert, nicht als Klartext in dieser Datei."
+msgid ""
+"Zugangsdaten werden im Schlüsselbund gespeichert, nicht als Klartext in "
+"dieser Datei."
 msgstr "Credentials are stored in the keyring, not as plain text in this file."
 
 #: src/connection.rs:65
@@ -570,164 +592,189 @@ msgstr "Next"
 msgid "Zu sendendes Gutenberg-HTML:"
 msgstr "Gutenberg HTML to be sent:"
 
-#: src/export.rs:176 src/importer.rs:183 src/mediabrowser.rs:163
-msgid "Aktualisieren"
-msgstr "Update"
-
-#: src/export.rs:178 src/export.rs:425
-msgid "Veröffentlichen"
-msgstr "Publish"
-
-#: src/export.rs:183
+#: src/export.rs:179
 msgid "Als Entwurf hochladen"
 msgstr "Upload as Draft"
 
-#: src/export.rs:191
+#: src/export.rs:187
 msgid "Terminieren"
 msgstr "Schedule"
 
-#: src/export.rs:196
+#: src/export.rs:192
 msgid "Privat veröffentlichen"
 msgstr "Publish Privately"
 
-#: src/export.rs:200
+#: src/export.rs:196
 msgid "Von WordPress löschen"
 msgstr "Delete from WordPress"
 
-#: src/export.rs:215
+#: src/export.rs:211
 msgid "Vorschau öffnen"
 msgstr "Open Preview"
 
-#: src/export.rs:218
-msgid "Öffnet die WordPress-Vorschau im Browser-Tab. Entwürfe zeigt WordPress nur einer bei wp-admin angemeldeten Sitzung - andernfalls erscheint dort ein Login oder eine 404-Seite. Die Anmeldung im Browser-Tab bleibt gespeichert."
-msgstr "Opens the WordPress preview in the Browser tab. WordPress shows a draft only to a session logged into wp-admin - otherwise a login or a 404 page appears there instead. The login in the Browser tab is kept."
+#: src/export.rs:214
+msgid ""
+"Öffnet die WordPress-Vorschau im Browser-Tab. Entwürfe zeigt WordPress nur "
+"einer bei wp-admin angemeldeten Sitzung - andernfalls erscheint dort ein "
+"Login oder eine 404-Seite. Die Anmeldung im Browser-Tab bleibt gespeichert."
+msgstr ""
+"Opens the WordPress preview in the Browser tab. WordPress shows a draft only "
+"to a session logged into wp-admin - otherwise a login or a 404 page appears "
+"there instead. The login in the Browser tab is kept."
 
-#: src/export.rs:231
-msgid "Keine WordPress-Verbindung eingerichtet - bitte zuerst über den Verbindungs-Dialog konfigurieren."
-msgstr "No WordPress connection set up - please configure one via the Connection dialog first."
+#: src/export.rs:227
+msgid ""
+"Keine WordPress-Verbindung eingerichtet - bitte zuerst über den Verbindungs-"
+"Dialog konfigurieren."
+msgstr ""
+"No WordPress connection set up - please configure one via the Connection "
+"dialog first."
 
-#: src/export.rs:239
+#: src/export.rs:235
 msgid "Bitte zuerst einen Titel in den Artikel-Eigenschaften setzen."
 msgstr "Please set a title in Article Properties first."
 
-#: src/export.rs:260
+#: src/export.rs:256
 msgid "Noch keine Vorschau"
 msgstr "No Preview Yet"
 
-#: src/export.rs:262
-msgid "Sobald der Artikel als Entwurf hochgeladen, aktualisiert oder veröffentlicht wurde, erscheint hier eine Vorschau der Live-Seite."
-msgstr "Once the article has been uploaded as a draft, updated or published, a preview of the live page appears here."
+#: src/export.rs:258
+msgid ""
+"Sobald der Artikel als Entwurf hochgeladen, aktualisiert oder veröffentlicht "
+"wurde, erscheint hier eine Vorschau der Live-Seite."
+msgstr ""
+"Once the article has been uploaded as a draft, updated or published, a "
+"preview of the live page appears here."
 
-#: src/export.rs:328 src/shortcuts.rs:26
+#: src/export.rs:324 src/shortcuts.rs:26
 msgid "Artikel exportieren"
 msgstr "Export Article"
 
-#: src/export.rs:345
+#: src/export.rs:341
 msgid "Vorschau wird geladen …"
 msgstr "Loading preview …"
 
-#: src/export.rs:375
-msgid "Vorschau unten geladen - dort ist ggf. eine Anmeldung bei wp-admin nötig, falls noch keine angemeldete Sitzung besteht."
-msgstr "Preview loaded below - it may need a wp-admin login there if no logged-in session exists yet."
+#: src/export.rs:371
+msgid ""
+"Vorschau unten geladen - dort ist ggf. eine Anmeldung bei wp-admin nötig, "
+"falls noch keine angemeldete Sitzung besteht."
+msgstr ""
+"Preview loaded below - it may need a wp-admin login there if no logged-in "
+"session exists yet."
 
-#: src/export.rs:381
+#: src/export.rs:377
 msgid "Fehler beim Laden der Vorschau: {err}"
 msgstr "Error loading the preview: {err}"
 
-#: src/export.rs:387
+#: src/export.rs:383
 msgid "Interner Fehler: Vorschau-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the preview thread returned no result."
 
-#: src/export.rs:424
+#: src/export.rs:429
 msgid "Artikel wurde von WordPress gelöscht."
 msgstr "The article was deleted from WordPress."
 
-#: src/export.rs:502
+#: src/export.rs:430 src/export.rs:588 src/export.rs:1290
+msgid "Veröffentlichen"
+msgstr "Publish"
+
+#: src/export.rs:507
 msgid "Erfolgreich gesendet:"
 msgstr "Successfully sent:"
 
-#: src/export.rs:530
+#: src/export.rs:535
 msgid "Erfolgreich gesendet."
 msgstr "Successfully sent."
 
-#: src/export.rs:625
+#: src/export.rs:588 src/export.rs:1301 src/importer.rs:183
+#: src/mediabrowser.rs:163
+msgid "Aktualisieren"
+msgstr "Update"
+
+#: src/export.rs:662
 msgid "Prüfe auf Änderungen auf WordPress …"
 msgstr "Checking for changes on WordPress …"
 
-#: src/export.rs:661
+#: src/export.rs:697
 msgid "Artikel wurde extern geändert"
 msgstr "Article was changed externally"
 
-#: src/export.rs:663
-msgid "Der Artikel wurde seit dem letzten Abruf/Senden direkt auf WordPress geändert - z. B. in wp-admin. Trotzdem mit der lokalen Version überschreiben?"
-msgstr "The article was changed directly on WordPress since it was last fetched or sent - in wp-admin, most likely. Overwrite it with the local version anyway?"
+#: src/export.rs:699
+msgid ""
+"Der Artikel wurde seit dem letzten Abruf/Senden direkt auf WordPress "
+"geändert - z. B. in wp-admin. Trotzdem mit der lokalen Version überschreiben?"
+msgstr ""
+"The article was changed directly on WordPress since it was last fetched or "
+"sent - in wp-admin, most likely. Overwrite it with the local version anyway?"
 
-#: src/export.rs:667
+#: src/export.rs:703
 msgid "Überschreiben"
 msgstr "Overwrite"
 
-#: src/export.rs:684
+#: src/export.rs:720
 msgid "Abgebrochen - lokale Änderungen wurden nicht gesendet."
 msgstr "Cancelled - the local changes were not sent."
 
-#: src/export.rs:734
+#: src/export.rs:770
 msgid "Wird gesendet …"
 msgstr "Sending …"
 
-#: src/export.rs:783
+#: src/export.rs:826
 msgid "Aktualisiert"
 msgstr "Updated"
 
-#: src/export.rs:784
+#: src/export.rs:827
 msgid "„{title}“ wurde erfolgreich gesendet."
 msgstr "\"{title}\" was sent successfully."
 
-#: src/export.rs:793
+#: src/export.rs:836
 msgid "Veröffentlichen fehlgeschlagen"
 msgstr "Publishing failed"
 
-#: src/export.rs:802
+#: src/export.rs:845
 msgid "Interner Fehler: Export-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the export thread returned no result."
 
-#: src/export.rs:830
+#: src/export.rs:873
 msgid "Artikel wirklich löschen?"
 msgstr "Really delete the article?"
 
-#: src/export.rs:831
+#: src/export.rs:874
 msgid "Der Artikel wird unwiderruflich von der WordPress-Seite gelöscht."
 msgstr "The article will be permanently deleted from the WordPress site."
 
-#: src/export.rs:834 src/mediabrowser.rs:549 src/taxonomy.rs:188
+#: src/export.rs:877 src/mediabrowser.rs:549 src/taxonomy.rs:188
 #: src/taxonomy.rs:353 src/taxonomy.rs:576 src/taxonomy.rs:667
 msgid "Löschen"
 msgstr "Delete"
 
-#: src/export.rs:847 src/mediabrowser.rs:560
+#: src/export.rs:890 src/mediabrowser.rs:560
 msgid "Wird gelöscht …"
 msgstr "Deleting …"
 
-#: src/export.rs:877
+#: src/export.rs:920
 msgid "Fehler beim Löschen: {err}"
 msgstr "Error deleting: {err}"
 
-#: src/export.rs:883
+#: src/export.rs:926
 msgid "Interner Fehler: Lösch-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the delete thread returned no result."
 
-#: src/export.rs:907
-msgid "Für den Status „Geplant“ muss ein gültiger Veröffentlichungstermin gesetzt sein."
+#: src/export.rs:950
+msgid ""
+"Für den Status „Geplant“ muss ein gültiger Veröffentlichungstermin gesetzt "
+"sein."
 msgstr "A valid publish date must be set for the “Scheduled” status."
 
-#: src/export.rs:1180
+#: src/export.rs:1223
 msgid "Bild nicht abrufbar: {err}"
 msgstr "Couldn't fetch image: {err}"
 
-#: src/export.rs:1184
+#: src/export.rs:1227
 msgid "Bild nicht lesbar: {err}"
 msgstr "Couldn't read image: {err}"
 
-#: src/export.rs:1187 src/media.rs:451
+#: src/export.rs:1230 src/media.rs:451
 msgid "Bild {path} nicht lesbar: {err}"
 msgstr "Couldn't read image {path}: {err}"
 
@@ -832,8 +879,12 @@ msgid "Keine Bildreferenz gefunden"
 msgstr "No Image Reference Found"
 
 #: src/imagealt.rs:232
-msgid "Für die Bildbeschriftung bitte mit der rechten Maustaste auf eine Zeile mit einem Bild (![Beschreibung](bild.png)) klicken."
-msgstr "For the image description, please right-click a line containing an image (![description](image.png))."
+msgid ""
+"Für die Bildbeschriftung bitte mit der rechten Maustaste auf eine Zeile mit "
+"einem Bild (![Beschreibung](bild.png)) klicken."
+msgstr ""
+"For the image description, please right-click a line containing an image (!"
+"[description](image.png))."
 
 #: src/imagealt.rs:234
 msgid "OK"
@@ -876,7 +927,8 @@ msgid "Bildbeschriftung"
 msgstr "Image Description"
 
 #: src/imageedit.rs:178 src/imageedit.rs:181
-msgid "Bild konnte nicht gelesen werden - unbekanntes oder beschädigtes Format."
+msgid ""
+"Bild konnte nicht gelesen werden - unbekanntes oder beschädigtes Format."
 msgstr "Couldn't read the image - unknown or corrupted format."
 
 #: src/imageedit.rs:189
@@ -940,8 +992,11 @@ msgid "Seiten"
 msgstr "Pages"
 
 #: src/importer.rs:206 src/linkpicker.rs:61 src/mediabrowser.rs:229
-msgid "Keine WordPress-Verbindung eingerichtet - bitte zuerst in den Einstellungen konfigurieren."
-msgstr "No WordPress connection set up - please configure one in Settings first."
+msgid ""
+"Keine WordPress-Verbindung eingerichtet - bitte zuerst in den Einstellungen "
+"konfigurieren."
+msgstr ""
+"No WordPress connection set up - please configure one in Settings first."
 
 #: src/importer.rs:256 src/linkpicker.rs:91
 msgid "Lade Artikel …"
@@ -973,8 +1028,12 @@ msgid "In den Papierkorb verschieben?"
 msgstr "Move to trash?"
 
 #: src/importer.rs:337
-msgid "„{title}“ wird in den WordPress-Papierkorb verschoben und kann dort im WordPress-Backend wiederhergestellt werden."
-msgstr "“{title}” will be moved to the WordPress trash, where it can be restored from the WordPress admin."
+msgid ""
+"„{title}“ wird in den WordPress-Papierkorb verschoben und kann dort im "
+"WordPress-Backend wiederhergestellt werden."
+msgstr ""
+"“{title}” will be moved to the WordPress trash, where it can be restored "
+"from the WordPress admin."
 
 #: src/importer.rs:353
 msgid "Verschiebe „{title}“ in den Papierkorb …"
@@ -1097,26 +1156,24 @@ msgid "Fehler"
 msgstr "Error"
 
 #: src/llm.rs:291 src/llm.rs:435
-msgid "Keine Antwort erhalten (möglicherweise durch einen Sicherheitsfilter blockiert)."
+msgid ""
+"Keine Antwort erhalten (möglicherweise durch einen Sicherheitsfilter "
+"blockiert)."
 msgstr "No response received (possibly blocked by a safety filter)."
 
 #: src/llm.rs:317 src/llm.rs:348 src/llm.rs:450 src/llm.rs:468
 msgid "Keine Antwort erhalten."
 msgstr "No response received."
 
-#: src/llm.rs:705 src/wpclient.rs:292
+#: src/llm.rs:705 src/wpclient.rs:299
 msgid "Antwort nicht lesbar: {err}"
 msgstr "Couldn't read the response: {err}"
-
-#: src/media.rs:54
-msgid "Alternativtext ist lang ({length} Zeichen) - Screenreader lesen ihn vollständig vor; empfohlen: deutlich unter {max} Zeichen."
-msgstr "Alt text is long ({length} characters) - screen readers read all of it out; well under {max} characters is recommended."
 
 #: src/mediabrowser.rs:33
 msgid "Alle Medien"
 msgstr "All media"
 
-#: src/mediabrowser.rs:34 src/properties.rs:879 src/window.rs:1064
+#: src/mediabrowser.rs:34 src/properties.rs:879 src/window.rs:1028
 msgid "Bilder"
 msgstr "Images"
 
@@ -1144,7 +1201,7 @@ msgstr "Search media library…"
 msgid "Mehr laden"
 msgstr "Load more"
 
-#: src/mediabrowser.rs:222 src/shortcuts.rs:28 src/window.rs:279
+#: src/mediabrowser.rs:222 src/shortcuts.rs:28 src/window.rs:280
 msgid "WordPress-Mediathek"
 msgstr "WordPress Media Library"
 
@@ -1209,8 +1266,12 @@ msgid "Datei endgültig löschen?"
 msgstr "Permanently delete file?"
 
 #: src/mediabrowser.rs:546
-msgid "„{name}“ wird unwiderruflich aus der WordPress-Mediathek gelöscht. Artikel, die die Datei verwenden, zeigen sie danach nicht mehr an."
-msgstr "“{name}” will be permanently deleted from the WordPress media library. Posts that use the file will no longer show it."
+msgid ""
+"„{name}“ wird unwiderruflich aus der WordPress-Mediathek gelöscht. Artikel, "
+"die die Datei verwenden, zeigen sie danach nicht mehr an."
+msgstr ""
+"“{name}” will be permanently deleted from the WordPress media library. Posts "
+"that use the file will no longer show it."
 
 #: src/mediabrowser.rs:581
 msgid "„{name}“ gelöscht."
@@ -1377,13 +1438,27 @@ msgstr "Image Uploaded"
 msgid "„{filename}“ wurde erfolgreich hochgeladen."
 msgstr "\"{filename}\" was uploaded successfully."
 
+#: src/media.rs:54
+msgid ""
+"Alternativtext ist lang ({length} Zeichen) - Screenreader lesen ihn "
+"vollständig vor; empfohlen: deutlich unter {max} Zeichen."
+msgstr ""
+"Alt text is long ({length} characters) - screen readers read all of it out; "
+"well under {max} characters is recommended."
+
 #: src/modelsettings.rs:59
-msgid "Noch keine Modelle geladen - API-Key unter „KI-Chat“ eintragen, dann hier prüfen."
-msgstr "No models loaded yet - enter an API key under “AI Chat”, then check here."
+msgid ""
+"Noch keine Modelle geladen - API-Key unter „KI-Chat“ eintragen, dann hier "
+"prüfen."
+msgstr ""
+"No models loaded yet - enter an API key under “AI Chat”, then check here."
 
 #: src/modelsettings.rs:61
-msgid "Noch keine Modelle geladen - Server unter „KI-Chat“ eintragen, dann hier prüfen."
-msgstr "No models loaded yet - enter a server under “AI Chat”, then check here."
+msgid ""
+"Noch keine Modelle geladen - Server unter „KI-Chat“ eintragen, dann hier "
+"prüfen."
+msgstr ""
+"No models loaded yet - enter a server under “AI Chat”, then check here."
 
 #: src/modelsettings.rs:64
 msgid "{n} Modelle"
@@ -1418,8 +1493,17 @@ msgid "Verfügbarkeit"
 msgstr "Availability"
 
 #: src/modelsettings.rs:243
-msgid "„Prüfen“ lädt die Modellliste des Anbieters und schickt jedem Modell eine Mini-Anfrage mit wenigen Tokens. So zeigt sich, welche Modelle mit deinem Key wirklich nutzbar sind - und welche ein Abo oder Guthaben brauchen, ihr Kontingent erschöpft haben oder in deiner Region gesperrt sind. Die Ergebnisse werden zwischengespeichert."
-msgstr "“Check” loads the provider's model list and sends each model a tiny request of a few tokens. That shows which models are really usable with your key - and which need a paid plan or credit, have exhausted their quota or are blocked in your region. The results are cached."
+msgid ""
+"„Prüfen“ lädt die Modellliste des Anbieters und schickt jedem Modell eine "
+"Mini-Anfrage mit wenigen Tokens. So zeigt sich, welche Modelle mit deinem "
+"Key wirklich nutzbar sind - und welche ein Abo oder Guthaben brauchen, ihr "
+"Kontingent erschöpft haben oder in deiner Region gesperrt sind. Die "
+"Ergebnisse werden zwischengespeichert."
+msgstr ""
+"“Check” loads the provider's model list and sends each model a tiny request "
+"of a few tokens. That shows which models are really usable with your key - "
+"and which need a paid plan or credit, have exhausted their quota or are "
+"blocked in your region. The results are cached."
 
 #: src/modelsettings.rs:258
 msgid "Hauptmodell"
@@ -1442,8 +1526,16 @@ msgid "Modelle je Aufgabe"
 msgstr "Models per task"
 
 #: src/modelsettings.rs:294
-msgid "Jede Aufgabe kann ein eigenes Modell nutzen. Ist das Hauptmodell nicht nutzbar (Abo nötig, Kontingent erschöpft, kein Zugriff), springt automatisch das Ersatzmodell ein - mit einem Hinweis. Zur Auswahl stehen alle geladenen Modelle, außer denen, die die Prüfung als gesperrt erkannt hat."
-msgstr "Each task can use its own model. If the primary model isn't usable (paid plan needed, quota exhausted, no access), the fallback model takes over automatically - with a notice. All loaded models are offered, except those the check found blocked."
+msgid ""
+"Jede Aufgabe kann ein eigenes Modell nutzen. Ist das Hauptmodell nicht "
+"nutzbar (Abo nötig, Kontingent erschöpft, kein Zugriff), springt automatisch "
+"das Ersatzmodell ein - mit einem Hinweis. Zur Auswahl stehen alle geladenen "
+"Modelle, außer denen, die die Prüfung als gesperrt erkannt hat."
+msgstr ""
+"Each task can use its own model. If the primary model isn't usable (paid "
+"plan needed, quota exhausted, no access), the fallback model takes over "
+"automatically - with a notice. All loaded models are offered, except those "
+"the check found blocked."
 
 #: src/preview.rs:77
 msgid "Modern"
@@ -1498,8 +1590,12 @@ msgid "Standard-Prompts"
 msgstr "Default Prompts"
 
 #: src/promptsettings.rs:33
-msgid "Die vordefinierten KI-Aktionen im Editor-Kontextmenü. Änderungen lassen sich auf die Vorgabe zurücksetzen."
-msgstr "The predefined AI actions in the editor's context menu. Changes can be reset to the default."
+msgid ""
+"Die vordefinierten KI-Aktionen im Editor-Kontextmenü. Änderungen lassen sich "
+"auf die Vorgabe zurücksetzen."
+msgstr ""
+"The predefined AI actions in the editor's context menu. Changes can be reset "
+"to the default."
 
 #: src/promptsettings.rs:176
 msgid "Eigene Prompts"
@@ -1628,7 +1724,8 @@ msgid "VG-Wort-Zählmarke"
 msgstr "VG Wort counter"
 
 #: src/properties.rs:564
-msgid "Aus lassen, um diesen Artikel bewusst von der VG-Wort-Zählung auszuschließen."
+msgid ""
+"Aus lassen, um diesen Artikel bewusst von der VG-Wort-Zählung auszuschließen."
 msgstr "Leave off to deliberately exclude this article from VG Wort counting."
 
 #: src/properties.rs:580
@@ -1675,7 +1772,7 @@ msgstr "Image"
 msgid "SEO"
 msgstr "SEO"
 
-#: src/properties.rs:734 src/window.rs:263
+#: src/properties.rs:734 src/window.rs:264
 msgid "Artikel-Eigenschaften"
 msgstr "Article Properties"
 
@@ -1723,7 +1820,7 @@ msgstr "1 match"
 msgid "{n} Treffer"
 msgstr "{n} matches"
 
-#: src/settings.rs:29 src/shortcuts.rs:31 src/window.rs:284
+#: src/settings.rs:29 src/shortcuts.rs:31 src/window.rs:285
 msgid "Einstellungen"
 msgstr "Preferences"
 
@@ -1731,7 +1828,7 @@ msgstr "Preferences"
 msgid "Neuer Artikel"
 msgstr "New Article"
 
-#: src/shortcuts.rs:22 src/window.rs:278
+#: src/shortcuts.rs:22 src/window.rs:279
 msgid "Neue Seite"
 msgstr "New Page"
 
@@ -1747,7 +1844,7 @@ msgstr "Open from WordPress"
 msgid "Fokus-Schreibmodus"
 msgstr "Focus Writing Mode"
 
-#: src/shortcuts.rs:35 src/window.rs:190
+#: src/shortcuts.rs:35 src/window.rs:191
 msgid "Editor"
 msgstr "Editor"
 
@@ -1772,24 +1869,44 @@ msgid "Suchen und Ersetzen"
 msgstr "Find and Replace"
 
 #: src/stats.rs:110
-msgid "Die Sätze sind im Schnitt sehr lang (über 20 Wörter) - lange Sätze an Konjunktionen wie „und“ oder „weil“ in zwei kürzere aufteilen."
-msgstr "The sentences are on average very long (over 20 words) - try splitting long sentences at conjunctions like \"and\" or \"because\" into two shorter ones."
+msgid ""
+"Die Sätze sind im Schnitt sehr lang (über 20 Wörter) - lange Sätze an "
+"Konjunktionen wie „und“ oder „weil“ in zwei kürzere aufteilen."
+msgstr ""
+"The sentences are on average very long (over 20 words) - try splitting long "
+"sentences at conjunctions like \"and\" or \"because\" into two shorter ones."
 
 #: src/stats.rs:112
-msgid "Die Sätze sind im Schnitt eher lang - kürzere Sätze sind für Leser:innen oft leichter zu verarbeiten."
-msgstr "The sentences are on the long side - shorter sentences are often easier for readers to follow."
+msgid ""
+"Die Sätze sind im Schnitt eher lang - kürzere Sätze sind für Leser:innen oft "
+"leichter zu verarbeiten."
+msgstr ""
+"The sentences are on the long side - shorter sentences are often easier for "
+"readers to follow."
 
 #: src/stats.rs:115
-msgid "Viele lange, silbenreiche Wörter - wo möglich, kürzere und geläufigere Wörter statt Fach- oder Fremdwörtern verwenden."
-msgstr "Many long, syllable-heavy words - where possible, use shorter, more common words instead of technical terms or loanwords."
+msgid ""
+"Viele lange, silbenreiche Wörter - wo möglich, kürzere und geläufigere "
+"Wörter statt Fach- oder Fremdwörtern verwenden."
+msgstr ""
+"Many long, syllable-heavy words - where possible, use shorter, more common "
+"words instead of technical terms or loanwords."
 
 #: src/stats.rs:117
-msgid "Die Wörter sind im Schnitt eher lang - einfachere Formulierungen können den Text zugänglicher machen."
-msgstr "The words are on the long side - simpler phrasing can make the text more accessible."
+msgid ""
+"Die Wörter sind im Schnitt eher lang - einfachere Formulierungen können den "
+"Text zugänglicher machen."
+msgstr ""
+"The words are on the long side - simpler phrasing can make the text more "
+"accessible."
 
 #: src/stats.rs:120
-msgid "Der Text ist bereits gut lesbar - kurze Sätze und einfache Wörter beibehalten."
-msgstr "The text is already easy to read - keep using short sentences and simple words."
+msgid ""
+"Der Text ist bereits gut lesbar - kurze Sätze und einfache Wörter "
+"beibehalten."
+msgstr ""
+"The text is already easy to read - keep using short sentences and simple "
+"words."
 
 #: src/stats.rs:148
 msgid "Sehr leicht"
@@ -1840,8 +1957,12 @@ msgid "Berechnungsgrundlage"
 msgstr "How This Is Calculated"
 
 #: src/stats.rs:226
-msgid "Deutsch angepasste Flesch-Formel (Amstad): 180 − Ø Wörter/Satz − 58,5 × Ø Silben/Wort"
-msgstr "German-adapted Flesch formula (Amstad): 180 − avg. words/sentence − 58.5 × avg. syllables/word"
+msgid ""
+"Deutsch angepasste Flesch-Formel (Amstad): 180 − Ø Wörter/Satz − 58,5 × Ø "
+"Silben/Wort"
+msgstr ""
+"German-adapted Flesch formula (Amstad): 180 − avg. words/sentence − 58.5 × "
+"avg. syllables/word"
 
 #: src/stats.rs:231
 msgid "Ø Wörter pro Satz"
@@ -1963,166 +2084,166 @@ msgstr "Error creating"
 msgid "Interner Fehler: kein Ergebnis vom Erstellen-Thread."
 msgstr "Internal error: no result from the create thread."
 
-#: src/window.rs:77
+#: src/window.rs:78
 msgid "Gutenberg-Code"
 msgstr "Gutenberg code"
 
-#: src/window.rs:78
+#: src/window.rs:79
 msgid "Statistik"
 msgstr "Statistics"
 
-#: src/window.rs:79
+#: src/window.rs:80
 msgid "Chat"
 msgstr "Chat"
 
-#: src/window.rs:80
+#: src/window.rs:81
 msgid "Bewertung"
 msgstr "Review"
 
-#: src/window.rs:118
+#: src/window.rs:119
 msgid "Artikel-Kopf in der Vorschau ein-/ausblenden"
 msgstr "Show/hide the article header in the preview"
 
-#: src/window.rs:235 src/window.rs:499 src/window.rs:760
+#: src/window.rs:236 src/window.rs:514 src/window.rs:750
 msgid "Unbenannt"
 msgstr "Untitled"
 
-#: src/window.rs:238
+#: src/window.rs:239
 msgid "Neu (Strg+N)"
 msgstr "New (Ctrl+N)"
 
-#: src/window.rs:255
+#: src/window.rs:256
 msgid "Dokumentverwaltung ein-/ausblenden"
 msgstr "Show/hide document management"
 
-#: src/window.rs:259
+#: src/window.rs:260
 msgid "Speichern (Strg+S)"
 msgstr "Save (Ctrl+S)"
 
-#: src/window.rs:267
+#: src/window.rs:268
 msgid "Medienverwaltung (Strg+Umschalt+M)"
 msgstr "Media Manager (Ctrl+Shift+M)"
 
-#: src/window.rs:280
+#: src/window.rs:281
 msgid "Galerie einfügen…"
 msgstr "Insert Gallery…"
 
-#: src/window.rs:281
+#: src/window.rs:282
 msgid "KI-Artikel schreiben…"
 msgstr "Write Post with AI…"
 
-#: src/window.rs:285
+#: src/window.rs:286
 msgid "Tastenkürzel"
 msgstr "Keyboard Shortcuts"
 
-#: src/window.rs:286
+#: src/window.rs:287
 msgid "Über Blocksatz"
 msgstr "About Blocksatz"
 
-#: src/window.rs:291
+#: src/window.rs:292
 msgid "Hauptmenü (Strg+,)"
 msgstr "Main menu (Ctrl+,)"
 
-#: src/window.rs:295
+#: src/window.rs:296
 msgid "Vorschau ein-/ausblenden"
 msgstr "Show/hide preview"
 
-#: src/window.rs:303
+#: src/window.rs:304
 msgid "Fokus-Schreibmodus (Strg+Umschalt+F)"
 msgstr "Focus writing mode (Ctrl+Shift+F)"
 
-#: src/window.rs:307
+#: src/window.rs:308
 msgid "Artikel exportieren (Strg+Umschalt+P)"
 msgstr "Export Article (Ctrl+Shift+P)"
 
-#: src/window.rs:761
+#: src/window.rs:751
 msgid "Unbenannte Seite"
 msgstr "Untitled page"
 
-#: src/window.rs:807
+#: src/window.rs:800
 msgid "Markdown-Datei öffnen"
 msgstr "Open Markdown File"
 
-#: src/window.rs:859
+#: src/window.rs:853
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr "Failed to open: {err}"
 
-#: src/window.rs:890 src/window.rs:921 src/window.rs:951
-msgid "Speichern fehlgeschlagen: {err}"
-msgstr "Failed to save: {err}"
-
-#: src/window.rs:942
+#: src/window.rs:906
 msgid "Markdown-Datei speichern"
 msgstr "Save Markdown File"
 
-#: src/window.rs:1068
+#: src/window.rs:915 src/worksave.rs:92
+msgid "Speichern fehlgeschlagen: {err}"
+msgstr "Failed to save: {err}"
+
+#: src/window.rs:1032
 msgid "Bild einfügen"
 msgstr "Insert Image"
 
-#: src/window.rs:1103
+#: src/window.rs:1067
 msgid "Video/Audio einfügen"
 msgstr "Insert Video/Audio"
 
-#: src/window.rs:1187
-msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen und speichern."
-msgstr "AI draft created as a new document - please review and save it."
+#: src/window.rs:1153
+msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
+msgstr "AI draft created as a new document - please review it."
 
-#: src/window.rs:1296
+#: src/window.rs:1262
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr "Please save the article first to insert images."
 
-#: src/window.rs:1305
+#: src/window.rs:1271
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the image from the clipboard."
 
-#: src/window.rs:1311
+#: src/window.rs:1277
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr "Couldn't save the image: {err}"
 
-#: src/window.rs:1325 src/window.rs:1339
+#: src/window.rs:1291 src/window.rs:1305
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the formatted text from the clipboard."
 
-#: src/window.rs:1343
+#: src/window.rs:1309
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr "Formatted text from the clipboard is in an unknown format."
 
-#: src/window.rs:1348
+#: src/window.rs:1314
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr "Couldn't convert the formatted text: {err}"
 
-#: src/window.rs:1428
-msgid "einem unbenannten Artikel"
-msgstr "an untitled article"
-
-#: src/window.rs:1430
-msgid "Nicht gespeicherter Stand gefunden"
-msgstr "Unsaved State Found"
-
-#: src/window.rs:1432
-msgid "Von „{name}“ wurde ein nicht gespeicherter Stand gefunden - vermutlich nach einem Absturz oder weil Blocksatz ohne zu speichern beendet wurde. Wiederherstellen?"
-msgstr "An unsaved state was found for “{name}” - probably after a crash, or because Blocksatz was closed without saving. Restore it?"
-
-#: src/window.rs:1436
-msgid "Verwerfen"
-msgstr "Discard"
-
-#: src/window.rs:1437
-msgid "Wiederherstellen"
-msgstr "Restore"
-
-#: src/wpclient.rs:395
+#: src/wpclient.rs:402
 msgid "Keine Medien-ID in der Antwort"
 msgstr "No media ID in the response"
 
-#: src/wpclient.rs:636
+#: src/wpclient.rs:643
 msgid "Keine Term-ID in der Antwort"
 msgstr "No term ID in the response"
 
-#: src/wpclient.rs:831
+#: src/wpclient.rs:839
 msgid "Keine Post-ID in der Antwort"
 msgstr "No post ID in the response"
 
-#: src/wpclient.rs:876
+#: src/wpclient.rs:885
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr "No term ID received for \"{name}\""
+
+#~ msgid "einem unbenannten Artikel"
+#~ msgstr "an untitled article"
+
+#~ msgid "Nicht gespeicherter Stand gefunden"
+#~ msgstr "Unsaved State Found"
+
+#~ msgid ""
+#~ "Von „{name}“ wurde ein nicht gespeicherter Stand gefunden - vermutlich "
+#~ "nach einem Absturz oder weil Blocksatz ohne zu speichern beendet wurde. "
+#~ "Wiederherstellen?"
+#~ msgstr ""
+#~ "An unsaved state was found for “{name}” - probably after a crash, or "
+#~ "because Blocksatz was closed without saving. Restore it?"
+
+#~ msgid "Verwerfen"
+#~ msgstr "Discard"
+
+#~ msgid "Wiederherstellen"
+#~ msgstr "Restore"

@@ -18,9 +18,9 @@ use adw::prelude::*;
 use gtk4::glib;
 use webkit6::prelude::*;
 
-use crate::document::{self, Frontmatter, PostStatus, PostType};
+use crate::document::{self, Document, Frontmatter, PostStatus, PostType};
 use crate::i18n::tr;
-use crate::{browser, linkcheck, media, mediapanel, notify, preview, secrets, wpclient, wpsite};
+use crate::{browser, linkcheck, media, mediapanel, notify, preview, secrets, syncstate, wpclient, wpsite};
 
 /// Builds the "Artikel exportieren" wizard's shared bottom navigation bar -
 /// an `Adw.CarouselIndicatorDots` centered between "Zurück"/"Weiter"
@@ -775,6 +775,8 @@ pub(crate) fn start_export(
         current_fm.status = target_status;
     }
     let body = body.to_string();
+    let sent_body = body.clone();
+    let site_id = site.site_id();
     let doc_dir = doc_dir.clone();
 
     let (tx, rx) = mpsc::channel::<Result<(wpclient::PostResult, Vec<media::MediaItem>, Option<String>), String>>();
@@ -804,6 +806,11 @@ pub(crate) fn start_export(
                     fm.status = target_status;
                 }
                 fm.wp_content_hash = content_hash;
+                // Fingerprinted against the body as it was *sent*: anything
+                // typed while the upload ran is a local change still to go.
+                let mut synced = Document { frontmatter: fm.clone(), body: sent_body.clone() };
+                syncstate::mark_synced(&mut synced, &site_id, &post.modified_gmt, &syncstate::now_rfc3339());
+                *fm = synced.frontmatter;
                 (fm.title.clone(), fm.status)
             };
             // After the `borrow_mut` above has ended: `save_document`
@@ -1470,6 +1477,10 @@ mod tests {
             featured_image_alt: None,
             wp_post_id: None,
             wp_content_hash: None,
+            wp_site: None,
+            wp_modified_gmt: None,
+            wp_synced_hash: None,
+            wp_synced_at: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1524,6 +1535,10 @@ mod tests {
             featured_image_alt: None,
             wp_post_id: None,
             wp_content_hash: None,
+            wp_site: None,
+            wp_modified_gmt: None,
+            wp_synced_hash: None,
+            wp_synced_at: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1577,6 +1592,10 @@ mod tests {
             featured_image_alt: None,
             wp_post_id: None,
             wp_content_hash: None,
+            wp_site: None,
+            wp_modified_gmt: None,
+            wp_synced_hash: None,
+            wp_synced_at: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1629,6 +1648,10 @@ mod tests {
             featured_image_alt: None,
             wp_post_id: None,
             wp_content_hash: None,
+            wp_site: None,
+            wp_modified_gmt: None,
+            wp_synced_hash: None,
+            wp_synced_at: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1684,6 +1707,10 @@ mod tests {
             featured_image_alt: None,
             wp_post_id: None,
             wp_content_hash: None,
+            wp_site: None,
+            wp_modified_gmt: None,
+            wp_synced_hash: None,
+            wp_synced_at: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1744,6 +1771,10 @@ mod tests {
             featured_image_alt: None,
             wp_post_id: None,
             wp_content_hash: None,
+            wp_site: None,
+            wp_modified_gmt: None,
+            wp_synced_hash: None,
+            wp_synced_at: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,

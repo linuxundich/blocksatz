@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Library instead of loose files** (GUI redesign, phase 1 - see
+  `docs/gui-redesign.md`): articles live in `~/Dokumente/Blocksatz/`, one
+  folder per article (`<slug>/artikel.md` plus images). A new article gets
+  its folder with the first typed text, named by date and time and renamed
+  after the title once the first `# ` heading line is finished. A post
+  opened from WordPress is saved there immediately - before, it had no
+  local file at all until "Lokal speichern unter…" - and opening the same
+  post again reopens its working copy, local changes included.
+- **Continuous saving** replaces the crash-recovery slot (`autosave.rs`,
+  removed): the open article is written to its file every two seconds,
+  before another article replaces it in the editor, and when the window
+  closes. Files from outside the library are only written once their text
+  was edited, on Ctrl+S, or after an upload.
+- Working copies record which site they belong to (`wp_site`), the
+  server's `modified_gmt` and a fingerprint of the local Markdown and
+  metadata as of the last sync (`wp_synced_hash`, `wp_synced_at`). The new
+  `syncstate.rs` derives each article's state from these (only local,
+  in sync, local changes, changed on the server, conflict, gone) for the
+  library sidebar of the next phase.
+- Builds against libadwaita 1.9 (`v1_9`) and GTK 4.16 API levels.
+
 ### Fixed
 
 - "Aktualisieren" in the document sidebar no longer publishes an existing

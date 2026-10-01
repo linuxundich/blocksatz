@@ -12,6 +12,19 @@ pub struct SiteConfig {
     pub username: String,
 }
 
+impl SiteConfig {
+    /// A stable short id for the site - its URL without scheme, `www.` or
+    /// trailing slash (`https://www.linuxundich.de/` → `linuxundich.de`).
+    /// Stored in each working copy (`Frontmatter::wp_site`) so its
+    /// `wp_post_id` keeps meaning the right post once several sites exist.
+    pub fn site_id(&self) -> String {
+        let url = self.url.trim();
+        let url = url.split_once("://").map_or(url, |(_, rest)| rest);
+        let url = url.strip_prefix("www.").unwrap_or(url);
+        url.trim_end_matches('/').to_lowercase()
+    }
+}
+
 fn config_path() -> PathBuf {
     let mut dir = glib::user_config_dir();
     dir.push(crate::APP_DIR);
@@ -55,6 +68,14 @@ fn serialize(config: &SiteConfig) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn site_id_strips_scheme_www_and_trailing_slash() {
+        let site = |url: &str| SiteConfig { url: url.into(), username: String::new() }.site_id();
+        assert_eq!(site("https://www.linuxundich.de/"), "linuxundich.de");
+        assert_eq!(site("http://Example.org/blog/"), "example.org/blog");
+        assert_eq!(site("example.org"), "example.org");
+    }
 
     #[test]
     fn round_trips_through_parse_and_serialize() {

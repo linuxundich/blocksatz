@@ -157,10 +157,16 @@ blocks. Implemented so far:
   button lists every existing category/tag and lets you rename or
   permanently delete one straight from the app, instead of only ever
   being able to read or auto-create a term.
-- **Local autosave / crash-recovery** — while the article has unsaved
-  changes, a debounced background snapshot is kept in a local recovery
-  slot; if Blocksatz is closed without saving (or crashes), the next
-  launch offers to restore it, or discard it.
+- **Library and continuous saving** — every article lives in its own
+  folder under `~/Dokumente/Blocksatz/` (`<slug>/artikel.md` plus its
+  images). A new article gets its folder as soon as something is typed
+  (named by date and time, renamed after the title once the first `# `
+  heading is finished); a post opened from WordPress gets one right away,
+  and opening the same post again reopens that working copy instead of
+  overwriting it. The open article is written to disk every two seconds
+  and when the window closes, so there is no unsaved state to lose.
+  Markdown files from elsewhere still open in place; they are only
+  written once actually edited (or with Ctrl+S).
 - **Von WordPress öffnen** (Ctrl+Shift+O) — pick an existing post - or,
   via the "Artikel"/"Seiten" toggle in its header, a static page - from the
   configured site, grouped into "Entwürfe" and "Veröffentlicht" (drafts

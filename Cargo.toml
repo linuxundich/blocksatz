@@ -13,10 +13,10 @@ name = "blocksatz"
 path = "src/main.rs"
 
 [dependencies]
-gtk4 = { version = "0.11", features = ["v4_14"] }
+gtk4 = { version = "0.11", features = ["v4_16"] }
 gdk-pixbuf = "0.22"
 gettext-rs = { version = "0.7", features = ["gettext-system"] }
-adw = { package = "libadwaita", version = "0.9", features = ["v1_7"] }
+adw = { package = "libadwaita", version = "0.9", features = ["v1_9"] }
 sourceview5 = { version = "0.11", features = ["v5_4", "gtk_v4_10"] }
 webkit6 = "0.6"
 pulldown-cmark = "0.13"

@@ -26,7 +26,7 @@ use gtk4::glib;
 
 use crate::document::{self, Frontmatter, PostStatus, PostType};
 use crate::i18n::tr;
-use crate::{secrets, wpclient, wpsite};
+use crate::{secrets, syncstate, wpclient, wpsite};
 
 pub struct ImportedPost {
     pub frontmatter: Frontmatter,
@@ -428,6 +428,11 @@ fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_type: PostT
         // right from the moment this post is opened rather than only
         // after the first local publish.
         wp_content_hash: Some(document::content_hash(&detail.content)),
+        // Filled in by `mark_synced` below, together with the fingerprint.
+        wp_site: None,
+        wp_modified_gmt: None,
+        wp_synced_hash: None,
+        wp_synced_at: None,
         featured_media_id: (detail.featured_media != 0).then_some(detail.featured_media),
         author_id: (detail.author != 0).then_some(detail.author),
         author_name,
@@ -438,7 +443,9 @@ fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_type: PostT
         media: crate::media::reconcile(&[], &body),
     };
 
-    Ok(ImportedPost { frontmatter, body })
+    let mut doc = document::Document { frontmatter, body };
+    syncstate::mark_synced(&mut doc, &site.site_id(), &detail.modified_gmt, &syncstate::now_rfc3339());
+    Ok(ImportedPost { frontmatter: doc.frontmatter, body: doc.body })
 }
 
 #[cfg(test)]

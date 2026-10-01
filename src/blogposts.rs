@@ -7,7 +7,7 @@
 //! A `GtkListBox` rather than the sidebar itself: `AdwSidebar` is meant
 //! for a handful of navigation entries, not for an archive of hundreds.
 
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::{Rc, Weak};
 
@@ -82,7 +82,8 @@ impl BlogFilter {
         matches!(self, BlogFilter::Drafts | BlogFilter::Pending)
     }
 
-    /// Groups mixing several statuses name each row's status.
+    /// Groups mixing several statuses name each row's status (unless it's
+    /// the plain "publish" most rows have).
     fn mixed(self) -> bool {
         matches!(self, BlogFilter::Published | BlogFilter::Pages)
     }
@@ -109,9 +110,10 @@ pub struct BlogPostsPage {
     status_page: adw::StatusPage,
     more_spinner: adw::Spinner,
     state: RefCell<State>,
-    /// Set while `show` resets the search field, whose `search-changed`
-    /// would otherwise start a second load.
-    resetting: Cell<bool>,
+    /// The search the list currently shows. `search-changed` arrives with
+    /// a delay - also after `show` cleared the field itself - so a change
+    /// only reloads when the text really differs from this.
+    shown_search: RefCell<String>,
     on_open: Rc<dyn Fn(ImportedPost)>,
     on_error: Rc<dyn Fn(&str)>,
     /// Handed to async callbacks, which must not keep the page alive.
@@ -172,15 +174,15 @@ impl BlogPostsPage {
                 posts: Vec::new(),
                 in_library: HashSet::new(),
             }),
-            resetting: Cell::new(false),
+            shown_search: RefCell::new(String::new()),
             on_open,
             on_error,
             weak: weak.clone(),
         });
 
         let weak = Rc::downgrade(&this);
-        search.connect_search_changed(move |_| {
-            if let Some(this) = weak.upgrade().filter(|this| !this.resetting.get()) {
+        search.connect_search_changed(move |entry| {
+            if let Some(this) = weak.upgrade().filter(|this| *this.shown_search.borrow() != entry.text().as_str()) {
                 this.load(true);
             }
         });
@@ -206,9 +208,7 @@ impl BlogPostsPage {
         self.state.borrow_mut().filter = filter;
         self.title.set_title(&filter.title());
         self.page.set_title(&filter.title());
-        self.resetting.set(true);
         self.search.set_text("");
-        self.resetting.set(false);
         self.load(true);
     }
 
@@ -245,12 +245,14 @@ impl BlogPostsPage {
             while let Some(child) = self.list.first_child() {
                 self.list.remove(&child);
             }
+            self.title.set_subtitle("");
             self.stack.set_visible_child_name("loading");
         } else {
             self.more_spinner.set_visible(true);
         }
 
         let search = self.search.text().to_string();
+        *self.shown_search.borrow_mut() = search.clone();
         let weak = self.weak();
         importer::run_with_password(
             &site,
@@ -304,7 +306,7 @@ impl BlogPostsPage {
     fn row(&self, post: &wpclient::PostSummary, filter: BlogFilter, in_library: bool) -> adw::ActionRow {
         let date_source = if filter.by_modified() && !post.modified_gmt.is_empty() { &post.modified_gmt } else { &post.date };
         let date = format_date(date_source);
-        let subtitle = if filter.mixed() { format!("{date} · {}", importer::status_display(&post.status)) } else { date };
+        let subtitle = if filter.mixed() && post.status != "publish" { format!("{date} · {}", importer::status_display(&post.status)) } else { date };
         let title = if post.title.trim().is_empty() { tr("(ohne Titel)") } else { post.title.clone() };
         let row = adw::ActionRow::builder().title(title).subtitle(subtitle).use_markup(false).activatable(filter != BlogFilter::Trash).build();
 
@@ -346,11 +348,20 @@ impl BlogPostsPage {
             (post, state.filter.post_type())
         };
         self.list.set_sensitive(false);
+        // Feedback on the row itself while the post is fetched.
+        let spinner = adw::Spinner::new();
+        let row = self.list.row_at_index(index).and_then(|row| row.downcast::<adw::ActionRow>().ok());
+        if let Some(row) = &row {
+            row.add_suffix(&spinner);
+        }
         let weak = self.weak();
         importer::run_with_password(
             &wpsite::load(),
             move |site, password| importer::fetch_and_convert(site, password, post_type, post.id),
             move |outcome| {
+                if let Some(row) = &row {
+                    row.remove(&spinner);
+                }
                 let Some(this) = weak.upgrade() else { return };
                 this.list.set_sensitive(true);
                 match outcome {

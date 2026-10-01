@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   first upload is always a draft; publishing asks first (the release
   check of phase 5 will replace that confirmation). Replaces the
   "Artikel exportieren" button.
+- An article without a frontmatter title takes its leading `# Heading`
+  as the post title on upload (as Ulysses and iA Writer do), instead of
+  being sent untitled with the heading as an extra H1 in the content.
 - The window title shows the article's title, its subtitle the state
   ("Entwurf · nicht hochgeladen", "Veröffentlicht · Änderungen nicht
   online", "Nur lokal" ...).

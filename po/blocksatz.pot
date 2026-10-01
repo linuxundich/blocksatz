@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.64.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-02 01:14+0200\n"
+"POT-Creation-Date: 2026-10-02 01:18+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -498,7 +498,7 @@ msgstr ""
 msgid "Im Blog suchen"
 msgstr ""
 
-#: src/blogposts.rs:232 src/librarysidebar.rs:386
+#: src/blogposts.rs:232 src/librarysidebar.rs:391
 msgid "Kein Blog verbunden"
 msgstr ""
 
@@ -1317,28 +1317,28 @@ msgstr ""
 msgid "Noch keine Artikel"
 msgstr ""
 
-#: src/librarysidebar.rs:416
-msgid "Blog nicht erreichbar"
+#: src/librarysidebar.rs:421
+msgid "{site} · nicht erreichbar"
 msgstr ""
 
-#: src/librarysidebar.rs:435 src/mainaction.rs:186 src/window.rs:363
+#: src/librarysidebar.rs:440 src/mainaction.rs:186 src/window.rs:363
 #: src/window.rs:700 src/window.rs:936
 msgid "Unbenannt"
 msgstr ""
 
-#: src/librarysidebar.rs:441
+#: src/librarysidebar.rs:446
 msgid "Änderungen noch nicht hochgeladen"
 msgstr ""
 
-#: src/librarysidebar.rs:442
+#: src/librarysidebar.rs:447
 msgid "Im Blog geändert"
 msgstr ""
 
-#: src/librarysidebar.rs:443
+#: src/librarysidebar.rs:448
 msgid "Im Blog gelöscht"
 msgstr ""
 
-#: src/librarysidebar.rs:461 src/mainaction.rs:611
+#: src/librarysidebar.rs:466 src/mainaction.rs:611
 msgid "Nur lokal"
 msgstr ""
 

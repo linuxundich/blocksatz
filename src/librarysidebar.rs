@@ -381,6 +381,11 @@ impl LibrarySidebar {
 
     /// Fetches the "Im Blog" counters and updates the footer.
     pub fn refresh_counts(&self) {
+        // Counters of the previous blog (after a switch) must not linger.
+        for (filter, item) in &self.blog_items {
+            item.set_suffix(gtk4::Widget::NONE);
+            item.set_visible(*filter != BlogFilter::Pending);
+        }
         let site = wpsite::load();
         if site.url.is_empty() {
             self.set_site_state("network-offline-symbolic", &tr("Kein Blog verbunden"));
@@ -413,7 +418,7 @@ impl LibrarySidebar {
                         }
                     }
                     Err(err) => {
-                        this.set_site_state("network-offline-symbolic", &tr("Blog nicht erreichbar"));
+                        this.set_site_state("network-offline-symbolic", &tr("{site} · nicht erreichbar").replace("{site}", &wpsite::load().site_id()));
                         this.site_label.set_tooltip_text(Some(&err));
                     }
                 }

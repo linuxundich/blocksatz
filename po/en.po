@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-02 01:14+0200\n"
+"POT-Creation-Date: 2026-10-02 01:18+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -515,7 +515,7 @@ msgstr "Posts"
 msgid "Im Blog suchen"
 msgstr "Search the blog"
 
-#: src/blogposts.rs:232 src/librarysidebar.rs:386
+#: src/blogposts.rs:232 src/librarysidebar.rs:391
 msgid "Kein Blog verbunden"
 msgstr "No blog connected"
 
@@ -1354,28 +1354,28 @@ msgstr "Removing failed: {err}"
 msgid "Noch keine Artikel"
 msgstr "No articles yet"
 
-#: src/librarysidebar.rs:416
-msgid "Blog nicht erreichbar"
-msgstr "Blog unreachable"
+#: src/librarysidebar.rs:421
+msgid "{site} · nicht erreichbar"
+msgstr "{site} · unreachable"
 
-#: src/librarysidebar.rs:435 src/mainaction.rs:186 src/window.rs:363
+#: src/librarysidebar.rs:440 src/mainaction.rs:186 src/window.rs:363
 #: src/window.rs:700 src/window.rs:936
 msgid "Unbenannt"
 msgstr "Untitled"
 
-#: src/librarysidebar.rs:441
+#: src/librarysidebar.rs:446
 msgid "Änderungen noch nicht hochgeladen"
 msgstr "Changes not uploaded yet"
 
-#: src/librarysidebar.rs:442
+#: src/librarysidebar.rs:447
 msgid "Im Blog geändert"
 msgstr "Changed on the blog"
 
-#: src/librarysidebar.rs:443
+#: src/librarysidebar.rs:448
 msgid "Im Blog gelöscht"
 msgstr "Deleted on the blog"
 
-#: src/librarysidebar.rs:461 src/mainaction.rs:611
+#: src/librarysidebar.rs:466 src/mainaction.rs:611
 msgid "Nur lokal"
 msgstr "Local only"
 
@@ -2948,6 +2948,9 @@ msgstr "No post ID in the response"
 #: src/wpclient.rs:984
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr "No term ID received for \"{name}\""
+
+#~ msgid "Blog nicht erreichbar"
+#~ msgstr "Blog unreachable"
 
 #~ msgid "Die Adresse, die der „Browser“-Tab beim Start der App öffnet."
 #~ msgstr "The address the “Browser” tab opens when the app starts."

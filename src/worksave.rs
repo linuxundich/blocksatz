@@ -33,7 +33,10 @@ pub fn flush(ctx: &DocContext, force: bool) -> bool {
     let doc = Document { frontmatter: ctx.frontmatter.borrow().clone(), body };
     let root = library::root();
 
-    let path = match ctx.current_path.borrow().clone() {
+    // Bound first: a `match` on `ctx.current_path.borrow()` would keep that
+    // borrow alive through the arms, and `adopt_path` writes to it.
+    let current_path = ctx.current_path.borrow().clone();
+    let path = match current_path {
         Some(path) => path,
         None => {
             // An untouched new document stays without a folder.

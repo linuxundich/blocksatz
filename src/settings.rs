@@ -22,13 +22,14 @@ pub fn open(
     ai_menu_handles: &AiMenuHandles,
     preview_pane: &Rc<preview::PreviewPane>,
     browser_view: &Rc<BrowserView>,
+    on_browser_tab_toggled: Rc<dyn Fn(bool)>,
 ) {
     // Wide enough that the "Farbe" page's 4-per-line style-scheme grid
     // (matching GNOME Builder's own layout) isn't cramped at its default,
     // content-driven size.
     let dialog = adw::PreferencesDialog::builder().title(tr("Einstellungen")).content_width(1000).content_height(760).build();
     dialog.add(&appearance::build_page(buffer, preview_pane.clone()));
-    dialog.add(&browsersettings::build_page(browser_view));
+    dialog.add(&browsersettings::build_page(browser_view, on_browser_tab_toggled));
     dialog.add(&connection::build_page());
     dialog.add(&chatsettings::build_page());
     dialog.add(&modelsettings::build_page());

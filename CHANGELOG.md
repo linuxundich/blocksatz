@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **"Vorschau" is "Gerendert | Code | Im Blog"**: "Im Blog" shows the open
+  article as the blog itself delivers it - the draft preview, the live
+  post, or for a published post with local changes their autosave
+  preview - loaded as soon as it's picked. The free browser became a view
+  of its own, "Vorschau | Beitrag | Assistent | Browser", for links from
+  the preview, the link checker and wp-admin; Einstellungen → Browser can
+  switch it off (links then open in the system browser).
+
 - GUI redesign, phase 6: keyboard shortcuts in an `AdwShortcutsDialog`
   (Ctrl+?) instead of the deprecated `GtkShortcutsWindow`; builds against
   GTK 4.22 API without deprecation warnings. The narrow single-pane layout

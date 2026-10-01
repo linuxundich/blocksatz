@@ -421,8 +421,11 @@ Gutenberg-HTML) sind in Prüfpunkte bzw. die Vorschau aufgegangen.
 - **`AdwOverlaySplitView` statt `AdwNavigationSplitView`** für die
   Bibliothek: Sie lässt sich auch im breiten Fenster ausblenden und wird
   unter 860 sp zum Overlay.
-- **Browser** ist die Ansicht „Web“ der Vorschau statt eines
-  zuschaltbaren eigenen Tabs; über sie laufen Blog-Vorschau und wp-admin.
+- **Vorschau** hat „Gerendert | Code | Im Blog“; „Im Blog“ zeigt den
+  offenen Artikel so, wie das Blog ihn ausliefert (Entwurfs-Vorschau,
+  Live-Beitrag oder Autosave-Vorschau). Der freie **Browser** ist eine
+  vierte Ansicht „Vorschau | Beitrag | Assistent | Browser“, in den
+  Einstellungen abschaltbar (dann öffnen Links im Systembrowser).
 - **Vorschau veröffentlichter Beiträge**: Der Autosave wird vom
   Browser-Tab selbst angelegt (REST-Nonce aus `admin-ajax.php?action=
   rest-nonce`, dann `fetch` auf `/autosaves`), weil die Vorschau-Nonce nur

@@ -42,6 +42,9 @@ pub struct MainAction {
     ctx: DocContext,
     window: glib::WeakRef<adw::ApplicationWindow>,
     open_url: Rc<dyn Fn(String)>,
+    /// The "Im Blog" view `open_url` shows - the autosave preview runs its
+    /// request in there.
+    blog_view: Rc<crate::browser::BrowserView>,
     links: releasecheck::LinkTarget,
     banner_kind: Cell<BannerKind>,
     busy: Cell<bool>,
@@ -53,7 +56,7 @@ pub struct MainAction {
 impl MainAction {
     /// `open_url` shows a page in the app's own browser view (it shares
     /// the wp-admin login, which draft previews need).
-    pub fn new(window: &adw::ApplicationWindow, ctx: &DocContext, open_url: Rc<dyn Fn(String)>, links: releasecheck::LinkTarget) -> Rc<Self> {
+    pub fn new(window: &adw::ApplicationWindow, ctx: &DocContext, open_url: Rc<dyn Fn(String)>, blog_view: Rc<crate::browser::BrowserView>, links: releasecheck::LinkTarget) -> Rc<Self> {
         let button = adw::SplitButton::builder().label(tr("Als Entwurf hochladen")).dropdown_tooltip(tr("Weitere Aktionen")).build();
         let banner = adw::Banner::new("");
 
@@ -63,6 +66,7 @@ impl MainAction {
             ctx: ctx.clone(),
             window: window.downgrade(),
             open_url,
+            blog_view,
             links,
             banner_kind: Cell::new(BannerKind::None),
             busy: Cell::new(false),
@@ -212,6 +216,7 @@ impl MainAction {
         add("update-preview", |this| this.upload(TargetStatus::PublishOrKeep, true));
         add("open-preview", MainAction::open_preview);
         add("autosave-preview", MainAction::autosave_preview);
+        add("blog-preview", MainAction::blog_preview);
         add("publish", |this| this.release_check(Mode::Publish { scheduled: false }));
         add("schedule", |this| this.release_check(Mode::Publish { scheduled: true }));
         add("publish-changes", |this| this.release_check(Mode::PublishChanges));
@@ -359,6 +364,23 @@ impl MainAction {
         );
     }
 
+    /// "Vorschau → Im Blog": the open article as the blog shows it - the
+    /// live post, the draft preview, or for a published post with local
+    /// changes, those changes (`autosave_preview`).
+    fn blog_preview(&self) {
+        let (doc, state, _) = self.state();
+        if doc.frontmatter.wp_post_id.is_none() || state.sync == SyncState::RemoteGone {
+            window::show_toast(&self.ctx.toast_overlay, &tr("Noch nicht im Blog – erst als Entwurf hochladen."));
+            return;
+        }
+        let published = matches!(state.status, Some(PostStatus::Publish | PostStatus::Private));
+        if published && matches!(state.sync, SyncState::LocalChanges | SyncState::Conflict) {
+            self.autosave_preview();
+        } else {
+            self.open_preview();
+        }
+    }
+
     /// "Vorschau im Blog" for a published post: saves the local changes
     /// as a WordPress autosave - a separate revision, the live post stays
     /// as it is - and shows its preview. Done by the app's browser view
@@ -399,7 +421,7 @@ impl MainAction {
             }})()"#,
             endpoint = serde_json::to_string(&format!("{base}/wp-json/wp/v2/{}/{post_id}/autosaves?_fields=preview_link", fm.post_type.rest_base())).unwrap_or_default(),
         );
-        self.links.browser_view.run_after_next_load(script);
+        self.blog_view.run_after_next_load(script);
         (self.open_url)(format!("{base}/wp-admin/admin-ajax.php?action=rest-nonce"));
     }
 

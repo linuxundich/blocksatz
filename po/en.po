@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-01 23:15+0200\n"
+"POT-Creation-Date: 2026-10-02 00:48+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -61,7 +61,7 @@ msgstr "Generating …"
 
 #: src/aialt.rs:213 src/aievaluate.rs:225 src/aiinplace.rs:206
 #: src/aiwriter.rs:403 src/aiwriter.rs:472 src/blogposts.rs:424 src/chat.rs:181
-#: src/export.rs:303 src/gallerydialog.rs:500 src/imagealt.rs:401
+#: src/export.rs:332 src/gallerydialog.rs:500 src/imagealt.rs:401
 #: src/imagealt.rs:503 src/imageedit.rs:302 src/mediabrowser.rs:494
 #: src/mediabrowser.rs:583 src/mediapanel.rs:284 src/mediapanel.rs:748
 #: src/tagsuggest.rs:209
@@ -121,7 +121,7 @@ msgstr "1 finding - click it to jump there."
 msgid "{n} Befunde - zum Aufrufen anklicken."
 msgstr "{n} findings - click one to jump there."
 
-#: src/aiinplace.rs:104 src/mainaction.rs:229
+#: src/aiinplace.rs:104 src/mainaction.rs:234
 msgid "Verwerfen"
 msgstr "Discard"
 
@@ -177,8 +177,8 @@ msgstr ""
 "How should the selection (or the whole article, if nothing is selected) be "
 "adjusted?"
 
-#: src/aimenu.rs:188 src/blogposts.rs:385 src/export.rs:187
-#: src/gallerydialog.rs:154 src/mainaction.rs:457 src/mainaction.rs:511
+#: src/aimenu.rs:188 src/blogposts.rs:385 src/export.rs:201
+#: src/gallerydialog.rs:154 src/mainaction.rs:479 src/mainaction.rs:533
 #: src/mediabrowser.rs:548 src/releasecheck.rs:185 src/taxonomy.rs:352
 #: src/taxonomy.rs:666
 msgid "Abbrechen"
@@ -287,7 +287,7 @@ msgid ""
 "Für den eigenen Schreibstil muss eine WordPress-Verbindung eingerichtet sein."
 msgstr "Imitating your own writing style requires a WordPress connection."
 
-#: src/aiwriter.rs:145 src/aiwriter.rs:160 src/export.rs:157 src/export.rs:260
+#: src/aiwriter.rs:145 src/aiwriter.rs:160 src/export.rs:171 src/export.rs:288
 #: src/gallerydialog.rs:590 src/importer.rs:35 src/linkpicker.rs:97
 #: src/mediabrowser.rs:134 src/medialibrary.rs:135 src/mediapanel.rs:203
 #: src/mediapanel.rs:496 src/mediapanel.rs:703 src/properties.rs:245
@@ -451,7 +451,7 @@ msgstr "Choose Editor Font"
 msgid "Auf Systemschrift zurücksetzen"
 msgstr "Reset to System Font"
 
-#: src/appearance.rs:532 src/window.rs:110
+#: src/appearance.rs:532 src/window.rs:113
 msgid "Vorschau"
 msgstr "Preview"
 
@@ -568,7 +568,7 @@ msgstr "Restore as draft"
 msgid "In den Papierkorb"
 msgstr "Move to trash"
 
-#: src/blogposts.rs:372 src/window.rs:1139
+#: src/blogposts.rs:372 src/window.rs:1199
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr "Failed to open: {err}"
 
@@ -583,45 +583,59 @@ msgid ""
 msgstr ""
 "“{title}” will be moved to the WordPress trash, where it can be restored."
 
-#: src/browser.rs:68
+#: src/browser.rs:100
 msgid "Adresse eingeben oder suchen…"
 msgstr "Enter address or search…"
 
-#: src/browser.rs:71 src/firstrun.rs:256
+#: src/browser.rs:103 src/firstrun.rs:256
 msgid "Zurück"
 msgstr "Back"
 
-#: src/browser.rs:74
+#: src/browser.rs:106
 msgid "Vor"
 msgstr "Forward"
 
-#: src/browser.rs:77
+#: src/browser.rs:109
 msgid "Neu laden"
 msgstr "Reload"
 
-#: src/browser.rs:80
+#: src/browser.rs:112
 msgid "Aktuelle Adresse kopieren"
 msgstr "Copy the current address"
 
-#: src/browsersettings.rs:16
+#: src/browsersettings.rs:18
+msgid "Browser im Seitenbereich"
+msgstr "Browser in the Side Pane"
+
+#: src/browsersettings.rs:18
+msgid ""
+"Ein eigener Browser neben Vorschau, Beitrag und Assistent – für Recherche "
+"und wp-admin."
+msgstr ""
+"A browser of its own next to Preview, Post and Assistant – for research and "
+"wp-admin."
+
+#: src/browsersettings.rs:19
 msgid "Startseite"
 msgstr "Home Page"
 
-#: src/browsersettings.rs:18
+#: src/browsersettings.rs:21
 msgid "Werbung blockieren"
 msgstr "Block Ads"
 
-#: src/browsersettings.rs:18
+#: src/browsersettings.rs:21
 msgid "Blockiert bekannte Werbe- und Tracking-Domains, wie GNOME Web es tut."
 msgstr "Blocks known ad and tracking domains, the same way GNOME Web does."
 
-#: src/browsersettings.rs:20 src/browsersettings.rs:25
+#: src/browsersettings.rs:23 src/browsersettings.rs:29 src/window.rs:116
 msgid "Browser"
 msgstr "Browser"
 
-#: src/browsersettings.rs:21
-msgid "Die Adresse, die der „Browser“-Tab beim Start der App öffnet."
-msgstr "The address the “Browser” tab opens when the app starts."
+#: src/browsersettings.rs:24
+msgid ""
+"Der Browser öffnet Links aus der Vorschau, die Linkprüfung und wp-admin."
+msgstr ""
+"The browser opens links from the preview, the link checker and wp-admin."
 
 #: src/chat.rs:62
 msgid "Nachricht an die KI …"
@@ -758,15 +772,15 @@ msgstr "Blog post"
 msgid "Seite"
 msgstr "Page"
 
-#: src/export.rs:150
+#: src/export.rs:164
 msgid "Prüfe auf Änderungen auf WordPress …"
 msgstr "Checking for changes on WordPress …"
 
-#: src/export.rs:182
+#: src/export.rs:196
 msgid "Artikel wurde extern geändert"
 msgstr "Article was changed externally"
 
-#: src/export.rs:184
+#: src/export.rs:198
 msgid ""
 "Der Artikel wurde seit dem letzten Abruf/Senden direkt auf WordPress "
 "geändert - z. B. in wp-admin. Trotzdem mit der lokalen Version überschreiben?"
@@ -774,49 +788,49 @@ msgstr ""
 "The article was changed directly on WordPress since it was last fetched or "
 "sent - in wp-admin, most likely. Overwrite it with the local version anyway?"
 
-#: src/export.rs:188
+#: src/export.rs:202
 msgid "Überschreiben"
 msgstr "Overwrite"
 
-#: src/export.rs:203
+#: src/export.rs:217
 msgid "Abgebrochen - lokale Änderungen wurden nicht gesendet."
 msgstr "Cancelled - the local changes were not sent."
 
-#: src/export.rs:244
+#: src/export.rs:258
 msgid "Wird gesendet …"
 msgstr "Sending …"
 
-#: src/export.rs:297
+#: src/export.rs:326
 msgid "Aktualisiert"
 msgstr "Updated"
 
-#: src/export.rs:298
+#: src/export.rs:327
 msgid "„{title}“ wurde erfolgreich gesendet."
 msgstr "\"{title}\" was sent successfully."
 
-#: src/export.rs:304
+#: src/export.rs:333
 msgid "Veröffentlichen fehlgeschlagen"
 msgstr "Publishing failed"
 
-#: src/export.rs:310
+#: src/export.rs:339
 msgid "Interner Fehler: Export-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the export thread returned no result."
 
-#: src/export.rs:330
+#: src/export.rs:359
 msgid ""
 "Für den Status „Geplant“ muss ein gültiger Veröffentlichungstermin gesetzt "
 "sein."
 msgstr "A valid publish date must be set for the “Scheduled” status."
 
-#: src/export.rs:614
+#: src/export.rs:652
 msgid "Bild nicht abrufbar: {err}"
 msgstr "Couldn't fetch image: {err}"
 
-#: src/export.rs:618
+#: src/export.rs:656
 msgid "Bild nicht lesbar: {err}"
 msgstr "Couldn't read image: {err}"
 
-#: src/export.rs:621 src/media.rs:451
+#: src/export.rs:659 src/media.rs:451
 msgid "Bild {path} nicht lesbar: {err}"
 msgstr "Couldn't read image {path}: {err}"
 
@@ -928,7 +942,7 @@ msgstr "Heading"
 msgid "Zitat"
 msgstr "Quote"
 
-#: src/formatting.rs:65 src/window.rs:112
+#: src/formatting.rs:65 src/window.rs:120
 msgid "Code"
 msgstr "Code"
 
@@ -1044,8 +1058,8 @@ msgstr "Large"
 msgid "Volle Größe"
 msgstr "Full Size"
 
-#: src/gallerydialog.rs:148 src/settings.rs:29 src/shortcuts.rs:51
-#: src/window.rs:343
+#: src/gallerydialog.rs:148 src/settings.rs:30 src/shortcuts.rs:51
+#: src/window.rs:381
 msgid "Einstellungen"
 msgstr "Preferences"
 
@@ -1216,7 +1230,7 @@ msgstr "Show in Files"
 msgid "Aus Bibliothek entfernen"
 msgstr "Remove from Library"
 
-#: src/librarysidebar.rs:62
+#: src/librarysidebar.rs:62 src/window.rs:120
 msgid "Im Blog"
 msgstr "On the Blog"
 
@@ -1276,8 +1290,8 @@ msgstr "No articles yet"
 msgid "Blog nicht erreichbar"
 msgstr "Blog unreachable"
 
-#: src/librarysidebar.rs:380 src/mainaction.rs:176 src/window.rs:325
-#: src/window.rs:626 src/window.rs:862
+#: src/librarysidebar.rs:380 src/mainaction.rs:180 src/window.rs:363
+#: src/window.rs:686 src/window.rs:922
 msgid "Unbenannt"
 msgstr "Untitled"
 
@@ -1293,7 +1307,7 @@ msgstr "Changed on the blog"
 msgid "Im Blog gelöscht"
 msgstr "Deleted on the blog"
 
-#: src/librarysidebar.rs:406 src/mainaction.rs:531
+#: src/librarysidebar.rs:406 src/mainaction.rs:553
 msgid "Nur lokal"
 msgstr "Local only"
 
@@ -1431,134 +1445,134 @@ msgstr "No response received."
 msgid "Antwort nicht lesbar: {err}"
 msgstr "Couldn't read the response: {err}"
 
-#: src/mainaction.rs:57 src/mainaction.rs:116
+#: src/mainaction.rs:60 src/mainaction.rs:120
 msgid "Als Entwurf hochladen"
 msgstr "Upload as Draft"
 
-#: src/mainaction.rs:57
+#: src/mainaction.rs:60
 msgid "Weitere Aktionen"
 msgstr "More actions"
 
-#: src/mainaction.rs:118
+#: src/mainaction.rs:122
 msgid "Zur Prüfung einreichen"
 msgstr "Submit for Review"
 
-#: src/mainaction.rs:118 src/mainaction.rs:122 src/mainaction.rs:130
+#: src/mainaction.rs:122 src/mainaction.rs:126 src/mainaction.rs:134
 msgid "Veröffentlichen …"
 msgstr "Publish…"
 
-#: src/mainaction.rs:124 src/mainaction.rs:140 src/postpane.rs:49
+#: src/mainaction.rs:128 src/mainaction.rs:144 src/postpane.rs:49
 #: src/postpane.rs:135
 msgid "Blog-Vorschau öffnen"
 msgstr "Open Blog Preview"
 
-#: src/mainaction.rs:124
+#: src/mainaction.rs:128
 msgid "Planen …"
 msgstr "Schedule…"
 
-#: src/mainaction.rs:128
+#: src/mainaction.rs:132
 msgid "Entwurf aktualisieren"
 msgstr "Update Draft"
 
-#: src/mainaction.rs:130
+#: src/mainaction.rs:134
 msgid "Aktualisieren und Vorschau öffnen"
 msgstr "Update and Open Preview"
 
-#: src/mainaction.rs:134
+#: src/mainaction.rs:138
 msgid "Änderungen hochladen"
 msgstr "Upload Changes"
 
-#: src/mainaction.rs:136 src/mainaction.rs:142
+#: src/mainaction.rs:140 src/mainaction.rs:146
 msgid "Termin ändern …"
 msgstr "Change Date…"
 
-#: src/mainaction.rs:136 src/mainaction.rs:142 src/releasecheck.rs:180
+#: src/mainaction.rs:140 src/mainaction.rs:146 src/releasecheck.rs:180
 msgid "Jetzt veröffentlichen"
 msgstr "Publish Now"
 
-#: src/mainaction.rs:136 src/mainaction.rs:142 src/mainaction.rs:148
-#: src/mainaction.rs:154
+#: src/mainaction.rs:140 src/mainaction.rs:146 src/mainaction.rs:152
+#: src/mainaction.rs:158
 msgid "Auf Entwurf zurücksetzen …"
 msgstr "Revert to Draft…"
 
-#: src/mainaction.rs:146
+#: src/mainaction.rs:150
 msgid "Änderungen veröffentlichen …"
 msgstr "Publish Changes…"
 
-#: src/mainaction.rs:148
+#: src/mainaction.rs:152
 msgid "Vorschau im Blog"
 msgstr "Preview on Blog"
 
-#: src/mainaction.rs:148
+#: src/mainaction.rs:152
 msgid "Änderungen verwerfen …"
 msgstr "Discard Changes…"
 
-#: src/mainaction.rs:152 src/postpane.rs:135
+#: src/mainaction.rs:156 src/postpane.rs:135
 msgid "Im Blog ansehen"
 msgstr "View on Blog"
 
-#: src/mainaction.rs:181
+#: src/mainaction.rs:185
 msgid ""
 "Dieser Beitrag wurde im Blog gelöscht oder in den Papierkorb verschoben."
 msgstr "This post was deleted on the blog or moved to the trash."
 
-#: src/mainaction.rs:181
+#: src/mainaction.rs:185
 msgid "Verknüpfung lösen"
 msgstr "Unlink"
 
-#: src/mainaction.rs:182
+#: src/mainaction.rs:186
 msgid ""
 "Dieser Beitrag wurde im Blog geändert, während du hier weitergeschrieben "
 "hast."
 msgstr "This post was changed on the blog while you kept writing here."
 
-#: src/mainaction.rs:182
+#: src/mainaction.rs:186
 msgid "Auflösen …"
 msgstr "Resolve…"
 
-#: src/mainaction.rs:183
+#: src/mainaction.rs:187
 msgid "Dieser Beitrag wurde im Blog geändert."
 msgstr "This post was changed on the blog."
 
-#: src/mainaction.rs:183
+#: src/mainaction.rs:187
 msgid "Blog-Fassung laden"
 msgstr "Load Blog Version"
 
-#: src/mainaction.rs:186
+#: src/mainaction.rs:190
 msgid ""
 "Veröffentlichter Beitrag: Deine Änderungen gehen erst mit „Änderungen "
 "veröffentlichen“ online."
 msgstr "Published post: your changes only go live with “Publish Changes”."
 
-#: src/mainaction.rs:219
+#: src/mainaction.rs:224
 msgid "Jetzt veröffentlichen?"
 msgstr "Publish Now?"
 
-#: src/mainaction.rs:219
+#: src/mainaction.rs:224
 msgid "Der geplante Termin entfällt, der Beitrag geht sofort online."
 msgstr "The scheduled date is dropped and the post goes live right away."
 
-#: src/mainaction.rs:219 src/releasecheck.rs:144 src/releasecheck.rs:236
+#: src/mainaction.rs:224 src/releasecheck.rs:144 src/releasecheck.rs:236
 msgid "Veröffentlichen"
 msgstr "Publish"
 
-#: src/mainaction.rs:224
+#: src/mainaction.rs:229
 msgid "Auf Entwurf zurücksetzen?"
 msgstr "Revert to Draft?"
 
-#: src/mainaction.rs:224
+#: src/mainaction.rs:229
 msgid "Der Beitrag ist danach nicht mehr öffentlich sichtbar."
 msgstr "The post will no longer be publicly visible."
 
-#: src/mainaction.rs:224
+#: src/mainaction.rs:229
 msgid "Auf Entwurf zurücksetzen"
 msgstr "Revert to Draft"
 
-#: src/mainaction.rs:229
+#: src/mainaction.rs:234
 msgid "Änderungen verwerfen?"
 msgstr "Discard Changes?"
 
-#: src/mainaction.rs:229
+#: src/mainaction.rs:234
 msgid ""
 "Die Arbeitskopie wird durch die Fassung aus dem Blog ersetzt. Deine "
 "Änderungen gehen verloren."
@@ -1566,53 +1580,57 @@ msgstr ""
 "The working copy will be replaced by the version from the blog. Your changes "
 "will be lost."
 
-#: src/mainaction.rs:271 src/mediapanel.rs:194 src/mediapanel.rs:391
+#: src/mainaction.rs:276 src/mediapanel.rs:194 src/mediapanel.rs:391
 #: src/mediapanel.rs:487 src/mediapanel.rs:693
 msgid "Wird hochgeladen …"
 msgstr "Uploading …"
 
-#: src/mainaction.rs:309
+#: src/mainaction.rs:314
 msgid "Als Entwurf hochgeladen."
 msgstr "Uploaded as draft."
 
-#: src/mainaction.rs:310
+#: src/mainaction.rs:315
 msgid "Zur Prüfung eingereicht."
 msgstr "Submitted for review."
 
-#: src/mainaction.rs:311
+#: src/mainaction.rs:316
 msgid "Veröffentlicht."
 msgstr "Published."
 
-#: src/mainaction.rs:312
+#: src/mainaction.rs:317
 msgid "Geplant."
 msgstr "Scheduled."
 
-#: src/mainaction.rs:313
+#: src/mainaction.rs:318
 msgid "Aktualisiert."
 msgstr "Updated."
 
-#: src/mainaction.rs:356
+#: src/mainaction.rs:361
 msgid "Vorschau nicht verfügbar: {err}"
 msgstr "Preview not available: {err}"
 
-#: src/mainaction.rs:383
+#: src/mainaction.rs:373
+msgid "Noch nicht im Blog – erst als Entwurf hochladen."
+msgstr "Not on the blog yet – upload it as a draft first."
+
+#: src/mainaction.rs:405
 msgid ""
 "Vorschau fehlgeschlagen. Bist du im Browser-Tab bei WordPress angemeldet?"
 msgstr "Preview failed. Are you logged in to WordPress in the browser tab?"
 
-#: src/mainaction.rs:443
+#: src/mainaction.rs:465
 msgid "Blog-Fassung geladen."
 msgstr "Blog version loaded."
 
-#: src/mainaction.rs:445
+#: src/mainaction.rs:467
 msgid "Laden fehlgeschlagen: {err}"
 msgstr "Loading failed: {err}"
 
-#: src/mainaction.rs:454
+#: src/mainaction.rs:476
 msgid "Welche Fassung soll gelten?"
 msgstr "Which Version Should Count?"
 
-#: src/mainaction.rs:455
+#: src/mainaction.rs:477
 msgid ""
 "Der Beitrag wurde im Blog geändert, nachdem du ihn zuletzt abgeglichen hast, "
 "und du hast hier weitergeschrieben."
@@ -1620,35 +1638,35 @@ msgstr ""
 "The post was changed on the blog after you last synced it, and you kept "
 "writing here."
 
-#: src/mainaction.rs:458
+#: src/mainaction.rs:480
 msgid "Blog-Fassung übernehmen"
 msgstr "Use Blog Version"
 
-#: src/mainaction.rs:459
+#: src/mainaction.rs:481
 msgid "Meine Fassung behalten"
 msgstr "Keep My Version"
 
-#: src/mainaction.rs:505
+#: src/mainaction.rs:527
 msgid "Verknüpfung gelöst. Der Artikel ist jetzt nur lokal."
 msgstr "Unlinked. The article is now local only."
 
-#: src/mainaction.rs:539
+#: src/mainaction.rs:561
 msgid "im Blog gelöscht"
 msgstr "deleted on the blog"
 
-#: src/mainaction.rs:540
+#: src/mainaction.rs:562
 msgid "Konflikt"
 msgstr "conflict"
 
-#: src/mainaction.rs:541
+#: src/mainaction.rs:563
 msgid "im Blog geändert"
 msgstr "changed on the blog"
 
-#: src/mainaction.rs:542
+#: src/mainaction.rs:564
 msgid "Änderungen nicht online"
 msgstr "changes not online"
 
-#: src/mainaction.rs:543
+#: src/mainaction.rs:565
 msgid "nicht hochgeladen"
 msgstr "not uploaded"
 
@@ -1657,7 +1675,7 @@ msgid "Alle Medien"
 msgstr "All media"
 
 #: src/mediabrowser.rs:34 src/properties.rs:820 src/releasecheck.rs:95
-#: src/releasecheck.rs:98 src/releasecheck.rs:271 src/window.rs:1240
+#: src/releasecheck.rs:98 src/releasecheck.rs:271 src/window.rs:1301
 msgid "Bilder"
 msgstr "Images"
 
@@ -1681,7 +1699,7 @@ msgstr "Filter by media type"
 msgid "Aktualisieren"
 msgstr "Update"
 
-#: src/mediabrowser.rs:222 src/shortcuts.rs:36 src/window.rs:339
+#: src/mediabrowser.rs:222 src/shortcuts.rs:36 src/window.rs:377
 msgid "WordPress-Mediathek"
 msgstr "WordPress Media Library"
 
@@ -2479,7 +2497,7 @@ msgstr "Post properties"
 msgid "Fokus-Schreibmodus"
 msgstr "Focus Writing Mode"
 
-#: src/shortcuts.rs:40 src/window.rs:277 src/window.rs:380
+#: src/shortcuts.rs:40 src/window.rs:315 src/window.rs:418
 msgid "Editor"
 msgstr "Editor"
 
@@ -2503,7 +2521,7 @@ msgstr "Paste Image from Clipboard"
 msgid "Suchen und Ersetzen"
 msgstr "Find and Replace"
 
-#: src/shortcuts.rs:51 src/window.rs:344
+#: src/shortcuts.rs:51 src/window.rs:382
 msgid "Tastenkürzel"
 msgstr "Keyboard Shortcuts"
 
@@ -2747,107 +2765,103 @@ msgstr "Error creating"
 msgid "Interner Fehler: kein Ergebnis vom Erstellen-Thread."
 msgstr "Internal error: no result from the create thread."
 
-#: src/window.rs:110
+#: src/window.rs:113
 msgid "Beitrag"
 msgstr "Post"
 
-#: src/window.rs:110
+#: src/window.rs:113
 msgid "Assistent"
 msgstr "Assistant"
 
-#: src/window.rs:112
+#: src/window.rs:120
 msgid "Gerendert"
 msgstr "Rendered"
 
-#: src/window.rs:112
-msgid "Web"
-msgstr "Web"
-
-#: src/window.rs:113
+#: src/window.rs:121
 msgid "Chat"
 msgstr "Chat"
 
-#: src/window.rs:113
+#: src/window.rs:121
 msgid "Bewertung"
 msgstr "Review"
 
-#: src/window.rs:124
+#: src/window.rs:132
 msgid "Artikel-Kopf in der Vorschau ein-/ausblenden"
 msgstr "Show/hide the article header in the preview"
 
-#: src/window.rs:278
+#: src/window.rs:316
 msgid "Seitenbereich"
 msgstr "Side Pane"
 
-#: src/window.rs:331
+#: src/window.rs:369
 msgid "Seitenleiste ein-/ausblenden"
 msgstr "Show/hide sidebar"
 
-#: src/window.rs:340
+#: src/window.rs:378
 msgid "Galerie einfügen…"
 msgstr "Insert Gallery…"
 
-#: src/window.rs:345
+#: src/window.rs:383
 msgid "Über Blocksatz"
 msgstr "About Blocksatz"
 
-#: src/window.rs:349
+#: src/window.rs:387
 msgid "Seitenbereich ein-/ausblenden (F9)"
 msgstr "Show/hide side pane (F9)"
 
-#: src/window.rs:357
+#: src/window.rs:395
 msgid "Fokus-Schreibmodus (Strg+Umschalt+F)"
 msgstr "Focus writing mode (Ctrl+Shift+F)"
 
-#: src/window.rs:863
+#: src/window.rs:923
 msgid "Unbenannte Seite"
 msgstr "Untitled page"
 
-#: src/window.rs:981
+#: src/window.rs:1041
 msgid "Vorhandene Arbeitskopie geöffnet."
 msgstr "Opened the existing working copy."
 
-#: src/window.rs:989
+#: src/window.rs:1049
 msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
 msgstr "Couldn't create a working copy: {err}"
 
-#: src/window.rs:1084
+#: src/window.rs:1144
 msgid "Markdown-Datei öffnen"
 msgstr "Open Markdown File"
 
-#: src/window.rs:1244
+#: src/window.rs:1305
 msgid "Bild einfügen"
 msgstr "Insert Image"
 
-#: src/window.rs:1279
+#: src/window.rs:1340
 msgid "Video/Audio einfügen"
 msgstr "Insert Video/Audio"
 
-#: src/window.rs:1367
+#: src/window.rs:1428
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr "AI draft created as a new document - please review it."
 
-#: src/window.rs:1476
+#: src/window.rs:1537
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr "Please save the article first to insert images."
 
-#: src/window.rs:1485
+#: src/window.rs:1546
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the image from the clipboard."
 
-#: src/window.rs:1491
+#: src/window.rs:1552
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr "Couldn't save the image: {err}"
 
-#: src/window.rs:1505 src/window.rs:1519
+#: src/window.rs:1566 src/window.rs:1580
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the formatted text from the clipboard."
 
-#: src/window.rs:1523
+#: src/window.rs:1584
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr "Formatted text from the clipboard is in an unknown format."
 
-#: src/window.rs:1528
+#: src/window.rs:1589
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr "Couldn't convert the formatted text: {err}"
 
@@ -2863,13 +2877,19 @@ msgstr "No media ID in the response"
 msgid "Keine Term-ID in der Antwort"
 msgstr "No term ID in the response"
 
-#: src/wpclient.rs:915
+#: src/wpclient.rs:938
 msgid "Keine Post-ID in der Antwort"
 msgstr "No post ID in the response"
 
-#: src/wpclient.rs:961
+#: src/wpclient.rs:984
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr "No term ID received for \"{name}\""
+
+#~ msgid "Die Adresse, die der „Browser“-Tab beim Start der App öffnet."
+#~ msgstr "The address the “Browser” tab opens when the app starts."
+
+#~ msgid "Web"
+#~ msgstr "Web"
 
 #~ msgid "Dokument"
 #~ msgstr "Document"

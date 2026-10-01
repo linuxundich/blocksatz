@@ -67,6 +67,8 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let code_view = Rc::new(codeview::CodeView::new());
     let evaluate_view = Rc::new(aievaluate::EvaluateView::new(&view, &buffer, frontmatter.clone()));
     let browser_view = Rc::new(browser::BrowserView::new());
+    // "Vorschau → Im Blog": the open article as the blog shows it.
+    let blog_view = Rc::new(browser::BrowserView::new_blank());
 
     let view_stack = adw::ViewStack::new();
     // Homogeneous sizing (the default) makes the stack's minimum width the
@@ -83,6 +85,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     // toggle groups follow whatever page is visible.
     view_stack.add_named(&preview_pane.widget, Some("preview"));
     view_stack.add_named(&code_view.widget, Some("code"));
+    view_stack.add_named(&blog_view.widget, Some("blog"));
     view_stack.add_named(&browser_view.widget, Some("browser"));
     let post_slot = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).build();
     view_stack.add_named(&post_slot, Some("post"));
@@ -109,7 +112,12 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     };
     let section_toggles = toggle_group(&[("preview", tr("Vorschau")), ("post", tr("Beitrag")), ("assistant", tr("Assistent"))]);
     section_toggles.set_hexpand(true);
-    let preview_toggles = toggle_group(&[("preview", tr("Gerendert")), ("code", tr("Code")), ("browser", tr("Web"))]);
+    // The free browser, switchable in Einstellungen → Browser.
+    let browser_toggle = adw::Toggle::builder().name("browser").label(tr("Browser")).build();
+    if browser::tab_enabled() {
+        section_toggles.add(browser_toggle.clone());
+    }
+    let preview_toggles = toggle_group(&[("preview", tr("Gerendert")), ("code", tr("Code")), ("blog", tr("Im Blog"))]);
     let assistant_toggles = toggle_group(&[("chat", tr("Chat")), ("evaluate", tr("Bewertung"))]);
     for group in [&preview_toggles, &assistant_toggles] {
         group.add_css_class("flat");
@@ -142,7 +150,11 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     // Which page each section last showed, to return to it.
     let last_preview_page = Rc::new(RefCell::new(String::from("preview")));
     let last_assistant_page = Rc::new(RefCell::new(String::from("chat")));
+    // Set while the toggles follow the stack, so only a click on "Im Blog"
+    // (not a page shown by code) loads the blog preview.
+    let syncing = Rc::new(Cell::new(false));
     let sync_toggles = {
+        let syncing = syncing.clone();
         let section_toggles = section_toggles.clone();
         let preview_toggles = preview_toggles.clone();
         let assistant_toggles = assistant_toggles.clone();
@@ -151,15 +163,17 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let last_preview_page = last_preview_page.clone();
         let last_assistant_page = last_assistant_page.clone();
         move |page: &str| {
+            syncing.set(true);
             let section = match page {
                 "post" => "post",
+                "browser" => "browser",
                 "chat" | "evaluate" => "assistant",
                 _ => "preview",
             };
             section_toggles.set_active_name(Some(section));
             preview_toggles.set_visible(section == "preview");
             assistant_toggles.set_visible(section == "assistant");
-            sub_bar.set_visible(section != "post");
+            sub_bar.set_visible(section == "preview" || section == "assistant");
             header_toggle_button.set_visible(page == "preview");
             match section {
                 "preview" => {
@@ -172,6 +186,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
                 }
                 _ => {}
             }
+            syncing.set(false);
         }
     };
     sync_toggles("preview");
@@ -185,6 +200,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         section_toggles.connect_active_name_notify(move |group| {
             let page = match group.active_name().as_deref() {
                 Some("post") => "post".to_string(),
+                Some("browser") => "browser".to_string(),
                 Some("assistant") => last_assistant_page.borrow().clone(),
                 _ => last_preview_page.borrow().clone(),
             };
@@ -193,12 +209,34 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     }
     for group in [&preview_toggles, &assistant_toggles] {
         let view_stack = view_stack.clone();
+        let syncing = syncing.clone();
         group.connect_active_name_notify(move |group| {
             if let Some(page) = group.active_name().filter(|_| group.is_visible()) {
                 view_stack.set_visible_child_name(&page);
+                // Clicked "Im Blog": load the open article's blog preview.
+                if page == "blog" && !syncing.get() {
+                    let _ = group.activate_action("main.blog-preview", None);
+                }
             }
         });
     }
+    let set_browser_tab: Rc<dyn Fn(bool)> = {
+        let section_toggles = section_toggles.clone();
+        let browser_toggle = browser_toggle.clone();
+        let view_stack = view_stack.clone();
+        let present = Cell::new(browser::tab_enabled());
+        Rc::new(move |enabled| {
+            if enabled && !present.get() {
+                section_toggles.add(browser_toggle.clone());
+            } else if !enabled && present.get() {
+                if view_stack.visible_child_name().as_deref() == Some("browser") {
+                    view_stack.set_visible_child_name("preview");
+                }
+                section_toggles.remove(&browser_toggle);
+            }
+            present.set(enabled);
+        })
+    };
 
     let right_pane = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).build();
     right_pane.append(&section_bar);
@@ -497,13 +535,28 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let image_alt_menu = imagealt::install(&view, &buffer, frontmatter.clone(), current_path.clone(), preview_pane.clone());
     preview::PreviewPane::install_alt_text_menu(&preview_pane, &window, frontmatter.clone(), buffer.clone());
     preview::PreviewPane::install_image_edit_menu(&preview_pane, &window, frontmatter.clone(), buffer.clone());
-    {
+    // Links: the free browser, or the system's browser when that's off.
+    let open_in_browser: Rc<dyn Fn(String)> = {
         let browser_view = browser_view.clone();
         let view_stack = view_stack.clone();
-        preview_pane.connect_link_clicked(move |uri| {
+        let right_pane = right_pane.clone();
+        let window = window.downgrade();
+        Rc::new(move |uri: String| {
+            let Some(window) = window.upgrade() else { return };
+            if !browser::tab_enabled() {
+                gtk4::UriLauncher::new(&uri).launch(Some(&window), gio::Cancellable::NONE, |_| {});
+                return;
+            }
+            if !right_pane.is_visible() {
+                let _ = WidgetExt::activate_action(&window, "win.toggle-preview", None);
+            }
             browser_view.load_uri(&uri);
             view_stack.set_visible_child_name("browser");
-        });
+        })
+    };
+    {
+        let open_in_browser = open_in_browser.clone();
+        preview_pane.connect_link_clicked(move |uri| open_in_browser(uri.to_string()));
     }
     let ai_menu_handles = aimenu::install(&view, &buffer, &view_stack, chat_view.clone(), &spelling_menu, image_alt_menu.upcast_ref(), inplace_bar.clone());
 
@@ -532,8 +585,9 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_open_path_action(&window, &doc_ctx);
     wire_save_action(&window, &doc_ctx);
     wire_library(&window, &doc_ctx, &split_view, &nav_view, &primary_menu);
-    let open_url: Rc<dyn Fn(String)> = {
-        let browser_view = browser_view.clone();
+    // Blog previews: "Vorschau → Im Blog".
+    let open_preview_url: Rc<dyn Fn(String)> = {
+        let blog_view = blog_view.clone();
         let view_stack = view_stack.clone();
         let right_pane = right_pane.clone();
         let window = window.downgrade();
@@ -543,13 +597,19 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
                     let _ = WidgetExt::activate_action(&window, "win.toggle-preview", None);
                 }
             }
-            browser_view.load_uri(&uri);
-            view_stack.set_visible_child_name("browser");
+            blog_view.load_uri(&uri);
+            view_stack.set_visible_child_name("blog");
         })
     };
-    let post_pane = postpane::PostPane::new(&window, &doc_ctx, &term_caches, &stats_view.widget, open_url.clone());
+    let post_pane = postpane::PostPane::new(&window, &doc_ctx, &term_caches, &stats_view.widget, open_in_browser.clone());
     post_slot.append(&post_pane.widget);
-    let main_action = mainaction::MainAction::new(&window, &doc_ctx, open_url, releasecheck::LinkTarget { view_stack: view_stack.clone(), browser_view: browser_view.clone() });
+    let main_action = mainaction::MainAction::new(
+        &window,
+        &doc_ctx,
+        open_preview_url,
+        blog_view.clone(),
+        releasecheck::LinkTarget { view_stack: view_stack.clone(), browser_view: browser_view.clone() },
+    );
     main_action_slot.append(&main_action.button);
     toolbar_view.add_top_bar(&main_action.banner);
     // Everything else only holds weak references to it; the window keeps
@@ -580,7 +640,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let _ = WidgetExt::activate_action(&window, "win.toggle-preview", None);
     }
     wire_properties_action(&window, &view_stack, &right_pane);
-    wire_settings_action(&window, &buffer, ai_menu_handles, &preview_pane, &browser_view);
+    wire_settings_action(&window, &buffer, ai_menu_handles, &preview_pane, &browser_view, set_browser_tab.clone());
     wire_about_action(&window);
     wire_media_action(&window, &buffer, &current_path, &frontmatter, &preview_pane);
     wire_insert_image_action(&window, &buffer, &current_path);
@@ -1200,6 +1260,7 @@ fn wire_settings_action(
     ai_menu_handles: aimenu::AiMenuHandles,
     preview_pane: &Rc<preview::PreviewPane>,
     browser_view: &Rc<browser::BrowserView>,
+    set_browser_tab: Rc<dyn Fn(bool)>,
 ) {
     let action = gio::SimpleAction::new("settings", None);
     let buffer = buffer.clone();
@@ -1208,7 +1269,7 @@ fn wire_settings_action(
     let window_weak = window.downgrade();
     action.connect_activate(move |_, _| {
         if let Some(window) = window_weak.upgrade() {
-            settings::open(&window, &buffer, &ai_menu_handles, &preview_pane, &browser_view);
+            settings::open(&window, &buffer, &ai_menu_handles, &preview_pane, &browser_view, set_browser_tab.clone());
         }
     });
     window.add_action(&action);

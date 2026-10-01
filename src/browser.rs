@@ -33,6 +33,27 @@ fn home_url_path() -> PathBuf {
 /// The Browser tab's start page, configurable in Einstellungen (see
 /// `browsersettings.rs`) - falls back to `DEFAULT_URL` if never set, or
 /// if the setting was cleared back to empty.
+fn tab_flag_path() -> PathBuf {
+    let mut path = glib::user_config_dir();
+    path.push(crate::APP_DIR);
+    path.push("browser_tab.conf");
+    path
+}
+
+/// Whether the right-hand pane offers the free "Browser" view (on unless
+/// switched off in Einstellungen → Browser).
+pub fn tab_enabled() -> bool {
+    std::fs::read_to_string(tab_flag_path()).ok().map(|s| s.trim() != "0").unwrap_or(true)
+}
+
+pub fn set_tab_enabled(enabled: bool) {
+    let path = tab_flag_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(path, if enabled { "1" } else { "0" });
+}
+
 pub fn load_home_url() -> String {
     std::fs::read_to_string(home_url_path()).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| DEFAULT_URL.to_string())
 }
@@ -49,7 +70,18 @@ pub struct BrowserView {
 }
 
 impl BrowserView {
+    /// The free browser: opens the start page right away.
     pub fn new() -> Self {
+        Self::build(true)
+    }
+
+    /// A view that starts empty and only ever shows what it's told to -
+    /// the blog preview under "Vorschau → Im Blog".
+    pub fn new_blank() -> Self {
+        Self::build(false)
+    }
+
+    fn build(load_home: bool) -> Self {
         // A `WebView`'s content manager is a construct-only property (no
         // runtime setter) - built up front so `adblock::install` can
         // attach the compiled filter to it before the `WebView` itself
@@ -134,7 +166,9 @@ impl BrowserView {
             });
         }
 
-        web_view.load_uri(&load_home_url());
+        if load_home {
+            web_view.load_uri(&load_home_url());
+        }
 
         Self { widget: content.upcast(), web_view, content_manager }
     }

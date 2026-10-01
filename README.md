@@ -44,9 +44,11 @@ blocks. Implemented so far:
     offers to load the blog's version, resolve a conflict or unlink.
   - **"Vorschau im Blog"** shows changes to a published post in the blog's
     theme without touching the live post (as a WordPress autosave).
-  - The **right-hand pane** (F9) has three views: Vorschau (rendered /
-    Gutenberg code / web), Beitrag (state, all post properties, media,
-    statistics) and Assistent (chat / evaluation).
+  - The **right-hand pane** (F9) has four views: Vorschau (rendered /
+    Gutenberg code / "Im Blog" - the open article as the blog itself shows
+    it, draft preview or live post), Beitrag (state, all post properties,
+    media, statistics), Assistent (chat / evaluation) and a Browser of its
+    own (switchable in Einstellungen → Browser).
 - **Split-pane editor** — the window remembers its size (and whether it was
   maximized) across restarts, together with the layout of its panes: the
   editor/pane split (a ratio, 50/50 to start), whether the sidebar and the
@@ -106,7 +108,7 @@ blocks. Implemented so far:
   rendered file, copy its address) are trimmed from that menu, alongside
   the navigation items, since none of them apply to an embedded article
   image), Gutenberg code (the exact block HTML that would be published)
-  and web -, "Beitrag", whose statistics section has word/character/paragraph counts, estimated reading time, and
+  and "Im Blog" -, "Beitrag", whose statistics section has word/character/paragraph counts, estimated reading time, and
   a German-adapted Flesch reading-ease score with a qualitative label -
   expandable into the formula itself, the article's actual average
   words-per-sentence and syllables-per-word, and concrete tips for
@@ -119,7 +121,7 @@ blocks. Implemented so far:
   or, if nothing's selected, the whole article - appended before it's sent,
   the same rule the context menu's AI actions below already follow, so the
   model always has the article as context without pasting it in by hand.
-  The "Web" view of "Vorschau" is a plain `WebKit` view with an address bar
+  The "Browser" view is a plain `WebKit` view with an address bar
   and back/forward/reload controls, for consulting documentation or the
   live target site without alt-tabbing away - typing a bare domain adds
   `https://` automatically, anything else is sent to Google as a search

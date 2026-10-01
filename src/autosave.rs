@@ -15,7 +15,7 @@ use crate::document::{self, Document, Frontmatter};
 
 fn snapshot_path() -> PathBuf {
     let mut dir = glib::user_config_dir();
-    dir.push("blocksmith");
+    dir.push(crate::APP_DIR);
     dir.push("autosave.md");
     dir
 }
@@ -26,7 +26,7 @@ fn snapshot_path() -> PathBuf {
 /// detail, not part of the article's own WordPress-facing metadata.
 fn source_path_marker() -> PathBuf {
     let mut dir = glib::user_config_dir();
-    dir.push("blocksmith");
+    dir.push(crate::APP_DIR);
     dir.push("autosave_source.txt");
     dir
 }

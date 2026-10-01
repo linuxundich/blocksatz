@@ -99,7 +99,7 @@ fn compute_target_dimensions(original_width: u32, original_height: u32, target_w
 /// any directory prefix it already had, e.g. `images/photo.png` ->
 /// `images/photo-bearbeitet.webp`) - a sibling of the original rather than
 /// overwriting it in place, so the edit is always undoable by hand (delete
-/// the new file, the old reference still works) even outside Blocksmith's
+/// the new file, the old reference still works) even outside Blocksatz's
 /// own Ctrl+Z.
 fn sibling_reference(old_source: &str, format: ImageFormat) -> String {
     let (dir_prefix, filename) = match old_source.rsplit_once('/') {

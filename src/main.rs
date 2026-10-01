@@ -68,7 +68,12 @@ mod wpsite;
 use adw::prelude::*;
 use gtk4::{gio, glib};
 
-const APP_ID: &str = "de.christophlangner.Blocksmith";
+const APP_ID: &str = "de.linuxundich.Blocksatz";
+
+/// Name of this app's own subfolder under `glib::user_config_dir()`,
+/// `user_cache_dir()` and `user_data_dir()` - one place instead of a string
+/// literal repeated in every module that persists something.
+pub const APP_DIR: &str = "blocksatz";
 
 fn main() -> glib::ExitCode {
     // Must run before anything else - `setlocale` (which this calls) isn't
@@ -77,7 +82,7 @@ fn main() -> glib::ExitCode {
     i18n::init();
 
     // HANDLES_OPEN: the `.desktop` file declares `MimeType=text/markdown;`,
-    // so double-clicking a `.md` file (or "Open With" → Blocksmith) in
+    // so double-clicking a `.md` file (or "Open With" → Blocksatz) in
     // Nautilus launches with a file argument - without this flag GTK
     // refuses that outright ("This application can not open files").
     let app = adw::Application::builder().application_id(APP_ID).flags(gio::ApplicationFlags::HANDLES_OPEN).build();

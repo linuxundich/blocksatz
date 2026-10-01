@@ -1,13 +1,13 @@
-# English translation for Blocksmith.
+# English translation for Blocksatz.
 # Copyright (C) 2026 Christoph Langner
-# This file is distributed under the same license as the Blocksmith package
+# This file is distributed under the same license as the Blocksatz package
 # (GPL-3.0-or-later).
 # Christoph Langner <mail@christoph-langner.de>, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Blocksmith 0.63.3\n"
-"Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksmith/issues\n"
+"Project-Id-Version: Blocksatz 0.63.3\n"
+"Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
 "POT-Creation-Date: 2026-09-28 22:35+0200\n"
 "PO-Revision-Date: 2026-09-28 22:43+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
@@ -2016,8 +2016,8 @@ msgid "Tastenkürzel"
 msgstr "Keyboard Shortcuts"
 
 #: src/window.rs:286
-msgid "Über Blocksmith"
-msgstr "About Blocksmith"
+msgid "Über Blocksatz"
+msgstr "About Blocksatz"
 
 #: src/window.rs:291
 msgid "Hauptmenü (Strg+,)"
@@ -2100,8 +2100,8 @@ msgid "Nicht gespeicherter Stand gefunden"
 msgstr "Unsaved State Found"
 
 #: src/window.rs:1432
-msgid "Von „{name}“ wurde ein nicht gespeicherter Stand gefunden - vermutlich nach einem Absturz oder weil Blocksmith ohne zu speichern beendet wurde. Wiederherstellen?"
-msgstr "An unsaved state was found for “{name}” - probably after a crash, or because Blocksmith was closed without saving. Restore it?"
+msgid "Von „{name}“ wurde ein nicht gespeicherter Stand gefunden - vermutlich nach einem Absturz oder weil Blocksatz ohne zu speichern beendet wurde. Wiederherstellen?"
+msgstr "An unsaved state was found for “{name}” - probably after a crash, or because Blocksatz was closed without saving. Restore it?"
 
 #: src/window.rs:1436
 msgid "Verwerfen"

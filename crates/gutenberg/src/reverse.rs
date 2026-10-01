@@ -1,6 +1,6 @@
 //! Converts WordPress Gutenberg block-comment HTML back into Markdown - the
 //! reverse of [`crate::markdown_to_gutenberg`] - so an existing WordPress
-//! article can be pulled into Blocksmith, edited as Markdown, and pushed
+//! article can be pulled into Blocksatz, edited as Markdown, and pushed
 //! back. Parses into the same [`Block`] tree the forward direction uses,
 //! then renders that tree as Markdown text instead of Gutenberg HTML.
 //!

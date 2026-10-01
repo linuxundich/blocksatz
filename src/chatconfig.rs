@@ -15,7 +15,7 @@ use crate::llm::{Provider, DEFAULT_OLLAMA_BASE_URL};
 
 fn config_dir() -> PathBuf {
     let mut dir = glib::user_config_dir();
-    dir.push("blocksmith");
+    dir.push(crate::APP_DIR);
     dir
 }
 
@@ -188,7 +188,7 @@ mod tests {
     /// Touches the real config dir (there's no pure logic to isolate here -
     /// it's just read-or-default / write-raw-text), so this captures and
     /// restores whatever was already saved, to avoid leaving the test
-    /// machine's actual Blocksmith config changed.
+    /// machine's actual Blocksatz config changed.
     #[test]
     fn system_prompt_save_load_reset_round_trips() {
         let was_customized = is_system_prompt_customized();

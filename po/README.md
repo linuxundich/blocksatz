@@ -1,6 +1,6 @@
-# Translating Blocksmith
+# Translating Blocksatz
 
-Blocksmith's source strings are **German** - that's the app's original
+Blocksatz's source strings are **German** - that's the app's original
 language, not a translation of anything - so a `.po` file here translates
 *from* German *to* another language, the reverse of the usual gettext
 convention where English is the source.
@@ -36,7 +36,7 @@ Deliberately **not** translated, by design:
   prompts (`aiprompts::builtin_title()`) are translated. Users can already
   edit this text directly in Einstellungen → KI-Prompts if they want it in
   another language.
-- **Proper nouns and technical terms**: "Blocksmith", "WordPress",
+- **Proper nouns and technical terms**: "Blocksatz", "WordPress",
   "Application Password", "API-Key", provider names (`llm.rs`'s
   `Provider::label()`), keyring item labels (`secrets.rs`) - translating
   these would make them harder to recognize consistently across a locale
@@ -66,8 +66,8 @@ support wired up. Two conventions handle this without it:
 **Installed builds:** a `cargo build`/`cargo run` from this source tree
 reads `po/locale` via `CARGO_MANIFEST_DIR`. The Flatpak manifest instead
 installs the compiled `.mo` files to
-`/app/share/locale/<lang>/LC_MESSAGES/blocksmith.mo` and sets
-`BLOCKSMITH_LOCALEDIR=/app/share/locale` at compile time, which
+`/app/share/locale/<lang>/LC_MESSAGES/blocksatz.mo` and sets
+`BLOCKSATZ_LOCALEDIR=/app/share/locale` at compile time, which
 `i18n::init()` prefers when set.
 
 Adding a genuinely new string anywhere in the app is the same mechanical
@@ -79,12 +79,12 @@ there yet, and re-extract/re-translate as below.
 
 1. Copy the template and start from it:
    ```sh
-   msginit --input=po/blocksmith.pot --locale=<lang> --output-file=po/<lang>.po
+   msginit --input=po/blocksatz.pot --locale=<lang> --output-file=po/<lang>.po
    ```
    (`<lang>` is a locale code like `fr`, `es`, `pt_BR`.)
 2. Edit `po/<lang>.po`, filling in `msgstr` for each `msgid`.
 3. `cargo build` (or `cargo run`) automatically compiles it to
-   `po/locale/<lang>/LC_MESSAGES/blocksmith.mo` via `build.rs` - nothing
+   `po/locale/<lang>/LC_MESSAGES/blocksatz.mo` via `build.rs` - nothing
    else to wire up.
 4. To see it without changing your desktop's language, run with the
    locale forced for just that one process:
@@ -98,10 +98,10 @@ Re-extract every marked string from the files listed in `POTFILES.in`:
 
 ```sh
 xgettext --keyword=tr --language=C --from-code=UTF-8 \
-  --package-name=Blocksmith --package-version="$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)" \
+  --package-name=Blocksatz --package-version="$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)" \
   --copyright-holder="Christoph Langner" \
-  --msgid-bugs-address="https://github.com/linuxundich/blocksmith/issues" \
-  -o po/blocksmith.pot $(cat po/POTFILES.in)
+  --msgid-bugs-address="https://github.com/linuxundich/blocksatz/issues" \
+  -o po/blocksatz.pot $(cat po/POTFILES.in)
 ```
 
 `--language=C` is deliberate: `xgettext` has no native Rust mode, but
@@ -117,7 +117,7 @@ Then bring each existing `.po` up to date with any new/changed/removed
 `msgid`s, preserving its existing translations:
 
 ```sh
-msgmerge --update po/en.po po/blocksmith.pot
+msgmerge --update po/en.po po/blocksatz.pot
 ```
 
 **Important - only strings that appear as a literal argument at the

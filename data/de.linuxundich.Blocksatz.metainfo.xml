@@ -1,27 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>de.christophlangner.Blocksmith</id>
+  <id>de.linuxundich.Blocksatz</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
-  <name>Blocksmith</name>
+  <name>Blocksatz</name>
+  <developer id="de.linuxundich">
+    <name>Christoph Langner</name>
+  </developer>
   <summary>Markdown-Artikel als WordPress-Gutenberg-Blöcke veröffentlichen</summary>
   <description>
     <p>
-      Blocksmith ist ein Markdown-Editor für GNOME, mit dem Blogartikel für
+      Blocksatz ist ein Markdown-Editor für GNOME, mit dem Blogartikel für
       ein selbst gehostetes WordPress geschrieben werden. Links wird in
       Markdown geschrieben, rechts zeigt eine Live-Vorschau das gerenderte
-      Ergebnis. Beim Veröffentlichen wandelt Blocksmith das Markdown in
+      Ergebnis. Beim Veröffentlichen wandelt Blocksatz das Markdown in
       echte, einzeln editierbare Gutenberg-Blöcke um - nicht in einen
       einzigen klassischen HTML-Block - und lädt den Artikel per
       WordPress-REST-API direkt in den eigenen Blog hoch, inklusive
       Bild-Upload und automatischer Zuordnung von Kategorien und Tags.
     </p>
   </description>
-  <launchable type="desktop-id">de.christophlangner.Blocksmith.desktop</launchable>
+  <launchable type="desktop-id">de.linuxundich.Blocksatz.desktop</launchable>
   <content_rating type="oars-1.1"/>
-  <url type="homepage">https://github.com/linuxundich/blocksmith</url>
-  <url type="vcs-browser">https://github.com/linuxundich/blocksmith</url>
+  <url type="homepage">https://github.com/linuxundich/blocksatz</url>
+  <url type="vcs-browser">https://github.com/linuxundich/blocksatz</url>
   <releases>
+    <release version="0.64.0" date="2026-10-01">
+      <description>
+        <p>Blocksmith heißt jetzt Blocksatz und hat ein neues Icon nach den GNOME-Richtlinien. Durch die neue App-ID (de.linuxundich.Blocksatz) müssen Einstellungen, das WordPress-Anwendungspasswort und die KI-Schlüssel einmal neu eingegeben werden.</p>
+      </description>
+    </release>
     <release version="0.63.3" date="2026-09-28">
       <description>
         <p>Die englische Übersetzung ist wieder vollständig: 109 Texte waren veraltet oder fehlten und erschienen in der englischen Oberfläche auf Deutsch.</p>
@@ -49,7 +57,7 @@
     </release>
     <release version="0.62.0" date="2026-09-28">
       <description>
-        <p>Neue Einstellungsseite „KI-Modelle“: prüft, welche Modelle mit dem API-Key wirklich nutzbar sind, und erlaubt pro Aufgabe (Bildbeschreibungen, Lektorat, Texterstellung) ein eigenes Haupt- und Ersatzmodell mit automatischem Wechsel. Blocksmith wird jetzt als Flatpak gebaut und installiert.</p>
+        <p>Neue Einstellungsseite „KI-Modelle“: prüft, welche Modelle mit dem API-Key wirklich nutzbar sind, und erlaubt pro Aufgabe (Bildbeschreibungen, Lektorat, Texterstellung) ein eigenes Haupt- und Ersatzmodell mit automatischem Wechsel. Blocksatz wird jetzt als Flatpak gebaut und installiert.</p>
       </description>
     </release>
     <release version="0.61.2" date="2026-09-28">

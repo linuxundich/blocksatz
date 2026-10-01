@@ -3,13 +3,13 @@ members = ["crates/gutenberg"]
 resolver = "2"
 
 [package]
-name = "blocksmith"
-version = "0.63.3"
+name = "blocksatz"
+version = "0.64.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 
 [[bin]]
-name = "blocksmith"
+name = "blocksatz"
 path = "src/main.rs"
 
 [dependencies]

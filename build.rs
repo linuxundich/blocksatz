@@ -35,7 +35,7 @@ fn main() {
             println!("cargo:warning=Konnte {} nicht anlegen: {err}", out_dir.display());
             continue;
         }
-        let mo_path = out_dir.join("blocksmith.mo");
+        let mo_path = out_dir.join("blocksatz.mo");
 
         match Command::new("msgfmt").arg("-o").arg(&mo_path).arg(&path).status() {
             Ok(status) if status.success() => {}

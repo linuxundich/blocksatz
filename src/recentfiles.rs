@@ -14,7 +14,7 @@ const MAX_ENTRIES: usize = 10;
 
 fn recent_path() -> PathBuf {
     let mut path = glib::user_config_dir();
-    path.push("blocksmith");
+    path.push(crate::APP_DIR);
     path.push("recent_files.txt");
     path
 }

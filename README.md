@@ -1,6 +1,6 @@
-# Blocksmith
+# Blocksatz
 
-[![CI](https://github.com/linuxundich/blocksmith/actions/workflows/ci.yml/badge.svg)](https://github.com/linuxundich/blocksmith/actions/workflows/ci.yml)
+[![CI](https://github.com/linuxundich/blocksatz/actions/workflows/ci.yml/badge.svg)](https://github.com/linuxundich/blocksatz/actions/workflows/ci.yml)
 
 A GNOME (GTK4 + libadwaita) editor for writing blog articles in Markdown
 and exporting them as native WordPress **Gutenberg blocks** — not a single
@@ -159,7 +159,7 @@ blocks. Implemented so far:
   being able to read or auto-create a term.
 - **Local autosave / crash-recovery** — while the article has unsaved
   changes, a debounced background snapshot is kept in a local recovery
-  slot; if Blocksmith is closed without saving (or crashes), the next
+  slot; if Blocksatz is closed without saving (or crashes), the next
   launch offers to restore it, or discard it.
 - **Von WordPress öffnen** (Ctrl+Shift+O) — pick an existing post - or,
   via the "Artikel"/"Seiten" toggle in its header, a static page - from the
@@ -171,7 +171,7 @@ blocks. Implemented so far:
   duplicate. Every row also has an "In den Papierkorb" button that moves
   the post/page to WordPress's own (recoverable) trash after a
   confirmation.
-- **WordPress pages** — besides blog posts, Blocksmith edits static pages
+- **WordPress pages** — besides blog posts, Blocksatz edits static pages
   ("Impressum", "Über mich"): a "Typ" row in Artikel-Eigenschaften
   (locked once the document is linked to WordPress), "Neue Seite"
   (Ctrl+Alt+N) in the primary menu, and export/preview/delete/conflict
@@ -321,7 +321,7 @@ blocks. Implemented so far:
   one, the site answers with a login page or its 404 page, which the
   button's tooltip notes up front. That login is only needed once: the
   Browser tab and the dialog's own Live-Vorschau share a single network
-  session whose cookies are kept on disk (`blocksmith/webkit/cookies.sqlite`
+  session whose cookies are kept on disk (`blocksatz/webkit/cookies.sqlite`
   under the user's data directory), so signing in there once covers both
   views and outlives restarts of the app. Re-exporting an already-published post first
   re-fetches its current server content and compares it against a
@@ -361,7 +361,7 @@ blocks. Implemented so far:
 - **Primary menu** (the header bar's hamburger button) — "Neue Seite",
   "WordPress-Mediathek", "KI-Artikel schreiben…", "Einstellungen",
   "Tastenkürzel" (a native `Gtk.ShortcutsWindow`, also reachable via
-  Ctrl+?), and "Über Blocksmith", the latter a native `Adw.AboutDialog`
+  Ctrl+?), and "Über Blocksatz", the latter a native `Adw.AboutDialog`
   with the version (always in sync with `Cargo.toml`), GPL-3.0-or-later
   license text, issue tracker/repository links, and the full
   `CHANGELOG.md` history as its browsable "Neuigkeiten" release notes.
@@ -379,11 +379,11 @@ blocks. Implemented so far:
   `data/`.
 - **GNOME desktop integration** — the `.desktop` file declares
   `MimeType=text/markdown;` and the app handles being launched with a file
-  argument, so double-clicking a `.md` file (or "Open With" → Blocksmith)
+  argument, so double-clicking a `.md` file (or "Open With" → Blocksatz)
   in GNOME Files opens it directly, loading into the already-running
-  window rather than a second one if Blocksmith is already open. Opening
+  window rather than a second one if Blocksatz is already open. Opening
   or saving a file also registers it with `Gtk.RecentManager`, GNOME's
-  shared recent-files list, alongside Blocksmith's own "Zuletzt geöffnet"
+  shared recent-files list, alongside Blocksatz's own "Zuletzt geöffnet"
   popover. Publishing, an image upload, or a link check finishing while
   the window isn't focused raises a desktop notification.
 
@@ -419,8 +419,8 @@ cargo test --workspace -- --ignored
 
 ## Packaging (Flatpak)
 
-Blocksmith is packaged and installed as a Flatpak. The manifest at
-`build-aux/flatpak/de.christophlangner.Blocksmith.json` targets
+Blocksatz is packaged and installed as a Flatpak. The manifest at
+`build-aux/flatpak/de.linuxundich.Blocksatz.json` targets
 `org.gnome.Platform` 50, which already bundles GTK4, libadwaita,
 GtkSourceView5 and WebKitGTK 6.0 - only libspelling is built as an extra
 module, plus the `org.freedesktop.Sdk.Extension.rust-stable` SDK extension
@@ -432,17 +432,19 @@ user (it also installs the runtime/SDK/extension if they're missing):
 ```sh
 build-aux/flatpak/build.sh            # build + install
 build-aux/flatpak/build.sh --run      # ... and launch it afterwards
-build-aux/flatpak/build.sh --bundle   # ... and also write blocksmith.flatpak
+build-aux/flatpak/build.sh --bundle   # ... and also write blocksatz.flatpak
 ```
 
 The sandboxed build runs fully offline: the script first vendors every
 crate from `Cargo.lock` into `build-aux/flatpak/.cache/vendor` with
 `cargo vendor`, so a dependency change needs no separate manual step.
 Compiled translations are installed to `/app/share/locale` (see
-`po/README.md`). The app icon ships only as the pre-rendered PNGs under
-`data/icons/hicolor/`, not the SVG: `flatpak build-export` validates icons
-with the host's gdk-pixbuf, which has no SVG loader on systems where
-librsvg no longer ships one, and then refuses the whole export.
+`po/README.md`). The app icon (`data/icons/hicolor/`) is generated by
+`build-aux/icons/generate_icons.py`: a scalable SVG and a symbolic SVG, plus
+PNGs at 48/64/128/256 px rendered from the SVG. The PNGs matter on systems
+whose gdk-pixbuf has no SVG loader any more (librsvg 2.62 dropped it) -
+GNOME Shell would otherwise show a blank tile. `build-aux/icons/make_preview.sh`
+renders `docs/icon-preview.png`; `docs/icon.md` explains the design.
 
 Secrets (WordPress application password, AI API keys) go through `oo7`,
 which inside the sandbox uses the Secret portal's own per-app keyring
@@ -451,7 +453,7 @@ again after switching from a non-Flatpak build.
 
 ## Versioning
 
-Blocksmith follows [Semantic Versioning](https://semver.org/). The version
+Blocksatz follows [Semantic Versioning](https://semver.org/). The version
 in `Cargo.toml` is the source of truth; see [CHANGELOG.md](CHANGELOG.md) for
 what changed in each release. Before `1.0.0`, minor version bumps (`0.x.0`)
 may still change the on-disk frontmatter format or other user-facing

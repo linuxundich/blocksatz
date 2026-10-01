@@ -2,7 +2,7 @@
 //! prompt templates (editable/resettable, like the chat's system prompt)
 //! and the user's own custom prompts. All plain, non-sensitive text, so
 //! this is a single JSON file under
-//! `glib::user_config_dir()/blocksmith/ai_prompts.json` - no secrets
+//! `glib::user_config_dir()/blocksatz/ai_prompts.json` - no secrets
 //! involved here.
 
 use std::path::PathBuf;
@@ -66,7 +66,7 @@ fn default_template_for(id: &str) -> &'static str {
 
 fn config_dir() -> PathBuf {
     let mut dir = glib::user_config_dir();
-    dir.push("blocksmith");
+    dir.push(crate::APP_DIR);
     dir
 }
 

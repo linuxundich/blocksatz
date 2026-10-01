@@ -232,7 +232,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     // separate breakpoints.
     let narrow_breakpoint_for_sidebar = narrow_breakpoint.clone();
 
-    let title = adw::WindowTitle::new("Blocksmith", &tr("Unbenannt"));
+    let title = adw::WindowTitle::new("Blocksatz", &tr("Unbenannt"));
 
     let new_button = gtk4::Button::from_icon_name("document-new-symbolic");
     new_button.set_tooltip_text(Some(&tr("Neu (Strg+N)")));
@@ -269,7 +269,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
 
     // A real primary menu (rather than the plain "win.settings"-bound
     // button this used to be) - "open-menu-symbolic" is the conventional
-    // GNOME hamburger icon for exactly this, and "Über Blocksmith" needs
+    // GNOME hamburger icon for exactly this, and "Über Blocksatz" needs
     // *some* home now that it exists; Ctrl+, still opens Einstellungen
     // directly, since that's the action-level shortcut, independent of
     // how the button itself triggers it.
@@ -283,7 +283,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let app_section = gio::Menu::new();
     app_section.append(Some(&tr("Einstellungen")), Some("win.settings"));
     app_section.append(Some(&tr("Tastenkürzel")), Some("win.show-help-overlay"));
-    app_section.append(Some(&tr("Über Blocksmith")), Some("win.about"));
+    app_section.append(Some(&tr("Über Blocksatz")), Some("win.about"));
     primary_menu.append_section(None, &app_section);
 
     let settings_button = gtk4::MenuButton::new();
@@ -337,7 +337,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
 
     let window = adw::ApplicationWindow::builder()
         .application(app)
-        .title("Blocksmith")
+        .title("Blocksatz")
         .default_width(saved_window_state.width)
         .default_height(saved_window_state.height)
         .maximized(saved_window_state.maximized)
@@ -1429,7 +1429,7 @@ fn wire_startup_recovery(
     let dialog = adw::AlertDialog::new(
         Some(&tr("Nicht gespeicherter Stand gefunden")),
         Some(
-            &tr("Von „{name}“ wurde ein nicht gespeicherter Stand gefunden - vermutlich nach einem Absturz oder weil Blocksmith ohne zu speichern beendet wurde. Wiederherstellen?")
+            &tr("Von „{name}“ wurde ein nicht gespeicherter Stand gefunden - vermutlich nach einem Absturz oder weil Blocksatz ohne zu speichern beendet wurde. Wiederherstellen?")
                 .replace("{name}", &name),
         ),
     );

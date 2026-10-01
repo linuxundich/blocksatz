@@ -20,7 +20,7 @@ const DEFAULT_URL: &str = "https://www.startpage.com/";
 
 fn config_dir() -> PathBuf {
     let mut dir = glib::user_config_dir();
-    dir.push("blocksmith");
+    dir.push(crate::APP_DIR);
     dir
 }
 

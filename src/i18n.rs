@@ -36,7 +36,7 @@
 
 use gettextrs::LocaleCategory;
 
-const DOMAIN: &str = "blocksmith";
+const DOMAIN: &str = "blocksatz";
 
 /// Adopts the process's real locale from the environment and binds this
 /// app's translation catalogs - must run before any other thread starts
@@ -57,13 +57,13 @@ pub fn init() {
 
     // A plain `cargo run` dev build reads freshly `msgfmt`-compiled
     // catalogs straight from the source tree (`build.rs` writes them to
-    // `po/locale/<lang>/LC_MESSAGES/blocksmith.mo` on every build).
+    // `po/locale/<lang>/LC_MESSAGES/blocksatz.mo` on every build).
     // `bindtextdomain` wants the directory containing those `<lang>/...`
     // subdirectories directly, i.e. `po/locale`. The Flatpak build sets
-    // `BLOCKSMITH_LOCALEDIR` at compile time (`/app/share/locale`, where
+    // `BLOCKSATZ_LOCALEDIR` at compile time (`/app/share/locale`, where
     // its manifest installs those same catalogs), since the source tree
     // it was built from no longer exists at runtime.
-    let locale_dir = option_env!("BLOCKSMITH_LOCALEDIR").unwrap_or(concat!(env!("CARGO_MANIFEST_DIR"), "/po/locale"));
+    let locale_dir = option_env!("BLOCKSATZ_LOCALEDIR").unwrap_or(concat!(env!("CARGO_MANIFEST_DIR"), "/po/locale"));
     if let Err(err) = gettextrs::bindtextdomain(DOMAIN, locale_dir) {
         eprintln!("i18n: bindtextdomain fehlgeschlagen ({err}) - falle auf Deutsch zurück.");
         return;
@@ -129,7 +129,7 @@ mod tests {
             Some(value) => std::env::set_var("LANGUAGE", value),
             None => std::env::remove_var("LANGUAGE"),
         }
-        gettextrs::textdomain("blocksmith-test-no-such-domain").ok();
+        gettextrs::textdomain("blocksatz-test-no-such-domain").ok();
 
         assert_eq!(result, "Preview");
     }

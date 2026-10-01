@@ -73,7 +73,7 @@ pub fn term_markup(term: &str, known_terms: &[String]) -> String {
 
 fn cache_path() -> PathBuf {
     let mut dir = glib::user_cache_dir();
-    dir.push("blocksmith");
+    dir.push(crate::APP_DIR);
     dir.push("terms.json");
     dir
 }

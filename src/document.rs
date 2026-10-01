@@ -656,7 +656,7 @@ mod tests {
             body: "Hallo Welt\n".to_string(),
         };
 
-        let path = std::env::temp_dir().join(format!("blocksmith-export-roundtrip-{}.md", std::process::id()));
+        let path = std::env::temp_dir().join(format!("blocksatz-export-roundtrip-{}.md", std::process::id()));
         write(&path, &doc).expect("Dokument schreiben");
         let loaded = read(&path).expect("Dokument lesen");
         let _ = std::fs::remove_file(&path);

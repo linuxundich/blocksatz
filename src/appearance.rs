@@ -45,7 +45,7 @@ const PREVIEW_SYSTEM_SVG: &[u8] = include_bytes!("../data/icons/appearance-previ
 
 fn config_dir() -> PathBuf {
     let mut dir = glib::user_config_dir();
-    dir.push("blocksmith");
+    dir.push(crate::APP_DIR);
     dir
 }
 
@@ -139,7 +139,7 @@ fn reset_editor_font_override() {
     let _ = std::fs::remove_file(editor_font_path());
 }
 
-const EDITOR_FONT_CSS_CLASS: &str = "blocksmith-editor-font";
+const EDITOR_FONT_CSS_CLASS: &str = "blocksatz-editor-font";
 // GTK objects aren't `Sync` (GLib's single-threaded-by-convention model),
 // so this can't be a plain `static` - `thread_local!` is fine since GTK
 // only ever runs on the main thread anyway.
@@ -278,7 +278,7 @@ fn build_theme_card(label_text: &str, svg_bytes: &'static [u8], group: Option<&g
 /// Rebuilds the scheme `flow_box`'s children from every real, installed
 /// `GtkSourceStyleScheme` matching `is_dark` - Builder's
 /// `update_style_schemes()`, minus the light/dark "alternate variant"
-/// bookkeeping (Blocksmith doesn't offer per-scheme variant swapping,
+/// bookkeeping (Blocksatz doesn't offer per-scheme variant swapping,
 /// just the filtered list itself). Deliberately every scheme
 /// `StyleSchemeManager` actually knows about, not a curated subset this
 /// app ships its own copies of - GtkSourceView's own bundled set (real,

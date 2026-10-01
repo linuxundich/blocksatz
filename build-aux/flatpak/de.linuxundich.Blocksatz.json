@@ -1,12 +1,12 @@
 {
-    "id": "de.christophlangner.Blocksmith",
+    "id": "de.linuxundich.Blocksatz",
     "runtime": "org.gnome.Platform",
     "runtime-version": "50",
     "sdk": "org.gnome.Sdk",
     "sdk-extensions": [
         "org.freedesktop.Sdk.Extension.rust-stable"
     ],
-    "command": "blocksmith",
+    "command": "blocksatz",
     "finish-args": [
         "--socket=wayland",
         "--socket=fallback-x11",
@@ -18,8 +18,8 @@
     "build-options": {
         "append-path": "/usr/lib/sdk/rust-stable/bin",
         "env": {
-            "CARGO_HOME": "/run/build/blocksmith/cargo-home",
-            "BLOCKSMITH_LOCALEDIR": "/app/share/locale"
+            "CARGO_HOME": "/run/build/blocksatz/cargo-home",
+            "BLOCKSATZ_LOCALEDIR": "/app/share/locale"
         }
     },
     "cleanup": [
@@ -45,16 +45,18 @@
             ]
         },
         {
-            "name": "blocksmith",
+            "name": "blocksatz",
             "buildsystem": "simple",
             "build-commands": [
                 "install -Dm644 cargo-vendor-config.toml .cargo/config.toml",
                 "cargo --offline build --release",
-                "install -Dm755 target/release/blocksmith /app/bin/blocksmith",
-                "for mo in po/locale/*/LC_MESSAGES/blocksmith.mo; do install -Dm644 \"$mo\" \"/app/share/locale/${mo#po/locale/}\"; done",
-                "install -Dm644 data/de.christophlangner.Blocksmith.desktop /app/share/applications/de.christophlangner.Blocksmith.desktop",
-                "install -Dm644 data/de.christophlangner.Blocksmith.metainfo.xml /app/share/metainfo/de.christophlangner.Blocksmith.metainfo.xml",
-                "for size in 48 64 128 256; do install -Dm644 data/icons/hicolor/${size}x${size}/apps/de.christophlangner.Blocksmith.png /app/share/icons/hicolor/${size}x${size}/apps/de.christophlangner.Blocksmith.png; done"
+                "install -Dm755 target/release/blocksatz /app/bin/blocksatz",
+                "for mo in po/locale/*/LC_MESSAGES/blocksatz.mo; do install -Dm644 \"$mo\" \"/app/share/locale/${mo#po/locale/}\"; done",
+                "install -Dm644 data/de.linuxundich.Blocksatz.desktop /app/share/applications/de.linuxundich.Blocksatz.desktop",
+                "install -Dm644 data/de.linuxundich.Blocksatz.metainfo.xml /app/share/metainfo/de.linuxundich.Blocksatz.metainfo.xml",
+                "for size in 48 64 128 256; do install -Dm644 data/icons/hicolor/${size}x${size}/apps/de.linuxundich.Blocksatz.png /app/share/icons/hicolor/${size}x${size}/apps/de.linuxundich.Blocksatz.png; done",
+                "install -Dm644 data/icons/hicolor/scalable/apps/de.linuxundich.Blocksatz.svg /app/share/icons/hicolor/scalable/apps/de.linuxundich.Blocksatz.svg",
+                "install -Dm644 data/icons/hicolor/symbolic/apps/de.linuxundich.Blocksatz-symbolic.svg /app/share/icons/hicolor/symbolic/apps/de.linuxundich.Blocksatz-symbolic.svg"
             ],
             "sources": [
                 {
@@ -68,7 +70,7 @@
                         "build-aux/flatpak/repo",
                         "build-aux/flatpak/.cache",
                         ".claude",
-                        "blocksmith-quill-features.mbox"
+                        "blocksatz-quill-features.mbox"
                     ]
                 },
                 {

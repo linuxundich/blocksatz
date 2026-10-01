@@ -1394,7 +1394,7 @@ mod tests {
 
         let body = "Ein Testartikel für Entwurf/Veröffentlichen.\n";
         let mut frontmatter = Frontmatter {
-            title: "Blocksmith draft/publish status test".to_string(),
+            title: "Blocksatz draft/publish status test".to_string(),
             post_type: PostType::Post,
             slug: String::new(),
             status: crate::document::PostStatus::Draft,
@@ -1448,7 +1448,7 @@ mod tests {
 
         let body = "Ein Testartikel für das Aktualisieren-ohne-Statuswechsel-Verhalten.\n";
         let mut frontmatter = Frontmatter {
-            title: "Blocksmith update-without-status-change test".to_string(),
+            title: "Blocksatz update-without-status-change test".to_string(),
             post_type: PostType::Post,
             slug: String::new(),
             status: crate::document::PostStatus::Draft,
@@ -1501,7 +1501,7 @@ mod tests {
 
         let body = "Ein Testartikel für den VG-Wort-Toggle.\n";
         let mut frontmatter = Frontmatter {
-            title: "Blocksmith vgwort_ignored round-trip test".to_string(),
+            title: "Blocksatz vgwort_ignored round-trip test".to_string(),
             post_type: PostType::Post,
             slug: String::new(),
             status: crate::document::PostStatus::Draft,
@@ -1553,7 +1553,7 @@ mod tests {
 
         let body = "Ein Testartikel für den Kommentar-Status-Toggle.\n";
         let mut frontmatter = Frontmatter {
-            title: "Blocksmith comment_status round-trip test".to_string(),
+            title: "Blocksatz comment_status round-trip test".to_string(),
             post_type: PostType::Post,
             slug: String::new(),
             status: crate::document::PostStatus::Draft,
@@ -1605,16 +1605,16 @@ mod tests {
             .expect("no application password stored for this site/user");
 
         let doc_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-        let body = "# Blocksmith export test\n\nSome **text** with a local image below.\n\n![a red pixel](pixel.png)\n";
+        let body = "# Blocksatz export test\n\nSome **text** with a local image below.\n\n![a red pixel](pixel.png)\n";
 
         let mut frontmatter = Frontmatter {
-            title: "Blocksmith export test post".to_string(),
+            title: "Blocksatz export test post".to_string(),
             post_type: PostType::Post,
             slug: String::new(),
             status: crate::document::PostStatus::Draft,
             scheduled_at: None,
-            categories: vec!["Blocksmith Export Test".to_string()],
-            tags: vec!["blocksmith-test".to_string()],
+            categories: vec!["Blocksatz Export Test".to_string()],
+            tags: vec!["blocksatz-test".to_string()],
             excerpt: None,
             rank_math_title: None,
             rank_math_description: None,
@@ -1665,10 +1665,10 @@ mod tests {
             .expect("no application password stored for this site/user");
 
         let doc_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-        let body = "# Blocksmith re-export test\n\n![a red pixel](pixel.png)\n";
+        let body = "# Blocksatz re-export test\n\n![a red pixel](pixel.png)\n";
 
         let mut frontmatter = Frontmatter {
-            title: "Blocksmith re-export test post".to_string(),
+            title: "Blocksatz re-export test post".to_string(),
             post_type: PostType::Post,
             slug: String::new(),
             status: crate::document::PostStatus::Draft,
@@ -1714,7 +1714,7 @@ mod tests {
 
     #[test]
     fn read_image_bytes_reads_a_local_file_relative_to_the_doc_dir() {
-        let dir = std::env::temp_dir().join(format!("blocksmith-read-image-bytes-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("blocksatz-read-image-bytes-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("photo.png"), b"not a real png, just test bytes").unwrap();
 
@@ -1726,7 +1726,7 @@ mod tests {
 
     #[test]
     fn read_image_bytes_reports_a_readable_error_for_a_missing_local_file() {
-        let dir = std::env::temp_dir().join(format!("blocksmith-read-image-bytes-missing-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("blocksatz-read-image-bytes-missing-test-{}", std::process::id()));
         let err = read_image_bytes("nope.png", Some(&dir)).expect_err("expected a missing file to be an error");
         assert!(err.contains("nope.png"), "{err}");
     }

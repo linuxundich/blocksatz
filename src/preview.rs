@@ -83,7 +83,7 @@ impl PreviewStyle {
 
 fn config_dir() -> PathBuf {
     let mut dir = glib::user_config_dir();
-    dir.push("blocksmith");
+    dir.push(crate::APP_DIR);
     dir
 }
 
@@ -1291,7 +1291,7 @@ fn article_url_preview(frontmatter: &Frontmatter) -> Option<String> {
 }
 
 /// The pure part of `article_url_preview`, split out so it's testable
-/// without depending on this machine's own `$XDG_CONFIG_HOME/blocksmith/
+/// without depending on this machine's own `$XDG_CONFIG_HOME/blocksatz/
 /// wordpress.conf` - `wpsite::load()` reads real on-disk state, which
 /// would make a test asserting "no site configured" fail on any machine
 /// (this one included) that actually has one set up.
@@ -1911,7 +1911,7 @@ mod tests {
 
     #[test]
     fn item_index_for_image_uri_matches_a_local_file_uri_back_to_its_source() {
-        let dir = std::env::temp_dir().join(format!("blocksmith-preview-uri-match-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("blocksatz-preview-uri-match-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("cat.png"), b"fake png bytes").unwrap();
 

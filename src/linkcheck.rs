@@ -128,7 +128,7 @@ fn all_ok_text(total: usize) -> String {
 /// Browser tab (`app_view_stack`/`browser_view`) rather than an external
 /// browser - the same "stay inside the app" convention `export.rs`'s own
 /// "Vorschau öffnen" button already uses, so checking a link that looks
-/// broken doesn't mean leaving Blocksmith to look at it.
+/// broken doesn't mean leaving Blocksatz to look at it.
 pub fn build_content(body: &str, app_view_stack: &adw::ViewStack, browser_view: &Rc<browser::BrowserView>) -> gtk4::Widget {
     let links = scan_links(body);
 

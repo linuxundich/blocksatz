@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Builds Blocksmith as a Flatpak from the current checkout and installs it
+# Builds Blocksatz as a Flatpak from the current checkout and installs it
 # for the current user (`--user`).
 #
 #   build-aux/flatpak/build.sh            # build + install
 #   build-aux/flatpak/build.sh --run      # ... and launch it afterwards
-#   build-aux/flatpak/build.sh --bundle   # ... and also write blocksmith.flatpak
+#   build-aux/flatpak/build.sh --bundle   # ... and also write blocksatz.flatpak
 #
 # The sandboxed build runs offline, so every crate from `Cargo.lock` is
 # first vendored into `.cache/vendor` with plain `cargo vendor` (the same
@@ -14,7 +14,7 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
-app_id="de.christophlangner.Blocksmith"
+app_id="de.linuxundich.Blocksatz"
 manifest="$here/$app_id.json"
 cache="$here/.cache"
 
@@ -56,8 +56,8 @@ flatpak-builder --user --install --force-clean --ccache \
   "$here/build-dir" "$manifest"
 
 if $bundle; then
-  flatpak build-bundle "$here/repo" "$root/blocksmith.flatpak" "$app_id"
-  echo "Bundle: $root/blocksmith.flatpak"
+  flatpak build-bundle "$here/repo" "$root/blocksatz.flatpak" "$app_id"
+  echo "Bundle: $root/blocksatz.flatpak"
 fi
 
 if $run; then

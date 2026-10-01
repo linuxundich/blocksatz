@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-const SERVICE_ATTR: &str = "blocksmith";
+const SERVICE_ATTR: &str = "blocksatz";
 
 fn attributes<'a>(url: &'a str, username: &'a str) -> HashMap<&'static str, &'a str> {
     HashMap::from([("service", SERVICE_ATTR), ("url", url), ("username", username)])
@@ -18,7 +18,7 @@ pub async fn store_app_password(url: &str, username: &str, password: &str) -> oo
     keyring.unlock().await?;
     keyring
         .create_item(
-            "Blocksmith WordPress Application Password",
+            "Blocksatz WordPress Application Password",
             &attributes(url, username),
             password,
             true, // replace any existing item for this url+username
@@ -49,7 +49,7 @@ pub async fn store_llm_api_key(provider_id: &str, key: &str) -> oo7::Result<()> 
     let keyring = oo7::Keyring::new().await?;
     keyring.unlock().await?;
     keyring
-        .create_item(&format!("Blocksmith {provider_id} API Key"), &llm_attributes(provider_id), key, true)
+        .create_item(&format!("Blocksatz {provider_id} API Key"), &llm_attributes(provider_id), key, true)
         .await
 }
 
@@ -78,7 +78,7 @@ mod tests {
     #[ignore]
     fn store_and_load_round_trip_against_real_keyring() {
         futures_lite::future::block_on(async {
-            let url = "https://blocksmith-test.invalid";
+            let url = "https://blocksatz-test.invalid";
             let username = "test-user";
             let password = "s3cr3t-app-password";
 

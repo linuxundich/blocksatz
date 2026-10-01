@@ -25,7 +25,7 @@ impl Default for WindowState {
 
 fn config_path() -> PathBuf {
     let mut dir = glib::user_config_dir();
-    dir.push("blocksmith");
+    dir.push(crate::APP_DIR);
     dir.push("window_state.conf");
     dir
 }

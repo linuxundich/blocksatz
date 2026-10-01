@@ -993,7 +993,7 @@ mod tests {
         let categories = client.list_terms("categories").expect("list_terms failed");
         let parent = categories.iter().find(|c| c.name == "Allgemein").expect("expected the real site's known 'Allgemein' category");
 
-        let child_id = client.create_term("categories", "Blocksmith Hierarchy Test", parent.id).expect("create_term failed");
+        let child_id = client.create_term("categories", "Blocksatz Hierarchy Test", parent.id).expect("create_term failed");
         let refetched = client.list_terms("categories").expect("list_terms failed");
         let child = refetched.iter().find(|c| c.id == child_id).expect("expected the just-created category to come back from list_terms");
         assert_eq!(child.parent, parent.id, "expected the new category to be parented under 'Allgemein'");
@@ -1041,17 +1041,17 @@ mod tests {
         let client = Client::new(&config.url, &config.username, &password);
 
         let category_id = client
-            .resolve_or_create_term("categories", "Blocksmith Test")
+            .resolve_or_create_term("categories", "Blocksatz Test")
             .expect("category resolve/create failed");
 
         let media = client
-            .upload_media(b"not a real png, just bytes for the upload test", "blocksmith-test.txt", "text/plain")
+            .upload_media(b"not a real png, just bytes for the upload test", "blocksatz-test.txt", "text/plain")
             .expect("media upload failed");
         assert!(media.id > 0);
 
         let created = client
             .create_post(&serde_json::json!({
-                "title": "Blocksmith integration test post",
+                "title": "Blocksatz integration test post",
                 "content": "<!-- wp:paragraph -->\n<p>Created by an automated test, safe to delete.</p>\n<!-- /wp:paragraph -->",
                 "status": "draft",
                 "categories": [category_id],
@@ -1063,7 +1063,7 @@ mod tests {
             .update_post(
                 created.id,
                 &serde_json::json!({
-                    "title": "Blocksmith integration test post (updated)",
+                    "title": "Blocksatz integration test post (updated)",
                 }),
             )
             .expect("update_post failed");
@@ -1086,15 +1086,15 @@ mod tests {
         let client = Client::new(&config.url, &config.username, &password);
 
         let term_id = client
-            .resolve_or_create_term("categories", "Blocksmith Term-Test")
+            .resolve_or_create_term("categories", "Blocksatz Term-Test")
             .expect("resolve_or_create_term failed");
 
         let listed = client.list_terms("categories").expect("list_terms failed");
-        assert!(listed.iter().any(|t| t.id == term_id && t.name == "Blocksmith Term-Test"), "created term not found in list_terms: {listed:?}");
+        assert!(listed.iter().any(|t| t.id == term_id && t.name == "Blocksatz Term-Test"), "created term not found in list_terms: {listed:?}");
 
-        client.rename_term("categories", term_id, "Blocksmith Term-Test (umbenannt)").expect("rename_term failed");
+        client.rename_term("categories", term_id, "Blocksatz Term-Test (umbenannt)").expect("rename_term failed");
         let renamed_name = client.get_term_name("categories", term_id).expect("get_term_name after rename failed");
-        assert_eq!(renamed_name, "Blocksmith Term-Test (umbenannt)");
+        assert_eq!(renamed_name, "Blocksatz Term-Test (umbenannt)");
 
         client.delete_term("categories", term_id).expect("delete_term failed");
         let after_delete = client.list_terms("categories").expect("list_terms after delete failed");
@@ -1126,7 +1126,7 @@ mod tests {
             .expect("no application password stored for this site/user");
         let client = Client::new(&config.url, &config.username, &password);
 
-        let media = client.upload_media(ONE_PIXEL_PNG, "blocksmith-media-test.png", "image/png").expect("media upload failed");
+        let media = client.upload_media(ONE_PIXEL_PNG, "blocksatz-media-test.png", "image/png").expect("media upload failed");
         assert!(media.id > 0);
         assert!(!media.source_url.is_empty());
 
@@ -1156,7 +1156,7 @@ mod tests {
             .expect("no application password stored for this site/user");
         let client = Client::new(&config.url, &config.username, &password);
 
-        let media = client.upload_media(ONE_PIXEL_PNG, "blocksmith-decorative-test.png", "image/png").expect("media upload failed");
+        let media = client.upload_media(ONE_PIXEL_PNG, "blocksatz-decorative-test.png", "image/png").expect("media upload failed");
 
         client.update_media_metadata(media.id, Some(""), None).expect("update_media_metadata with empty alt failed");
 

@@ -1,4 +1,4 @@
-//! "Willkommen bei Blocksmith" first-run wizard: a carousel dialog shown
+//! "Willkommen bei Blocksatz" first-run wizard: a carousel dialog shown
 //! once, the very first time the app launches, collecting the WordPress
 //! connection - the one setting almost every feature in this app already
 //! gates on (`site.url.is_empty()` shows up in a dozen places), and the
@@ -13,7 +13,7 @@
 //! wizard's shorter, StatusPage-flavored ones.
 //!
 //! Whether to show it at all is a single marker file under
-//! `glib::user_config_dir()/blocksmith/` - this app's established plain-file
+//! `glib::user_config_dir()/blocksatz/` - this app's established plain-file
 //! settings convention (`wpsite.rs`/`appearance.rs`), not `Gio.Settings`,
 //! which nothing here uses. Written once the dialog closes, by "Fertig"
 //! *or* "Überspringen" alike, so a deliberate skip doesn't re-show the
@@ -31,7 +31,7 @@ use crate::{secrets, wpclient, wpsite};
 
 fn marker_path() -> std::path::PathBuf {
     let mut path = glib::user_config_dir();
-    path.push("blocksmith");
+    path.push(crate::APP_DIR);
     path.push("onboarding_done");
     path
 }
@@ -73,8 +73,8 @@ pub fn open(parent: &adw::ApplicationWindow) {
     let config = wpsite::load();
 
     let welcome_page = adw::StatusPage::builder()
-        .icon_name("de.christophlangner.Blocksmith")
-        .title(tr("Willkommen bei Blocksmith"))
+        .icon_name("de.linuxundich.Blocksatz")
+        .title(tr("Willkommen bei Blocksatz"))
         .description(tr(
             "Schreibe Artikel in Markdown und veröffentliche sie direkt als native WordPress-Gutenberg-Blöcke - mit Live-Vorschau, KI-Unterstützung und allem, was ein Artikel sonst noch braucht.",
         ))

@@ -2,7 +2,7 @@
 //! release history into the restricted HTML subset (`<p>`, `<ul>`, `<li>` -
 //! the same subset AppStream release descriptions use) that
 //! `Adw.AboutDialog`'s `release-notes` property accepts, so the "Über
-//! Blocksmith" dialog (`about.rs`) can show the full version history
+//! Blocksatz" dialog (`about.rs`) can show the full version history
 //! directly, not just point at the repository.
 //!
 //! Deliberately drops the `### Added`/`### Changed`/`### Fixed` category

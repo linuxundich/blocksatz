@@ -12,7 +12,7 @@
 //! cookie was gone again with the next start of the app.
 //!
 //! Sharing one session means a single login in the Browser tab also counts
-//! for the preview, and the SQLite cookie jar under `blocksmith/webkit`
+//! for the preview, and the SQLite cookie jar under `blocksatz/webkit`
 //! means it keeps counting across restarts.
 
 use std::cell::OnceCell;
@@ -22,14 +22,14 @@ use gtk4::glib;
 
 fn data_dir() -> PathBuf {
     let mut dir = glib::user_data_dir();
-    dir.push("blocksmith");
+    dir.push(crate::APP_DIR);
     dir.push("webkit");
     dir
 }
 
 fn cache_dir() -> PathBuf {
     let mut dir = glib::user_cache_dir();
-    dir.push("blocksmith");
+    dir.push(crate::APP_DIR);
     dir.push("webkit");
     dir
 }

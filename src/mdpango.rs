@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn links_become_clickable_pango_anchors() {
-        assert_eq!(markdown_to_pango("[Blocksmith](https://example.com)"), "<a href=\"https://example.com\">Blocksmith</a>");
+        assert_eq!(markdown_to_pango("[Blocksatz](https://example.com)"), "<a href=\"https://example.com\">Blocksatz</a>");
     }
 
     #[test]

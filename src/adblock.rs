@@ -2,7 +2,7 @@
 //! built on the exact same WebKit "content blocker" mechanism GNOME Web
 //! (Epiphany) itself uses for its own ad blocker -
 //! `WebKitUserContentFilterStore`/`WebKitUserContentManager`, the same
-//! rule format Safari's content blockers use, not a bespoke Blocksmith
+//! rule format Safari's content blockers use, not a bespoke Blocksatz
 //! mechanism.
 //!
 //! Deliberately *not* a hand-coded Rust list of domains: the actual block
@@ -29,7 +29,7 @@ use std::path::PathBuf;
 
 use gtk4::{gio, glib};
 
-const FILTER_IDENTIFIER: &str = "blocksmith-basic-adblock";
+const FILTER_IDENTIFIER: &str = "blocksatz-basic-adblock";
 
 /// A small, hand-picked subset of real EasyList rules covering well-known
 /// ad/tracker network infrastructure - see the module doc comment for why
@@ -82,7 +82,7 @@ fn build_rules_json(domains: &[String]) -> String {
 
 fn config_dir() -> PathBuf {
     let mut dir = glib::user_config_dir();
-    dir.push("blocksmith");
+    dir.push(crate::APP_DIR);
     dir
 }
 
@@ -105,7 +105,7 @@ pub fn set_enabled(enabled: bool) {
 
 fn content_filter_store() -> webkit6::UserContentFilterStore {
     let mut path = glib::user_cache_dir();
-    path.push("blocksmith");
+    path.push(crate::APP_DIR);
     path.push("content-filters");
     let _ = std::fs::create_dir_all(&path);
     webkit6::UserContentFilterStore::new(&path.to_string_lossy())

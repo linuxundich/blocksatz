@@ -34,7 +34,7 @@ const PROBE_SPACING: Duration = Duration::from_millis(400);
 
 fn cache_path() -> PathBuf {
     let mut path = glib::user_config_dir();
-    path.push("blocksmith");
+    path.push(crate::APP_DIR);
     path.push("model_status.json");
     path
 }

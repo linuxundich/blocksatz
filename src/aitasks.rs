@@ -105,7 +105,7 @@ pub struct TaskAssignment {
 
 fn tasks_path() -> PathBuf {
     let mut path = glib::user_config_dir();
-    path.push("blocksmith");
+    path.push(crate::APP_DIR);
     path.push("ai_tasks.json");
     path
 }

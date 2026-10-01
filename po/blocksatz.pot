@@ -1,14 +1,14 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR Christoph Langner
-# This file is distributed under the same license as the Blocksmith package.
+# This file is distributed under the same license as the Blocksatz package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Blocksmith 0.63.3\n"
-"Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksmith/issues\n"
-"POT-Creation-Date: 2026-09-28 22:35+0200\n"
+"Project-Id-Version: Blocksatz 0.64.0\n"
+"Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
+"POT-Creation-Date: 2026-10-01 19:00+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2074,7 +2074,7 @@ msgid "Tastenkürzel"
 msgstr ""
 
 #: src/window.rs:286
-msgid "Über Blocksmith"
+msgid "Über Blocksatz"
 msgstr ""
 
 #: src/window.rs:291
@@ -2160,7 +2160,7 @@ msgstr ""
 #: src/window.rs:1432
 msgid ""
 "Von „{name}“ wurde ein nicht gespeicherter Stand gefunden - vermutlich nach "
-"einem Absturz oder weil Blocksmith ohne zu speichern beendet wurde. "
+"einem Absturz oder weil Blocksatz ohne zu speichern beendet wurde. "
 "Wiederherstellen?"
 msgstr ""
 

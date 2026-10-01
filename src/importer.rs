@@ -503,7 +503,7 @@ mod tests {
 
         let created = client
             .create_post(&serde_json::json!({
-                "title": "Blocksmith round-trip test",
+                "title": "Blocksatz round-trip test",
                 "content": content,
                 "status": "draft",
             }))
@@ -511,7 +511,7 @@ mod tests {
 
         let imported = fetch_and_convert(&site, &password, PostType::Post, created.id).expect("fetch_and_convert failed");
 
-        assert_eq!(imported.frontmatter.title, "Blocksmith round-trip test");
+        assert_eq!(imported.frontmatter.title, "Blocksatz round-trip test");
         assert_eq!(imported.frontmatter.wp_post_id, Some(created.id));
         assert!(imported.body.contains("# Rundreise-Test"), "body was:\n{}", imported.body);
         assert!(imported.body.contains("**fetter**"), "body was:\n{}", imported.body);

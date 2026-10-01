@@ -3,7 +3,7 @@
 //! existing "KI-Aktionen" (which sends the same customizable prompts to
 //! the Chat tab for review), replace the selection in place - modeled on
 //! the Quill macOS app's `AIResultPanel`, a floating Accept/Discard bar
-//! shown over an AI edit. Blocksmith has no floating in-editor overlay, so
+//! shown over an AI edit. Blocksatz has no floating in-editor overlay, so
 //! this reuses `searchbar.rs`'s own shape instead - a `Gtk.Revealer`
 //! sliding up from the bottom of the editor pane - with Übernehmen/
 //! Verwerfen buttons in place of search/replace fields.

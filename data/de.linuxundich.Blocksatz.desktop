@@ -1,8 +1,8 @@
 [Desktop Entry]
-Name=Blocksmith
+Name=Blocksatz
 Comment=Markdown-Artikel schreiben und als WordPress-Gutenberg-Blöcke veröffentlichen
-Exec=blocksmith
-Icon=de.christophlangner.Blocksmith
+Exec=blocksatz
+Icon=de.linuxundich.Blocksatz
 Terminal=false
 Type=Application
 Categories=Office;TextEditor;

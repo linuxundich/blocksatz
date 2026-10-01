@@ -1,6 +1,6 @@
 # Roadmap
 
-A living backlog of candidate next features for Blocksmith, analyzed
+A living backlog of candidate next features for Blocksatz, analyzed
 2026-09-04 against the app's actual current state (not a re-statement of
 old plans - every item below was checked against the code before being
 listed as open). Not a commitment or a schedule, just a prioritized list
@@ -94,7 +94,7 @@ what's already shipped.
   translation (`po/en.po`, ~270 strings) proving it end to end. AI prompt
   content and proper nouns deliberately stay German/untranslated by
   design - see `po/README.md`. The Flatpak build installs and finds its
-  compiled translations too (`BLOCKSMITH_LOCALEDIR`).
+  compiled translations too (`BLOCKSATZ_LOCALEDIR`).
 - ~~**A CI pipeline.**~~ Done (see CHANGELOG.md) -
   `.github/workflows/ci.yml` runs `cargo build`/`test`/`clippy` on every
   push/PR, in an `archlinux:latest` container (not Ubuntu's default
@@ -180,10 +180,10 @@ already shipped or already rejected.
 ## GNOME/Linux-specific candidate features (2026-09-06 analysis)
 
 The lists above are about the editor/WordPress side. This pass asked a
-different question: which platform integrations is Blocksmith missing
+different question: which platform integrations is Blocksatz missing
 that a GNOME/Flatpak-native app is expected to have? Checked against
-`data/de.christophlangner.Blocksmith.desktop`,
-`build-aux/flatpak/de.christophlangner.Blocksmith.json`, and `src/i18n.rs`
+`data/de.linuxundich.Blocksatz.desktop`,
+`build-aux/flatpak/de.linuxundich.Blocksatz.json`, and `src/i18n.rs`
 - not speculation.
 
 ### Quick wins
@@ -191,7 +191,7 @@ that a GNOME/Flatpak-native app is expected to have? Checked against
 - ~~**`.desktop` file has no `MimeType=`.**~~ Done (see CHANGELOG.md) -
   `MimeType=text/markdown;` plus `Gio::ApplicationFlags::HANDLES_OPEN`
   and a `Gio::Application::connect_open` handler, so double-clicking a
-  `.md` file (or "Open With" → Blocksmith) in Nautilus works, loading into
+  `.md` file (or "Open With" → Blocksatz) in Nautilus works, loading into
   the already-running window rather than spawning a second one.
 - ~~**Opened articles never reach `Gio::RecentManager`.**~~ Done (see
   CHANGELOG.md) - opening or saving a file now also registers it with
@@ -212,7 +212,7 @@ that a GNOME/Flatpak-native app is expected to have? Checked against
   (confirmed via grep - `window.rs`, `properties.rs`), which is portal-
   backed and sandbox-safe on its own; the broad `host:rw` grant looks like
   a leftover from before that, not something the app's actual file access
-  pattern requires. Narrowing or dropping it would make Blocksmith an
+  pattern requires. Narrowing or dropping it would make Blocksatz an
   honestly-sandboxed Flatpak instead of one that only nominally is - this
   is also a concrete blocker Flathub's own review process flags for new
   submissions.
@@ -220,14 +220,14 @@ that a GNOME/Flatpak-native app is expected to have? Checked against
   `org.gnome.Shell.SearchProvider2` D-Bus interface over the same data
   `recentfiles.rs` already tracks would let a partial article title typed
   into the Activities Overview jump straight to opening that file in
-  Blocksmith - a small D-Bus service on top of existing state, not a new
+  Blocksatz - a small D-Bus service on top of existing state, not a new
   subsystem, and the kind of integration that makes a GNOME app feel like
   it belongs on the desktop rather than being "a Linux port."
 - **A `~/Templates` entry for Nautilus's "New Document."** Nautilus's
   right-click "New Document" submenu is populated straight from files
   placed in `~/Templates`; shipping a `.md` template there (with the
   standard frontmatter block already filled in) would let a new article
-  be started from the Files app directly, without opening Blocksmith
+  be started from the Files app directly, without opening Blocksatz
   first.
 
 ### Larger / architectural
@@ -331,7 +331,7 @@ accessibility gaps the alt-text/caption work this cycle kept surfacing.
 [Quill](https://quill.siolon.com/) is a native macOS WordPress editor
 with a very similar goal (write and publish to a self-hosted site via the
 REST API and an Application Password, no plugin needed). Comparing its
-feature set against Blocksmith's surfaced these gaps:
+feature set against Blocksatz's surfaced these gaps:
 
 - ~~**Pages, not just posts.**~~ Done (see above).
 - ~~**Trash a post/page from inside the app.**~~ Done - "In den

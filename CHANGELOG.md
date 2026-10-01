@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **State-dependent main action** (GUI redesign, phase 3): the editor's
+  header bar ends in one `AdwSplitButton` that names what it does for the
+  open article - "Als Entwurf hochladen" (only local), "Entwurf
+  aktualisieren" (draft with changes), "Veröffentlichen …" (draft in
+  sync), "Änderungen hochladen" (scheduled), "Änderungen veröffentlichen …"
+  (published with changes), or a plain "Im Blog ansehen" / "Blog-Vorschau
+  öffnen". Its menu holds the alternatives: submit for review, update and
+  open the preview, schedule, publish now, revert to draft, discard
+  changes, and the export wizard as "Vor Veröffentlichung prüfen …". The
+  first upload is always a draft; publishing asks first (the release
+  check of phase 5 will replace that confirmation). Replaces the
+  "Artikel exportieren" button.
+- The window title shows the article's title, its subtitle the state
+  ("Entwurf · nicht hochgeladen", "Veröffentlicht · Änderungen nicht
+  online", "Nur lokal" ...).
+- **Sync check with the blog** (`blogsync.rs`): at start, when the window
+  becomes active again (at most every two minutes) and from the sidebar's
+  refresh button, one request per post type fetches status,
+  `modified_gmt` and permalink of every working copy's post. A banner
+  below the header bar then reports a post changed on the server ("Blog-
+  Fassung laden"), changed on both sides ("Auflösen …": take the blog's
+  version or keep yours), deleted or trashed ("Verknüpfung lösen"), and
+  reminds that changes to a published post aren't online yet. The
+  sidebar's rows show the same states.
+
 - **New library sidebar** (GUI redesign, phase 2): the left sidebar is an
   `AdwSidebar` with its own header bar (new article with a menu for page,
   AI article and opening a file; search; primary menu). "In Arbeit" lists
@@ -49,6 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- An existing draft can be published again: the export wizard only ever
+  offered "Aktualisieren" (status unchanged) for posts that already exist
+  on WordPress. The main action's "Veröffentlichen …" sends `publish`.
 - "Aktualisieren" in the document sidebar no longer publishes an existing
   draft. The sidebar decided once, when it was built and before any
   document was loaded, whether its main button should force `publish`, so

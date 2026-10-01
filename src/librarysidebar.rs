@@ -172,6 +172,7 @@ impl LibrarySidebar {
                 if let Some(this) = weak.upgrade() {
                     this.reload();
                     this.refresh_counts();
+                    crate::blogsync::refresh(&this.ctx);
                 }
             });
         }
@@ -179,7 +180,7 @@ impl LibrarySidebar {
             let weak = this.weak.clone();
             // Deferred: a rescan replaces every row, and this can be called
             // from inside the sidebar's own `activated` handler.
-            *ctx.library_listener.borrow_mut() = Some(Rc::new(move |structural| {
+            ctx.add_library_listener(Rc::new(move |structural| {
                 let weak = weak.clone();
                 glib::idle_add_local_once(move || {
                     if let Some(this) = weak.upgrade() {
@@ -259,9 +260,9 @@ impl LibrarySidebar {
         for (entry, _) in entries {
             // The open article's row reflects the editor, not the file,
             // which can be up to one save interval behind.
-            let document = if Some(&entry.path) == current.as_ref() { self.current_document() } else { entry.document };
+            let document = if Some(&entry.path) == current.as_ref() { self.ctx.current_document() } else { entry.document };
             let item = adw::SidebarItem::new("");
-            apply(&item, &entry.path, &document);
+            apply(&item, &entry.path, &document, &self.ctx.remote_for(&document.frontmatter));
             self.work.append(item.clone());
             items.push((entry.path, item));
         }
@@ -279,15 +280,13 @@ impl LibrarySidebar {
         let Some(path) = self.ctx.current_path.borrow().clone() else { return };
         let item = self.work_items.borrow().iter().find(|(p, _)| *p == path).map(|(_, i)| i.clone());
         match item {
-            Some(item) => apply(&item, &path, &self.current_document()),
+            Some(item) => {
+                let document = self.ctx.current_document();
+                apply(&item, &path, &document, &self.ctx.remote_for(&document.frontmatter));
+            }
             None if library::contains(&library::root(), &path) => self.reload(),
             None => {}
         }
-    }
-
-    fn current_document(&self) -> Document {
-        let buffer = &self.ctx.buffer;
-        Document { frontmatter: self.ctx.frontmatter.borrow().clone(), body: buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string() }
     }
 
     /// Back to the editor: the open article is the selected row again.
@@ -364,12 +363,12 @@ impl LibrarySidebar {
 }
 
 /// Fills a row from an article: title, status subtitle, sync suffix.
-fn apply(item: &adw::SidebarItem, path: &Path, doc: &Document) {
+fn apply(item: &adw::SidebarItem, path: &Path, doc: &Document, remote: &Remote) {
     let title = library::title_hint(doc)
         .or_else(|| path.parent().and_then(Path::file_name).map(|n| n.to_string_lossy().to_string()))
         .unwrap_or_else(|| tr("Unbenannt"));
     item.set_title(Some(&title));
-    let state = syncstate::state(doc, &Remote::Unknown);
+    let state = syncstate::state(doc, remote);
     item.set_subtitle(Some(&status_text(doc, state.status)));
     item.set_icon_name(Some("text-x-generic-symbolic"));
     let suffix = match state.sync {

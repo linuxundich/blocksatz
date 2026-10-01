@@ -87,7 +87,7 @@ pub struct Term {
     pub parent: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PostSummary {
     pub id: u64,
     pub title: String,
@@ -761,6 +761,29 @@ impl Client {
             })
             .unwrap_or_default();
         Ok(PostPage { items, total, total_pages })
+    }
+
+    /// Status, `modified_gmt` and permalink of the posts/pages with the
+    /// given ids, trashed ones included (so the caller can tell "in the
+    /// trash" from "deleted": a deleted id is simply missing). Backs the
+    /// sync check of the library's working copies.
+    pub fn remote_states(&self, rest_base: &str, ids: &[u64]) -> Result<Vec<PostSummary>> {
+        let mut found = Vec::new();
+        for chunk in ids.chunks(100) {
+            let include = chunk.iter().map(u64::to_string).collect::<Vec<_>>().join(",");
+            let url = format!(
+                "{}?include={include}&per_page=100&context=edit&status=publish,future,draft,pending,private,trash&_fields=id,status,modified_gmt,link,date,title",
+                self.endpoint(rest_base)
+            );
+            let value = self.get_json(&url)?;
+            for item in value.as_array().into_iter().flatten() {
+                let text = |key: &str| item.get(key).and_then(Value::as_str).unwrap_or_default().to_string();
+                if let Some(id) = item.get("id").and_then(Value::as_u64) {
+                    found.push(PostSummary { id, title: post_title(item), status: text("status"), date: text("date"), link: text("link"), modified_gmt: text("modified_gmt") });
+                }
+            }
+        }
+        Ok(found)
     }
 
     /// How many posts/pages are in `statuses` - one minimal request,

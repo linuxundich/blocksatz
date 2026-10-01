@@ -1,4 +1,5 @@
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -9,7 +10,7 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    blogposts, importer, library, librarysidebar, worksave,
+    blogposts, blogsync, importer, library, librarysidebar, mainaction, syncstate, worksave,
     about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
     mediabrowser, medialibrary, mediapanel, preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
 };
@@ -278,19 +279,18 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     focus_mode_toggle_button.set_tooltip_text(Some(&tr("Fokus-Schreibmodus (Strg+Umschalt+F)")));
     focus_mode_toggle_button.set_action_name(Some("win.toggle-focus-mode"));
 
-    let publish_button = gtk4::Button::from_icon_name("send-to-symbolic");
-    publish_button.set_tooltip_text(Some(&tr("Artikel exportieren (Strg+Umschalt+P)")));
-    publish_button.set_action_name(Some("win.publish"));
-    publish_button.add_css_class("suggested-action");
+    // Filled with the main action (`mainaction.rs`) once the document
+    // context exists; packed first so it ends up outermost on the right.
+    let main_action_slot = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
 
     let header_bar = adw::HeaderBar::new();
     header_bar.set_title_widget(Some(&title));
     header_bar.pack_start(&sidebar_toggle_button);
+    header_bar.pack_end(&main_action_slot);
     header_bar.pack_end(&properties_button);
     header_bar.pack_end(&media_button);
     header_bar.pack_end(&preview_toggle_button);
     header_bar.pack_end(&focus_mode_toggle_button);
-    header_bar.pack_end(&publish_button);
 
     let status_bar = Rc::new(statusbar::StatusBar::new());
 
@@ -421,7 +421,8 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         preview_pane: preview_pane.clone(),
         saved_text: saved_text.clone(),
         written: Rc::new(RefCell::new(String::new())),
-        library_listener: Rc::new(RefCell::new(None)),
+        library_listeners: Rc::new(RefCell::new(Vec::new())),
+        remote: Rc::new(RefCell::new(HashMap::new())),
     };
 
     wire_live_preview(&buffer, &preview_pane, &stats_view, &code_view, &frontmatter);
@@ -434,6 +435,30 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_open_path_action(&window, &doc_ctx);
     wire_save_action(&window, &doc_ctx);
     wire_library(&window, &doc_ctx, &split_view, &nav_view, &primary_menu);
+    let open_url: Rc<dyn Fn(String)> = {
+        let browser_view = browser_view.clone();
+        let view_stack = view_stack.clone();
+        let right_pane = right_pane.clone();
+        let window = window.downgrade();
+        Rc::new(move |uri: String| {
+            if !right_pane.is_visible() {
+                if let Some(window) = window.upgrade() {
+                    let _ = WidgetExt::activate_action(&window, "win.toggle-preview", None);
+                }
+            }
+            browser_view.load_uri(&uri);
+            view_stack.set_visible_child_name("browser");
+        })
+    };
+    let main_action = mainaction::MainAction::new(&window, &doc_ctx, open_url);
+    main_action_slot.append(&main_action.button);
+    toolbar_view.add_top_bar(&main_action.banner);
+    // Everything else only holds weak references to it; the window keeps
+    // it alive.
+    window.connect_destroy(move |_| {
+        let _ = &main_action;
+    });
+    blogsync::wire(&window, &doc_ctx);
     wire_properties_action(&window, &buffer, &frontmatter, &term_caches, &current_path, &preview_pane);
     wire_settings_action(&window, &buffer, ai_menu_handles, &preview_pane, &browser_view);
     wire_about_action(&window);
@@ -853,8 +878,12 @@ pub(crate) struct DocContext {
     /// The serialized document exactly as last written to (or read from)
     /// `current_path` - `worksave.rs` skips writing while nothing differs.
     pub(crate) written: Rc<RefCell<String>>,
-    /// Set by the library sidebar once it exists; see `notify_library`.
-    pub(crate) library_listener: Rc<RefCell<Option<LibraryListener>>>,
+    /// Everyone who shows the open article's state (library sidebar, main
+    /// action); see `notify_library`.
+    pub(crate) library_listeners: Rc<RefCell<Vec<LibraryListener>>>,
+    /// What the last sync check (`blogsync.rs`) found on the server, by
+    /// post id.
+    pub(crate) remote: Rc<RefCell<HashMap<u64, syncstate::Remote>>>,
 }
 
 impl DocContext {
@@ -862,10 +891,24 @@ impl DocContext {
     /// when a library entry appeared, moved or another article was opened
     /// (rescan), otherwise just its text/state (update the row in place).
     pub(crate) fn notify_library(&self, structural: bool) {
-        let listener = self.library_listener.borrow().clone();
-        if let Some(listener) = listener {
+        let listeners = self.library_listeners.borrow().clone();
+        for listener in listeners {
             listener(structural);
         }
+    }
+
+    pub(crate) fn add_library_listener(&self, listener: LibraryListener) {
+        self.library_listeners.borrow_mut().push(listener);
+    }
+
+    /// The server state last seen for the post behind `frontmatter`.
+    pub(crate) fn remote_for(&self, frontmatter: &Frontmatter) -> syncstate::Remote {
+        frontmatter.wp_post_id.and_then(|id| self.remote.borrow().get(&id).cloned()).unwrap_or(syncstate::Remote::Unknown)
+    }
+
+    /// The open article as it is in the editor right now.
+    pub(crate) fn current_document(&self) -> Document {
+        Document { frontmatter: self.frontmatter.borrow().clone(), body: self.buffer.text(&self.buffer.start_iter(), &self.buffer.end_iter(), false).to_string() }
     }
 }
 

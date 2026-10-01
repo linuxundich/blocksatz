@@ -77,8 +77,8 @@ pub enum Remote {
     /// Not fetched (yet), or the site is unreachable - judge from local
     /// data alone.
     Unknown,
-    /// The post exists; its current `modified_gmt` and status.
-    Present { modified_gmt: String, status: PostStatus },
+    /// The post exists; its current `modified_gmt`, status and permalink.
+    Present { modified_gmt: String, status: PostStatus, link: String },
     /// Deleted or moved to the trash on the server.
     Gone,
 }
@@ -126,18 +126,22 @@ pub fn state(doc: &Document, remote: &Remote) -> PostState {
     let (status, sync) = match remote {
         Remote::Gone => (fm.status, SyncState::RemoteGone),
         Remote::Unknown => (fm.status, if local_changes { SyncState::LocalChanges } else { SyncState::InSync }),
-        Remote::Present { modified_gmt, status } => {
+        Remote::Present { modified_gmt, status, .. } => {
             // Only "newer than what we last saw" counts: WordPress bumps
             // `modified_gmt` on every save, but an unknown baseline (older
             // working copies) can't tell an edit from our own last upload.
             let remote_changes = fm.wp_modified_gmt.as_ref().is_some_and(|known| modified_gmt > known);
+            // An answer older than our own last sync is stale (an upload
+            // happened since the check): then the local status is the
+            // newer truth.
+            let stale = fm.wp_modified_gmt.as_ref().is_some_and(|known| modified_gmt < known);
             let sync = match (local_changes, remote_changes) {
                 (false, false) => SyncState::InSync,
                 (true, false) => SyncState::LocalChanges,
                 (false, true) => SyncState::RemoteChanged,
                 (true, true) => SyncState::Conflict,
             };
-            (*status, sync)
+            (if stale { fm.status } else { *status }, sync)
         }
     };
     PostState { status: Some(status), sync }
@@ -161,7 +165,7 @@ mod tests {
     }
 
     fn present(modified_gmt: &str, status: PostStatus) -> Remote {
-        Remote::Present { modified_gmt: modified_gmt.into(), status }
+        Remote::Present { modified_gmt: modified_gmt.into(), status, link: String::new() }
     }
 
     #[test]
@@ -245,6 +249,15 @@ mod tests {
         let d = synced("Text", PostStatus::Future);
         let s = state(&d, &present("2026-10-01T10:00:00", PostStatus::Publish));
         assert_eq!(s.status, Some(PostStatus::Publish));
+    }
+
+    #[test]
+    fn a_check_older_than_the_last_upload_does_not_override_the_status() {
+        // Published through the export wizard after the last check, which
+        // still says "draft".
+        let d = synced("Text", PostStatus::Publish);
+        let s = state(&d, &present("2026-09-30T08:00:00", PostStatus::Draft));
+        assert_eq!(s, PostState { status: Some(PostStatus::Publish), sync: SyncState::InSync });
     }
 
     #[test]

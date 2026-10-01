@@ -522,7 +522,7 @@ pub(crate) fn wizard_publish_feedback(status_label: &gtk4::Label, link_button: &
 /// permalink (`PostDetail::link`) - its documented convention for showing
 /// an unpublished post's current content to a logged-in, authorized
 /// session, used by the "Vorschau öffnen" button's click handler.
-fn preview_url_for(link: &str) -> String {
+pub(crate) fn preview_url_for(link: &str) -> String {
     if link.contains('?') {
         format!("{link}&preview=true")
     } else {
@@ -611,137 +611,145 @@ pub(crate) fn wire_publish_button(
     dialog_parent: &gtk4::Widget,
     save_document: &DocumentSaver,
 ) {
-    let other_buttons: Vec<gtk4::Button> = other_buttons.iter().map(|b| (*b).clone()).collect();
+    let buttons: Vec<gtk4::Button> = std::iter::once(button.clone()).chain(other_buttons.iter().map(|b| (*b).clone())).collect();
+    let set_busy: BusySetter = Rc::new(move |busy| {
+        for b in &buttons {
+            b.set_sensitive(!busy);
+        }
+    });
     let frontmatter = frontmatter.clone();
     let get_body = get_body.clone();
     let get_doc_dir = get_doc_dir.clone();
     let save_document = save_document.clone();
     let feedback = feedback.clone();
     let dialog_parent = dialog_parent.clone();
-
-    let button_for_click = button.clone();
     button.connect_clicked(move |_| {
-        let (post_id, local_hash, rest_base, target_status) = {
-            let fm = frontmatter.borrow();
-            (fm.wp_post_id, fm.wp_content_hash.clone(), fm.post_type.rest_base(), target.resolve(&fm))
+        publish(target, &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document, &set_busy);
+    });
+}
+
+/// Disables (`true`) or re-enables (`false`) whatever UI starts uploads
+/// while one is running, so two can't race the same post.
+pub(crate) type BusySetter = Rc<dyn Fn(bool)>;
+
+/// The upload behind every publish control - `wire_publish_button`'s
+/// buttons and the main action alike. See `wire_publish_button` for the
+/// conflict check that runs first.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn publish(
+    target: TargetStatus,
+    frontmatter: &Rc<RefCell<Frontmatter>>,
+    get_body: &BodyProvider,
+    get_doc_dir: &DocDirProvider,
+    feedback: &PublishFeedback,
+    dialog_parent: &gtk4::Widget,
+    save_document: &DocumentSaver,
+    set_busy: &BusySetter,
+) {
+    let (post_id, local_hash, rest_base, target_status) = {
+        let fm = frontmatter.borrow();
+        (fm.wp_post_id, fm.wp_content_hash.clone(), fm.post_type.rest_base(), target.resolve(&fm))
+    };
+    let Some(post_id) = post_id.filter(|_| local_hash.is_some()) else {
+        start_export(target_status, frontmatter, &get_body(), &get_doc_dir(), feedback, set_busy, save_document);
+        return;
+    };
+
+    set_busy(true);
+    (feedback.on_progress)(&tr("Prüfe auf Änderungen auf WordPress …"));
+
+    let site = wpsite::load();
+    let (tx, rx) = mpsc::channel::<Result<String, String>>();
+    std::thread::spawn(move || {
+        let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
+            .map_err(|err| err.to_string())
+            .and_then(|maybe_password| maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden.")))
+            .and_then(|password| {
+                wpclient::Client::new(&site.url, &site.username, &password)
+                    .get_item(rest_base, post_id)
+                    .map(|detail| document::content_hash(&detail.content))
+                    .map_err(|err| err.to_string())
+            });
+        let _ = tx.send(outcome);
+    });
+
+    let frontmatter = frontmatter.clone();
+    let get_body = get_body.clone();
+    let get_doc_dir = get_doc_dir.clone();
+    let feedback = feedback.clone();
+    let dialog_parent = dialog_parent.clone();
+    let save_document = save_document.clone();
+    let set_busy = set_busy.clone();
+    glib::timeout_add_local(Duration::from_millis(150), move || {
+        let proceed_directly = |feedback: &PublishFeedback| {
+            start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), feedback, &set_busy, &save_document);
         };
-        let Some(post_id) = post_id.filter(|_| local_hash.is_some()) else {
-            start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), &feedback, &button_for_click, &other_buttons, &save_document);
-            return;
-        };
+        match rx.try_recv() {
+            Ok(Ok(server_hash)) => {
+                if has_conflicting_server_change(local_hash.as_deref(), &server_hash) {
+                    let confirm = adw::AlertDialog::new(
+                        Some(&tr("Artikel wurde extern geändert")),
+                        Some(&tr(
+                            "Der Artikel wurde seit dem letzten Abruf/Senden direkt auf WordPress geändert - z. B. in wp-admin. Trotzdem mit der lokalen Version überschreiben?",
+                        )),
+                    );
+                    confirm.add_response("cancel", &tr("Abbrechen"));
+                    confirm.add_response("overwrite", &tr("Überschreiben"));
+                    confirm.set_response_appearance("overwrite", adw::ResponseAppearance::Destructive);
+                    confirm.set_default_response(Some("cancel"));
+                    confirm.set_close_response("cancel");
 
-        button_for_click.set_sensitive(false);
-        for b in &other_buttons {
-            b.set_sensitive(false);
-        }
-        (feedback.on_progress)(&tr("Prüfe auf Änderungen auf WordPress …"));
-
-        let site = wpsite::load();
-        let (tx, rx) = mpsc::channel::<Result<String, String>>();
-        std::thread::spawn(move || {
-            let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
-                .map_err(|err| err.to_string())
-                .and_then(|maybe_password| {
-                    maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden."))
-                })
-                .and_then(|password| {
-                    wpclient::Client::new(&site.url, &site.username, &password)
-                        .get_item(rest_base, post_id)
-                        .map(|detail| document::content_hash(&detail.content))
-                        .map_err(|err| err.to_string())
-                });
-            let _ = tx.send(outcome);
-        });
-
-        let frontmatter = frontmatter.clone();
-        let get_body = get_body.clone();
-        let get_doc_dir = get_doc_dir.clone();
-        let feedback = feedback.clone();
-        let button = button_for_click.clone();
-        let other_buttons = other_buttons.clone();
-        let dialog_parent = dialog_parent.clone();
-        let save_document = save_document.clone();
-        glib::timeout_add_local(Duration::from_millis(150), move || {
-            let proceed_directly = |feedback: &PublishFeedback| {
-                start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), feedback, &button, &other_buttons, &save_document);
-            };
-            match rx.try_recv() {
-                Ok(Ok(server_hash)) => {
-                    if has_conflicting_server_change(local_hash.as_deref(), &server_hash) {
-                        let confirm = adw::AlertDialog::new(
-                            Some(&tr("Artikel wurde extern geändert")),
-                            Some(&tr(
-                                "Der Artikel wurde seit dem letzten Abruf/Senden direkt auf WordPress geändert - z. B. in wp-admin. Trotzdem mit der lokalen Version überschreiben?",
-                            )),
-                        );
-                        confirm.add_response("cancel", &tr("Abbrechen"));
-                        confirm.add_response("overwrite", &tr("Überschreiben"));
-                        confirm.set_response_appearance("overwrite", adw::ResponseAppearance::Destructive);
-                        confirm.set_default_response(Some("cancel"));
-                        confirm.set_close_response("cancel");
-
-                        let target_status = target_status;
-                        let frontmatter = frontmatter.clone();
-                        let get_body = get_body.clone();
-                        let get_doc_dir = get_doc_dir.clone();
-                        let feedback = feedback.clone();
-                        let button = button.clone();
-                        let other_buttons = other_buttons.clone();
-                        let save_document = save_document.clone();
-                        confirm.connect_response(None, move |_, response| {
-                            if response == "overwrite" {
-                                start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), &feedback, &button, &other_buttons, &save_document);
-                            } else {
-                                (feedback.on_progress)(&tr("Abgebrochen - lokale Änderungen wurden nicht gesendet."));
-                                button.set_sensitive(true);
-                                for b in &other_buttons {
-                                    b.set_sensitive(true);
-                                }
-                            }
-                        });
-                        confirm.present(Some(&dialog_parent));
-                    } else {
-                        proceed_directly(&feedback);
-                    }
-                    glib::ControlFlow::Break
-                }
-                Ok(Err(_)) | Err(mpsc::TryRecvError::Disconnected) => {
-                    // Fail-open: the conflict check itself is a secondary
-                    // safety net, not the actual publish attempt - if *it*
-                    // can't complete (a transient network/auth hiccup), the
-                    // real publish attempt right after will surface its own,
-                    // more specific error if something is genuinely wrong.
-                    // Refusing to publish at all just because this extra
-                    // check failed would trade a rare conflict risk for a
-                    // much more common "can't publish edits at all" one.
+                    let frontmatter = frontmatter.clone();
+                    let get_body = get_body.clone();
+                    let get_doc_dir = get_doc_dir.clone();
+                    let feedback = feedback.clone();
+                    let save_document = save_document.clone();
+                    let set_busy = set_busy.clone();
+                    confirm.connect_response(None, move |_, response| {
+                        if response == "overwrite" {
+                            start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), &feedback, &set_busy, &save_document);
+                        } else {
+                            (feedback.on_progress)(&tr("Abgebrochen - lokale Änderungen wurden nicht gesendet."));
+                            set_busy(false);
+                        }
+                    });
+                    confirm.present(Some(&dialog_parent));
+                } else {
                     proceed_directly(&feedback);
-                    glib::ControlFlow::Break
                 }
-                Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                glib::ControlFlow::Break
             }
-        });
+            Ok(Err(_)) | Err(mpsc::TryRecvError::Disconnected) => {
+                // Fail-open: the conflict check itself is a secondary
+                // safety net, not the actual publish attempt - if *it*
+                // can't complete (a transient network/auth hiccup), the
+                // real publish attempt right after will surface its own,
+                // more specific error if something is genuinely wrong.
+                // Refusing to publish at all just because this extra
+                // check failed would trade a rare conflict risk for a
+                // much more common "can't publish edits at all" one.
+                proceed_directly(&feedback);
+                glib::ControlFlow::Break
+            }
+            Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+        }
     });
 }
 
 /// Actually sends the article to WordPress - the second half of
-/// `wire_publish_button`'s click handler, split out so it can be invoked
-/// either immediately (no conflict to check, or nothing to check against)
-/// or from the confirmation dialog's "Überschreiben" response.
-#[allow(clippy::too_many_arguments)]
+/// `publish`, split out so it can be invoked either immediately (no
+/// conflict to check, or nothing to check against) or from the
+/// confirmation dialog's "Überschreiben" response.
 pub(crate) fn start_export(
     target_status: Option<PostStatus>,
     frontmatter: &Rc<RefCell<Frontmatter>>,
     body: &str,
     doc_dir: &Option<PathBuf>,
     feedback: &PublishFeedback,
-    button: &gtk4::Button,
-    other_buttons: &[gtk4::Button],
+    set_busy: &BusySetter,
     save_document: &DocumentSaver,
 ) {
-    button.set_sensitive(false);
-    for b in other_buttons {
-        b.set_sensitive(false);
-    }
+    set_busy(true);
     (feedback.on_progress)(&tr("Wird gesendet …"));
 
     let site = wpsite::load();
@@ -758,9 +766,7 @@ pub(crate) fn start_export(
     std::thread::spawn(move || {
         let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
             .map_err(|err| err.to_string())
-            .and_then(|maybe_password| {
-                maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden."))
-            })
+            .and_then(|maybe_password| maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden.")))
             .and_then(|password| run_export(&site, &password, &mut current_fm, target_status, &body, doc_dir.as_deref()))
             .map(|post| (post, current_fm.media, current_fm.wp_content_hash));
         let _ = tx.send(outcome);
@@ -768,8 +774,7 @@ pub(crate) fn start_export(
 
     let frontmatter = frontmatter.clone();
     let feedback = feedback.clone();
-    let button = button.clone();
-    let other_buttons: Vec<gtk4::Button> = other_buttons.to_vec();
+    let set_busy = set_busy.clone();
     let save_document = save_document.clone();
     glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
         Ok(Ok((post, media, content_hash))) => {
@@ -792,36 +797,26 @@ pub(crate) fn start_export(
             // borrows the same `RefCell` again, and doing this inside the
             // block would panic.
             save_document();
+            set_busy(false);
             (feedback.on_success)(&post, final_status);
             // Reflects what actually happened rather than always claiming
             // "Veröffentlicht" - `target_status` being `None` means the
-            // status was deliberately left untouched (see `wire_publish_button`'s
-            // doc comment), so the toast says "Aktualisiert" instead of
-            // (incorrectly) implying a status change that didn't happen.
+            // status was deliberately left untouched (see `TargetStatus`),
+            // so the notification says "Aktualisiert" instead.
             let action_label = target_status.map(|s| s.label()).unwrap_or_else(|| tr("Aktualisiert"));
             notify::send("export", &action_label, &tr("„{title}“ wurde erfolgreich gesendet.").replace("{title}", &title));
-            button.set_sensitive(true);
-            for b in &other_buttons {
-                b.set_sensitive(true);
-            }
             glib::ControlFlow::Break
         }
         Ok(Err(err)) => {
+            set_busy(false);
             (feedback.on_error)(&tr("Fehler: {err}").replace("{err}", &err));
             notify::send("export", &tr("Veröffentlichen fehlgeschlagen"), &err);
-            button.set_sensitive(true);
-            for b in &other_buttons {
-                b.set_sensitive(true);
-            }
             glib::ControlFlow::Break
         }
         Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
         Err(mpsc::TryRecvError::Disconnected) => {
+            set_busy(false);
             (feedback.on_error)(&tr("Interner Fehler: Export-Thread hat kein Ergebnis geliefert."));
-            button.set_sensitive(true);
-            for b in &other_buttons {
-                b.set_sensitive(true);
-            }
             glib::ControlFlow::Break
         }
     });

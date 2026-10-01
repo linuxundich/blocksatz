@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **New library sidebar** (GUI redesign, phase 2): the left sidebar is an
+  `AdwSidebar` with its own header bar (new article with a menu for page,
+  AI article and opening a file; search; primary menu). "In Arbeit" lists
+  the library's articles, most recently changed first, with the WordPress
+  status as subtitle and a paper-plane icon for changes not uploaded yet;
+  its context menu shows the folder or moves it to the trash. "Im Blog"
+  lists drafts, pending (only when there are any), scheduled, published,
+  pages and the trash with their counts. The footer names the connected
+  site. It replaces the old "Dokument"/"Durchsuchen" sidebar; publishing
+  goes through "Artikel exportieren" until the main action of phase 3.
+- **Blog archive page**: picking an "Im Blog" entry opens the group in the
+  content area - server-side search, 50 posts at a time with more loaded
+  while scrolling, rows marked when the post already has a working copy,
+  trash and restore buttons. Ctrl+Shift+O opens the drafts.
+- The header bar loses New and Save (both in the sidebar or automatic
+  now); the sidebar becomes an overlay below 860sp.
+
 - **Library instead of loose files** (GUI redesign, phase 1 - see
   `docs/gui-redesign.md`): articles live in `~/Dokumente/Blocksatz/`, one
   folder per article (`<slug>/artikel.md` plus images). A new article gets

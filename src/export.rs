@@ -412,9 +412,7 @@ pub fn open(
     let dialog_widget: gtk4::Widget = dialog.clone().upcast();
     // Fixed closures, not read live from anywhere - the wizard is rebuilt
     // fresh from `body`/`doc_dir` every time it opens (see `open`'s own
-    // parameters), so a plain snapshot is exactly right here. Compare
-    // `docsidebar.rs`'s own providers, which read live instead, since that
-    // sidebar's buttons stay wired across the document's whole lifetime.
+    // parameters), so a plain snapshot is exactly right here.
     let get_body: BodyProvider = { let body = body.clone(); Rc::new(move || body.clone()) };
     let get_doc_dir: DocDirProvider = { let doc_dir = doc_dir.clone(); Rc::new(move || doc_dir.clone()) };
     wire_publish_button(&publish_button, &[&draft_button, &schedule_button, &private_button], TargetStatus::PublishOrKeep, &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
@@ -516,29 +514,6 @@ pub(crate) fn wizard_publish_feedback(status_label: &gtk4::Label, link_button: &
     let on_error = {
         let status_label = status_label.clone();
         move |message: &str| status_label.set_label(message)
-    };
-    PublishFeedback { on_progress: Rc::new(on_progress), on_success: Rc::new(on_success), on_error: Rc::new(on_error) }
-}
-
-/// The document-management sidebar's own `PublishFeedback` - it has no
-/// embedded status label/link/preview-browser the way the wizard does, so
-/// progress/error just go to a toast (this app's usual "something
-/// happened" surface) and a success additionally calls `on_change`, so the
-/// sidebar's own "Dokument" page (title/status/button visibility, all read
-/// live from `Frontmatter`) can refresh itself to match what was actually
-/// just sent.
-pub(crate) fn sidebar_publish_feedback(toast_overlay: &adw::ToastOverlay, on_change: Rc<dyn Fn()>) -> PublishFeedback {
-    let on_progress = |_message: &str| {};
-    let on_success = {
-        let toast_overlay = toast_overlay.clone();
-        move |_post: &wpclient::PostResult, _final_status: PostStatus| {
-            crate::window::show_toast(&toast_overlay, &tr("Erfolgreich gesendet."));
-            on_change();
-        }
-    };
-    let on_error = {
-        let toast_overlay = toast_overlay.clone();
-        move |message: &str| crate::window::show_toast(&toast_overlay, message)
     };
     PublishFeedback { on_progress: Rc::new(on_progress), on_success: Rc::new(on_success), on_error: Rc::new(on_error) }
 }

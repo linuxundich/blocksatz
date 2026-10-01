@@ -278,7 +278,7 @@ pub fn open(
                 // visible via its cached name" reasoning as `author_row`.
                 let known = current_parent_id.is_some_and(|id| pages.iter().any(|p| p.id == id));
                 if let (false, Some(id)) = (known, current_parent_id) {
-                    pages.push(wpclient::PostSummary { id, title: current_parent_name.clone().unwrap_or_else(|| id.to_string()), status: String::new(), date: String::new(), link: String::new() });
+                    pages.push(wpclient::PostSummary { id, title: current_parent_name.clone().unwrap_or_else(|| id.to_string()), status: String::new(), date: String::new(), link: String::new(), modified_gmt: String::new() });
                 }
                 let mut labels = vec![tr("Keine (oberste Ebene)")];
                 labels.extend(pages.iter().map(|p| p.title.clone()));

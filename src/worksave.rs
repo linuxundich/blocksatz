@@ -36,6 +36,7 @@ pub fn flush(ctx: &DocContext, force: bool) -> bool {
     // Bound first: a `match` on `ctx.current_path.borrow()` would keep that
     // borrow alive through the arms, and `adopt_path` writes to it.
     let current_path = ctx.current_path.borrow().clone();
+    let mut moved = false;
     let path = match current_path {
         Some(path) => path,
         None => {
@@ -47,6 +48,7 @@ pub fn flush(ctx: &DocContext, force: bool) -> bool {
             match library::create_entry(&root, library::title_hint(&doc).as_deref(), &fallback) {
                 Ok(path) => {
                     adopt_path(ctx, &path);
+                    moved = true;
                     path
                 }
                 Err(err) => return report(ctx, &err),
@@ -57,6 +59,7 @@ pub fn flush(ctx: &DocContext, force: bool) -> bool {
     let path = match library::rename_after_title(&root, &path, &doc) {
         Ok(Some(renamed)) => {
             adopt_path(ctx, &renamed);
+            moved = true;
             renamed
         }
         Ok(None) => path,
@@ -74,6 +77,7 @@ pub fn flush(ctx: &DocContext, force: bool) -> bool {
     *ctx.written.borrow_mut() = serialized;
     *ctx.saved_text.borrow_mut() = doc.body;
     LAST_ERROR.with(|last| last.borrow_mut().clear());
+    ctx.notify_library(moved);
     true
 }
 

@@ -96,6 +96,18 @@ pub struct PostSummary {
     /// The post's public permalink - used e.g. by `linkpicker.rs` to insert
     /// a real, clickable link to it, not just its id/title.
     pub link: String,
+    /// See `PostResult::modified_gmt`. Empty from `list_items`, which
+    /// doesn't request it.
+    pub modified_gmt: String,
+}
+
+/// One page of `Client::query_items`.
+#[derive(Debug, Clone, Default)]
+pub struct PostPage {
+    pub items: Vec<PostSummary>,
+    /// All matching items across every page (`X-WP-Total`).
+    pub total: u64,
+    pub total_pages: u32,
 }
 
 /// A WordPress user, for the "Autor" picker in `properties.rs` -
@@ -323,7 +335,11 @@ impl Client {
     }
 
     fn get_json(&self, url: &str) -> Result<Value> {
-        self.get_json_with_total_pages(url).map(|(value, _)| value)
+        self.get_json_with_totals(url).map(|(value, _, _)| value)
+    }
+
+    fn get_json_with_total_pages(&self, url: &str) -> Result<(Value, u32)> {
+        self.get_json_with_totals(url).map(|(value, pages, _)| (value, pages))
     }
 
     /// Like `get_json`, but also returns the `X-WP-TotalPages` header a
@@ -331,7 +347,8 @@ impl Client {
     /// the header is missing or unparseable (a single-item endpoint, or a
     /// site that doesn't send it), which is also the right answer for "how
     /// many pages" when there's only one.
-    fn get_json_with_total_pages(&self, url: &str) -> Result<(Value, u32)> {
+    /// ... and the `X-WP-Total` item count next to it (`0` when missing).
+    fn get_json_with_totals(&self, url: &str) -> Result<(Value, u32, u64)> {
         let mut response = self
             .agent
             .get(url)
@@ -345,12 +362,13 @@ impl Client {
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.parse::<u32>().ok())
             .unwrap_or(1);
+        let total = response.headers().get("x-wp-total").and_then(|v| v.to_str().ok()).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
         let body_text = response.body_mut().read_to_string().unwrap_or_default();
         if !(200..300).contains(&status) {
             return Err(error_from_body(status, &body_text));
         }
         let value = serde_json::from_str(&body_text).map_err(|err| unreadable_response(status, err))?;
-        Ok((value, total_pages))
+        Ok((value, total_pages, total))
     }
 
     /// Fetches every page of a `per_page=100` collection endpoint (a
@@ -689,6 +707,7 @@ impl Client {
                             status: item.get("status").and_then(Value::as_str).unwrap_or_default().to_string(),
                             date: item.get("date").and_then(Value::as_str).unwrap_or_default().to_string(),
                             link: item.get("link").and_then(Value::as_str).unwrap_or_default().to_string(),
+                            modified_gmt: String::new(),
                         })
                     })
                     .collect()
@@ -708,6 +727,49 @@ impl Client {
     /// Like `get_post`, for any post-like REST collection - a page simply
     /// comes back without `categories`/`tags` (WordPress doesn't register
     /// either taxonomy for pages), which parses as two empty lists below.
+    /// One page of posts/pages in `statuses` (comma-separated, e.g.
+    /// `"draft"` or `"publish,private"`), newest first - by last edit when
+    /// `by_modified`, else by publish date - optionally narrowed by a
+    /// WordPress full-text `search`. Backs the blog archive page.
+    pub fn query_items(&self, rest_base: &str, statuses: &str, search: &str, by_modified: bool, page: u32) -> Result<PostPage> {
+        let mut url = format!(
+            "{}?per_page=50&page={page}&orderby={}&order=desc&context=edit&status={statuses}&_fields=id,title,status,date,link,modified_gmt",
+            self.endpoint(rest_base),
+            if by_modified { "modified" } else { "date" },
+        );
+        if !search.trim().is_empty() {
+            url.push_str(&format!("&search={}", percent_encode(search.trim())));
+        }
+        let (value, total_pages, total) = self.get_json_with_totals(&url)?;
+        let items = value
+            .as_array()
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| {
+                        let text = |key: &str| item.get(key).and_then(Value::as_str).unwrap_or_default().to_string();
+                        Some(PostSummary {
+                            id: item.get("id")?.as_u64()?,
+                            title: post_title(item),
+                            status: text("status"),
+                            date: text("date"),
+                            link: text("link"),
+                            modified_gmt: text("modified_gmt"),
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok(PostPage { items, total, total_pages })
+    }
+
+    /// How many posts/pages are in `statuses` - one minimal request,
+    /// reading only the `X-WP-Total` header. For the sidebar's counters.
+    pub fn count_items(&self, rest_base: &str, statuses: &str) -> Result<u64> {
+        let url = format!("{}?per_page=1&context=edit&status={statuses}&_fields=id", self.endpoint(rest_base));
+        self.get_json_with_totals(&url).map(|(_, _, total)| total)
+    }
+
     pub fn get_item(&self, rest_base: &str, id: u64) -> Result<PostDetail> {
         let url = format!(
             "{}?context=edit&_fields=id,title,content,excerpt,status,slug,categories,tags,featured_media,author,wp-worthy-pixel,comment_status,date,meta,link,parent,modified_gmt",

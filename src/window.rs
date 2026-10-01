@@ -9,8 +9,8 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    library, worksave,
-    about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, docsidebar, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
+    blogposts, importer, library, librarysidebar, worksave,
+    about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
     mediabrowser, medialibrary, mediapanel, preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
 };
 
@@ -223,42 +223,27 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let narrow_condition = adw::BreakpointCondition::new_length(adw::BreakpointConditionLengthType::MaxWidth, 700.0, adw::LengthUnit::Sp);
     let narrow_breakpoint = adw::Breakpoint::new(narrow_condition);
     narrow_breakpoint.add_setter(&layout_view, "layout-name", Some(&"narrow".to_value()));
-    // Cloned (a GObject reference, not a deep copy - both names point at
-    // the same breakpoint) since `window.add_breakpoint` below takes
-    // ownership of `narrow_breakpoint` itself; `docsidebar::build` needs to
-    // add one more setter to this *same* breakpoint later, once the
-    // sidebar's own `Adw.OverlaySplitView` exists, so both adaptive layers
-    // (this one, and the sidebar's own collapse-to-overlay) agree on
-    // exactly the same "narrow" width rather than fighting over two
-    // separate breakpoints.
-    let narrow_breakpoint_for_sidebar = narrow_breakpoint.clone();
+    // Below 860sp the library sidebar turns into an overlay. Only one
+    // breakpoint applies at a time (the last matching one), so the narrow
+    // breakpoint above repeats that setter.
+    let sidebar_breakpoint = adw::Breakpoint::new(adw::BreakpointCondition::new_length(adw::BreakpointConditionLengthType::MaxWidth, 860.0, adw::LengthUnit::Sp));
+    let split_view = adw::OverlaySplitView::builder()
+        .sidebar_position(gtk4::PackType::Start)
+        .min_sidebar_width(240.0)
+        .max_sidebar_width(320.0)
+        .sidebar_width_unit(adw::LengthUnit::Sp)
+        .build();
+    sidebar_breakpoint.add_setter(&split_view, "collapsed", Some(&true.to_value()));
+    narrow_breakpoint.add_setter(&split_view, "collapsed", Some(&true.to_value()));
 
     let title = adw::WindowTitle::new("Blocksatz", &tr("Unbenannt"));
 
-    let new_button = gtk4::Button::from_icon_name("document-new-symbolic");
-    new_button.set_tooltip_text(Some(&tr("Neu (Strg+N)")));
-    new_button.set_action_name(Some("win.new"));
-
-    // No headerbar button for "win.open" (it still exists, still has its
-    // Ctrl+O shortcut, still used by the sidebar's own "Datei öffnen…"
-    // row) - redundant with that row once the sidebar exists, per direct
-    // user feedback after shipping the sidebar the first time.
-    // Replaces the old "Zuletzt geöffnet" popover and "Von WordPress
-    // öffnen" modal dialog buttons that used to sit here - both folded
-    // into the sidebar's own "Durchsuchen" page (`docsidebar.rs`) instead,
-    // along with the currently-open document's publish state ("Dokument"
-    // page) that used to need a trip through the Eigenschaften dialog and
-    // the export wizard. Wired to the stateful `win.toggle-sidebar` action
-    // near `docsidebar::build`'s own call site below, the same
-    // `set_action_name`-on-a-`ToggleButton` recipe `preview_toggle_button`
-    // already uses.
+    // New article, search and the primary menu live in the library
+    // sidebar's own header bar (`librarysidebar.rs`); Save is gone since
+    // articles are saved continuously (`worksave.rs`, Ctrl+S still works).
     let sidebar_toggle_button = gtk4::ToggleButton::builder().icon_name("sidebar-show-symbolic").build();
-    sidebar_toggle_button.set_tooltip_text(Some(&tr("Dokumentverwaltung ein-/ausblenden")));
+    sidebar_toggle_button.set_tooltip_text(Some(&tr("Seitenleiste ein-/ausblenden")));
     sidebar_toggle_button.set_action_name(Some("win.toggle-sidebar"));
-
-    let save_button = gtk4::Button::from_icon_name("document-save-symbolic");
-    save_button.set_tooltip_text(Some(&tr("Speichern (Strg+S)")));
-    save_button.set_action_name(Some("win.save"));
 
     let properties_button = gtk4::Button::from_icon_name("document-properties-symbolic");
     properties_button.set_tooltip_text(Some(&tr("Artikel-Eigenschaften")));
@@ -268,29 +253,18 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     media_button.set_tooltip_text(Some(&tr("Medienverwaltung (Strg+Umschalt+M)")));
     media_button.set_action_name(Some("win.media-manager"));
 
-    // A real primary menu (rather than the plain "win.settings"-bound
-    // button this used to be) - "open-menu-symbolic" is the conventional
-    // GNOME hamburger icon for exactly this, and "Über Blocksatz" needs
-    // *some* home now that it exists; Ctrl+, still opens Einstellungen
-    // directly, since that's the action-level shortcut, independent of
-    // how the button itself triggers it.
+    // The primary menu, shown in the sidebar's header bar. The editing
+    // entries move into the formatting toolbar in a later redesign phase.
     let primary_menu = gio::Menu::new();
-    let new_section = gio::Menu::new();
-    new_section.append(Some(&tr("Neue Seite")), Some("win.new-page"));
-    new_section.append(Some(&tr("WordPress-Mediathek")), Some("win.media-library"));
-    new_section.append(Some(&tr("Galerie einfügen…")), Some("win.insert-gallery"));
-    new_section.append(Some(&tr("KI-Artikel schreiben…")), Some("win.ai-write"));
-    primary_menu.append_section(None, &new_section);
+    let insert_section = gio::Menu::new();
+    insert_section.append(Some(&tr("WordPress-Mediathek")), Some("win.media-library"));
+    insert_section.append(Some(&tr("Galerie einfügen…")), Some("win.insert-gallery"));
+    primary_menu.append_section(None, &insert_section);
     let app_section = gio::Menu::new();
     app_section.append(Some(&tr("Einstellungen")), Some("win.settings"));
     app_section.append(Some(&tr("Tastenkürzel")), Some("win.show-help-overlay"));
     app_section.append(Some(&tr("Über Blocksatz")), Some("win.about"));
     primary_menu.append_section(None, &app_section);
-
-    let settings_button = gtk4::MenuButton::new();
-    settings_button.set_icon_name("open-menu-symbolic");
-    settings_button.set_tooltip_text(Some(&tr("Hauptmenü (Strg+,)")));
-    settings_button.set_menu_model(Some(&primary_menu));
 
     let preview_toggle_button = gtk4::ToggleButton::builder().icon_name("sidebar-show-right-symbolic").active(true).build();
     preview_toggle_button.set_tooltip_text(Some(&tr("Vorschau ein-/ausblenden")));
@@ -312,9 +286,6 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let header_bar = adw::HeaderBar::new();
     header_bar.set_title_widget(Some(&title));
     header_bar.pack_start(&sidebar_toggle_button);
-    header_bar.pack_start(&new_button);
-    header_bar.pack_start(&save_button);
-    header_bar.pack_end(&settings_button);
     header_bar.pack_end(&properties_button);
     header_bar.pack_end(&media_button);
     header_bar.pack_end(&preview_toggle_button);
@@ -325,15 +296,18 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
 
     let toolbar_view = adw::ToolbarView::new();
     toolbar_view.add_top_bar(&header_bar);
-    // Content set later, once `docsidebar::build` has wrapped `layout_view`
-    // in the sidebar's own `Adw.OverlaySplitView` - setting it here first
-    // would parent `layout_view` into `toolbar_view` immediately, and
-    // `Adw.OverlaySplitView`'s own `content` setter asserts its widget has
-    // *no* parent yet (it doesn't reparent for you).
+    toolbar_view.set_content(Some(&layout_view));
     toolbar_view.add_bottom_bar(&status_bar.widget);
 
+    // Content area: the editor, with the blog archive page pushed on top
+    // when a blog group is picked in the sidebar.
+    let editor_page = adw::NavigationPage::builder().title(tr("Editor")).tag("editor").child(&toolbar_view).build();
+    let nav_view = adw::NavigationView::new();
+    nav_view.add(&editor_page);
+    split_view.set_content(Some(&nav_view));
+
     let toast_overlay = adw::ToastOverlay::new();
-    toast_overlay.set_child(Some(&toolbar_view));
+    toast_overlay.set_child(Some(&split_view));
     aitasks::set_toast_overlay(&toast_overlay);
 
     let window = adw::ApplicationWindow::builder()
@@ -345,6 +319,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         .content(&toast_overlay)
         .build();
 
+    window.add_breakpoint(sidebar_breakpoint);
     window.add_breakpoint(narrow_breakpoint);
 
     window.connect_close_request(|window| {
@@ -389,9 +364,17 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let toolbar_separator = toolbar_separator.clone();
         let right_pane = right_pane.clone();
         let toggle_preview_action = toggle_preview_action.clone();
+        let split_view = split_view.clone();
+        let sidebar_before_focus = Rc::new(Cell::new(true));
         toggle_focus_mode_action.connect_activate(move |action, _| {
             let focus_mode = !action.state().and_then(|state| state.get::<bool>()).unwrap_or(false);
             action.set_state(&focus_mode.to_variant());
+            if focus_mode {
+                sidebar_before_focus.set(split_view.shows_sidebar());
+                split_view.set_show_sidebar(false);
+            } else {
+                split_view.set_show_sidebar(sidebar_before_focus.get() && !split_view.is_collapsed());
+            }
             toolbar_view.set_reveal_top_bars(!focus_mode);
             toolbar_view.set_reveal_bottom_bars(!focus_mode);
             toolbar.set_visible(!focus_mode);
@@ -438,6 +421,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         preview_pane: preview_pane.clone(),
         saved_text: saved_text.clone(),
         written: Rc::new(RefCell::new(String::new())),
+        library_listener: Rc::new(RefCell::new(None)),
     };
 
     wire_live_preview(&buffer, &preview_pane, &stats_view, &code_view, &frontmatter);
@@ -449,32 +433,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_ai_writer_action(&window, &doc_ctx);
     wire_open_path_action(&window, &doc_ctx);
     wire_save_action(&window, &doc_ctx);
-    let doc_sidebar_extras = docsidebar::DocSidebarExtras { view_stack: view_stack.clone(), browser_view: browser_view.clone() };
-    let doc_sidebar = docsidebar::build(&window, &doc_ctx, &doc_sidebar_extras, &layout_view);
-    toolbar_view.set_content(Some(&doc_sidebar.split_view));
-    narrow_breakpoint_for_sidebar.add_setter(&doc_sidebar.split_view, "collapsed", Some(&true.to_value()));
-    let toggle_sidebar_action = gio::SimpleAction::new_stateful("toggle-sidebar", None, &false.to_variant());
-    {
-        let split_view = doc_sidebar.split_view.clone();
-        toggle_sidebar_action.connect_activate(move |action, _| {
-            let visible = !action.state().and_then(|state| state.get::<bool>()).unwrap_or(false);
-            action.set_state(&visible.to_variant());
-            split_view.set_show_sidebar(visible);
-        });
-    }
-    window.add_action(&toggle_sidebar_action);
-    let open_from_wordpress_action = gio::SimpleAction::new("open-from-wordpress", None);
-    {
-        let split_view = doc_sidebar.split_view.clone();
-        let toggle_sidebar_action = toggle_sidebar_action.clone();
-        let show_wordpress_posts = doc_sidebar.show_wordpress_posts.clone();
-        open_from_wordpress_action.connect_activate(move |_, _| {
-            toggle_sidebar_action.set_state(&true.to_variant());
-            split_view.set_show_sidebar(true);
-            show_wordpress_posts();
-        });
-    }
-    window.add_action(&open_from_wordpress_action);
+    wire_library(&window, &doc_ctx, &split_view, &nav_view, &primary_menu);
     wire_properties_action(&window, &buffer, &frontmatter, &term_caches, &current_path, &preview_pane);
     wire_settings_action(&window, &buffer, ai_menu_handles, &preview_pane, &browser_view);
     wire_about_action(&window);
@@ -754,8 +713,122 @@ fn wire_new_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
             ctx.preview_pane.set_article_header(&ctx.frontmatter.borrow());
             *ctx.saved_text.borrow_mut() = String::new();
             *ctx.written.borrow_mut() = String::new();
+            ctx.notify_library(true);
         });
         window.add_action(&action);
+    }
+}
+
+/// Wires the library sidebar, the blog archive page and the actions that
+/// navigate between them and the editor.
+fn wire_library(window: &adw::ApplicationWindow, ctx: &DocContext, split_view: &adw::OverlaySplitView, nav_view: &adw::NavigationView, primary_menu: &gio::Menu) {
+    let posts_page = blogposts::BlogPostsPage::new(
+        {
+            let ctx = ctx.clone();
+            let nav_view = nav_view.clone();
+            Rc::new(move |imported| {
+                open_imported_post(&ctx, imported);
+                nav_view.pop_to_tag("editor");
+            })
+        },
+        {
+            let toast_overlay = ctx.toast_overlay.clone();
+            Rc::new(move |message: &str| show_toast(&toast_overlay, message))
+        },
+    );
+
+    // In overlay mode the sidebar gets out of the way once something was
+    // picked in it.
+    let hide_if_overlay = {
+        let split_view = split_view.clone();
+        move || {
+            if split_view.is_collapsed() {
+                split_view.set_show_sidebar(false);
+            }
+        }
+    };
+    let show_posts: Rc<dyn Fn(blogposts::BlogFilter)> = {
+        let nav_view = nav_view.clone();
+        let posts_page = posts_page.clone();
+        let hide_if_overlay = hide_if_overlay.clone();
+        Rc::new(move |filter| {
+            posts_page.show(filter);
+            if nav_view.visible_page().and_then(|page| page.tag()).as_deref() != Some("posts") {
+                nav_view.push(&posts_page.page);
+            }
+            hide_if_overlay();
+        })
+    };
+    let sidebar = librarysidebar::LibrarySidebar::new(
+        window,
+        ctx,
+        primary_menu.upcast_ref(),
+        {
+            let nav_view = nav_view.clone();
+            Rc::new(move || {
+                nav_view.pop_to_tag("editor");
+                hide_if_overlay();
+            })
+        },
+        show_posts.clone(),
+    );
+    split_view.set_sidebar(Some(&sidebar.widget));
+    split_view.set_show_sidebar(true);
+    {
+        let sidebar = sidebar.clone();
+        nav_view.connect_visible_page_notify(move |nav_view| {
+            if nav_view.visible_page().and_then(|page| page.tag()).as_deref() == Some("editor") {
+                sidebar.show_document();
+            }
+        });
+    }
+
+    let toggle_sidebar_action = gio::SimpleAction::new_stateful("toggle-sidebar", None, &split_view.shows_sidebar().to_variant());
+    {
+        let split_view = split_view.clone();
+        toggle_sidebar_action.connect_activate(move |action, _| {
+            let visible = !action.state().and_then(|state| state.get::<bool>()).unwrap_or(false);
+            split_view.set_show_sidebar(visible);
+        });
+    }
+    {
+        let toggle_sidebar_action = toggle_sidebar_action.clone();
+        split_view.connect_show_sidebar_notify(move |split_view| toggle_sidebar_action.set_state(&split_view.shows_sidebar().to_variant()));
+    }
+    window.add_action(&toggle_sidebar_action);
+
+    // Ctrl+Shift+O: the blog's drafts, the usual place to pick up work.
+    let open_from_wordpress_action = gio::SimpleAction::new("open-from-wordpress", None);
+    {
+        let sidebar = sidebar.clone();
+        open_from_wordpress_action.connect_activate(move |_, _| {
+            sidebar.show_filter(blogposts::BlogFilter::Drafts);
+            show_posts(blogposts::BlogFilter::Drafts);
+        });
+    }
+    // The sidebar and the archive page stay alive through the closures
+    // above, which the window's actions and widgets own.
+    window.add_action(&open_from_wordpress_action);
+}
+
+/// Opens a post fetched from WordPress through its working copy in the
+/// library: an existing one for the same post is reopened as it is (it may
+/// hold local changes - those must not be overwritten by the server copy),
+/// otherwise a new library folder is created from `imported`.
+pub(crate) fn open_imported_post(ctx: &DocContext, imported: importer::ImportedPost) {
+    let root = library::root();
+    let site_id = crate::wpsite::load().site_id();
+    if let Some(existing) = imported.frontmatter.wp_post_id.and_then(|id| library::find_by_post_id(&root, &site_id, id)) {
+        open_document_at_path(existing, ctx);
+        show_toast(&ctx.toast_overlay, &tr("Vorhandene Arbeitskopie geöffnet."));
+        return;
+    }
+    let doc = Document { frontmatter: imported.frontmatter, body: imported.body };
+    let title = (!doc.frontmatter.title.is_empty()).then_some(doc.frontmatter.title.as_str());
+    let written = library::create_entry(&root, title, &library::untitled_name()).and_then(|path| document::write(&path, &doc).map(|()| path));
+    match written {
+        Ok(path) => open_document_at_path(path, ctx),
+        Err(err) => show_toast(&ctx.toast_overlay, &tr("Arbeitskopie konnte nicht angelegt werden: {err}").replace("{err}", &err.to_string())),
     }
 }
 
@@ -764,9 +837,10 @@ fn wire_new_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
 /// (clippy::too_many_arguments) - the same fix already used for
 /// `RecentFilesWidgets`. All fields are reference-counted/GObject handles,
 /// so cloning the whole bundle is as cheap as cloning any one field.
-/// `pub(crate)` (struct and fields both) so `docsidebar.rs` can reuse this
-/// directly rather than needing a second, field-for-field-identical bundle
-/// kept in sync by hand.
+/// `pub(crate)` so the library sidebar and `worksave.rs` share it.
+/// Called with `structural` - see `DocContext::notify_library`.
+pub(crate) type LibraryListener = Rc<dyn Fn(bool)>;
+
 #[derive(Clone)]
 pub(crate) struct DocContext {
     pub(crate) buffer: sourceview5::Buffer,
@@ -779,6 +853,20 @@ pub(crate) struct DocContext {
     /// The serialized document exactly as last written to (or read from)
     /// `current_path` - `worksave.rs` skips writing while nothing differs.
     pub(crate) written: Rc<RefCell<String>>,
+    /// Set by the library sidebar once it exists; see `notify_library`.
+    pub(crate) library_listener: Rc<RefCell<Option<LibraryListener>>>,
+}
+
+impl DocContext {
+    /// Tells the library sidebar the open article changed: `structural`
+    /// when a library entry appeared, moved or another article was opened
+    /// (rescan), otherwise just its text/state (update the row in place).
+    pub(crate) fn notify_library(&self, structural: bool) {
+        let listener = self.library_listener.borrow().clone();
+        if let Some(listener) = listener {
+            listener(structural);
+        }
+    }
 }
 
 fn wire_open_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
@@ -849,6 +937,7 @@ pub(crate) fn open_document_at_path(path: PathBuf, ctx: &DocContext) {
             *ctx.current_path.borrow_mut() = Some(path);
             ctx.preview_pane.set_doc_dir(doc_dir);
             ctx.preview_pane.set_article_header(&ctx.frontmatter.borrow());
+            ctx.notify_library(true);
         }
         Err(err) => show_toast(&ctx.toast_overlay, &tr("Öffnen fehlgeschlagen: {err}").replace("{err}", &err.to_string())),
     }
@@ -888,43 +977,6 @@ pub(crate) fn document_saver(ctx: &DocContext) -> export::DocumentSaver {
     std::rc::Rc::new(move || {
         worksave::flush(&ctx, true);
     })
-}
-
-/// Prompts for a place on disk and writes `doc` there - the "no
-/// `current_path` yet" half of `wire_save_action`'s own logic, pulled out
-/// so `docsidebar.rs`'s "Lokal speichern unter…" row (shown exactly when
-/// `current_path` is `None` - a brand new document, or one opened from
-/// WordPress and never yet given a local copy) can trigger the same
-/// dialog-and-write behavior as a plain `Ctrl+S` on such a document,
-/// without duplicating it. `on_saved` fires only on an actual successful
-/// write - `wire_save_action`'s own call site has nothing to react to and
-/// passes a no-op; the sidebar passes its own `refresh()` so that row
-/// disappears (and the rest of the "Dokument" page updates) the moment
-/// `current_path` actually becomes `Some`.
-pub(crate) fn save_as(window: &adw::ApplicationWindow, ctx: &DocContext, doc: Document, on_saved: impl Fn() + 'static) {
-    let dialog = gtk4::FileDialog::builder()
-        .title(tr("Markdown-Datei speichern"))
-        .initial_name("artikel.md")
-        .build();
-
-    let ctx = ctx.clone();
-    dialog.save(Some(window), gio::Cancellable::NONE, move |result| {
-        let Ok(file) = result else { return };
-        let Some(path) = file.path() else { return };
-        if let Err(err) = document::write(&path, &doc) {
-            show_toast(&ctx.toast_overlay, &tr("Speichern fehlgeschlagen: {err}").replace("{err}", &err.to_string()));
-            return;
-        }
-        ctx.title.set_subtitle(&subtitle_for(Some(&path), &doc.frontmatter));
-        let doc_dir = path.parent().map(Path::to_path_buf);
-        let _ = recentfiles::record(&path);
-        register_recent_file(&path);
-        *ctx.current_path.borrow_mut() = Some(path);
-        ctx.preview_pane.set_doc_dir(doc_dir);
-        *ctx.saved_text.borrow_mut() = doc.body.clone();
-        *ctx.written.borrow_mut() = document::serialize(&doc);
-        on_saved();
-    });
 }
 
 fn wire_properties_action(
@@ -1150,6 +1202,7 @@ fn wire_ai_writer_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
                 // yet - `worksave.rs` gives it a library folder next tick.
                 *ctx.saved_text.borrow_mut() = String::new();
                 *ctx.written.borrow_mut() = String::new();
+                ctx.notify_library(true);
                 ctx.toast_overlay.add_toast(adw::Toast::new(&tr("KI-Entwurf als neues Dokument angelegt - bitte prüfen.")));
             }
         });

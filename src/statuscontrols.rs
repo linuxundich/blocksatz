@@ -1,9 +1,5 @@
-//! Shared `Typ`/`Status` publish-state controls, live-bound to a document's
-//! `Frontmatter` - built once here and used by both the "Artikel-
-//! Eigenschaften" dialog (`properties.rs`) and the document-management
-//! sidebar (`docsidebar.rs`), so the two can never drift out of sync with
-//! each other even though the widgets themselves are duplicated (one on
-//! each surface, both writing into the same `Rc<RefCell<Frontmatter>>`).
+//! `Typ`/`Status` publish-state controls, live-bound to a document's
+//! `Frontmatter`, for the "Artikel-Eigenschaften" dialog (`properties.rs`).
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -49,9 +45,7 @@ pub fn build_type_row(frontmatter: &Rc<RefCell<Frontmatter>>) -> adw::ComboRow {
 /// Builds the `Status` `ComboRow` and its conditionally-visible `Termin`
 /// `EntryRow`, live-bound to `frontmatter.status`/`scheduled_at`. Always
 /// built and returned together since the entry row's visibility depends on
-/// the combo row's own value - callers place them differently (one more
-/// `Adw.PreferencesGroup` row each in `properties.rs`; packed into a plain
-/// `gtk4::Box` in `docsidebar.rs`) but never need just one alone.
+/// the combo row's own value.
 pub fn build_status_row(frontmatter: &Rc<RefCell<Frontmatter>>) -> (adw::ComboRow, adw::EntryRow) {
     let current = frontmatter.borrow().clone();
     let labels: Vec<String> = PostStatus::ALL.iter().map(|s| s.label()).collect();

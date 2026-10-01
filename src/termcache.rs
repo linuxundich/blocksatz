@@ -71,11 +71,23 @@ pub fn term_markup(term: &str, known_terms: &[String]) -> String {
     format!(r#"<span foreground="{color}">{}</span>"#, glib::markup_escape_text(term))
 }
 
+/// One cache per blog (the active one): `terms-<site id>.json`.
 fn cache_path() -> PathBuf {
+    let site_id: String = wpsite::load().site_id().chars().map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect();
     let mut dir = glib::user_cache_dir();
     dir.push(crate::APP_DIR);
-    dir.push("terms.json");
+    dir.push(format!("terms-{site_id}.json"));
     dir
+}
+
+/// Switches the shared lists to the (newly) active blog's cache and
+/// refreshes it from that blog.
+pub fn reload(handles: &TermCacheHandles) {
+    let cache = load();
+    *handles.categories.borrow_mut() = cache.categories;
+    *handles.tags.borrow_mut() = cache.tags;
+    *handles.category_slugs.borrow_mut() = cache.category_slugs;
+    spawn_refresh(handles);
 }
 
 pub fn load() -> TermCache {

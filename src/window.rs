@@ -572,6 +572,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         library_listeners: Rc::new(RefCell::new(Vec::new())),
         remote: Rc::new(RefCell::new(HashMap::new())),
         blog_listeners: Rc::new(RefCell::new(Vec::new())),
+        site_listeners: Rc::new(RefCell::new(Vec::new())),
         doc_generation: Rc::new(Cell::new(0)),
     };
 
@@ -618,6 +619,15 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let _ = (&main_action, &post_pane);
     });
     blogsync::wire(&window, &doc_ctx);
+    // Another blog became active: its categories/tags and sync state.
+    {
+        let term_caches = term_caches.clone();
+        let ctx = doc_ctx.clone();
+        doc_ctx.site_listeners.borrow_mut().push(Rc::new(move || {
+            termcache::reload(&term_caches);
+            blogsync::refresh(&ctx);
+        }));
+    }
 
     // Restore the pane layout of the last session.
     split_view.set_show_sidebar(saved_window_state.sidebar_visible);
@@ -640,7 +650,11 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let _ = WidgetExt::activate_action(&window, "win.toggle-preview", None);
     }
     wire_properties_action(&window, &view_stack, &right_pane);
-    wire_settings_action(&window, &buffer, ai_menu_handles, &preview_pane, &browser_view, set_browser_tab.clone());
+    let on_sites_changed: Rc<dyn Fn()> = {
+        let ctx = doc_ctx.clone();
+        Rc::new(move || ctx.notify_site_changed())
+    };
+    wire_settings_action(&window, &buffer, ai_menu_handles, &preview_pane, &browser_view, set_browser_tab.clone(), on_sites_changed);
     wire_about_action(&window);
     wire_media_action(&window, &buffer, &current_path, &frontmatter, &preview_pane);
     wire_insert_image_action(&window, &buffer, &current_path);
@@ -1015,6 +1029,14 @@ fn wire_library(window: &adw::ApplicationWindow, ctx: &DocContext, split_view: &
     }
     window.add_action(&toggle_sidebar_action);
 
+    // The archive page shows the previous blog's posts after a switch.
+    {
+        let nav_view = nav_view.clone();
+        ctx.site_listeners.borrow_mut().push(Rc::new(move || {
+            nav_view.pop_to_tag("editor");
+        }));
+    }
+
     // Ctrl+Shift+O: the blog's drafts, the usual place to pick up work.
     let open_from_wordpress_action = gio::SimpleAction::new("open-from-wordpress", None);
     {
@@ -1035,7 +1057,7 @@ fn wire_library(window: &adw::ApplicationWindow, ctx: &DocContext, split_view: &
 /// otherwise a new library folder is created from `imported`.
 pub(crate) fn open_imported_post(ctx: &DocContext, imported: importer::ImportedPost) {
     let root = library::root();
-    let site_id = crate::wpsite::load().site_id();
+    let site_id = imported.frontmatter.wp_site.clone().unwrap_or_else(|| crate::wpsite::load().site_id());
     if let Some(existing) = imported.frontmatter.wp_post_id.and_then(|id| library::find_by_post_id(&root, &site_id, id)) {
         open_document_at_path(existing, ctx);
         show_toast(&ctx.toast_overlay, &tr("Vorhandene Arbeitskopie geöffnet."));
@@ -1082,6 +1104,8 @@ pub(crate) struct DocContext {
     /// Called after something changed on the blog itself (an upload, a
     /// post trashed or restored) - the sidebar's counters reload.
     pub(crate) blog_listeners: Rc<RefCell<Vec<BlogListener>>>,
+    /// Called after the active blog changed (sidebar switcher, settings).
+    pub(crate) site_listeners: Rc<RefCell<Vec<BlogListener>>>,
     /// Bumped whenever the editor gets another article (or the same one
     /// replaced wholesale), so views bound to the old one rebuild.
     pub(crate) doc_generation: Rc<Cell<u64>>,
@@ -1101,6 +1125,14 @@ impl DocContext {
     /// Marks that the editor now holds a different article.
     pub(crate) fn bump_generation(&self) {
         self.doc_generation.set(self.doc_generation.get() + 1);
+    }
+
+    /// The active blog changed: everything showing blog data reloads.
+    pub(crate) fn notify_site_changed(&self) {
+        let listeners = self.site_listeners.borrow().clone();
+        for listener in listeners {
+            listener();
+        }
     }
 
     pub(crate) fn notify_blog(&self) {
@@ -1261,6 +1293,7 @@ fn wire_settings_action(
     preview_pane: &Rc<preview::PreviewPane>,
     browser_view: &Rc<browser::BrowserView>,
     set_browser_tab: Rc<dyn Fn(bool)>,
+    on_sites_changed: Rc<dyn Fn()>,
 ) {
     let action = gio::SimpleAction::new("settings", None);
     let buffer = buffer.clone();
@@ -1269,7 +1302,7 @@ fn wire_settings_action(
     let window_weak = window.downgrade();
     action.connect_activate(move |_, _| {
         if let Some(window) = window_weak.upgrade() {
-            settings::open(&window, &buffer, &ai_menu_handles, &preview_pane, &browser_view, set_browser_tab.clone());
+            settings::open(&window, &buffer, &ai_menu_handles, &preview_pane, &browser_view, set_browser_tab.clone(), on_sites_changed.clone());
         }
     });
     window.add_action(&action);

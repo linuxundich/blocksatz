@@ -44,6 +44,11 @@ blocks. Implemented so far:
     offers to load the blog's version, resolve a conflict or unlink.
   - **"Vorschau im Blog"** shows changes to a published post in the blog's
     theme without touching the live post (as a WordPress autosave).
+  - **Several blogs**: Einstellungen → WordPress lists them (add, edit,
+    remove, pick the active one); the sidebar's footer switches between
+    them. "In Arbeit" shows the active blog's working copies and the
+    local-only ones; uploads, previews and the sync check of a working
+    copy always go to the blog it belongs to.
   - The **right-hand pane** (F9) has four views: Vorschau (rendered /
     Gutenberg code / "Im Blog" - the open article as the blog itself shows
     it, draft preview or live post), Beitrag (state, all post properties,

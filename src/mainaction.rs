@@ -97,6 +97,12 @@ impl MainAction {
         this
     }
 
+    /// The blog the open working copy belongs to (the active one for a
+    /// local-only article).
+    fn site(&self) -> wpsite::SiteConfig {
+        wpsite::for_site_id(self.ctx.frontmatter.borrow().wp_site.as_deref())
+    }
+
     fn state(&self) -> (Document, PostState, Remote) {
         let doc = self.ctx.current_document();
         let remote = self.ctx.remote_for(&doc.frontmatter);
@@ -352,7 +358,7 @@ impl MainAction {
         let rest_base = doc.frontmatter.post_type.rest_base();
         let weak = self.weak.clone();
         importer::run_with_password(
-            &wpsite::load(),
+            &self.site(),
             move |site, password| wpclient::Client::new(&site.url, &site.username, password).get_item(rest_base, post_id).map_err(|err| err.to_string()),
             move |outcome| {
                 let Some(this) = weak.upgrade() else { return };
@@ -392,7 +398,7 @@ impl MainAction {
         let doc = self.ctx.current_document();
         let fm = &doc.frontmatter;
         let Some(post_id) = fm.wp_post_id else { return };
-        let site = wpsite::load();
+        let site = self.site();
         let (title, body) = match document::split_title_heading(&doc.body) {
             Some((title, rest)) if fm.title.trim().is_empty() => (title, rest.to_string()),
             _ => (fm.title.clone(), doc.body.clone()),
@@ -442,7 +448,7 @@ impl MainAction {
         let post_type = fm.post_type;
         let weak = self.weak.clone();
         importer::run_with_password(
-            &wpsite::load(),
+            &self.site(),
             move |site, password| importer::fetch_and_convert(site, password, post_type, post_id),
             move |outcome| {
                 let Some(this) = weak.upgrade() else { return };
@@ -482,7 +488,7 @@ impl MainAction {
         let post_type = fm.post_type;
         let weak = self.weak.clone();
         importer::run_with_password(
-            &wpsite::load(),
+            &self.site(),
             move |site, password| importer::fetch_and_convert(site, password, post_type, post_id),
             move |outcome| {
                 let Some(this) = weak.upgrade() else { return };

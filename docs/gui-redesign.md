@@ -441,5 +441,7 @@ Gutenberg-HTML) sind in Prüfpunkte bzw. die Vorschau aufgegangen.
 - ~~Diff-Ansicht „Mit Blog-Fassung vergleichen“~~ erledigt (`compare.rs`).
 - ~~Idempotentes Anlegen~~ erledigt (`wp_pending_create`, Suche nach
   Titel vor dem zweiten Anlegen).
-- Mehrere Sites in der Oberfläche (Datenmodell hat `wp_site` schon).
+- ~~Mehrere Sites in der Oberfläche~~ erledigt: Blog-Liste in den
+  Einstellungen, Umschalter in der Fußzeile der Seitenleiste; Aktionen an
+  einer Arbeitskopie nutzen deren Blog (`wp_site`), nicht das aktive.
 

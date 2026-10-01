@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.64.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-02 00:53+0200\n"
+"POT-Creation-Date: 2026-10-02 01:14+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -60,7 +60,7 @@ msgstr ""
 
 #: src/aialt.rs:213 src/aievaluate.rs:225 src/aiinplace.rs:206
 #: src/aiwriter.rs:403 src/aiwriter.rs:472 src/blogposts.rs:424 src/chat.rs:181
-#: src/export.rs:332 src/gallerydialog.rs:500 src/imagealt.rs:401
+#: src/export.rs:334 src/gallerydialog.rs:500 src/imagealt.rs:401
 #: src/imagealt.rs:503 src/imageedit.rs:302 src/mediabrowser.rs:494
 #: src/mediabrowser.rs:583 src/mediapanel.rs:284 src/mediapanel.rs:748
 #: src/tagsuggest.rs:209
@@ -118,7 +118,7 @@ msgstr ""
 msgid "{n} Befunde - zum Aufrufen anklicken."
 msgstr ""
 
-#: src/aiinplace.rs:104 src/mainaction.rs:235
+#: src/aiinplace.rs:104 src/mainaction.rs:241
 msgid "Verwerfen"
 msgstr ""
 
@@ -172,8 +172,8 @@ msgid ""
 "angepasst werden?"
 msgstr ""
 
-#: src/aimenu.rs:188 src/blogposts.rs:385 src/export.rs:201
-#: src/gallerydialog.rs:154 src/mainaction.rs:524 src/mainaction.rs:580
+#: src/aimenu.rs:188 src/blogposts.rs:385 src/export.rs:202
+#: src/gallerydialog.rs:154 src/mainaction.rs:530 src/mainaction.rs:586
 #: src/mediabrowser.rs:548 src/releasecheck.rs:185 src/taxonomy.rs:352
 #: src/taxonomy.rs:666
 msgid "Abbrechen"
@@ -281,7 +281,7 @@ msgid ""
 "Für den eigenen Schreibstil muss eine WordPress-Verbindung eingerichtet sein."
 msgstr ""
 
-#: src/aiwriter.rs:145 src/aiwriter.rs:160 src/export.rs:171 src/export.rs:288
+#: src/aiwriter.rs:145 src/aiwriter.rs:160 src/export.rs:172 src/export.rs:290
 #: src/gallerydialog.rs:590 src/importer.rs:35 src/linkpicker.rs:97
 #: src/mediabrowser.rs:134 src/medialibrary.rs:135 src/mediapanel.rs:203
 #: src/mediapanel.rs:496 src/mediapanel.rs:703 src/properties.rs:245
@@ -498,7 +498,7 @@ msgstr ""
 msgid "Im Blog suchen"
 msgstr ""
 
-#: src/blogposts.rs:232 src/librarysidebar.rs:331
+#: src/blogposts.rs:232 src/librarysidebar.rs:386
 msgid "Kein Blog verbunden"
 msgstr ""
 
@@ -515,7 +515,7 @@ msgstr ""
 msgid "Fehler beim Laden: {err}"
 msgstr ""
 
-#: src/blogposts.rs:288 src/librarysidebar.rs:112
+#: src/blogposts.rs:288 src/librarysidebar.rs:114
 msgid "Keine Treffer"
 msgstr ""
 
@@ -551,7 +551,7 @@ msgstr ""
 msgid "In den Papierkorb"
 msgstr ""
 
-#: src/blogposts.rs:372 src/window.rs:1199
+#: src/blogposts.rs:372 src/window.rs:1231
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr ""
 
@@ -671,14 +671,14 @@ msgstr ""
 msgid "✓ Verbindung erfolgreich - {n} Modelle gefunden."
 msgstr ""
 
-#: src/chatsettings.rs:115 src/chatsettings.rs:333 src/connection.rs:90
-#: src/promptsettings.rs:130
+#: src/chatsettings.rs:115 src/chatsettings.rs:333 src/promptsettings.rs:130
 msgid "Gespeichert."
 msgstr ""
 
 #: src/chatsettings.rs:116 src/chatsettings.rs:182 src/chatsettings.rs:200
-#: src/chatsettings.rs:256 src/chatsettings.rs:334 src/connection.rs:81
-#: src/firstrun.rs:190 src/promptsettings.rs:131
+#: src/chatsettings.rs:256 src/chatsettings.rs:334 src/connection.rs:89
+#: src/connection.rs:160 src/connection.rs:181 src/firstrun.rs:190
+#: src/promptsettings.rs:131
 msgid "Fehler beim Speichern: {err}"
 msgstr ""
 
@@ -702,34 +702,88 @@ msgstr ""
 msgid "KI-Chat"
 msgstr ""
 
-#: src/connection.rs:18 src/firstrun.rs:85
+#: src/compare.rs:98 src/mainaction.rs:140 src/mainaction.rs:158
+msgid "Mit Blog-Fassung vergleichen"
+msgstr ""
+
+#: src/compare.rs:99
+msgid "Keine Unterschiede im Text"
+msgstr ""
+
+#: src/compare.rs:99
+msgid "− nur im Blog · + nur hier"
+msgstr ""
+
+#: src/compare.rs:105 src/mainaction.rs:532
+msgid "Blog-Fassung übernehmen"
+msgstr ""
+
+#: src/compare.rs:120 src/mainaction.rs:533
+msgid "Meine Fassung behalten"
+msgstr ""
+
+#: src/connection.rs:20
+msgid "Blogs"
+msgstr ""
+
+#: src/connection.rs:21
+msgid ""
+"Das aktive Blog ist das, dessen Beiträge Blocksatz anzeigt und in das neue "
+"Artikel hochgeladen werden."
+msgstr ""
+
+#: src/connection.rs:23 src/firstrun.rs:85
 msgid "Website-URL"
 msgstr ""
 
-#: src/connection.rs:22 src/firstrun.rs:86
+#: src/connection.rs:24 src/firstrun.rs:86
 msgid "Benutzername"
 msgstr ""
 
-#: src/connection.rs:28
+#: src/connection.rs:26
 msgid "Speichern"
 msgstr ""
 
-#: src/connection.rs:31 src/firstrun.rs:89
-msgid "WordPress-Verbindung"
+#: src/connection.rs:28
+msgid "Blog hinzufügen oder bearbeiten"
 msgstr ""
 
-#: src/connection.rs:33
+#: src/connection.rs:29
 msgid ""
 "Zugangsdaten werden im Schlüsselbund gespeichert, nicht als Klartext in "
-"dieser Datei."
+"einer Datei."
 msgstr ""
 
-#: src/connection.rs:65
+#: src/connection.rs:80
+msgid "Als aktives Blog verwenden"
+msgstr ""
+
+#: src/connection.rs:97
+msgid "Blog entfernen"
+msgstr ""
+
+#: src/connection.rs:123
+msgid "Noch kein Blog eingerichtet"
+msgstr ""
+
+#: src/connection.rs:146
 msgid "Passwort konnte nicht geladen werden: {err}"
 msgstr ""
 
-#: src/connection.rs:94 src/firstrun.rs:203
+#: src/connection.rs:156
+msgid "Website-URL und Benutzername sind nötig."
+msgstr ""
+
+#: src/connection.rs:167
+msgid "„{site}“ gespeichert und als aktives Blog gewählt."
+msgstr ""
+
+#: src/connection.rs:168 src/firstrun.rs:203
 msgid "Fehler beim Speichern des Passworts: {err}"
+msgstr ""
+
+#: src/connection.rs:184
+msgid "„{site}“ entfernt."
 msgstr ""
 
 #: src/document.rs:71 src/importer.rs:55
@@ -752,59 +806,59 @@ msgstr ""
 msgid "Prüfe auf Änderungen auf WordPress …"
 msgstr ""
 
-#: src/export.rs:196
+#: src/export.rs:197
 msgid "Artikel wurde extern geändert"
 msgstr ""
 
-#: src/export.rs:198
+#: src/export.rs:199
 msgid ""
 "Der Artikel wurde seit dem letzten Abruf/Senden direkt auf WordPress "
 "geändert - z. B. in wp-admin. Trotzdem mit der lokalen Version überschreiben?"
 msgstr ""
 
-#: src/export.rs:202
+#: src/export.rs:203
 msgid "Überschreiben"
 msgstr ""
 
-#: src/export.rs:217
+#: src/export.rs:218
 msgid "Abgebrochen - lokale Änderungen wurden nicht gesendet."
 msgstr ""
 
-#: src/export.rs:258
+#: src/export.rs:259
 msgid "Wird gesendet …"
 msgstr ""
 
-#: src/export.rs:326
+#: src/export.rs:328
 msgid "Aktualisiert"
 msgstr ""
 
-#: src/export.rs:327
+#: src/export.rs:329
 msgid "„{title}“ wurde erfolgreich gesendet."
 msgstr ""
 
-#: src/export.rs:333
+#: src/export.rs:335
 msgid "Veröffentlichen fehlgeschlagen"
 msgstr ""
 
-#: src/export.rs:339
+#: src/export.rs:341
 msgid "Interner Fehler: Export-Thread hat kein Ergebnis geliefert."
 msgstr ""
 
-#: src/export.rs:359
+#: src/export.rs:361
 msgid ""
 "Für den Status „Geplant“ muss ein gültiger Veröffentlichungstermin gesetzt "
 "sein."
 msgstr ""
 
-#: src/export.rs:652
+#: src/export.rs:654
 msgid "Bild nicht abrufbar: {err}"
 msgstr ""
 
-#: src/export.rs:656
+#: src/export.rs:658
 msgid "Bild nicht lesbar: {err}"
 msgstr ""
 
-#: src/export.rs:659 src/media.rs:451
+#: src/export.rs:661 src/media.rs:451
 msgid "Bild {path} nicht lesbar: {err}"
 msgstr ""
 
@@ -817,6 +871,10 @@ msgid ""
 "Schreibe Artikel in Markdown und veröffentliche sie direkt als native "
 "WordPress-Gutenberg-Blöcke - mit Live-Vorschau, KI-Unterstützung und allem, "
 "was ein Artikel sonst noch braucht."
+msgstr ""
+
+#: src/firstrun.rs:89
+msgid "WordPress-Verbindung"
 msgstr ""
 
 #: src/firstrun.rs:91
@@ -1026,7 +1084,7 @@ msgstr ""
 msgid "Volle Größe"
 msgstr ""
 
-#: src/gallerydialog.rs:148 src/settings.rs:30 src/shortcuts.rs:51
+#: src/gallerydialog.rs:148 src/settings.rs:31 src/shortcuts.rs:51
 #: src/window.rs:381
 msgid "Einstellungen"
 msgstr ""
@@ -1183,96 +1241,104 @@ msgstr ""
 msgid "Interner Fehler: Bildbearbeitungs-Thread hat kein Ergebnis geliefert."
 msgstr ""
 
-#: src/librarysidebar.rs:54
+#: src/librarysidebar.rs:56
 msgid "In Arbeit"
 msgstr ""
 
-#: src/librarysidebar.rs:56
+#: src/librarysidebar.rs:58
 msgid "Im Dateimanager zeigen"
 msgstr ""
 
-#: src/librarysidebar.rs:57
+#: src/librarysidebar.rs:59
 msgid "Aus Bibliothek entfernen"
 msgstr ""
 
-#: src/librarysidebar.rs:62 src/window.rs:120
+#: src/librarysidebar.rs:64 src/window.rs:120
 msgid "Im Blog"
 msgstr ""
 
-#: src/librarysidebar.rs:79 src/shortcuts.rs:20
+#: src/librarysidebar.rs:81 src/shortcuts.rs:20
 msgid "Neuer Artikel"
 msgstr ""
 
-#: src/librarysidebar.rs:80 src/shortcuts.rs:21
+#: src/librarysidebar.rs:82 src/shortcuts.rs:21
 msgid "Neue Seite"
 msgstr ""
 
-#: src/librarysidebar.rs:81
+#: src/librarysidebar.rs:83
 msgid "KI-Artikel schreiben…"
 msgstr ""
 
-#: src/librarysidebar.rs:83
+#: src/librarysidebar.rs:85
 msgid "Datei öffnen…"
 msgstr ""
 
-#: src/librarysidebar.rs:85
+#: src/librarysidebar.rs:87
 msgid "Neuer Artikel (Strg+N)"
 msgstr ""
 
-#: src/librarysidebar.rs:85
+#: src/librarysidebar.rs:87
 msgid "Weitere Möglichkeiten"
 msgstr ""
 
-#: src/librarysidebar.rs:87
+#: src/librarysidebar.rs:89
 msgid "Bibliothek durchsuchen"
 msgstr ""
 
-#: src/librarysidebar.rs:88
+#: src/librarysidebar.rs:90
 msgid "Hauptmenü"
 msgstr ""
 
-#: src/librarysidebar.rs:95
+#: src/librarysidebar.rs:97
 msgid "Artikel suchen"
 msgstr ""
 
-#: src/librarysidebar.rs:117
+#: src/librarysidebar.rs:124
+msgid "Blog wechseln"
+msgstr ""
+
+#: src/librarysidebar.rs:126
 msgid "Bibliothek und Blog aktualisieren"
 msgstr ""
 
-#: src/librarysidebar.rs:248
+#: src/librarysidebar.rs:286
+msgid "Blogs verwalten …"
+msgstr ""
+
+#: src/librarysidebar.rs:300
 msgid "„{name}“ in den Papierkorb verschoben."
 msgstr ""
 
-#: src/librarysidebar.rs:249
+#: src/librarysidebar.rs:301
 msgid "Entfernen fehlgeschlagen: {err}"
 msgstr ""
 
-#: src/librarysidebar.rs:281
+#: src/librarysidebar.rs:336
 msgid "Noch keine Artikel"
 msgstr ""
 
-#: src/librarysidebar.rs:361
+#: src/librarysidebar.rs:416
 msgid "Blog nicht erreichbar"
 msgstr ""
 
-#: src/librarysidebar.rs:380 src/mainaction.rs:180 src/window.rs:363
-#: src/window.rs:686 src/window.rs:922
+#: src/librarysidebar.rs:435 src/mainaction.rs:186 src/window.rs:363
+#: src/window.rs:700 src/window.rs:936
 msgid "Unbenannt"
 msgstr ""
 
-#: src/librarysidebar.rs:386
+#: src/librarysidebar.rs:441
 msgid "Änderungen noch nicht hochgeladen"
 msgstr ""
 
-#: src/librarysidebar.rs:387
+#: src/librarysidebar.rs:442
 msgid "Im Blog geändert"
 msgstr ""
 
-#: src/librarysidebar.rs:388
+#: src/librarysidebar.rs:443
 msgid "Im Blog gelöscht"
 msgstr ""
 
-#: src/librarysidebar.rs:406 src/mainaction.rs:605
+#: src/librarysidebar.rs:461 src/mainaction.rs:611
 msgid "Nur lokal"
 msgstr ""
 
@@ -1410,7 +1476,7 @@ msgstr ""
 msgid "Antwort nicht lesbar: {err}"
 msgstr ""
 
-#: src/mainaction.rs:60 src/mainaction.rs:120
+#: src/mainaction.rs:60 src/mainaction.rs:126
 msgid "Als Entwurf hochladen"
 msgstr ""
 
@@ -1418,224 +1484,212 @@ msgstr ""
 msgid "Weitere Aktionen"
 msgstr ""
 
-#: src/mainaction.rs:122
+#: src/mainaction.rs:128
 msgid "Zur Prüfung einreichen"
 msgstr ""
 
-#: src/mainaction.rs:122 src/mainaction.rs:126 src/mainaction.rs:134
+#: src/mainaction.rs:128 src/mainaction.rs:132 src/mainaction.rs:140
 msgid "Veröffentlichen …"
 msgstr ""
 
-#: src/mainaction.rs:128 src/mainaction.rs:144 src/postpane.rs:49
+#: src/mainaction.rs:134 src/mainaction.rs:150 src/postpane.rs:49
 #: src/postpane.rs:135
 msgid "Blog-Vorschau öffnen"
 msgstr ""
 
-#: src/mainaction.rs:128
+#: src/mainaction.rs:134
 msgid "Planen …"
 msgstr ""
 
-#: src/mainaction.rs:132
+#: src/mainaction.rs:138
 msgid "Entwurf aktualisieren"
 msgstr ""
 
-#: src/mainaction.rs:134
+#: src/mainaction.rs:140
 msgid "Aktualisieren und Vorschau öffnen"
 msgstr ""
 
-#: src/mainaction.rs:134 src/mainaction.rs:152 src/compare.rs:98
-msgid "Mit Blog-Fassung vergleichen"
-msgstr ""
-
-#: src/mainaction.rs:138
+#: src/mainaction.rs:144
 msgid "Änderungen hochladen"
 msgstr ""
 
-#: src/mainaction.rs:140 src/mainaction.rs:146
+#: src/mainaction.rs:146 src/mainaction.rs:152
 msgid "Termin ändern …"
 msgstr ""
 
-#: src/mainaction.rs:140 src/mainaction.rs:146 src/releasecheck.rs:180
+#: src/mainaction.rs:146 src/mainaction.rs:152 src/releasecheck.rs:180
 msgid "Jetzt veröffentlichen"
 msgstr ""
 
-#: src/mainaction.rs:140 src/mainaction.rs:146 src/mainaction.rs:152
-#: src/mainaction.rs:158
+#: src/mainaction.rs:146 src/mainaction.rs:152 src/mainaction.rs:158
+#: src/mainaction.rs:164
 msgid "Auf Entwurf zurücksetzen …"
 msgstr ""
 
-#: src/mainaction.rs:150
+#: src/mainaction.rs:156
 msgid "Änderungen veröffentlichen …"
 msgstr ""
 
-#: src/mainaction.rs:152
+#: src/mainaction.rs:158
 msgid "Vorschau im Blog"
 msgstr ""
 
-#: src/mainaction.rs:152
+#: src/mainaction.rs:158
 msgid "Änderungen verwerfen …"
 msgstr ""
 
-#: src/mainaction.rs:156 src/postpane.rs:135
+#: src/mainaction.rs:162 src/postpane.rs:135
 msgid "Im Blog ansehen"
 msgstr ""
 
-#: src/mainaction.rs:185
+#: src/mainaction.rs:191
 msgid ""
 "Dieser Beitrag wurde im Blog gelöscht oder in den Papierkorb verschoben."
 msgstr ""
 
-#: src/mainaction.rs:185
+#: src/mainaction.rs:191
 msgid "Verknüpfung lösen"
 msgstr ""
 
-#: src/mainaction.rs:186
+#: src/mainaction.rs:192
 msgid ""
 "Dieser Beitrag wurde im Blog geändert, während du hier weitergeschrieben "
 "hast."
 msgstr ""
 
-#: src/mainaction.rs:186
+#: src/mainaction.rs:192
 msgid "Auflösen …"
 msgstr ""
 
-#: src/mainaction.rs:187
+#: src/mainaction.rs:193
 msgid "Dieser Beitrag wurde im Blog geändert."
 msgstr ""
 
-#: src/mainaction.rs:187
+#: src/mainaction.rs:193
 msgid "Blog-Fassung laden"
 msgstr ""
 
-#: src/mainaction.rs:190
+#: src/mainaction.rs:196
 msgid ""
 "Veröffentlichter Beitrag: Deine Änderungen gehen erst mit „Änderungen "
 "veröffentlichen“ online."
 msgstr ""
 
-#: src/mainaction.rs:225
+#: src/mainaction.rs:231
 msgid "Jetzt veröffentlichen?"
 msgstr ""
 
-#: src/mainaction.rs:225
+#: src/mainaction.rs:231
 msgid "Der geplante Termin entfällt, der Beitrag geht sofort online."
 msgstr ""
 
-#: src/mainaction.rs:225 src/releasecheck.rs:144 src/releasecheck.rs:236
+#: src/mainaction.rs:231 src/releasecheck.rs:144 src/releasecheck.rs:236
 msgid "Veröffentlichen"
 msgstr ""
 
-#: src/mainaction.rs:230
+#: src/mainaction.rs:236
 msgid "Auf Entwurf zurücksetzen?"
 msgstr ""
 
-#: src/mainaction.rs:230
+#: src/mainaction.rs:236
 msgid "Der Beitrag ist danach nicht mehr öffentlich sichtbar."
 msgstr ""
 
-#: src/mainaction.rs:230
+#: src/mainaction.rs:236
 msgid "Auf Entwurf zurücksetzen"
 msgstr ""
 
-#: src/mainaction.rs:235
+#: src/mainaction.rs:241
 msgid "Änderungen verwerfen?"
 msgstr ""
 
-#: src/mainaction.rs:235
+#: src/mainaction.rs:241
 msgid ""
 "Die Arbeitskopie wird durch die Fassung aus dem Blog ersetzt. Deine "
 "Änderungen gehen verloren."
 msgstr ""
 
-#: src/mainaction.rs:277 src/mediapanel.rs:194 src/mediapanel.rs:391
+#: src/mainaction.rs:283 src/mediapanel.rs:194 src/mediapanel.rs:391
 #: src/mediapanel.rs:487 src/mediapanel.rs:693
 msgid "Wird hochgeladen …"
 msgstr ""
 
-#: src/mainaction.rs:315
+#: src/mainaction.rs:321
 msgid "Als Entwurf hochgeladen."
 msgstr ""
 
-#: src/mainaction.rs:316
+#: src/mainaction.rs:322
 msgid "Zur Prüfung eingereicht."
 msgstr ""
 
-#: src/mainaction.rs:317
+#: src/mainaction.rs:323
 msgid "Veröffentlicht."
 msgstr ""
 
-#: src/mainaction.rs:318
+#: src/mainaction.rs:324
 msgid "Geplant."
 msgstr ""
 
-#: src/mainaction.rs:319
+#: src/mainaction.rs:325
 msgid "Aktualisiert."
 msgstr ""
 
-#: src/mainaction.rs:362
+#: src/mainaction.rs:368
 msgid "Vorschau nicht verfügbar: {err}"
 msgstr ""
 
-#: src/mainaction.rs:374
+#: src/mainaction.rs:380
 msgid "Noch nicht im Blog – erst als Entwurf hochladen."
 msgstr ""
 
-#: src/mainaction.rs:406
+#: src/mainaction.rs:412
 msgid ""
 "Vorschau fehlgeschlagen. Bist du im Browser-Tab bei WordPress angemeldet?"
 msgstr ""
 
-#: src/mainaction.rs:451 src/mainaction.rs:492
+#: src/mainaction.rs:457 src/mainaction.rs:498
 msgid "Laden fehlgeschlagen: {err}"
 msgstr ""
 
-#: src/mainaction.rs:475
+#: src/mainaction.rs:481
 msgid "Blog-Fassung geladen."
 msgstr ""
 
-#: src/mainaction.rs:521
+#: src/mainaction.rs:527
 msgid "Welche Fassung soll gelten?"
 msgstr ""
 
-#: src/mainaction.rs:522
+#: src/mainaction.rs:528
 msgid ""
 "Der Beitrag wurde im Blog geändert, nachdem du ihn zuletzt abgeglichen hast, "
 "und du hast hier weitergeschrieben."
 msgstr ""
 
-#: src/mainaction.rs:525
+#: src/mainaction.rs:531
 msgid "Vergleichen …"
 msgstr ""
 
-#: src/mainaction.rs:526 src/compare.rs:105
-msgid "Blog-Fassung übernehmen"
-msgstr ""
-
-#: src/mainaction.rs:527 src/compare.rs:120
-msgid "Meine Fassung behalten"
-msgstr ""
-
-#: src/mainaction.rs:574
+#: src/mainaction.rs:580
 msgid "Verknüpfung gelöst. Der Artikel ist jetzt nur lokal."
 msgstr ""
 
-#: src/mainaction.rs:613
+#: src/mainaction.rs:619
 msgid "im Blog gelöscht"
 msgstr ""
 
-#: src/mainaction.rs:614
+#: src/mainaction.rs:620
 msgid "Konflikt"
 msgstr ""
 
-#: src/mainaction.rs:615
+#: src/mainaction.rs:621
 msgid "im Blog geändert"
 msgstr ""
 
-#: src/mainaction.rs:616
+#: src/mainaction.rs:622
 msgid "Änderungen nicht online"
 msgstr ""
 
-#: src/mainaction.rs:617
+#: src/mainaction.rs:623
 msgid "nicht hochgeladen"
 msgstr ""
 
@@ -1644,7 +1698,7 @@ msgid "Alle Medien"
 msgstr ""
 
 #: src/mediabrowser.rs:34 src/properties.rs:820 src/releasecheck.rs:95
-#: src/releasecheck.rs:98 src/releasecheck.rs:271 src/window.rs:1301
+#: src/releasecheck.rs:98 src/releasecheck.rs:271 src/window.rs:1334
 msgid "Bilder"
 msgstr ""
 
@@ -2753,55 +2807,55 @@ msgstr ""
 msgid "Fokus-Schreibmodus (Strg+Umschalt+F)"
 msgstr ""
 
-#: src/window.rs:923
+#: src/window.rs:937
 msgid "Unbenannte Seite"
 msgstr ""
 
-#: src/window.rs:1041
+#: src/window.rs:1063
 msgid "Vorhandene Arbeitskopie geöffnet."
 msgstr ""
 
-#: src/window.rs:1049
+#: src/window.rs:1071
 msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
 msgstr ""
 
-#: src/window.rs:1144
+#: src/window.rs:1176
 msgid "Markdown-Datei öffnen"
 msgstr ""
 
-#: src/window.rs:1305
+#: src/window.rs:1338
 msgid "Bild einfügen"
 msgstr ""
 
-#: src/window.rs:1340
+#: src/window.rs:1373
 msgid "Video/Audio einfügen"
 msgstr ""
 
-#: src/window.rs:1428
+#: src/window.rs:1461
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr ""
 
-#: src/window.rs:1537
+#: src/window.rs:1570
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr ""
 
-#: src/window.rs:1546
+#: src/window.rs:1579
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1552
+#: src/window.rs:1585
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr ""
 
-#: src/window.rs:1566 src/window.rs:1580
+#: src/window.rs:1599 src/window.rs:1613
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1584
+#: src/window.rs:1617
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr ""
 
-#: src/window.rs:1589
+#: src/window.rs:1622
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr ""
 
@@ -2823,12 +2877,4 @@ msgstr ""
 
 #: src/wpclient.rs:984
 msgid "Kein Term-ID für \"{name}\" erhalten"
-msgstr ""
-
-#: src/compare.rs:99
-msgid "Keine Unterschiede im Text"
-msgstr ""
-
-#: src/compare.rs:99
-msgid "− nur im Blog · + nur hier"
 msgstr ""

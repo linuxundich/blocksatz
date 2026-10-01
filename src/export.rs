@@ -163,7 +163,8 @@ pub(crate) fn publish(
     set_busy(true);
     (feedback.on_progress)(&tr("Prüfe auf Änderungen auf WordPress …"));
 
-    let site = wpsite::load();
+    // The blog this working copy belongs to, not necessarily the active one.
+    let site = wpsite::for_site_id(frontmatter.borrow().wp_site.as_deref());
     let (tx, rx) = mpsc::channel::<Result<String, String>>();
     std::thread::spawn(move || {
         let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
@@ -271,7 +272,8 @@ pub(crate) fn start_export(
         save_document();
     }
 
-    let site = wpsite::load();
+    // Updates go to the blog the post lives on; a new post to the active one.
+    let site = wpsite::for_site_id(frontmatter.borrow().wp_site.as_deref());
     let mut current_fm = frontmatter.borrow().clone();
     if let Some(target_status) = target_status {
         current_fm.status = target_status;

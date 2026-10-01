@@ -39,6 +39,8 @@ pub struct LibrarySidebar {
     menu_target: RefCell<Option<PathBuf>>,
     site_icon: gtk4::Image,
     site_label: gtk4::Label,
+    site_menu: gio::Menu,
+    site_action: gio::SimpleAction,
     ctx: DocContext,
     weak: Weak<LibrarySidebar>,
 }
@@ -111,14 +113,20 @@ impl LibrarySidebar {
         });
         sidebar.set_placeholder(Some(&adw::StatusPage::builder().icon_name("edit-find-symbolic").title(tr("Keine Treffer")).css_classes(["compact"]).build()));
 
+        // Footer: the active blog, as a menu to switch to another one.
         let site_icon = gtk4::Image::from_icon_name("network-server-symbolic");
         let site_label = gtk4::Label::builder().xalign(0.0).hexpand(true).ellipsize(gtk4::pango::EllipsizeMode::End).build();
-        site_label.add_css_class("dim-label");
+        let site_content = gtk4::Box::builder().spacing(8).build();
+        site_content.append(&site_icon);
+        site_content.append(&site_label);
+        site_content.append(&gtk4::Image::from_icon_name("pan-down-symbolic"));
+        let site_menu = gio::Menu::new();
+        let site_button = gtk4::MenuButton::builder().child(&site_content).menu_model(&site_menu).tooltip_text(tr("Blog wechseln")).hexpand(true).build();
+        site_button.add_css_class("flat");
         let refresh_button = gtk4::Button::builder().icon_name("view-refresh-symbolic").tooltip_text(tr("Bibliothek und Blog aktualisieren")).build();
         refresh_button.add_css_class("flat");
-        let footer = gtk4::Box::builder().spacing(8).margin_start(12).margin_end(6).margin_top(6).margin_bottom(6).build();
-        footer.append(&site_icon);
-        footer.append(&site_label);
+        let footer = gtk4::Box::builder().spacing(4).margin_start(6).margin_end(6).margin_top(6).margin_bottom(6).build();
+        footer.append(&site_button);
         footer.append(&refresh_button);
 
         let toolbar = adw::ToolbarView::new();
@@ -137,6 +145,8 @@ impl LibrarySidebar {
             menu_target: RefCell::new(None),
             site_icon,
             site_label,
+            site_menu,
+            site_action: gio::SimpleAction::new_stateful("site", Some(glib::VariantTy::STRING), &wpsite::load().site_id().to_variant()),
             ctx: ctx.clone(),
             weak: weak.clone(),
         });
@@ -168,6 +178,18 @@ impl LibrarySidebar {
             });
         }
         this.install_actions(window);
+        this.rebuild_site_menu();
+        {
+            let weak = this.weak.clone();
+            ctx.site_listeners.borrow_mut().push(Rc::new(move || {
+                if let Some(this) = weak.upgrade() {
+                    this.rebuild_site_menu();
+                    this.shown_filter.set(None);
+                    this.reload();
+                    this.refresh_counts();
+                }
+            }));
+        }
         {
             let weak = this.weak.clone();
             refresh_button.connect_clicked(move |_| {
@@ -233,7 +255,37 @@ impl LibrarySidebar {
         }
         group.add_action(&remove);
 
+        {
+            let weak = self.weak.clone();
+            self.site_action.connect_change_state(move |action, value| {
+                let (Some(this), Some(id)) = (weak.upgrade(), value.and_then(|v| v.get::<String>())) else { return };
+                action.set_state(&id.to_variant());
+                if wpsite::set_active(&id).is_ok() {
+                    this.ctx.notify_site_changed();
+                }
+            });
+        }
+        group.add_action(&self.site_action);
+
         self.sidebar.insert_action_group("library", Some(&group));
+        // The footer's site menu lives outside the sidebar widget.
+        self.widget.insert_action_group("library", Some(&group));
+    }
+
+    /// One radio entry per configured blog, plus the way to manage them.
+    fn rebuild_site_menu(&self) {
+        self.site_menu.remove_all();
+        let sites = wpsite::load_all();
+        let blogs = gio::Menu::new();
+        for site in &sites.sites {
+            let id = site.site_id();
+            blogs.append(Some(&id), Some(&format!("library.site('{}')", id.replace('\'', ""))));
+        }
+        self.site_menu.append_section(None, &blogs);
+        let manage = gio::Menu::new();
+        manage.append(Some(&tr("Blogs verwalten …")), Some("win.settings"));
+        self.site_menu.append_section(None, &manage);
+        self.site_action.set_state(&sites.active_site().site_id().to_variant());
     }
 
     /// Moves an article's library folder to the desktop trash (the blog is
@@ -256,9 +308,12 @@ impl LibrarySidebar {
         let root = library::root();
         let current = self.ctx.current_path.borrow().clone();
         let now = glib::DateTime::now_utc().ok();
+        let active_site = wpsite::load().site_id();
         let mut entries: Vec<(library::Entry, std::time::SystemTime)> = library::scan(&root)
             .into_iter()
             .filter(|entry| Some(&entry.path) == current.as_ref() || !now.as_ref().is_some_and(|now| library::is_retired(&entry.document, now)))
+            // The active blog's working copies and the local-only ones.
+            .filter(|entry| Some(&entry.path) == current.as_ref() || entry.document.frontmatter.wp_site.as_deref().is_none_or(|site| site == active_site))
             .map(|entry| {
                 let modified = std::fs::metadata(&entry.path).and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH);
                 (entry, modified)

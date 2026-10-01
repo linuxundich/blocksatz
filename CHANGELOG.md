@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Several blogs**: Einstellungen → WordPress has a list of blogs (add,
+  edit, remove, choose the active one with its radio button) and a form
+  for each blog's URL, username and Application Password (one keyring
+  entry per blog). The library sidebar's footer is a menu to switch the
+  active blog. Switching reloads the counters, the categories/tags cache
+  (now one per blog) and the sync check; "In Arbeit" shows the active
+  blog's working copies plus the local-only ones. Uploads, the conflict
+  check, previews, "Blog-Fassung laden" and the comparison of a working
+  copy always use the blog it belongs to (`wp_site`), so a post id never
+  addresses the wrong blog. The settings move from `wordpress.conf` to
+  `sites.conf`; an existing `wordpress.conf` is taken over automatically.
+
 - **"Mit Blog-Fassung vergleichen"**: a line diff of the working copy
   against the post as it is on the blog right now (lines only on the
   blog, lines only here), with "Blog-Fassung übernehmen" and - for a

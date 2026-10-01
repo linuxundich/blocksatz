@@ -70,6 +70,20 @@ pub(crate) struct PublishFeedback {
     pub on_error: Rc<dyn Fn(&str)>,
 }
 
+/// The post an interrupted first upload created, among `candidates`
+/// (recent posts found by title): the newest one with exactly that title.
+fn recovered_post_id(candidates: &[wpclient::PostSummary], title: &str) -> Option<u64> {
+    candidates.iter().find(|post| post.title.trim() == title.trim()).map(|post| post.id)
+}
+
+/// One day before the failed attempt `attempt` (RFC 3339 UTC), as the
+/// site-local date WordPress's `after` filter expects - a day's margin
+/// covers any site time zone.
+fn search_window_start(attempt: &str) -> Option<String> {
+    let at = glib::DateTime::from_iso8601(attempt, None).ok()?;
+    at.add_days(-1).ok()?.format("%Y-%m-%dT%H:%M:%S").ok().map(|s| s.to_string())
+}
+
 /// Appends WordPress's `preview=true` query parameter to a post's
 /// permalink (`PostDetail::link`) - its documented convention for showing
 /// an unpublished post's current content to a logged-in, authorized
@@ -243,6 +257,20 @@ pub(crate) fn start_export(
     set_busy(true);
     (feedback.on_progress)(&tr("Wird gesendet …"));
 
+    // Recorded on disk *before* the request, so an interrupted first upload
+    // is recognized on the next try (see `Frontmatter::wp_pending_create`).
+    let creating = {
+        let mut fm = frontmatter.borrow_mut();
+        let creating = fm.wp_post_id.is_none();
+        if creating && fm.wp_pending_create.is_none() {
+            fm.wp_pending_create = Some(syncstate::now_rfc3339());
+        }
+        creating
+    };
+    if creating {
+        save_document();
+    }
+
     let site = wpsite::load();
     let mut current_fm = frontmatter.borrow().clone();
     if let Some(target_status) = target_status {
@@ -277,6 +305,7 @@ pub(crate) fn start_export(
                     fm.status = target_status;
                 }
                 fm.wp_content_hash = content_hash;
+                fm.wp_pending_create = None;
                 // Fingerprinted against the body as it was *sent*: anything
                 // typed while the upload ran is a local change still to go.
                 let mut synced = Document { frontmatter: fm.clone(), body: sent_body.clone() };
@@ -467,6 +496,15 @@ fn run_export(
     }
 
     let rest_base = frontmatter.post_type.rest_base();
+    // A previous first upload may have created the post without its answer
+    // arriving (network drop): look for it before creating a second one.
+    if frontmatter.wp_post_id.is_none() && !frontmatter.title.trim().is_empty() {
+        if let Some(after) = frontmatter.wp_pending_create.as_deref().and_then(search_window_start) {
+            if let Ok(candidates) = client.find_recent_by_title(rest_base, &frontmatter.title, &after) {
+                frontmatter.wp_post_id = recovered_post_id(&candidates, &frontmatter.title);
+            }
+        }
+    }
     let result = match frontmatter.wp_post_id {
         Some(id) => client.update_item(rest_base, id, &payload),
         None => client.create_item(rest_base, &payload),
@@ -697,6 +735,23 @@ mod tests {
         assert_eq!(TargetStatus::Set(PostStatus::Future).resolve(&Frontmatter::default()), Some(PostStatus::Future));
     }
 
+    fn summary(id: u64, title: &str) -> wpclient::PostSummary {
+        wpclient::PostSummary { id, title: title.to_string(), ..Default::default() }
+    }
+
+    #[test]
+    fn an_interrupted_first_upload_is_found_by_its_exact_title() {
+        let candidates = [summary(9, "Raspberry Pi 5 als NAS – Teil 2"), summary(7, "Raspberry Pi 5 als NAS"), summary(3, "Raspberry Pi 5 als NAS")];
+        assert_eq!(recovered_post_id(&candidates, "Raspberry Pi 5 als NAS"), Some(7));
+        assert_eq!(recovered_post_id(&candidates, "Etwas anderes"), None);
+    }
+
+    #[test]
+    fn the_search_window_starts_a_day_before_the_attempt() {
+        assert_eq!(search_window_start("2026-10-02T08:30:00Z").as_deref(), Some("2026-10-01T08:30:00"));
+        assert_eq!(search_window_start("kaputt"), None);
+    }
+
     #[test]
     fn no_conflict_when_there_is_no_known_baseline_to_compare_against() {
         assert!(!has_conflicting_server_change(None, "any-server-hash"));
@@ -870,6 +925,7 @@ mod tests {
             wp_modified_gmt: None,
             wp_synced_hash: None,
             wp_synced_at: None,
+            wp_pending_create: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -928,6 +984,7 @@ mod tests {
             wp_modified_gmt: None,
             wp_synced_hash: None,
             wp_synced_at: None,
+            wp_pending_create: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -985,6 +1042,7 @@ mod tests {
             wp_modified_gmt: None,
             wp_synced_hash: None,
             wp_synced_at: None,
+            wp_pending_create: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1041,6 +1099,7 @@ mod tests {
             wp_modified_gmt: None,
             wp_synced_hash: None,
             wp_synced_at: None,
+            wp_pending_create: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1100,6 +1159,7 @@ mod tests {
             wp_modified_gmt: None,
             wp_synced_hash: None,
             wp_synced_at: None,
+            wp_pending_create: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1164,6 +1224,7 @@ mod tests {
             wp_modified_gmt: None,
             wp_synced_hash: None,
             wp_synced_at: None,
+            wp_pending_create: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,

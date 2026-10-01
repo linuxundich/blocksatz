@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A first upload interrupted after WordPress had already created the post
+  (connection dropped before the answer arrived) no longer creates a
+  second post on the next try: the attempt is recorded in the working copy
+  beforehand (`wp_pending_create`), and the retry first looks for a post
+  with exactly that title created since.
 - The window opens maximized again when it was closed maximized: the
   saved normal size no longer becomes the monitor's size (too large for a
   smaller monitor), and the pane's last view (the chat asked for more

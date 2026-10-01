@@ -777,6 +777,29 @@ impl Client {
         Ok(found)
     }
 
+    /// Posts/pages titled (roughly - WordPress's full-text search) like
+    /// `title` and dated after `after` (site-local `YYYY-MM-DDTHH:MM:SS`),
+    /// newest first. Backs the recovery of a post whose creation may have
+    /// succeeded although its response never arrived (`export.rs`).
+    pub fn find_recent_by_title(&self, rest_base: &str, title: &str, after: &str) -> Result<Vec<PostSummary>> {
+        let url = format!(
+            "{}?search={}&after={}&per_page=20&orderby=date&order=desc&context=edit&status=draft,pending,publish,future,private&_fields=id,title,status,date,link,modified_gmt",
+            self.endpoint(rest_base),
+            percent_encode(title),
+            percent_encode(after)
+        );
+        let value = self.get_json(&url)?;
+        Ok(value
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|item| {
+                let text = |key: &str| item.get(key).and_then(Value::as_str).unwrap_or_default().to_string();
+                Some(PostSummary { id: item.get("id")?.as_u64()?, title: post_title(item), status: text("status"), date: text("date"), link: text("link"), modified_gmt: text("modified_gmt") })
+            })
+            .collect())
+    }
+
     /// How many posts/pages are in `statuses` - one minimal request,
     /// reading only the `X-WP-Total` header. For the sidebar's counters.
     pub fn count_items(&self, rest_base: &str, statuses: &str) -> Result<u64> {

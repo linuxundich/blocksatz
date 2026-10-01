@@ -202,6 +202,12 @@ pub struct Frontmatter {
     /// published, unchanged working copies from "In Arbeit" after a while
     /// (`library::is_retired`).
     pub wp_synced_at: Option<String>,
+    /// When a first upload (creating the post) was last attempted, as RFC
+    /// 3339 UTC - set before the request, cleared once it succeeded. If
+    /// it's still set on the next upload, the connection may have dropped
+    /// after WordPress had already created the post; `export.rs` then
+    /// looks for that post before creating another one.
+    pub wp_pending_create: Option<String>,
     /// The WordPress media id of the post's *current* featured image, when
     /// the document was opened from an existing post (`importer.rs`) - not
     /// user-editable. `featured_image` is a local path to *upload as a new*
@@ -349,6 +355,7 @@ pub fn parse(input: &str) -> Document {
             "wp_modified_gmt" => frontmatter.wp_modified_gmt = (!value.is_empty()).then(|| unquote(value)),
             "wp_synced_hash" => frontmatter.wp_synced_hash = (!value.is_empty()).then(|| unquote(value)),
             "wp_synced_at" => frontmatter.wp_synced_at = (!value.is_empty()).then(|| unquote(value)),
+            "wp_pending_create" => frontmatter.wp_pending_create = (!value.is_empty()).then(|| unquote(value)),
             "wp_featured_media_id" => frontmatter.featured_media_id = value.parse::<u64>().ok(),
             "author_id" => frontmatter.author_id = value.parse::<u64>().ok(),
             "author_name" => {
@@ -430,6 +437,7 @@ pub fn serialize(doc: &Document) -> String {
         ("wp_modified_gmt", &fm.wp_modified_gmt),
         ("wp_synced_hash", &fm.wp_synced_hash),
         ("wp_synced_at", &fm.wp_synced_at),
+        ("wp_pending_create", &fm.wp_pending_create),
     ] {
         if let Some(value) = value {
             out.push_str(&format!("{key}: \"{}\"\n", escape(value)));
@@ -917,6 +925,7 @@ mod tests {
                 wp_modified_gmt: Some("2026-10-01T10:00:00".to_string()),
                 wp_synced_hash: Some("cafe".to_string()),
                 wp_synced_at: Some("2026-10-01T10:00:05Z".to_string()),
+                wp_pending_create: None,
                 featured_media_id: Some(99),
                 author_id: Some(3),
                 author_name: Some("Jane Editor".to_string()),

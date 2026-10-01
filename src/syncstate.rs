@@ -42,6 +42,7 @@ pub fn fingerprint(doc: &Document) -> String {
         wp_modified_gmt: None,
         wp_synced_hash: None,
         wp_synced_at: None,
+        wp_pending_create: None,
         featured_media_id: None,
         media: Vec::new(),
         ..doc.frontmatter.clone()

@@ -275,7 +275,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     // would set the floor for both, defeating the point of a narrow layout.
     narrow_view_stack.set_hhomogeneous(false);
     narrow_view_stack.add_titled_with_icon(&adw::LayoutSlot::new("editor"), Some("editor"), &tr("Editor"), "text-editor-symbolic");
-    narrow_view_stack.add_titled_with_icon(&adw::LayoutSlot::new("sidebar"), Some("sidebar"), &tr("Vorschau"), "view-reveal-symbolic");
+    narrow_view_stack.add_titled_with_icon(&adw::LayoutSlot::new("sidebar"), Some("sidebar"), &tr("Seitenbereich"), "sidebar-show-right-symbolic");
     narrow_view_stack.set_vexpand(true);
     let narrow_switcher = adw::InlineViewSwitcher::builder().stack(&narrow_view_stack).build();
     let narrow_switcher_bar = gtk4::Box::builder()
@@ -341,7 +341,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     primary_menu.append_section(None, &insert_section);
     let app_section = gio::Menu::new();
     app_section.append(Some(&tr("Einstellungen")), Some("win.settings"));
-    app_section.append(Some(&tr("Tastenkürzel")), Some("win.show-help-overlay"));
+    app_section.append(Some(&tr("Tastenkürzel")), Some("win.shortcuts"));
     app_section.append(Some(&tr("Über Blocksatz")), Some("win.about"));
     primary_menu.append_section(None, &app_section);
 
@@ -404,11 +404,17 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let right_pane = right_pane.clone();
         let view_stack = view_stack.clone();
         let saved_sidebar = saved_window_state.sidebar_visible;
+        let (saved_width, saved_height) = (saved_window_state.width, saved_window_state.height);
         window.connect_close_request(move |window| {
+            // A maximized window's size is the monitor's; keeping it as the
+            // normal size would make the next start open too large for a
+            // smaller monitor (which then drops the maximized state).
+            let maximized = window.is_maximized();
+            let (width, height) = if maximized { (saved_width, saved_height) } else { (window.width(), window.height()) };
             let state = windowstate::WindowState {
-                width: window.width(),
-                height: window.height(),
-                maximized: window.is_maximized(),
+                width,
+                height,
+                maximized,
                 split_ratio: split_ratio.get(),
                 // In overlay mode (narrow window) the sidebar is hidden by
                 // default; that says nothing about the wide-window choice.
@@ -555,8 +561,20 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
 
     // Restore the pane layout of the last session.
     split_view.set_show_sidebar(saved_window_state.sidebar_visible);
+    // The pane's page only once the window is on screen: some pages (the
+    // chat) ask for more width before the first layout than a maximized
+    // window has, and the compositor then drops the maximized state.
     if view_stack.child_by_name(&saved_window_state.pane_page).is_some() {
-        view_stack.set_visible_child_name(&saved_window_state.pane_page);
+        let view_stack = view_stack.clone();
+        let page = saved_window_state.pane_page.clone();
+        let restored = Cell::new(false);
+        window.connect_map(move |_| {
+            if !restored.replace(true) {
+                let view_stack = view_stack.clone();
+                let page = page.clone();
+                glib::idle_add_local_once(move || view_stack.set_visible_child_name(&page));
+            }
+        });
     }
     if !saved_window_state.pane_visible {
         let _ = WidgetExt::activate_action(&window, "win.toggle-preview", None);
@@ -574,7 +592,16 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_paste_shortcut(&view, &buffer, &current_path, &toast_overlay);
     wire_drop_target(&view, &buffer, &current_path);
     wire_find_action(&window, &search_bar);
-    window.set_help_overlay(Some(&shortcuts::build()));
+    let shortcuts_action = gio::SimpleAction::new("shortcuts", None);
+    {
+        let window = window.downgrade();
+        shortcuts_action.connect_activate(move |_, _| {
+            if let Some(window) = window.upgrade() {
+                shortcuts::open(&window);
+            }
+        });
+    }
+    window.add_action(&shortcuts_action);
 
     if let Some(path) = initial_path {
         open_document_at_path(path, &doc_ctx);

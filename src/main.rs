@@ -108,7 +108,7 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("win.toggle-focus-mode", &["<Ctrl><Shift>f"]);
     app.set_accels_for_action("win.toggle-preview", &["F9"]);
     app.set_accels_for_action("win.properties", &["<Alt>Return"]);
-    app.set_accels_for_action("win.show-help-overlay", &["<Ctrl>question"]);
+    app.set_accels_for_action("win.shortcuts", &["<Ctrl>question"]);
 
     app.connect_activate(|app| {
         appearance::apply_saved_color_scheme();

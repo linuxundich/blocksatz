@@ -1,39 +1,42 @@
-//! "Tastenkürzel" - this app's keyboard shortcuts in a native
-//! `Gtk.ShortcutsWindow`. Wired up via `Gtk.ApplicationWindow`'s standard
-//! `help-overlay` property (`window.rs`), so GTK itself provides the
-//! conventional `win.show-help-overlay` action - no bespoke action or
-//! `open()` function needed here, just the window to hand it.
+//! "Tastenkürzel" - this app's keyboard shortcuts in an
+//! `AdwShortcutsDialog` (libadwaita 1.8+, the successor of the deprecated
+//! `Gtk.ShortcutsWindow`), opened by `win.shortcuts` (Ctrl+?).
+
+use adw::prelude::*;
 
 use crate::i18n::tr;
 
-pub fn build() -> gtk4::ShortcutsWindow {
-    let window = gtk4::ShortcutsWindow::builder().modal(true).build();
-
-    let section = gtk4::ShortcutsSection::builder().section_name("main").build();
+/// Shows the shortcuts dialog over `parent`.
+pub fn open(parent: &impl IsA<gtk4::Widget>) {
+    let dialog = adw::ShortcutsDialog::new();
     // Every title below is `tr("...")` right here at its own literal - not
     // built from a shared table and translated once through a variable -
     // so `xgettext --keyword=tr` (see `po/README.md`) can actually find
     // it: it only extracts a call whose argument is a string literal, not
     // one that's been looked up into a local first.
-    section.add_group(&group(
-        tr("Allgemein"),
+    dialog.add(section(
+        tr("Artikel"),
         &[
             (tr("Neuer Artikel"), "<Ctrl>N"),
             (tr("Neue Seite"), "<Ctrl><Alt>N"),
-            (tr("Öffnen"), "<Ctrl>O"),
+            (tr("Datei öffnen"), "<Ctrl>O"),
             (tr("Entwürfe im Blog"), "<Ctrl><Shift>O"),
             (tr("Sofort speichern"), "<Ctrl>S"),
-            (tr("Vor Veröffentlichung prüfen"), "<Ctrl><Shift>P"),
-            (tr("Seitenbereich ein-/ausblenden"), "F9"),
-            (tr("Beitragseigenschaften"), "<Alt>Return"),
-            (tr("Medienverwaltung"), "<Ctrl><Shift>M"),
-            (tr("WordPress-Mediathek"), "<Ctrl><Shift>L"),
+            (tr("Veröffentlichen (Freigabe-Prüfung)"), "<Ctrl><Shift>P"),
             (tr("KI-Artikel schreiben"), "<Ctrl><Shift>G"),
-            (tr("Fokus-Schreibmodus"), "<Ctrl><Shift>F"),
-            (tr("Einstellungen"), "<Ctrl>comma"),
         ],
     ));
-    section.add_group(&group(
+    dialog.add(section(
+        tr("Ansicht"),
+        &[
+            (tr("Seitenbereich ein-/ausblenden"), "F9"),
+            (tr("Beitragseigenschaften"), "<Alt>Return"),
+            (tr("Fokus-Schreibmodus"), "<Ctrl><Shift>F"),
+            (tr("Medienverwaltung"), "<Ctrl><Shift>M"),
+            (tr("WordPress-Mediathek"), "<Ctrl><Shift>L"),
+        ],
+    ));
+    dialog.add(section(
         tr("Editor"),
         &[
             (tr("Fett"), "<Ctrl>B"),
@@ -43,14 +46,17 @@ pub fn build() -> gtk4::ShortcutsWindow {
             (tr("Suchen und Ersetzen"), "<Ctrl>F"),
         ],
     ));
-    window.add_section(&section);
-    window
+    dialog.add(section(
+        tr("Allgemein"),
+        &[(tr("Einstellungen"), "<Ctrl>comma"), (tr("Tastenkürzel"), "<Ctrl>question")],
+    ));
+    dialog.present(Some(parent));
 }
 
-fn group(title: String, shortcuts: &[(String, &str)]) -> gtk4::ShortcutsGroup {
-    let group = gtk4::ShortcutsGroup::builder().title(title).build();
+fn section(title: String, shortcuts: &[(String, &str)]) -> adw::ShortcutsSection {
+    let section = adw::ShortcutsSection::new(Some(&title));
     for (title, accelerator) in shortcuts {
-        group.add_shortcut(&gtk4::ShortcutsShortcut::builder().title(title.as_str()).accelerator(*accelerator).build());
+        section.add(adw::ShortcutsItem::new(title, accelerator));
     }
-    group
+    section
 }

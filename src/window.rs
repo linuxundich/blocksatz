@@ -423,6 +423,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         written: Rc::new(RefCell::new(String::new())),
         library_listeners: Rc::new(RefCell::new(Vec::new())),
         remote: Rc::new(RefCell::new(HashMap::new())),
+        blog_listeners: Rc::new(RefCell::new(Vec::new())),
     };
 
     wire_live_preview(&buffer, &preview_pane, &stats_view, &code_view, &frontmatter);
@@ -760,6 +761,10 @@ fn wire_library(window: &adw::ApplicationWindow, ctx: &DocContext, split_view: &
             let toast_overlay = ctx.toast_overlay.clone();
             Rc::new(move |message: &str| show_toast(&toast_overlay, message))
         },
+        {
+            let ctx = ctx.clone();
+            Rc::new(move || ctx.notify_blog())
+        },
     );
 
     // In overlay mode the sidebar gets out of the way once something was
@@ -865,6 +870,8 @@ pub(crate) fn open_imported_post(ctx: &DocContext, imported: importer::ImportedP
 /// `pub(crate)` so the library sidebar and `worksave.rs` share it.
 /// Called with `structural` - see `DocContext::notify_library`.
 pub(crate) type LibraryListener = Rc<dyn Fn(bool)>;
+/// See `DocContext::notify_blog`.
+pub(crate) type BlogListener = Rc<dyn Fn()>;
 
 #[derive(Clone)]
 pub(crate) struct DocContext {
@@ -884,6 +891,9 @@ pub(crate) struct DocContext {
     /// What the last sync check (`blogsync.rs`) found on the server, by
     /// post id.
     pub(crate) remote: Rc<RefCell<HashMap<u64, syncstate::Remote>>>,
+    /// Called after something changed on the blog itself (an upload, a
+    /// post trashed or restored) - the sidebar's counters reload.
+    pub(crate) blog_listeners: Rc<RefCell<Vec<BlogListener>>>,
 }
 
 impl DocContext {
@@ -894,6 +904,13 @@ impl DocContext {
         let listeners = self.library_listeners.borrow().clone();
         for listener in listeners {
             listener(structural);
+        }
+    }
+
+    pub(crate) fn notify_blog(&self) {
+        let listeners = self.blog_listeners.borrow().clone();
+        for listener in listeners {
+            listener();
         }
     }
 

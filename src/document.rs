@@ -464,6 +464,17 @@ pub fn serialize(doc: &Document) -> String {
     out
 }
 
+/// A leading `# Heading` line as the article's title, plus the body
+/// without it - for articles that carry their title as the first heading
+/// instead of in the frontmatter (the convention of Ulysses, iA Writer
+/// and most Markdown editors). Only a finished line counts.
+pub fn split_title_heading(body: &str) -> Option<(String, &str)> {
+    let trimmed = body.trim_start();
+    let (first_line, rest) = trimmed.split_once('\n')?;
+    let title = first_line.strip_prefix("# ")?.trim();
+    (!title.is_empty()).then(|| (title.to_string(), rest.trim_start_matches(['\n', '\r'])))
+}
+
 /// SHA-256 hex digest of `content` - shared by `importer.rs` (hashing the
 /// literal content a post was just fetched with) and `export.rs` (hashing
 /// the literal content just sent, and re-hashing a fresh fetch to compare
@@ -863,6 +874,15 @@ mod tests {
         assert!(doc.frontmatter.vgwort_ignored);
         assert_eq!(doc.frontmatter.comment_status, Some(false));
         assert_eq!(doc.body, "Body text here.\n");
+    }
+
+    #[test]
+    fn a_leading_heading_can_serve_as_the_title() {
+        assert_eq!(split_title_heading("# Titel\n\nText\n"), Some(("Titel".to_string(), "Text\n")));
+        assert_eq!(split_title_heading("\n# Titel\nText"), Some(("Titel".to_string(), "Text")));
+        assert_eq!(split_title_heading("## Zwischentitel\nText"), None);
+        assert_eq!(split_title_heading("# Noch beim Tippen"), None);
+        assert_eq!(split_title_heading("Text\n# Später\n"), None);
     }
 
     #[test]

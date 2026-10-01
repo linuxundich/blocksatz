@@ -190,6 +190,15 @@ impl LibrarySidebar {
             }));
         }
 
+        {
+            let weak = this.weak.clone();
+            ctx.blog_listeners.borrow_mut().push(Rc::new(move || {
+                if let Some(this) = weak.upgrade() {
+                    this.refresh_counts();
+                }
+            }));
+        }
+
         this.reload();
         this.refresh_counts();
         this

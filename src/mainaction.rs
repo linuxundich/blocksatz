@@ -284,6 +284,7 @@ impl MainAction {
                     };
                     window::show_toast(&this.ctx.toast_overlay, &message);
                     this.ctx.notify_library(false);
+                    this.ctx.notify_blog();
                     if this.preview_after_upload.replace(false) {
                         this.open_preview();
                     }

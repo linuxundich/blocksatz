@@ -116,14 +116,16 @@ pub struct BlogPostsPage {
     shown_search: RefCell<String>,
     on_open: Rc<dyn Fn(ImportedPost)>,
     on_error: Rc<dyn Fn(&str)>,
+    on_changed: Rc<dyn Fn()>,
     /// Handed to async callbacks, which must not keep the page alive.
     weak: Weak<BlogPostsPage>,
 }
 
 impl BlogPostsPage {
     /// `on_open` receives a fetched post; `on_error` shows a message (a
-    /// toast) for failures that don't belong in the list itself.
-    pub fn new(on_open: Rc<dyn Fn(ImportedPost)>, on_error: Rc<dyn Fn(&str)>) -> Rc<Self> {
+    /// toast) for failures that don't belong in the list itself;
+    /// `on_changed` runs after a post was trashed or restored.
+    pub fn new(on_open: Rc<dyn Fn(ImportedPost)>, on_error: Rc<dyn Fn(&str)>, on_changed: Rc<dyn Fn()>) -> Rc<Self> {
         let title = adw::WindowTitle::new(&tr("Beiträge"), "");
         let header = adw::HeaderBar::new();
         header.set_title_widget(Some(&title));
@@ -177,6 +179,7 @@ impl BlogPostsPage {
             shown_search: RefCell::new(String::new()),
             on_open,
             on_error,
+            on_changed,
             weak: weak.clone(),
         });
 
@@ -414,7 +417,10 @@ impl BlogPostsPage {
                 let Some(this) = weak.upgrade() else { return };
                 this.list.set_sensitive(true);
                 match outcome {
-                    Ok(()) => this.load(true),
+                    Ok(()) => {
+                        this.load(true);
+                        (this.on_changed)();
+                    }
                     Err(err) => (this.on_error)(&tr("Fehler: {err}").replace("{err}", &err)),
                 }
             },

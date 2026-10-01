@@ -922,6 +922,17 @@ fn run_export(
 
     let client = wpclient::Client::new(&site.url, &site.username, password);
 
+    // Without a frontmatter title, a leading `# Heading` is the title (as
+    // the sidebar and window title already show it) rather than an extra
+    // H1 at the top of the post.
+    let body = match document::split_title_heading(body) {
+        Some((title, rest)) if frontmatter.title.trim().is_empty() => {
+            frontmatter.title = title;
+            rest
+        }
+        _ => body,
+    };
+
     frontmatter.media = media::reconcile(&frontmatter.media, body);
     let uploaded_urls = media::sync_uploads(&client, &mut frontmatter.media, doc_dir)?;
 

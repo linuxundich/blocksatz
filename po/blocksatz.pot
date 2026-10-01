@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.64.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-01 22:00+0200\n"
+"POT-Creation-Date: 2026-10-01 23:15+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -59,11 +59,11 @@ msgid "Wird generiert …"
 msgstr ""
 
 #: src/aialt.rs:213 src/aievaluate.rs:225 src/aiinplace.rs:206
-#: src/aiwriter.rs:403 src/aiwriter.rs:472 src/chat.rs:181 src/export.rs:835
-#: src/gallerydialog.rs:500 src/imagealt.rs:401 src/imagealt.rs:503
-#: src/imageedit.rs:302 src/importer.rs:146 src/importer.rs:365
-#: src/mediabrowser.rs:494 src/mediabrowser.rs:583 src/mediapanel.rs:284
-#: src/mediapanel.rs:748 src/tagsuggest.rs:209
+#: src/aiwriter.rs:403 src/aiwriter.rs:472 src/blogposts.rs:424 src/chat.rs:181
+#: src/export.rs:303 src/gallerydialog.rs:500 src/imagealt.rs:401
+#: src/imagealt.rs:503 src/imageedit.rs:302 src/mediabrowser.rs:494
+#: src/mediabrowser.rs:583 src/mediapanel.rs:284 src/mediapanel.rs:748
+#: src/tagsuggest.rs:209
 msgid "Fehler: {err}"
 msgstr ""
 
@@ -118,7 +118,7 @@ msgstr ""
 msgid "{n} Befunde - zum Aufrufen anklicken."
 msgstr ""
 
-#: src/aiinplace.rs:104
+#: src/aiinplace.rs:104 src/mainaction.rs:229
 msgid "Verwerfen"
 msgstr ""
 
@@ -172,9 +172,10 @@ msgid ""
 "angepasst werden?"
 msgstr ""
 
-#: src/aimenu.rs:188 src/export.rs:702 src/export.rs:876
-#: src/gallerydialog.rs:154 src/importer.rs:339 src/mediabrowser.rs:548
-#: src/taxonomy.rs:352 src/taxonomy.rs:666
+#: src/aimenu.rs:188 src/blogposts.rs:385 src/export.rs:187
+#: src/gallerydialog.rs:154 src/mainaction.rs:457 src/mainaction.rs:511
+#: src/mediabrowser.rs:548 src/releasecheck.rs:185 src/taxonomy.rs:352
+#: src/taxonomy.rs:666
 msgid "Abbrechen"
 msgstr ""
 
@@ -280,14 +281,13 @@ msgid ""
 "Für den eigenen Schreibstil muss eine WordPress-Verbindung eingerichtet sein."
 msgstr ""
 
-#: src/aiwriter.rs:145 src/aiwriter.rs:160 src/export.rs:350 src/export.rs:670
-#: src/export.rs:787 src/export.rs:899 src/gallerydialog.rs:590
-#: src/importer.rs:95 src/linkpicker.rs:97 src/mediabrowser.rs:134
-#: src/medialibrary.rs:135 src/mediapanel.rs:203 src/mediapanel.rs:496
-#: src/mediapanel.rs:703 src/properties.rs:266 src/properties.rs:488
-#: src/taxonomy.rs:75 src/taxonomy.rs:223 src/taxonomy.rs:296
-#: src/taxonomy.rs:376 src/taxonomy.rs:481 src/taxonomy.rs:610
-#: src/taxonomy.rs:690
+#: src/aiwriter.rs:145 src/aiwriter.rs:160 src/export.rs:157 src/export.rs:260
+#: src/gallerydialog.rs:590 src/importer.rs:35 src/linkpicker.rs:97
+#: src/mediabrowser.rs:134 src/medialibrary.rs:135 src/mediapanel.rs:203
+#: src/mediapanel.rs:496 src/mediapanel.rs:703 src/properties.rs:245
+#: src/properties.rs:467 src/taxonomy.rs:75 src/taxonomy.rs:223
+#: src/taxonomy.rs:296 src/taxonomy.rs:376 src/taxonomy.rs:481
+#: src/taxonomy.rs:610 src/taxonomy.rs:690
 msgid "Kein Application Password im Schlüsselbund gefunden."
 msgstr ""
 
@@ -360,7 +360,7 @@ msgstr ""
 msgid "An Cursor einfügen"
 msgstr ""
 
-#: src/aiwriter.rs:371 src/shortcuts.rs:29
+#: src/aiwriter.rs:371 src/shortcuts.rs:26
 msgid "KI-Artikel schreiben"
 msgstr ""
 
@@ -439,7 +439,7 @@ msgstr ""
 msgid "Auf Systemschrift zurücksetzen"
 msgstr ""
 
-#: src/appearance.rs:532 src/window.rs:77 src/window.rs:192
+#: src/appearance.rs:532 src/window.rs:110
 msgid "Vorschau"
 msgstr ""
 
@@ -465,11 +465,111 @@ msgstr ""
 msgid "Auf Stil-Standardschrift zurücksetzen"
 msgstr ""
 
+#: src/blogposts.rs:44
+msgid "Entwürfe"
+msgstr ""
+
+#: src/blogposts.rs:45 src/document.rs:72 src/importer.rs:56
+msgid "Ausstehend"
+msgstr ""
+
+#: src/blogposts.rs:46 src/document.rs:74 src/importer.rs:57
+#: src/releasecheck.rs:163
+msgid "Geplant"
+msgstr ""
+
+#: src/blogposts.rs:47 src/document.rs:73 src/importer.rs:54
+msgid "Veröffentlicht"
+msgstr ""
+
+#: src/blogposts.rs:48
+msgid "Seiten"
+msgstr ""
+
+#: src/blogposts.rs:49
+msgid "Papierkorb"
+msgstr ""
+
+#: src/blogposts.rs:129 src/blogposts.rs:160
+msgid "Beiträge"
+msgstr ""
+
+#: src/blogposts.rs:133
+msgid "Im Blog suchen"
+msgstr ""
+
+#: src/blogposts.rs:232 src/librarysidebar.rs:331
+msgid "Kein Blog verbunden"
+msgstr ""
+
+#: src/blogposts.rs:232
+msgid "Die WordPress-Verbindung wird in den Einstellungen eingerichtet."
+msgstr ""
+
+#: src/blogposts.rs:276
+msgid "Beiträge konnten nicht geladen werden"
+msgstr ""
+
+#: src/blogposts.rs:277 src/linkpicker.rs:123 src/mediabrowser.rs:652
+#: src/medialibrary.rs:163 src/properties.rs:277 src/properties.rs:499
+msgid "Fehler beim Laden: {err}"
+msgstr ""
+
+#: src/blogposts.rs:288 src/librarysidebar.rs:112
+msgid "Keine Treffer"
+msgstr ""
+
+#: src/blogposts.rs:288
+msgid "Ein anderer Suchbegriff findet vielleicht mehr."
+msgstr ""
+
+#: src/blogposts.rs:290
+msgid "Keine Beiträge"
+msgstr ""
+
+#: src/blogposts.rs:296
+msgid "{n} insgesamt"
+msgstr ""
+
+#: src/blogposts.rs:313
+msgid "(ohne Titel)"
+msgstr ""
+
+#: src/blogposts.rs:318
+msgid "Liegt in der Bibliothek"
+msgstr ""
+
+#: src/blogposts.rs:322
+msgid "Wiederherstellen"
+msgstr ""
+
+#: src/blogposts.rs:323
+msgid "Als Entwurf wiederherstellen"
+msgstr ""
+
+#: src/blogposts.rs:327 src/blogposts.rs:386
+msgid "In den Papierkorb"
+msgstr ""
+
+#: src/blogposts.rs:372 src/window.rs:1139
+msgid "Öffnen fehlgeschlagen: {err}"
+msgstr ""
+
+#: src/blogposts.rs:382
+msgid "In den Papierkorb verschieben?"
+msgstr ""
+
+#: src/blogposts.rs:383
+msgid ""
+"„{title}“ wird in den WordPress-Papierkorb verschoben und lässt sich von "
+"dort wiederherstellen."
+msgstr ""
+
 #: src/browser.rs:68
 msgid "Adresse eingeben oder suchen…"
 msgstr ""
 
-#: src/browser.rs:71 src/export.rs:41 src/firstrun.rs:256
+#: src/browser.rs:71 src/firstrun.rs:256
 msgid "Zurück"
 msgstr ""
 
@@ -497,7 +597,7 @@ msgstr ""
 msgid "Blockiert bekannte Werbe- und Tracking-Domains, wie GNOME Web es tut."
 msgstr ""
 
-#: src/browsersettings.rs:20 src/browsersettings.rs:25 src/window.rs:82
+#: src/browsersettings.rs:20 src/browsersettings.rs:25
 msgid "Browser"
 msgstr ""
 
@@ -599,7 +699,7 @@ msgstr ""
 msgid "Benutzername"
 msgstr ""
 
-#: src/connection.rs:28 src/shortcuts.rs:25
+#: src/connection.rs:28
 msgid "Speichern"
 msgstr ""
 
@@ -621,87 +721,11 @@ msgstr ""
 msgid "Fehler beim Speichern des Passworts: {err}"
 msgstr ""
 
-#: src/docsidebar.rs:54
-msgid "Dokument"
-msgstr ""
-
-#: src/docsidebar.rs:65
-msgid "Durchsuchen"
-msgstr ""
-
-#: src/docsidebar.rs:133 src/export.rs:179
-msgid "Als Entwurf hochladen"
-msgstr ""
-
-#: src/docsidebar.rs:134 src/export.rs:192
-msgid "Privat veröffentlichen"
-msgstr ""
-
-#: src/docsidebar.rs:135 src/export.rs:187
-msgid "Terminieren"
-msgstr ""
-
-#: src/docsidebar.rs:136 src/export.rs:196
-msgid "Von WordPress löschen"
-msgstr ""
-
-#: src/docsidebar.rs:138
-msgid "Lokal speichern unter…"
-msgstr ""
-
-#: src/docsidebar.rs:139
-msgid "Vor Veröffentlichung prüfen…"
-msgstr ""
-
-#: src/docsidebar.rs:176
-msgid "Nur auf WordPress (#{id})"
-msgstr ""
-
-#: src/docsidebar.rs:177
-msgid "Neues, noch nicht gespeichertes Dokument"
-msgstr ""
-
-#: src/docsidebar.rs:247
-msgid "Lokal"
-msgstr ""
-
-#: src/docsidebar.rs:248
-msgid "WordPress"
-msgstr ""
-
-#: src/docsidebar.rs:318
-msgid "Datei öffnen…"
-msgstr ""
-
-#: src/docsidebar.rs:329
-msgid "Keine zuletzt geöffneten Artikel"
-msgstr ""
-
-#: src/docsidebar.rs:369
-msgid "Vorhandene Arbeitskopie geöffnet."
-msgstr ""
-
-#: src/docsidebar.rs:379
-msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
-msgstr ""
-
-#: src/document.rs:71 src/importer.rs:378
+#: src/document.rs:71 src/importer.rs:55
 msgid "Entwurf"
 msgstr ""
 
-#: src/document.rs:72 src/importer.rs:379
-msgid "Ausstehend"
-msgstr ""
-
-#: src/document.rs:73 src/importer.rs:172 src/importer.rs:377
-msgid "Veröffentlicht"
-msgstr ""
-
-#: src/document.rs:74 src/importer.rs:380
-msgid "Geplant"
-msgstr ""
-
-#: src/document.rs:75 src/importer.rs:381
+#: src/document.rs:75 src/importer.rs:58
 msgid "Privat"
 msgstr ""
 
@@ -713,170 +737,63 @@ msgstr ""
 msgid "Seite"
 msgstr ""
 
-#: src/export.rs:43 src/firstrun.rs:258
-msgid "Weiter"
-msgstr ""
-
-#: src/export.rs:110
-msgid "Zu sendendes Gutenberg-HTML:"
-msgstr ""
-
-#: src/export.rs:211
-msgid "Vorschau öffnen"
-msgstr ""
-
-#: src/export.rs:214
-msgid ""
-"Öffnet die WordPress-Vorschau im Browser-Tab. Entwürfe zeigt WordPress nur "
-"einer bei wp-admin angemeldeten Sitzung - andernfalls erscheint dort ein "
-"Login oder eine 404-Seite. Die Anmeldung im Browser-Tab bleibt gespeichert."
-msgstr ""
-
-#: src/export.rs:227
-msgid ""
-"Keine WordPress-Verbindung eingerichtet - bitte zuerst über den Verbindungs-"
-"Dialog konfigurieren."
-msgstr ""
-
-#: src/export.rs:235
-msgid "Bitte zuerst einen Titel in den Artikel-Eigenschaften setzen."
-msgstr ""
-
-#: src/export.rs:256
-msgid "Noch keine Vorschau"
-msgstr ""
-
-#: src/export.rs:258
-msgid ""
-"Sobald der Artikel als Entwurf hochgeladen, aktualisiert oder veröffentlicht "
-"wurde, erscheint hier eine Vorschau der Live-Seite."
-msgstr ""
-
-#: src/export.rs:324 src/shortcuts.rs:26
-msgid "Artikel exportieren"
-msgstr ""
-
-#: src/export.rs:341
-msgid "Vorschau wird geladen …"
-msgstr ""
-
-#: src/export.rs:371
-msgid ""
-"Vorschau unten geladen - dort ist ggf. eine Anmeldung bei wp-admin nötig, "
-"falls noch keine angemeldete Sitzung besteht."
-msgstr ""
-
-#: src/export.rs:377
-msgid "Fehler beim Laden der Vorschau: {err}"
-msgstr ""
-
-#: src/export.rs:383
-msgid "Interner Fehler: Vorschau-Thread hat kein Ergebnis geliefert."
-msgstr ""
-
-#: src/export.rs:429
-msgid "Artikel wurde von WordPress gelöscht."
-msgstr ""
-
-#: src/export.rs:430 src/export.rs:588 src/export.rs:1290
-msgid "Veröffentlichen"
-msgstr ""
-
-#: src/export.rs:507
-msgid "Erfolgreich gesendet:"
-msgstr ""
-
-#: src/export.rs:535
-msgid "Erfolgreich gesendet."
-msgstr ""
-
-#: src/export.rs:588 src/export.rs:1301 src/importer.rs:183
-#: src/mediabrowser.rs:163
-msgid "Aktualisieren"
-msgstr ""
-
-#: src/export.rs:662
+#: src/export.rs:150
 msgid "Prüfe auf Änderungen auf WordPress …"
 msgstr ""
 
-#: src/export.rs:697
+#: src/export.rs:182
 msgid "Artikel wurde extern geändert"
 msgstr ""
 
-#: src/export.rs:699
+#: src/export.rs:184
 msgid ""
 "Der Artikel wurde seit dem letzten Abruf/Senden direkt auf WordPress "
 "geändert - z. B. in wp-admin. Trotzdem mit der lokalen Version überschreiben?"
 msgstr ""
 
-#: src/export.rs:703
+#: src/export.rs:188
 msgid "Überschreiben"
 msgstr ""
 
-#: src/export.rs:720
+#: src/export.rs:203
 msgid "Abgebrochen - lokale Änderungen wurden nicht gesendet."
 msgstr ""
 
-#: src/export.rs:770
+#: src/export.rs:244
 msgid "Wird gesendet …"
 msgstr ""
 
-#: src/export.rs:826
+#: src/export.rs:297
 msgid "Aktualisiert"
 msgstr ""
 
-#: src/export.rs:827
+#: src/export.rs:298
 msgid "„{title}“ wurde erfolgreich gesendet."
 msgstr ""
 
-#: src/export.rs:836
+#: src/export.rs:304
 msgid "Veröffentlichen fehlgeschlagen"
 msgstr ""
 
-#: src/export.rs:845
+#: src/export.rs:310
 msgid "Interner Fehler: Export-Thread hat kein Ergebnis geliefert."
 msgstr ""
 
-#: src/export.rs:873
-msgid "Artikel wirklich löschen?"
-msgstr ""
-
-#: src/export.rs:874
-msgid "Der Artikel wird unwiderruflich von der WordPress-Seite gelöscht."
-msgstr ""
-
-#: src/export.rs:877 src/mediabrowser.rs:549 src/taxonomy.rs:188
-#: src/taxonomy.rs:353 src/taxonomy.rs:576 src/taxonomy.rs:667
-msgid "Löschen"
-msgstr ""
-
-#: src/export.rs:890 src/mediabrowser.rs:560
-msgid "Wird gelöscht …"
-msgstr ""
-
-#: src/export.rs:920
-msgid "Fehler beim Löschen: {err}"
-msgstr ""
-
-#: src/export.rs:926
-msgid "Interner Fehler: Lösch-Thread hat kein Ergebnis geliefert."
-msgstr ""
-
-#: src/export.rs:950
+#: src/export.rs:330
 msgid ""
 "Für den Status „Geplant“ muss ein gültiger Veröffentlichungstermin gesetzt "
 "sein."
 msgstr ""
 
-#: src/export.rs:1223
+#: src/export.rs:614
 msgid "Bild nicht abrufbar: {err}"
 msgstr ""
 
-#: src/export.rs:1227
+#: src/export.rs:618
 msgid "Bild nicht lesbar: {err}"
 msgstr ""
 
-#: src/export.rs:1230 src/media.rs:451
+#: src/export.rs:621 src/media.rs:451
 msgid "Bild {path} nicht lesbar: {err}"
 msgstr ""
 
@@ -946,6 +863,10 @@ msgstr ""
 msgid "Interner Fehler: kein Ergebnis vom Verbindungstest."
 msgstr ""
 
+#: src/firstrun.rs:258
+msgid "Weiter"
+msgstr ""
+
 #: src/formatting.rs:51
 msgid "Ausschneiden (Strg+X)"
 msgstr ""
@@ -978,7 +899,7 @@ msgstr ""
 msgid "Zitat"
 msgstr ""
 
-#: src/formatting.rs:65
+#: src/formatting.rs:65 src/window.rs:112
 msgid "Code"
 msgstr ""
 
@@ -1094,8 +1015,8 @@ msgstr ""
 msgid "Volle Größe"
 msgstr ""
 
-#: src/gallerydialog.rs:148 src/settings.rs:29 src/shortcuts.rs:31
-#: src/window.rs:285
+#: src/gallerydialog.rs:148 src/settings.rs:29 src/shortcuts.rs:51
+#: src/window.rs:343
 msgid "Einstellungen"
 msgstr ""
 
@@ -1103,8 +1024,8 @@ msgstr ""
 msgid "Galerie einfügen"
 msgstr ""
 
-#: src/gallerydialog.rs:189 src/importer.rs:206 src/linkpicker.rs:61
-#: src/mediabrowser.rs:229 src/medialibrary.rs:76
+#: src/gallerydialog.rs:189 src/linkpicker.rs:61 src/mediabrowser.rs:229
+#: src/medialibrary.rs:76
 msgid ""
 "Keine WordPress-Verbindung eingerichtet - bitte zuerst in den Einstellungen "
 "konfigurieren."
@@ -1159,7 +1080,7 @@ msgstr ""
 msgid "{n} Bilder angezeigt."
 msgstr ""
 
-#: src/gallerydialog.rs:601 src/importer.rs:106 src/linkpicker.rs:128
+#: src/gallerydialog.rs:601 src/importer.rs:46 src/linkpicker.rs:128
 #: src/mediabrowser.rs:145 src/medialibrary.rs:168
 msgid "Interner Fehler: Lade-Thread hat kein Ergebnis geliefert."
 msgstr ""
@@ -1194,7 +1115,7 @@ msgstr ""
 msgid "Alternativtext"
 msgstr ""
 
-#: src/imagealt.rs:375 src/properties.rs:438
+#: src/imagealt.rs:375 src/properties.rs:417
 msgid "KI-Alternativtext generieren…"
 msgstr ""
 
@@ -1251,67 +1172,97 @@ msgstr ""
 msgid "Interner Fehler: Bildbearbeitungs-Thread hat kein Ergebnis geliefert."
 msgstr ""
 
-#: src/importer.rs:129
-msgid "Lade „{title}“ …"
+#: src/librarysidebar.rs:54
+msgid "In Arbeit"
 msgstr ""
 
-#: src/importer.rs:141
-msgid "Ausgewählt: „{title}“"
+#: src/librarysidebar.rs:56
+msgid "Im Dateimanager zeigen"
 msgstr ""
 
-#: src/importer.rs:171
-msgid "Entwürfe"
+#: src/librarysidebar.rs:57
+msgid "Aus Bibliothek entfernen"
 msgstr ""
 
-#: src/importer.rs:173
-msgid "Weitere"
+#: src/librarysidebar.rs:62
+msgid "Im Blog"
 msgstr ""
 
-#: src/importer.rs:189
-msgid "Artikel"
+#: src/librarysidebar.rs:79 src/shortcuts.rs:20
+msgid "Neuer Artikel"
 msgstr ""
 
-#: src/importer.rs:190
-msgid "Seiten"
+#: src/librarysidebar.rs:80 src/shortcuts.rs:21
+msgid "Neue Seite"
 msgstr ""
 
-#: src/importer.rs:256 src/linkpicker.rs:91
-msgid "Lade Artikel …"
+#: src/librarysidebar.rs:81
+msgid "KI-Artikel schreiben…"
 msgstr ""
 
-#: src/importer.rs:257
-msgid "Lade Seiten …"
+#: src/librarysidebar.rs:83
+msgid "Datei öffnen…"
 msgstr ""
 
-#: src/importer.rs:291
-msgid "{n} Artikel gefunden. Zum Öffnen auswählen."
+#: src/librarysidebar.rs:85
+msgid "Neuer Artikel (Strg+N)"
 msgstr ""
 
-#: src/importer.rs:292
-msgid "{n} Seiten gefunden. Zum Öffnen auswählen."
+#: src/librarysidebar.rs:85
+msgid "Weitere Möglichkeiten"
 msgstr ""
 
-#: src/importer.rs:297 src/linkpicker.rs:123 src/mediabrowser.rs:652
-#: src/medialibrary.rs:163 src/properties.rs:298 src/properties.rs:520
-msgid "Fehler beim Laden: {err}"
+#: src/librarysidebar.rs:87
+msgid "Bibliothek durchsuchen"
 msgstr ""
 
-#: src/importer.rs:319 src/importer.rs:340
-msgid "In den Papierkorb"
+#: src/librarysidebar.rs:88
+msgid "Hauptmenü"
 msgstr ""
 
-#: src/importer.rs:336
-msgid "In den Papierkorb verschieben?"
+#: src/librarysidebar.rs:95
+msgid "Artikel suchen"
 msgstr ""
 
-#: src/importer.rs:337
-msgid ""
-"„{title}“ wird in den WordPress-Papierkorb verschoben und kann dort im "
-"WordPress-Backend wiederhergestellt werden."
+#: src/librarysidebar.rs:117
+msgid "Bibliothek und Blog aktualisieren"
 msgstr ""
 
-#: src/importer.rs:353
-msgid "Verschiebe „{title}“ in den Papierkorb …"
+#: src/librarysidebar.rs:248
+msgid "„{name}“ in den Papierkorb verschoben."
+msgstr ""
+
+#: src/librarysidebar.rs:249
+msgid "Entfernen fehlgeschlagen: {err}"
+msgstr ""
+
+#: src/librarysidebar.rs:281
+msgid "Noch keine Artikel"
+msgstr ""
+
+#: src/librarysidebar.rs:361
+msgid "Blog nicht erreichbar"
+msgstr ""
+
+#: src/librarysidebar.rs:380 src/mainaction.rs:176 src/window.rs:325
+#: src/window.rs:626 src/window.rs:862
+msgid "Unbenannt"
+msgstr ""
+
+#: src/librarysidebar.rs:386
+msgid "Änderungen noch nicht hochgeladen"
+msgstr ""
+
+#: src/librarysidebar.rs:387
+msgid "Im Blog geändert"
+msgstr ""
+
+#: src/librarysidebar.rs:388
+msgid "Im Blog gelöscht"
+msgstr ""
+
+#: src/librarysidebar.rs:406 src/mainaction.rs:531
+msgid "Nur lokal"
 msgstr ""
 
 #: src/linkcheck.rs:94
@@ -1382,6 +1333,10 @@ msgstr ""
 msgid "Artikel verlinken"
 msgstr ""
 
+#: src/linkpicker.rs:91
+msgid "Lade Artikel …"
+msgstr ""
+
 #: src/linkpicker.rs:118
 msgid "{n} Artikel gefunden."
 msgstr ""
@@ -1440,15 +1395,233 @@ msgstr ""
 msgid "Keine Antwort erhalten."
 msgstr ""
 
-#: src/llm.rs:705 src/wpclient.rs:299
+#: src/llm.rs:705 src/wpclient.rs:311
 msgid "Antwort nicht lesbar: {err}"
+msgstr ""
+
+#: src/mainaction.rs:57 src/mainaction.rs:116
+msgid "Als Entwurf hochladen"
+msgstr ""
+
+#: src/mainaction.rs:57
+msgid "Weitere Aktionen"
+msgstr ""
+
+#: src/mainaction.rs:118
+msgid "Zur Prüfung einreichen"
+msgstr ""
+
+#: src/mainaction.rs:118 src/mainaction.rs:122 src/mainaction.rs:130
+msgid "Veröffentlichen …"
+msgstr ""
+
+#: src/mainaction.rs:124 src/mainaction.rs:140 src/postpane.rs:49
+#: src/postpane.rs:135
+msgid "Blog-Vorschau öffnen"
+msgstr ""
+
+#: src/mainaction.rs:124
+msgid "Planen …"
+msgstr ""
+
+#: src/mainaction.rs:128
+msgid "Entwurf aktualisieren"
+msgstr ""
+
+#: src/mainaction.rs:130
+msgid "Aktualisieren und Vorschau öffnen"
+msgstr ""
+
+#: src/mainaction.rs:134
+msgid "Änderungen hochladen"
+msgstr ""
+
+#: src/mainaction.rs:136 src/mainaction.rs:142
+msgid "Termin ändern …"
+msgstr ""
+
+#: src/mainaction.rs:136 src/mainaction.rs:142 src/releasecheck.rs:180
+msgid "Jetzt veröffentlichen"
+msgstr ""
+
+#: src/mainaction.rs:136 src/mainaction.rs:142 src/mainaction.rs:148
+#: src/mainaction.rs:154
+msgid "Auf Entwurf zurücksetzen …"
+msgstr ""
+
+#: src/mainaction.rs:146
+msgid "Änderungen veröffentlichen …"
+msgstr ""
+
+#: src/mainaction.rs:148
+msgid "Vorschau im Blog"
+msgstr ""
+
+#: src/mainaction.rs:148
+msgid "Änderungen verwerfen …"
+msgstr ""
+
+#: src/mainaction.rs:152 src/postpane.rs:135
+msgid "Im Blog ansehen"
+msgstr ""
+
+#: src/mainaction.rs:181
+msgid ""
+"Dieser Beitrag wurde im Blog gelöscht oder in den Papierkorb verschoben."
+msgstr ""
+
+#: src/mainaction.rs:181
+msgid "Verknüpfung lösen"
+msgstr ""
+
+#: src/mainaction.rs:182
+msgid ""
+"Dieser Beitrag wurde im Blog geändert, während du hier weitergeschrieben "
+"hast."
+msgstr ""
+
+#: src/mainaction.rs:182
+msgid "Auflösen …"
+msgstr ""
+
+#: src/mainaction.rs:183
+msgid "Dieser Beitrag wurde im Blog geändert."
+msgstr ""
+
+#: src/mainaction.rs:183
+msgid "Blog-Fassung laden"
+msgstr ""
+
+#: src/mainaction.rs:186
+msgid ""
+"Veröffentlichter Beitrag: Deine Änderungen gehen erst mit „Änderungen "
+"veröffentlichen“ online."
+msgstr ""
+
+#: src/mainaction.rs:219
+msgid "Jetzt veröffentlichen?"
+msgstr ""
+
+#: src/mainaction.rs:219
+msgid "Der geplante Termin entfällt, der Beitrag geht sofort online."
+msgstr ""
+
+#: src/mainaction.rs:219 src/releasecheck.rs:144 src/releasecheck.rs:236
+msgid "Veröffentlichen"
+msgstr ""
+
+#: src/mainaction.rs:224
+msgid "Auf Entwurf zurücksetzen?"
+msgstr ""
+
+#: src/mainaction.rs:224
+msgid "Der Beitrag ist danach nicht mehr öffentlich sichtbar."
+msgstr ""
+
+#: src/mainaction.rs:224
+msgid "Auf Entwurf zurücksetzen"
+msgstr ""
+
+#: src/mainaction.rs:229
+msgid "Änderungen verwerfen?"
+msgstr ""
+
+#: src/mainaction.rs:229
+msgid ""
+"Die Arbeitskopie wird durch die Fassung aus dem Blog ersetzt. Deine "
+"Änderungen gehen verloren."
+msgstr ""
+
+#: src/mainaction.rs:271 src/mediapanel.rs:194 src/mediapanel.rs:391
+#: src/mediapanel.rs:487 src/mediapanel.rs:693
+msgid "Wird hochgeladen …"
+msgstr ""
+
+#: src/mainaction.rs:309
+msgid "Als Entwurf hochgeladen."
+msgstr ""
+
+#: src/mainaction.rs:310
+msgid "Zur Prüfung eingereicht."
+msgstr ""
+
+#: src/mainaction.rs:311
+msgid "Veröffentlicht."
+msgstr ""
+
+#: src/mainaction.rs:312
+msgid "Geplant."
+msgstr ""
+
+#: src/mainaction.rs:313
+msgid "Aktualisiert."
+msgstr ""
+
+#: src/mainaction.rs:356
+msgid "Vorschau nicht verfügbar: {err}"
+msgstr ""
+
+#: src/mainaction.rs:383
+msgid ""
+"Vorschau fehlgeschlagen. Bist du im Browser-Tab bei WordPress angemeldet?"
+msgstr ""
+
+#: src/mainaction.rs:443
+msgid "Blog-Fassung geladen."
+msgstr ""
+
+#: src/mainaction.rs:445
+msgid "Laden fehlgeschlagen: {err}"
+msgstr ""
+
+#: src/mainaction.rs:454
+msgid "Welche Fassung soll gelten?"
+msgstr ""
+
+#: src/mainaction.rs:455
+msgid ""
+"Der Beitrag wurde im Blog geändert, nachdem du ihn zuletzt abgeglichen hast, "
+"und du hast hier weitergeschrieben."
+msgstr ""
+
+#: src/mainaction.rs:458
+msgid "Blog-Fassung übernehmen"
+msgstr ""
+
+#: src/mainaction.rs:459
+msgid "Meine Fassung behalten"
+msgstr ""
+
+#: src/mainaction.rs:505
+msgid "Verknüpfung gelöst. Der Artikel ist jetzt nur lokal."
+msgstr ""
+
+#: src/mainaction.rs:539
+msgid "im Blog gelöscht"
+msgstr ""
+
+#: src/mainaction.rs:540
+msgid "Konflikt"
+msgstr ""
+
+#: src/mainaction.rs:541
+msgid "im Blog geändert"
+msgstr ""
+
+#: src/mainaction.rs:542
+msgid "Änderungen nicht online"
+msgstr ""
+
+#: src/mainaction.rs:543
+msgid "nicht hochgeladen"
 msgstr ""
 
 #: src/mediabrowser.rs:33
 msgid "Alle Medien"
 msgstr ""
 
-#: src/mediabrowser.rs:34 src/properties.rs:879 src/window.rs:1028
+#: src/mediabrowser.rs:34 src/properties.rs:820 src/releasecheck.rs:95
+#: src/releasecheck.rs:98 src/releasecheck.rs:271 src/window.rs:1240
 msgid "Bilder"
 msgstr ""
 
@@ -1468,7 +1641,11 @@ msgstr ""
 msgid "Nach Medientyp filtern"
 msgstr ""
 
-#: src/mediabrowser.rs:222 src/shortcuts.rs:28 src/window.rs:280
+#: src/mediabrowser.rs:163
+msgid "Aktualisieren"
+msgstr ""
+
+#: src/mediabrowser.rs:222 src/shortcuts.rs:36 src/window.rs:339
 msgid "WordPress-Mediathek"
 msgstr ""
 
@@ -1534,6 +1711,15 @@ msgid ""
 "die die Datei verwenden, zeigen sie danach nicht mehr an."
 msgstr ""
 
+#: src/mediabrowser.rs:549 src/taxonomy.rs:188 src/taxonomy.rs:353
+#: src/taxonomy.rs:576 src/taxonomy.rs:667
+msgid "Löschen"
+msgstr ""
+
+#: src/mediabrowser.rs:560
+msgid "Wird gelöscht …"
+msgstr ""
+
 #: src/mediabrowser.rs:581
 msgid "„{name}“ gelöscht."
 msgstr ""
@@ -1566,7 +1752,7 @@ msgstr ""
 msgid "{n} Bilder gefunden."
 msgstr ""
 
-#: src/mediapanel.rs:42 src/shortcuts.rs:27
+#: src/mediapanel.rs:42 src/postpane.rs:63 src/shortcuts.rs:35
 msgid "Medienverwaltung"
 msgstr ""
 
@@ -1580,11 +1766,6 @@ msgstr ""
 
 #: src/mediapanel.rs:193
 msgid "0 von {total} hochgeladen"
-msgstr ""
-
-#: src/mediapanel.rs:194 src/mediapanel.rs:391 src/mediapanel.rs:487
-#: src/mediapanel.rs:693
-msgid "Wird hochgeladen …"
 msgstr ""
 
 #: src/mediapanel.rs:252
@@ -1683,7 +1864,7 @@ msgstr ""
 msgid "Kein Aufmacherbild festgelegt - in den Artikel-Eigenschaften auswählen."
 msgstr ""
 
-#: src/mediapanel.rs:424 src/properties.rs:677 src/properties.rs:864
+#: src/mediapanel.rs:424 src/properties.rs:656 src/properties.rs:805
 msgid "Aufmacherbild"
 msgstr ""
 
@@ -1798,6 +1979,38 @@ msgid ""
 "Modelle, außer denen, die die Prüfung als gesperrt erkannt hat."
 msgstr ""
 
+#: src/postpane.rs:50
+msgid "In wp-admin bearbeiten"
+msgstr ""
+
+#: src/postpane.rs:65
+msgid "Medien"
+msgstr ""
+
+#: src/postpane.rs:68
+msgid "Statistik"
+msgstr ""
+
+#: src/postpane.rs:129
+msgid "Zuletzt abgeglichen: {at}"
+msgstr ""
+
+#: src/postpane.rs:130
+msgid "Noch nicht im Blog."
+msgstr ""
+
+#: src/postpane.rs:140
+msgid "Keine Bilder"
+msgstr ""
+
+#: src/postpane.rs:141
+msgid "1 Bild"
+msgstr ""
+
+#: src/postpane.rs:142
+msgid "{n} Bilder"
+msgstr ""
+
 #: src/preview.rs:77
 msgid "Modern"
 msgstr ""
@@ -1872,7 +2085,8 @@ msgstr ""
 msgid "Neuer Prompt"
 msgstr ""
 
-#: src/promptsettings.rs:221 src/properties.rs:334
+#: src/promptsettings.rs:221 src/properties.rs:313 src/releasecheck.rs:58
+#: src/releasecheck.rs:59
 msgid "Titel"
 msgstr ""
 
@@ -1884,159 +2098,256 @@ msgstr ""
 msgid "Prompt-Text"
 msgstr ""
 
-#: src/properties.rs:71
+#: src/properties.rs:72
 msgid "Wird berechnet, sobald WordPress-Seite und Slug gesetzt sind."
 msgstr ""
 
-#: src/properties.rs:80
+#: src/properties.rs:81
 msgid "{url} ({length} Zeichen)"
 msgstr ""
 
-#: src/properties.rs:86
+#: src/properties.rs:87
 msgid "{url} ({length} Zeichen, empfohlen: max. {max})"
 msgstr ""
 
-#: src/properties.rs:243 src/properties.rs:466
+#: src/properties.rs:222 src/properties.rs:445
 msgid "Wird geladen …"
 msgstr ""
 
-#: src/properties.rs:245
+#: src/properties.rs:224
 msgid "Übergeordnete Seite"
 msgstr ""
 
-#: src/properties.rs:246 src/properties.rs:283 src/properties.rs:298
-#: src/properties.rs:305 src/taxonomy.rs:146 src/taxonomy.rs:759
+#: src/properties.rs:225 src/properties.rs:262 src/properties.rs:277
+#: src/properties.rs:284 src/taxonomy.rs:146 src/taxonomy.rs:759
 msgid "Keine (oberste Ebene)"
 msgstr ""
 
-#: src/properties.rs:262 src/properties.rs:484
+#: src/properties.rs:241 src/properties.rs:463
 msgid "Keine WordPress-Verbindung eingerichtet."
 msgstr ""
 
-#: src/properties.rs:305 src/properties.rs:527 src/taxonomy.rs:112
+#: src/properties.rs:284 src/properties.rs:506 src/taxonomy.rs:112
 msgid "Interner Fehler: kein Ergebnis vom Ladevorgang."
 msgstr ""
 
-#: src/properties.rs:335
+#: src/properties.rs:314
 msgid "Slug"
 msgstr ""
 
-#: src/properties.rs:337
+#: src/properties.rs:316
 msgid "Slug aus Titel generieren"
 msgstr ""
 
-#: src/properties.rs:348
+#: src/properties.rs:327
 msgid "URL-Länge (SEO)"
 msgstr ""
 
-#: src/properties.rs:353
+#: src/properties.rs:332
 msgid "Auszug / Meta-Beschreibung"
 msgstr ""
 
-#: src/properties.rs:355
+#: src/properties.rs:334
 msgid "SEO-Titel"
 msgstr ""
 
-#: src/properties.rs:358
+#: src/properties.rs:337
 msgid "SEO-Beschreibung"
 msgstr ""
 
-#: src/properties.rs:360
+#: src/properties.rs:339 src/releasecheck.rs:109 src/releasecheck.rs:110
 msgid "Fokus-Keyword"
 msgstr ""
 
-#: src/properties.rs:364
+#: src/properties.rs:343
 msgid "Kategorien (Komma-getrennt)"
 msgstr ""
 
-#: src/properties.rs:368
+#: src/properties.rs:347
 msgid "Tags (Komma-getrennt)"
 msgstr ""
 
-#: src/properties.rs:374
+#: src/properties.rs:353
 msgid "KI-Tags vorschlagen…"
 msgstr ""
 
-#: src/properties.rs:413
+#: src/properties.rs:392
 msgid "Featured Image (Pfad)"
 msgstr ""
 
-#: src/properties.rs:417
+#: src/properties.rs:396
 msgid "Bild auswählen…"
 msgstr ""
 
-#: src/properties.rs:428
+#: src/properties.rs:407
 msgid "Alt-Text für Aufmacherbild"
 msgstr ""
 
-#: src/properties.rs:468
+#: src/properties.rs:447
 msgid "Autor"
 msgstr ""
 
-#: src/properties.rs:469 src/properties.rs:505 src/properties.rs:520
-#: src/properties.rs:527 src/properties.rs:581
+#: src/properties.rs:448 src/properties.rs:484 src/properties.rs:499
+#: src/properties.rs:506 src/properties.rs:560
 msgid "Nicht ändern"
 msgstr ""
 
-#: src/properties.rs:563
+#: src/properties.rs:542
 msgid "VG-Wort-Zählmarke"
 msgstr ""
 
-#: src/properties.rs:564
+#: src/properties.rs:543
 msgid ""
 "Aus lassen, um diesen Artikel bewusst von der VG-Wort-Zählung auszuschließen."
 msgstr ""
 
-#: src/properties.rs:580
+#: src/properties.rs:559
 msgid "Kommentare"
 msgstr ""
 
-#: src/properties.rs:581
+#: src/properties.rs:560
 msgid "Offen"
 msgstr ""
 
-#: src/properties.rs:581
+#: src/properties.rs:560
 msgid "Geschlossen"
 msgstr ""
 
-#: src/properties.rs:600
+#: src/properties.rs:579
 msgid "Kategorien & Tags von WordPress aktualisieren"
 msgstr ""
 
-#: src/properties.rs:615
+#: src/properties.rs:594
 msgid "Kategorien & Tags verwalten…"
 msgstr ""
 
-#: src/properties.rs:650 src/properties.rs:694 src/shortcuts.rs:19
+#: src/properties.rs:629 src/shortcuts.rs:50
 msgid "Allgemein"
 msgstr ""
 
-#: src/properties.rs:657 src/properties.rs:695
+#: src/properties.rs:636
 msgid "Veröffentlichung"
 msgstr ""
 
-#: src/properties.rs:667 src/properties.rs:696
+#: src/properties.rs:646
 msgid "Kategorien & Tags"
 msgstr ""
 
-#: src/properties.rs:687
+#: src/properties.rs:666
 msgid "RankMath SEO"
 msgstr ""
 
-#: src/properties.rs:700
-msgid "Bild"
-msgstr ""
-
-#: src/properties.rs:701
-msgid "SEO"
-msgstr ""
-
-#: src/properties.rs:734 src/window.rs:264
-msgid "Artikel-Eigenschaften"
-msgstr ""
-
-#: src/properties.rs:883
+#: src/properties.rs:824
 msgid "Featured Image auswählen"
+msgstr ""
+
+#: src/releasecheck.rs:59
+msgid "Kein Titel gesetzt."
+msgstr ""
+
+#: src/releasecheck.rs:64 src/releasecheck.rs:66
+msgid "Auszug"
+msgstr ""
+
+#: src/releasecheck.rs:64
+msgid ""
+"Ohne Auszug zeigen Feeds und Vorschaukarten einen abgeschnittenen Textanfang."
+msgstr ""
+
+#: src/releasecheck.rs:66
+msgid "{n} Zeichen"
+msgstr ""
+
+#: src/releasecheck.rs:71 src/releasecheck.rs:73
+msgid "Kategorie"
+msgstr ""
+
+#: src/releasecheck.rs:71
+msgid "Keine Kategorie gesetzt; WordPress nimmt dann die Standardkategorie."
+msgstr ""
+
+#: src/releasecheck.rs:76 src/releasecheck.rs:78 src/taxonomy.rs:35
+msgid "Tags"
+msgstr ""
+
+#: src/releasecheck.rs:76
+msgid "Keine Tags gesetzt."
+msgstr ""
+
+#: src/releasecheck.rs:85 src/releasecheck.rs:86 src/releasecheck.rs:87
+msgid "Beitragsbild"
+msgstr ""
+
+#: src/releasecheck.rs:85
+msgid "Kein Beitragsbild gesetzt."
+msgstr ""
+
+#: src/releasecheck.rs:86
+msgid "Das Beitragsbild hat keinen Alternativtext."
+msgstr ""
+
+#: src/releasecheck.rs:87
+msgid "Gesetzt"
+msgstr ""
+
+#: src/releasecheck.rs:94
+msgid "1 Bild ohne Alternativtext"
+msgstr ""
+
+#: src/releasecheck.rs:94
+msgid "{n} Bilder ohne Alternativtext"
+msgstr ""
+
+#: src/releasecheck.rs:97
+msgid "1 Bild, Alternativtext gesetzt"
+msgstr ""
+
+#: src/releasecheck.rs:97
+msgid "{n} Bilder, alle mit Alternativtext"
+msgstr ""
+
+#: src/releasecheck.rs:104
+msgid "1 Link – vor dem Veröffentlichen prüfen"
+msgstr ""
+
+#: src/releasecheck.rs:104
+msgid "{n} Links – vor dem Veröffentlichen prüfen"
+msgstr ""
+
+#: src/releasecheck.rs:105 src/releasecheck.rs:275
+msgid "Links"
+msgstr ""
+
+#: src/releasecheck.rs:110
+msgid "Optional, für RankMath."
+msgstr ""
+
+#: src/releasecheck.rs:146
+msgid "Prüfung"
+msgstr ""
+
+#: src/releasecheck.rs:157
+msgid "Termin (JJJJ-MM-TT HH:MM)"
+msgstr ""
+
+#: src/releasecheck.rs:162
+msgid "Sofort"
+msgstr ""
+
+#: src/releasecheck.rs:168
+msgid "Zeitpunkt"
+msgstr ""
+
+#: src/releasecheck.rs:178 src/releasecheck.rs:235
+msgid "Änderungen veröffentlichen"
+msgstr ""
+
+#: src/releasecheck.rs:179
+msgid "Planen"
+msgstr ""
+
+#: src/releasecheck.rs:256
+msgid "Beheben"
 msgstr ""
 
 #: src/searchbar.rs:38
@@ -2079,48 +2390,68 @@ msgstr ""
 msgid "{n} Treffer"
 msgstr ""
 
-#: src/shortcuts.rs:21
-msgid "Neuer Artikel"
+#: src/shortcuts.rs:18
+msgid "Artikel"
 msgstr ""
 
-#: src/shortcuts.rs:22 src/window.rs:279
-msgid "Neue Seite"
+#: src/shortcuts.rs:22
+msgid "Datei öffnen"
 msgstr ""
 
 #: src/shortcuts.rs:23
-msgid "Öffnen"
+msgid "Entwürfe im Blog"
 msgstr ""
 
 #: src/shortcuts.rs:24
-msgid "Von WordPress öffnen"
+msgid "Sofort speichern"
+msgstr ""
+
+#: src/shortcuts.rs:25
+msgid "Veröffentlichen (Freigabe-Prüfung)"
 msgstr ""
 
 #: src/shortcuts.rs:30
+msgid "Ansicht"
+msgstr ""
+
+#: src/shortcuts.rs:32
+msgid "Seitenbereich ein-/ausblenden"
+msgstr ""
+
+#: src/shortcuts.rs:33
+msgid "Beitragseigenschaften"
+msgstr ""
+
+#: src/shortcuts.rs:34
 msgid "Fokus-Schreibmodus"
 msgstr ""
 
-#: src/shortcuts.rs:35 src/window.rs:191
+#: src/shortcuts.rs:40 src/window.rs:277 src/window.rs:380
 msgid "Editor"
 msgstr ""
 
-#: src/shortcuts.rs:37
+#: src/shortcuts.rs:42
 msgid "Fett"
 msgstr ""
 
-#: src/shortcuts.rs:38
+#: src/shortcuts.rs:43
 msgid "Kursiv"
 msgstr ""
 
-#: src/shortcuts.rs:39
+#: src/shortcuts.rs:44
 msgid "Link einfügen"
 msgstr ""
 
-#: src/shortcuts.rs:40
+#: src/shortcuts.rs:45
 msgid "Bild aus der Zwischenablage einfügen"
 msgstr ""
 
-#: src/shortcuts.rs:41
+#: src/shortcuts.rs:46
 msgid "Suchen und Ersetzen"
+msgstr ""
+
+#: src/shortcuts.rs:51 src/window.rs:344
+msgid "Tastenkürzel"
 msgstr ""
 
 #: src/stats.rs:110
@@ -2227,7 +2558,7 @@ msgstr ""
 msgid "Geschätzte Lesezeit"
 msgstr ""
 
-#: src/stats.rs:283
+#: src/stats.rs:276
 msgid "{n} min"
 msgstr ""
 
@@ -2239,19 +2570,19 @@ msgstr ""
 msgid "  —  Auswahl: {words} Wörter · ≈ {minutes} Min."
 msgstr ""
 
-#: src/statuscontrols.rs:31
+#: src/statuscontrols.rs:27
 msgid "Typ"
 msgstr ""
 
-#: src/statuscontrols.rs:37
+#: src/statuscontrols.rs:33
 msgid "Bereits mit WordPress verknüpft - nicht mehr änderbar"
 msgstr ""
 
-#: src/statuscontrols.rs:61
+#: src/statuscontrols.rs:55
 msgid "Status"
 msgstr ""
 
-#: src/statuscontrols.rs:67
+#: src/statuscontrols.rs:61
 msgid "Veröffentlichungstermin (JJJJ-MM-TT HH:MM)"
 msgstr ""
 
@@ -2277,10 +2608,6 @@ msgstr ""
 
 #: src/taxonomy.rs:33
 msgid "Kategorien"
-msgstr ""
-
-#: src/taxonomy.rs:35
-msgid "Tags"
 msgstr ""
 
 #: src/taxonomy.rs:58
@@ -2355,146 +2682,126 @@ msgstr ""
 msgid "Interner Fehler: kein Ergebnis vom Erstellen-Thread."
 msgstr ""
 
-#: src/window.rs:78
-msgid "Gutenberg-Code"
+#: src/window.rs:110
+msgid "Beitrag"
 msgstr ""
 
-#: src/window.rs:79
-msgid "Statistik"
+#: src/window.rs:110
+msgid "Assistent"
 msgstr ""
 
-#: src/window.rs:80
+#: src/window.rs:112
+msgid "Gerendert"
+msgstr ""
+
+#: src/window.rs:112
+msgid "Web"
+msgstr ""
+
+#: src/window.rs:113
 msgid "Chat"
 msgstr ""
 
-#: src/window.rs:81
+#: src/window.rs:113
 msgid "Bewertung"
 msgstr ""
 
-#: src/window.rs:119
+#: src/window.rs:124
 msgid "Artikel-Kopf in der Vorschau ein-/ausblenden"
 msgstr ""
 
-#: src/window.rs:236 src/window.rs:514 src/window.rs:750
-msgid "Unbenannt"
+#: src/window.rs:278
+msgid "Seitenbereich"
 msgstr ""
 
-#: src/window.rs:239
-msgid "Neu (Strg+N)"
+#: src/window.rs:331
+msgid "Seitenleiste ein-/ausblenden"
 msgstr ""
 
-#: src/window.rs:256
-msgid "Dokumentverwaltung ein-/ausblenden"
-msgstr ""
-
-#: src/window.rs:260
-msgid "Speichern (Strg+S)"
-msgstr ""
-
-#: src/window.rs:268
-msgid "Medienverwaltung (Strg+Umschalt+M)"
-msgstr ""
-
-#: src/window.rs:281
+#: src/window.rs:340
 msgid "Galerie einfügen…"
 msgstr ""
 
-#: src/window.rs:282
-msgid "KI-Artikel schreiben…"
-msgstr ""
-
-#: src/window.rs:286
-msgid "Tastenkürzel"
-msgstr ""
-
-#: src/window.rs:287
+#: src/window.rs:345
 msgid "Über Blocksatz"
 msgstr ""
 
-#: src/window.rs:292
-msgid "Hauptmenü (Strg+,)"
+#: src/window.rs:349
+msgid "Seitenbereich ein-/ausblenden (F9)"
 msgstr ""
 
-#: src/window.rs:296
-msgid "Vorschau ein-/ausblenden"
-msgstr ""
-
-#: src/window.rs:304
+#: src/window.rs:357
 msgid "Fokus-Schreibmodus (Strg+Umschalt+F)"
 msgstr ""
 
-#: src/window.rs:308
-msgid "Artikel exportieren (Strg+Umschalt+P)"
-msgstr ""
-
-#: src/window.rs:751
+#: src/window.rs:863
 msgid "Unbenannte Seite"
 msgstr ""
 
-#: src/window.rs:800
+#: src/window.rs:981
+msgid "Vorhandene Arbeitskopie geöffnet."
+msgstr ""
+
+#: src/window.rs:989
+msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
+msgstr ""
+
+#: src/window.rs:1084
 msgid "Markdown-Datei öffnen"
 msgstr ""
 
-#: src/window.rs:853
-msgid "Öffnen fehlgeschlagen: {err}"
-msgstr ""
-
-#: src/window.rs:906
-msgid "Markdown-Datei speichern"
-msgstr ""
-
-#: src/window.rs:915 src/worksave.rs:92
-msgid "Speichern fehlgeschlagen: {err}"
-msgstr ""
-
-#: src/window.rs:1032
+#: src/window.rs:1244
 msgid "Bild einfügen"
 msgstr ""
 
-#: src/window.rs:1067
+#: src/window.rs:1279
 msgid "Video/Audio einfügen"
 msgstr ""
 
-#: src/window.rs:1153
+#: src/window.rs:1367
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr ""
 
-#: src/window.rs:1262
+#: src/window.rs:1476
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr ""
 
-#: src/window.rs:1271
+#: src/window.rs:1485
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1277
+#: src/window.rs:1491
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr ""
 
-#: src/window.rs:1291 src/window.rs:1305
+#: src/window.rs:1505 src/window.rs:1519
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1309
+#: src/window.rs:1523
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr ""
 
-#: src/window.rs:1314
+#: src/window.rs:1528
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr ""
 
-#: src/wpclient.rs:402
+#: src/worksave.rs:99
+msgid "Speichern fehlgeschlagen: {err}"
+msgstr ""
+
+#: src/wpclient.rs:420
 msgid "Keine Medien-ID in der Antwort"
 msgstr ""
 
-#: src/wpclient.rs:643
+#: src/wpclient.rs:652
 msgid "Keine Term-ID in der Antwort"
 msgstr ""
 
-#: src/wpclient.rs:839
+#: src/wpclient.rs:915
 msgid "Keine Post-ID in der Antwort"
 msgstr ""
 
-#: src/wpclient.rs:885
+#: src/wpclient.rs:961
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr ""

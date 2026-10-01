@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- GUI redesign, phase 6: keyboard shortcuts in an `AdwShortcutsDialog`
+  (Ctrl+?) instead of the deprecated `GtkShortcutsWindow`; builds against
+  GTK 4.22 API without deprecation warnings. The narrow single-pane layout
+  calls the right pane "Seitenbereich". README and
+  `docs/gui-redesign.md` describe the new workflow; the English
+  translation covers all 666 strings again.
+
+### Fixed
+
+- The window opens maximized again when it was closed maximized: the
+  saved normal size no longer becomes the monitor's size (too large for a
+  smaller monitor), and the pane's last view (the chat asked for more
+  width than a maximized window has) is restored only once the window is
+  shown.
+
 - **Release check** (GUI redesign, phase 5): "Veröffentlichen …",
   "Planen …", "Änderungen veröffentlichen …" and Ctrl+Shift+P open one
   dialog that lists what to look at before going live - title (missing

@@ -19,9 +19,38 @@ Functionally complete for its core purpose - write Markdown, review a live
 preview, and publish/update a real WordPress post as native Gutenberg
 blocks. Implemented so far:
 
+- **Workflow from first draft to published post** (see
+  [`docs/gui-redesign.md`](docs/gui-redesign.md)) — write locally, upload
+  as a draft, correct, upload again, publish:
+  - The **library sidebar** on the left (`AdwSidebar`) lists "In Arbeit" -
+    every article in the library, most recently changed first, with its
+    WordPress status as subtitle and a paper-plane icon for changes not
+    uploaded yet - and "Im Blog" with the site's drafts, scheduled,
+    published posts, pages and trash and their counts. Picking a group
+    opens the **blog archive**: server-side search, 50 posts at a time
+    while scrolling, trash/restore; opening a post creates its working
+    copy in the library (or reopens the existing one).
+  - One **main action** at the end of the header bar says what it does
+    for the open article: "Als Entwurf hochladen" (the first upload is
+    always a draft), "Entwurf aktualisieren", "Veröffentlichen …",
+    "Änderungen veröffentlichen …" - with submit for review, update and
+    preview, schedule, revert to draft and discard in its menu. The window
+    title shows the article and its state ("Entwurf · nicht hochgeladen").
+  - **Publishing goes through a release check**: title, excerpt, category,
+    tags, featured image, alt texts, links, focus keyword, each with a way
+    to fix it, plus "Sofort / Geplant".
+  - A **sync check** (at start, when the window becomes active again, and
+    on demand) notices posts changed or deleted on the blog; a banner then
+    offers to load the blog's version, resolve a conflict or unlink.
+  - **"Vorschau im Blog"** shows changes to a published post in the blog's
+    theme without touching the live post (as a WordPress autosave).
+  - The **right-hand pane** (F9) has three views: Vorschau (rendered /
+    Gutenberg code / web), Beitrag (state, all post properties, media,
+    statistics) and Assistent (chat / evaluation).
 - **Split-pane editor** — the window remembers its size (and whether it was
-  maximized) across restarts, always opening with the editor/preview split
-  exactly 50/50 regardless of that size; a header-bar toggle button
+  maximized) across restarts, together with the layout of its panes: the
+  editor/pane split (a ratio, 50/50 to start), whether the sidebar and the
+  pane are shown, and the pane's last view; a header-bar toggle button
   collapses the whole right-hand pane for a full-width editor and restores
   it again. Below roughly 700sp of window width (a tiled quarter of a
   typical monitor, or a Linux tablet in portrait) - via `libadwaita`
@@ -33,10 +62,7 @@ blocks. Implemented so far:
   Fokus-Schreibmodus, additionally hiding the header bar and the editor's
   own formatting toolbar down to just the editor text - `Adw.ToolbarView`'s
   own animated reveal handles the header/status bar, so entering and
-  leaving is a smooth slide rather than an abrupt layout jump. A "Zuletzt
-  geöffnet" button next to "Öffnen" lists the most
-  recently opened/saved articles (most-recent-first) for one-click
-  reopening, and a plain launch with no file argument reopens the most
+  leaving is a smooth slide rather than an abrupt layout jump. A plain launch with no file argument reopens the most
   recent one automatically instead of always starting at a blank
   "Unbenannt" document - `Ctrl+N` still gets to a blank one in one step.
   Markdown editing pane (GtkSourceView, syntax
@@ -65,9 +91,8 @@ blocks. Implemented so far:
   editor (matched by source line, not scroll percentage, so a tall image
   doesn't throw off the sync), and a footer status bar with word count and
   reading time for the whole article - plus the same two numbers for the
-  current selection, whenever one is active. The right pane's tabs (an
-  `Adw.InlineViewSwitcher`, rendering all tabs as one seamless linked
-  pill, in a toolbar row matching the editor's) are "Vorschau" (follows the app's light/dark
+  current selection, whenever one is active. The right pane's views are
+  "Vorschau" - rendered (follows the app's light/dark
   mode, with a choice of Modern/Klassisch/Sepia typographic styles picked
   in Einstellungen; a caption renders as a small line under its image,
   matching the published post; every image gets small badges in its
@@ -80,21 +105,21 @@ blocks. Implemented so far:
   bearbeiten…" - WebKit's own default image actions (open/save/copy the
   rendered file, copy its address) are trimmed from that menu, alongside
   the navigation items, since none of them apply to an embedded article
-  image), "Gutenberg-Code" (the exact block HTML that would be published),
-  "Statistik" (word/character/paragraph counts, estimated reading time, and
+  image), Gutenberg code (the exact block HTML that would be published)
+  and web -, "Beitrag", whose statistics section has word/character/paragraph counts, estimated reading time, and
   a German-adapted Flesch reading-ease score with a qualitative label -
   expandable into the formula itself, the article's actual average
   words-per-sentence and syllables-per-word, and concrete tips for
   improving the score, derived from whichever of those two numbers is
   actually holding it down),
-  and "Chat" - a writing assistant with message bubbles (replies rendered
+  and "Assistent" with "Chat" - a writing assistant with message bubbles (replies rendered
   as Markdown), backed by Gemini, ChatGPT, Claude, Groq, or Ollama (self-hosted,
   no API key), with a provider/model picker both in the tab itself and in
   Einstellungen. A message typed here gets the editor's current selection -
   or, if nothing's selected, the whole article - appended before it's sent,
   the same rule the context menu's AI actions below already follow, so the
   model always has the article as context without pasting it in by hand.
-  A "Browser" tab next to it is a plain `WebKit` view with an address bar
+  The "Web" view of "Vorschau" is a plain `WebKit` view with an address bar
   and back/forward/reload controls, for consulting documentation or the
   live target site without alt-tabbing away - typing a bare domain adds
   `https://` automatically, anything else is sent to Google as a search
@@ -139,7 +164,7 @@ blocks. Implemented so far:
   excerpt/meta description, RankMath SEO title/description/focus keyword,
   featured image and its own alt text, WordPress post id) stored in the
   `.md` file itself,
-  editable via an "Artikel-Eigenschaften" dialog with autocomplete for
+  editable in the right-hand pane's "Beitrag" view with autocomplete for
   every existing WordPress
   category/tag (backed by an on-disk cache, `src/termcache.rs`, fully
   paginated so it never silently caps out on a site with hundreds of
@@ -167,21 +192,17 @@ blocks. Implemented so far:
   and when the window closes, so there is no unsaved state to lose.
   Markdown files from elsewhere still open in place; they are only
   written once actually edited (or with Ctrl+S).
-- **Von WordPress öffnen** (Ctrl+Shift+O) — pick an existing post - or,
-  via the "Artikel"/"Seiten" toggle in its header, a static page - from the
-  configured site, grouped into "Entwürfe" and "Veröffentlicht" (drafts
-  first), and edit it as Markdown: `crates/gutenberg`'s reverse converter
-  turns its Gutenberg block HTML back into Markdown, categories/tags are
-  resolved from ids back to names, and the post's id carries over so
-  exporting afterward updates that same post instead of creating a
-  duplicate. Every row also has an "In den Papierkorb" button that moves
-  the post/page to WordPress's own (recoverable) trash after a
-  confirmation.
+- **Editing existing posts** — the blog archive (Ctrl+Shift+O opens the
+  drafts) opens any post or page as Markdown: `crates/gutenberg`'s reverse
+  converter turns its Gutenberg block HTML back into Markdown,
+  categories/tags are resolved from ids back to names, and the post's id
+  carries over so uploading afterward updates that same post instead of
+  creating a duplicate.
 - **WordPress pages** — besides blog posts, Blocksatz edits static pages
-  ("Impressum", "Über mich"): a "Typ" row in Artikel-Eigenschaften
-  (locked once the document is linked to WordPress), "Neue Seite"
-  (Ctrl+Alt+N) in the primary menu, and export/preview/delete/conflict
-  checks all targeting `/wp/v2/pages`. The "Kategorien & Tags" tab is
+  ("Impressum", "Über mich"): a "Typ" row in the "Beitrag" view (locked
+  once the document is linked to WordPress), "Neue Seite" (Ctrl+Alt+N, in
+  the menu of the sidebar's new-article button), and upload/preview/
+  conflict checks all targeting `/wp/v2/pages`. The "Kategorien & Tags" group is
   hidden for pages, which have neither taxonomy.
 - **WordPress-Mediathek** (Ctrl+Shift+L, primary menu) — browse and manage
   the whole media library without opening wp-admin: a thumbnail grid
@@ -191,16 +212,16 @@ blocks. Implemented so far:
   pane with file name, MIME type, dimensions, size, upload date, alt text
   and URL - plus "URL kopieren", "Im Browser öffnen", "In Artikel
   einfügen" (images) and "Endgültig löschen".
-- **KI-Artikel schreiben** (Ctrl+Shift+G, primary menu) — drafts a whole
+- **KI-Artikel schreiben** (Ctrl+Shift+G, menu of the sidebar's new-article button) — drafts a whole
   article from a topic/brief with the active KI-Chat provider, at a chosen
   length, optionally imitating your own writing style: your 1-5 most
   recently published posts are sent along as style samples (style only,
   not content). The result lands in an editable preview first and is only
   then used "Als neues Dokument" (title taken from its `#` heading) or
   inserted "An Cursor".
-- **Medienverwaltung** (Ctrl+Shift+M, also embedded as a "Medien" tab in
-  the "Artikel exportieren" dialog next to "Vorschau" so it can be checked
-  right before publishing, and reachable per-image via "Alternativtext
+- **Medienverwaltung** (Ctrl+Shift+M, also reachable from the "Beitrag"
+  view and as the "Bilder" page of the release check right before
+  publishing, and per-image via "Alternativtext
   festlegen…" in the editor's right-click context menu - which, like its
   "KI-Alternativtext generieren…" neighbor, only appears when the click
   actually landed on a line with a media reference, rebuilt live from the
@@ -301,53 +322,25 @@ blocks. Implemented so far:
   back automatically when a real call fails for a model/account reason,
   with a toast saying so (`src/aitasks.rs`). The chat pane itself keeps
   using the KI-Chat model.
-- **Publishing** — an "Artikel exportieren" dialog shows the generated
-  Gutenberg HTML, then creates/updates the WordPress post via its REST API
-  on a background thread. "Veröffentlichen" and "Als Entwurf hochladen"
-  each send their own status explicitly, independent of whatever the
-  "Artikel-Eigenschaften" dialog's status field currently holds - so
-  publishing directly vs. uploading a draft first is an unambiguous choice
-  made right in this dialog, and either one updates the same tracked post
-  rather than creating a new one. A successful send writes the article back
-  to disk right away: the post id and each image's upload reference live in
-  the frontmatter, not in the editor buffer, so nothing else would ever
-  mark the document as changed - closing the app would silently drop the
-  link to the existing post and make every image look local again. A third "Terminieren" button appears once
-  "Geplant" is picked in Artikel-Eigenschaften with a valid publish
-  date/time set there - exporting without one is refused with a clear
-  error rather than silently publishing immediately, which is what
-  WordPress itself does with a scheduled status and no real future date.
-  Likewise, a "Privat veröffentlichen" button appears once "Privat" is
-  picked instead. On success, the post's real permalink appears as a
-  clickable link right in the dialog. Once an article already exists on
-  WordPress but isn't published yet, a "Vorschau öffnen" button opens
-  WordPress's own unpublished-post preview link in the app's Browser tab
-  (switching to it automatically). WordPress shows a draft only to a
-  session allowed to edit it, so this needs a wp-admin login - without
-  one, the site answers with a login page or its 404 page, which the
-  button's tooltip notes up front. That login is only needed once: the
-  Browser tab and the dialog's own Live-Vorschau share a single network
-  session whose cookies are kept on disk (`blocksatz/webkit/cookies.sqlite`
-  under the user's data directory), so signing in there once covers both
-  views and outlives restarts of the app. Re-exporting an already-published post first
-  re-fetches its current server content and compares it against a
-  locally-remembered baseline (set on import and after every successful
-  publish/update) - if the post changed on WordPress since (edited
-  directly in wp-admin, most likely), a confirmation dialog asks whether
-  to overwrite that change before sending anything, instead of silently
-  clobbering it. Skipped for a new post or an article never yet synced
-  with a server copy, since there's nothing to compare against, and
-  skipped (fails open) if the check itself can't complete, so a network
-  hiccup never blocks publishing outright.
-- **Broken-link checker** — a "Links" tab in the same "Artikel
-  exportieren" dialog, next to "Vorschau" and "Medien". It scans the
-  article for every unique `http(s)://` URL (Markdown link/image
+- **Publishing** — uploads create/update the WordPress post via its REST
+  API on a background thread, always sending the status the chosen action
+  stands for, and always updating the same tracked post. A successful
+  upload writes the post id, each image's upload reference and the sync
+  baseline back into the working copy right away. Scheduling needs a
+  valid date; WordPress itself would otherwise publish immediately. Draft
+  previews open in the app's web view, which needs a wp-admin login once:
+  its cookies are kept on disk (`blocksatz/webkit/cookies.sqlite` under
+  the user's data directory). Re-uploading a post first re-fetches its
+  server content and compares it against the locally remembered baseline;
+  if it changed on WordPress since, a confirmation asks before
+  overwriting. Skipped (fails open) if the check itself can't complete, so
+  a network hiccup never blocks publishing outright.
+- **Broken-link checker** — the "Links" page of the release check scans
+  the article for every unique `http(s)://` URL (Markdown link/image
   destinations, plus a bare URL alone on its own line that exports as a
   `wp:embed` block) and, on "Links prüfen", HEADs each one on a
   background thread (falling back to GET if a server rejects HEAD),
-  flagging anything outside the 2xx/3xx range or timing out - catching a
-  typo'd URL or a since-deleted page before it ships as part of the
-  published post.
+  flagging anything outside the 2xx/3xx range or timing out.
   Category/tag names are resolved to
   WordPress term ids (creating them if they don't exist yet). Locally-referenced images
   are uploaded to the media library "bei Bedarf" (as needed), sharing the
@@ -362,12 +355,11 @@ blocks. Implemented so far:
   PNG - via `gdk-pixbuf`, already part of the GTK stack this app links
   against. An already-small image, or a result that somehow isn't smaller
   than the original, is uploaded completely unchanged; only what's *sent*
-  is ever affected, never the local file. Once published, the same dialog
-  offers a confirmed "Von WordPress löschen" to remove the post again.
-- **Primary menu** (the header bar's hamburger button) — "Neue Seite",
-  "WordPress-Mediathek", "KI-Artikel schreiben…", "Einstellungen",
-  "Tastenkürzel" (a native `Gtk.ShortcutsWindow`, also reachable via
-  Ctrl+?), and "Über Blocksatz", the latter a native `Adw.AboutDialog`
+  is ever affected, never the local file. Posts are only ever moved to
+  WordPress's (recoverable) trash, never deleted permanently.
+- **Primary menu** (in the sidebar's header bar) — "WordPress-Mediathek",
+  "Galerie einfügen…", "Einstellungen", "Tastenkürzel" (an
+  `AdwShortcutsDialog`, also reachable via Ctrl+?), and "Über Blocksatz", the latter a native `Adw.AboutDialog`
   with the version (always in sync with `Cargo.toml`), GPL-3.0-or-later
   license text, issue tracker/repository links, and the full
   `CHANGELOG.md` history as its browsable "Neuigkeiten" release notes.
@@ -389,8 +381,7 @@ blocks. Implemented so far:
   in GNOME Files opens it directly, loading into the already-running
   window rather than a second one if Blocksatz is already open. Opening
   or saving a file also registers it with `Gtk.RecentManager`, GNOME's
-  shared recent-files list, alongside Blocksatz's own "Zuletzt geöffnet"
-  popover. Publishing, an image upload, or a link check finishing while
+  shared recent-files list. Publishing, an image upload, or a link check finishing while
   the window isn't focused raises a desktop notification.
 
 ## Building & running

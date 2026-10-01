@@ -1,6 +1,6 @@
 # GUI-Redesign: Bibliothek, Beitrag, Freigabe
 
-Stand: 2026-10-01 · Ziel: GNOME 50 (libadwaita 1.9, GTK 4.22) · Status: **Konzept, noch nicht umgesetzt**
+Stand: 2026-10-01 · Ziel: GNOME 50 (libadwaita 1.9, GTK 4.22) · Status: **umgesetzt** (Phasen 0–6, siehe Abschnitt 10)
 
 > Hinweis: GNOME 51 (libadwaita 1.10) ist seit 2026-09-16 stabil. Das
 > Konzept setzt nur 1.9 voraus (`AdwSidebarItem:suffix` reicht für die
@@ -399,3 +399,45 @@ Gutenberg-HTML) sind in Prüfpunkte bzw. die Vorschau aufgegangen.
    aus „In Arbeit“ (die Dateien bleiben liegen).
 5. Site-ID kommt jetzt ins Frontmatter (`wp_site`), die Oberfläche für
    mehrere Sites später.
+
+## 10. Umsetzung (2026-10-01)
+
+| Phase | Commit | Inhalt |
+|---|---|---|
+| 0 | `4560628` | Sidebar-„Aktualisieren“ veröffentlichte Entwürfe; Strg+Umschalt+O |
+| 1 | `b08708f` | `library.rs`, `worksave.rs`, `syncstate.rs`, libadwaita 1.9 |
+| 2 | `a6ad145` | `librarysidebar.rs` (`AdwSidebar`), `blogposts.rs` (Archiv) |
+| 3 | `20ca2e9` | `mainaction.rs` (Hauptaktion, Titel, Banner), `blogsync.rs` |
+| 4 | `22b0a55` | Seitenbereich Vorschau · Beitrag · Assistent, `postpane.rs` |
+| 5 | `c54cbd3` | `releasecheck.rs`, Autosave-Vorschau, Assistent entfernt |
+| 6 | `4ed1c78` ff. | `AdwShortcutsDialog`, GTK 4.22, schmale Ansicht, Doku, Übersetzung |
+
+**Abweichungen vom Konzept**
+
+- **Kein schmales Utility Pane rechts.** Editor und Seitenbereich bleiben
+  in einem `GtkPaned` nebeneinander (Verhältnis, anfangs 50/50): eine
+  sidebarbreite Vorschau wäre zum Gegenlesen zu schmal. Der Bereich
+  wird trotzdem wie ein Utility Pane mit F9 umgeschaltet.
+- **`AdwOverlaySplitView` statt `AdwNavigationSplitView`** für die
+  Bibliothek: Sie lässt sich auch im breiten Fenster ausblenden und wird
+  unter 860 sp zum Overlay.
+- **Browser** ist die Ansicht „Web“ der Vorschau statt eines
+  zuschaltbaren eigenen Tabs; über sie laufen Blog-Vorschau und wp-admin.
+- **Vorschau veröffentlichter Beiträge**: Der Autosave wird vom
+  Browser-Tab selbst angelegt (REST-Nonce aus `admin-ajax.php?action=
+  rest-nonce`, dann `fetch` auf `/autosaves`), weil die Vorschau-Nonce nur
+  für die erzeugende Sitzung gilt – die Application-Password-Anfragen der
+  App haben keine.
+- **Titel aus der ersten `#`-Zeile**, wenn das Frontmatter keinen hat –
+  beim Upload wie in Seitenleiste und Fenstertitel.
+- **Fensterlayout** (Aufteilung, sichtbare Bereiche, letzte Ansicht) wird
+  beim Beenden gespeichert; die Fensterposition nicht (Wayland).
+
+**Offen**
+
+- Diff-Ansicht „Mit Blog-Fassung vergleichen“ (Konflikt-Banner bietet
+  derzeit nur Blog-Fassung übernehmen / meine behalten).
+- Idempotentes Anlegen (Upload-Marke gegen Doppel-Beiträge nach
+  Netzabbruch, Abschnitt 6).
+- Mehrere Sites in der Oberfläche (Datenmodell hat `wp_site` schon).
+

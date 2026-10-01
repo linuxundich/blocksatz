@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- "Aktualisieren" in the document sidebar no longer publishes an existing
+  draft. The sidebar decided once, when it was built and before any
+  document was loaded, whether its main button should force `publish`, so
+  it always did. Every publish button now resolves the status it sends
+  from the open document at the moment it is clicked
+  (`export::TargetStatus`), and its label comes from the same place, so
+  the two can no longer disagree. This also fixes the export wizard
+  showing "Veröffentlichen" after a first "Als Entwurf hochladen" (which
+  then only updated the draft) and after deleting the post.
+- Ctrl+Shift+O ("Von WordPress öffnen" in the shortcuts window) works
+  again: it opens the sidebar on "Durchsuchen" → "WordPress". The action
+  behind it had disappeared when the dialog moved into the sidebar.
+
+### Added
+
+- `docs/gui-redesign.md`: concept for the next GUI (library sidebar with
+  `AdwSidebar`, state-dependent main action, release check, utility pane).
+
 ## [0.64.0] - 2026-10-01
 
 ### Changed

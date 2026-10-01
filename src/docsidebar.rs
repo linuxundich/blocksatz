@@ -31,6 +31,10 @@ use crate::{autosave, browser, export, importer, recentfiles, statuscontrols};
 
 pub struct DocSidebar {
     pub split_view: adw::OverlaySplitView,
+    /// Switches to "Durchsuchen" → "WordPress" (the list of the site's
+    /// posts) - backs `win.open-from-wordpress` (Ctrl+Shift+O). Showing the
+    /// sidebar itself is left to the caller, which owns the toggle action.
+    pub show_wordpress_posts: Rc<dyn Fn()>,
 }
 
 /// Handles the sidebar needs beyond `DocContext` - opening the export
@@ -57,7 +61,7 @@ pub fn build(window: &adw::ApplicationWindow, ctx: &DocContext, extras: &DocSide
             view_stack.set_visible_child_name("document");
         })
     };
-    let browse_page = build_browse_page(window, ctx, on_document_loaded);
+    let (browse_page, wordpress_toggle) = build_browse_page(window, ctx, on_document_loaded);
     view_stack.add_titled_with_icon(&browse_page, Some("browse"), &tr("Durchsuchen"), "folder-symbolic");
 
     view_stack.set_visible_child_name("document");
@@ -81,7 +85,15 @@ pub fn build(window: &adw::ApplicationWindow, ctx: &DocContext, extras: &DocSide
         .sidebar_width_unit(adw::LengthUnit::Sp)
         .build();
 
-    DocSidebar { split_view }
+    let show_wordpress_posts: Rc<dyn Fn()> = {
+        let view_stack = view_stack.clone();
+        Rc::new(move || {
+            view_stack.set_visible_child_name("browse");
+            wordpress_toggle.set_active(true);
+        })
+    };
+
+    DocSidebar { split_view, show_wordpress_posts }
 }
 
 /// The current document's own directory - `None` for a document never yet
@@ -167,7 +179,7 @@ fn build_document_page(window: &adw::ApplicationWindow, ctx: &DocContext, extras
             type_row.set_selected(PostType::ALL.iter().position(|t| *t == fm.post_type).unwrap_or(0) as u32);
             type_row.set_sensitive(fm.wp_post_id.is_none());
             status_row.set_selected(PostStatus::ALL.iter().position(|s| *s == fm.status).unwrap_or(0) as u32);
-            publish_button.set_label(&if fm.wp_post_id.is_some() { tr("Aktualisieren") } else { tr("Veröffentlichen") });
+            publish_button.set_label(&export::publish_button_label(&fm));
             private_button.set_visible(fm.status == PostStatus::Private);
             schedule_button.set_visible(fm.status == PostStatus::Future);
             delete_button.set_visible(fm.wp_post_id.is_some());
@@ -193,11 +205,10 @@ fn build_document_page(window: &adw::ApplicationWindow, ctx: &DocContext, extras
     let save_document = crate::window::document_saver(ctx);
     let feedback = export::sidebar_publish_feedback(&ctx.toast_overlay, refresh.clone());
 
-    let publish_target_status = if ctx.frontmatter.borrow().wp_post_id.is_some() { None } else { Some(PostStatus::Publish) };
-    export::wire_publish_button(&publish_button, &[&draft_button, &schedule_button, &private_button], publish_target_status, &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document);
-    export::wire_publish_button(&draft_button, &[&publish_button, &schedule_button, &private_button], Some(PostStatus::Draft), &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document);
-    export::wire_publish_button(&schedule_button, &[&publish_button, &draft_button, &private_button], Some(PostStatus::Future), &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document);
-    export::wire_publish_button(&private_button, &[&publish_button, &draft_button, &schedule_button], Some(PostStatus::Private), &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document);
+    export::wire_publish_button(&publish_button, &[&draft_button, &schedule_button, &private_button], export::TargetStatus::PublishOrKeep, &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document);
+    export::wire_publish_button(&draft_button, &[&publish_button, &schedule_button, &private_button], export::TargetStatus::Set(PostStatus::Draft), &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document);
+    export::wire_publish_button(&schedule_button, &[&publish_button, &draft_button, &private_button], export::TargetStatus::Set(PostStatus::Future), &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document);
+    export::wire_publish_button(&private_button, &[&publish_button, &draft_button, &schedule_button], export::TargetStatus::Set(PostStatus::Private), &ctx.frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_parent, &save_document);
     export::wire_delete_button(&delete_button, &ctx.frontmatter, &dialog_parent, &feedback, {
         let refresh = refresh.clone();
         move || refresh()
@@ -232,7 +243,7 @@ fn build_document_page(window: &adw::ApplicationWindow, ctx: &DocContext, extras
 /// article browser (`importer::build_content`). `on_document_loaded` fires
 /// once either side has actually finished loading something into the
 /// editor - switches back to the "Dokument" page and refreshes it.
-fn build_browse_page(window: &adw::ApplicationWindow, ctx: &DocContext, on_document_loaded: Rc<dyn Fn()>) -> gtk4::Widget {
+fn build_browse_page(window: &adw::ApplicationWindow, ctx: &DocContext, on_document_loaded: Rc<dyn Fn()>) -> (gtk4::Widget, gtk4::ToggleButton) {
     let local_toggle = gtk4::ToggleButton::builder().label(tr("Lokal")).active(true).hexpand(true).build();
     let wordpress_toggle = gtk4::ToggleButton::builder().label(tr("WordPress")).group(&local_toggle).hexpand(true).build();
     let source_switcher = gtk4::Box::builder().orientation(gtk4::Orientation::Horizontal).build();
@@ -275,7 +286,7 @@ fn build_browse_page(window: &adw::ApplicationWindow, ctx: &DocContext, on_docum
         .build();
     page.append(&source_switcher);
     page.append(&source_stack);
-    page.upcast()
+    (page.upcast(), wordpress_toggle)
 }
 
 /// The `Lokal` sub-page: recent local files (`recentfiles::load()`, same

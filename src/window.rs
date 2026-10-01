@@ -462,6 +462,18 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         });
     }
     window.add_action(&toggle_sidebar_action);
+    let open_from_wordpress_action = gio::SimpleAction::new("open-from-wordpress", None);
+    {
+        let split_view = doc_sidebar.split_view.clone();
+        let toggle_sidebar_action = toggle_sidebar_action.clone();
+        let show_wordpress_posts = doc_sidebar.show_wordpress_posts.clone();
+        open_from_wordpress_action.connect_activate(move |_, _| {
+            toggle_sidebar_action.set_state(&true.to_variant());
+            split_view.set_show_sidebar(true);
+            show_wordpress_posts();
+        });
+    }
+    window.add_action(&open_from_wordpress_action);
     wire_properties_action(&window, &buffer, &frontmatter, &term_caches, &current_path, &preview_pane);
     wire_settings_action(&window, &buffer, ai_menu_handles, &preview_pane, &browser_view);
     wire_about_action(&window);

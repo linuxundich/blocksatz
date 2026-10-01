@@ -172,11 +172,7 @@ pub fn open(
     // error text that could otherwise break markup parsing.
     let link_button = gtk4::LinkButton::builder().visible(false).halign(gtk4::Align::Start).build();
 
-    let publish_button = gtk4::Button::with_label(&if current_fm.wp_post_id.is_some() {
-        tr("Aktualisieren")
-    } else {
-        tr("Veröffentlichen")
-    });
+    let publish_button = gtk4::Button::with_label(&publish_button_label(&current_fm));
     publish_button.add_css_class("suggested-action");
     publish_button.set_halign(gtk4::Align::End);
 
@@ -393,17 +389,26 @@ pub fn open(
     }
 
     let feedback = wizard_publish_feedback(&status_label, &link_button, &export_preview_stack, &export_preview_web_view);
-    // `None` here means "leave whatever status the post already has on
-    // WordPress alone" (the `status` field is omitted from the payload
-    // entirely - see `run_export`) - this button is only ever labelled
-    // "Aktualisieren" for a post that already exists, and clicking a
-    // button that says "update" must not silently republish an existing
-    // draft. For a post that doesn't exist yet, the button is labelled
-    // "Veröffentlichen" instead, and *does* force `Publish` - an explicit
-    // first-time publish. The other three buttons below are always an
-    // explicit choice of status, regardless of whether the post already
-    // exists, so they keep forcing their own `target_status` unconditionally.
-    let publish_target_status = if current_fm.wp_post_id.is_some() { None } else { Some(PostStatus::Publish) };
+    // The main button reads "Aktualisieren" (status left untouched - see
+    // `TargetStatus::PublishOrKeep`) once the post exists and
+    // "Veröffentlichen" (forces `publish`) before that. Both the label and
+    // the status it sends follow the live `wp_post_id`, so a first
+    // "Als Entwurf hochladen" in this same wizard turns the button into
+    // "Aktualisieren" instead of leaving a "Veröffentlichen" button behind
+    // that would only update the draft. The other three buttons are always
+    // an explicit choice of status.
+    let feedback = {
+        let publish_button = publish_button.clone();
+        let frontmatter = frontmatter.clone();
+        let inner = feedback.on_success.clone();
+        PublishFeedback {
+            on_success: Rc::new(move |post, final_status| {
+                inner(post, final_status);
+                publish_button.set_label(&publish_button_label(&frontmatter.borrow()));
+            }),
+            ..feedback
+        }
+    };
     let dialog_widget: gtk4::Widget = dialog.clone().upcast();
     // Fixed closures, not read live from anywhere - the wizard is rebuilt
     // fresh from `body`/`doc_dir` every time it opens (see `open`'s own
@@ -412,10 +417,10 @@ pub fn open(
     // sidebar's buttons stay wired across the document's whole lifetime.
     let get_body: BodyProvider = { let body = body.clone(); Rc::new(move || body.clone()) };
     let get_doc_dir: DocDirProvider = { let doc_dir = doc_dir.clone(); Rc::new(move || doc_dir.clone()) };
-    wire_publish_button(&publish_button, &[&draft_button, &schedule_button, &private_button], publish_target_status, &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
-    wire_publish_button(&draft_button, &[&publish_button, &schedule_button, &private_button], Some(PostStatus::Draft), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
-    wire_publish_button(&schedule_button, &[&publish_button, &draft_button, &private_button], Some(PostStatus::Future), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
-    wire_publish_button(&private_button, &[&publish_button, &draft_button, &schedule_button], Some(PostStatus::Private), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
+    wire_publish_button(&publish_button, &[&draft_button, &schedule_button, &private_button], TargetStatus::PublishOrKeep, &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
+    wire_publish_button(&draft_button, &[&publish_button, &schedule_button, &private_button], TargetStatus::Set(PostStatus::Draft), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
+    wire_publish_button(&schedule_button, &[&publish_button, &draft_button, &private_button], TargetStatus::Set(PostStatus::Future), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
+    wire_publish_button(&private_button, &[&publish_button, &draft_button, &schedule_button], TargetStatus::Set(PostStatus::Private), &frontmatter, &get_body, &get_doc_dir, &feedback, &dialog_widget, &save_document);
     wire_delete_button(&delete_button, &frontmatter, &dialog_widget, &feedback, {
         let status_label = status_label.clone();
         let publish_button = publish_button.clone();
@@ -561,6 +566,38 @@ fn has_conflicting_server_change(local_hash: Option<&str>, server_hash: &str) ->
     local_hash.is_some_and(|local| local != server_hash)
 }
 
+/// Which `status` a publish-flow button sends, resolved from the live
+/// `Frontmatter` at the moment the button is clicked - not when it was
+/// wired up. That distinction matters for `PublishOrKeep`: the sidebar's
+/// buttons stay wired for the whole app session, so a value computed once
+/// at build time (before any document was even loaded, hence always
+/// "no `wp_post_id` yet") made its "Aktualisieren" button force `publish`
+/// and silently publish existing drafts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TargetStatus {
+    /// Always send this status ("Als Entwurf hochladen", "Terminieren", ...).
+    Set(PostStatus),
+    /// "Veröffentlichen" for a post that doesn't exist on WordPress yet,
+    /// "Aktualisieren" (status left untouched) once it does.
+    PublishOrKeep,
+}
+
+/// Label for the button wired with `TargetStatus::PublishOrKeep`, kept in
+/// one place so it can never disagree with what that button sends.
+pub(crate) fn publish_button_label(frontmatter: &Frontmatter) -> String {
+    if frontmatter.wp_post_id.is_some() { tr("Aktualisieren") } else { tr("Veröffentlichen") }
+}
+
+impl TargetStatus {
+    pub(crate) fn resolve(self, frontmatter: &Frontmatter) -> Option<PostStatus> {
+        match self {
+            TargetStatus::Set(status) => Some(status),
+            TargetStatus::PublishOrKeep if frontmatter.wp_post_id.is_some() => None,
+            TargetStatus::PublishOrKeep => Some(PostStatus::Publish),
+        }
+    }
+}
+
 /// Wires one of the publish-flow buttons ("Veröffentlichen"/"Aktualisieren" /
 /// "Als Entwurf hochladen" / "Terminieren" / "Privat veröffentlichen") -
 /// `target_status` is sent regardless of whatever `Frontmatter.status`
@@ -591,7 +628,7 @@ fn has_conflicting_server_change(local_hash: Option<&str>, server_hash: &str) ->
 pub(crate) fn wire_publish_button(
     button: &gtk4::Button,
     other_buttons: &[&gtk4::Button],
-    target_status: Option<PostStatus>,
+    target: TargetStatus,
     frontmatter: &Rc<RefCell<Frontmatter>>,
     get_body: &BodyProvider,
     get_doc_dir: &DocDirProvider,
@@ -609,9 +646,9 @@ pub(crate) fn wire_publish_button(
 
     let button_for_click = button.clone();
     button.connect_clicked(move |_| {
-        let (post_id, local_hash, rest_base) = {
+        let (post_id, local_hash, rest_base, target_status) = {
             let fm = frontmatter.borrow();
-            (fm.wp_post_id, fm.wp_content_hash.clone(), fm.post_type.rest_base())
+            (fm.wp_post_id, fm.wp_content_hash.clone(), fm.post_type.rest_base(), target.resolve(&fm))
         };
         let Some(post_id) = post_id.filter(|_| local_hash.is_some()) else {
             start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), &feedback, &button_for_click, &other_buttons, &save_document);
@@ -641,7 +678,6 @@ pub(crate) fn wire_publish_button(
             let _ = tx.send(outcome);
         });
 
-        let target_status = target_status;
         let frontmatter = frontmatter.clone();
         let get_body = get_body.clone();
         let get_doc_dir = get_doc_dir.clone();
@@ -1239,6 +1275,31 @@ pub(crate) fn mime_from_extension(filename: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn publish_or_keep_publishes_a_post_that_does_not_exist_yet() {
+        let fm = Frontmatter::default();
+        assert_eq!(TargetStatus::PublishOrKeep.resolve(&fm), Some(PostStatus::Publish));
+        assert_eq!(publish_button_label(&fm), tr("Veröffentlichen"));
+    }
+
+    /// The bug this guards against: the sidebar resolved this once at
+    /// build time (no document loaded yet), so updating an existing draft
+    /// sent `status=publish`. Resolving against the live frontmatter must
+    /// leave an existing post's status untouched - even a draft.
+    #[test]
+    fn publish_or_keep_leaves_an_existing_draft_alone() {
+        let fm = Frontmatter { wp_post_id: Some(42), status: PostStatus::Draft, ..Frontmatter::default() };
+        assert_eq!(TargetStatus::PublishOrKeep.resolve(&fm), None);
+        assert_eq!(publish_button_label(&fm), tr("Aktualisieren"));
+    }
+
+    #[test]
+    fn explicit_target_status_ignores_the_post_state() {
+        let fm = Frontmatter { wp_post_id: Some(42), status: PostStatus::Publish, ..Frontmatter::default() };
+        assert_eq!(TargetStatus::Set(PostStatus::Draft).resolve(&fm), Some(PostStatus::Draft));
+        assert_eq!(TargetStatus::Set(PostStatus::Future).resolve(&Frontmatter::default()), Some(PostStatus::Future));
+    }
 
     #[test]
     fn no_conflict_when_there_is_no_known_baseline_to_compare_against() {

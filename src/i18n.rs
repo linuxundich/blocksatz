@@ -79,7 +79,20 @@ pub fn init() {
 /// Translates `msgid` (German source text) via the bound catalog for the
 /// current locale, or returns it unchanged if there's no catalog/no match.
 pub fn tr(msgid: &str) -> String {
+    // Tests assert the German originals, but gettext's language and domain
+    // are process-wide: while the catalog test below has English switched
+    // on, a test running in parallel would get translated strings. So in
+    // test builds only a thread that opted in translates at all.
+    #[cfg(test)]
+    if !TRANSLATE_IN_TESTS.with(std::cell::Cell::get) {
+        return msgid.to_string();
+    }
     gettextrs::gettext(msgid)
+}
+
+#[cfg(test)]
+thread_local! {
+    static TRANSLATE_IN_TESTS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 #[cfg(test)]
@@ -123,7 +136,9 @@ mod tests {
         gettextrs::bind_textdomain_codeset(DOMAIN, "UTF-8").expect("bind_textdomain_codeset failed");
         gettextrs::textdomain(DOMAIN).expect("textdomain failed");
 
+        TRANSLATE_IN_TESTS.with(|flag| flag.set(true));
         let result = tr("Vorschau");
+        TRANSLATE_IN_TESTS.with(|flag| flag.set(false));
 
         match original_language {
             Some(value) => std::env::set_var("LANGUAGE", value),

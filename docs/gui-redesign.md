@@ -438,9 +438,8 @@ Gutenberg-HTML) sind in Prüfpunkte bzw. die Vorschau aufgegangen.
 
 **Offen**
 
-- Diff-Ansicht „Mit Blog-Fassung vergleichen“ (Konflikt-Banner bietet
-  derzeit nur Blog-Fassung übernehmen / meine behalten).
-- Idempotentes Anlegen (Upload-Marke gegen Doppel-Beiträge nach
-  Netzabbruch, Abschnitt 6).
+- ~~Diff-Ansicht „Mit Blog-Fassung vergleichen“~~ erledigt (`compare.rs`).
+- ~~Idempotentes Anlegen~~ erledigt (`wp_pending_create`, Suche nach
+  Titel vor dem zweiten Anlegen).
 - Mehrere Sites in der Oberfläche (Datenmodell hat `wp_site` schon).
 

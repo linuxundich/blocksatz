@@ -131,7 +131,7 @@ impl MainAction {
                 "main.update",
                 tr("Entwurf aktualisieren"),
                 true,
-                vec![(tr("Aktualisieren und Vorschau öffnen"), "main.update-preview"), (tr("Veröffentlichen …"), "main.publish")],
+                vec![(tr("Aktualisieren und Vorschau öffnen"), "main.update-preview"), (tr("Mit Blog-Fassung vergleichen"), "main.compare"), (tr("Veröffentlichen …"), "main.publish")],
             ),
             (Some(PostStatus::Future), SyncState::LocalChanges | SyncState::Conflict) => (
                 "main.update",
@@ -149,7 +149,7 @@ impl MainAction {
                 "main.publish-changes",
                 tr("Änderungen veröffentlichen …"),
                 true,
-                vec![(tr("Vorschau im Blog"), "main.autosave-preview"), (tr("Änderungen verwerfen …"), "main.discard"), (tr("Auf Entwurf zurücksetzen …"), "main.revert-draft")],
+                vec![(tr("Vorschau im Blog"), "main.autosave-preview"), (tr("Mit Blog-Fassung vergleichen"), "main.compare"), (tr("Änderungen verwerfen …"), "main.discard"), (tr("Auf Entwurf zurücksetzen …"), "main.revert-draft")],
             ),
             (Some(PostStatus::Publish | PostStatus::Private), _) => (
                 "main.open-preview",
@@ -217,6 +217,7 @@ impl MainAction {
         add("open-preview", MainAction::open_preview);
         add("autosave-preview", MainAction::autosave_preview);
         add("blog-preview", MainAction::blog_preview);
+        add("compare", MainAction::compare);
         add("publish", |this| this.release_check(Mode::Publish { scheduled: false }));
         add("schedule", |this| this.release_check(Mode::Publish { scheduled: true }));
         add("publish-changes", |this| this.release_check(Mode::PublishChanges));
@@ -446,26 +447,70 @@ impl MainAction {
             move |outcome| {
                 let Some(this) = weak.upgrade() else { return };
                 match outcome {
-                    Ok(imported) => {
-                        // What we just fetched is the server state now.
-                        if let Some(fetched) = imported.frontmatter.wp_modified_gmt.clone() {
-                            let mut remote = this.ctx.remote.borrow_mut();
-                            let link = match remote.get(&post_id) {
-                                Some(Remote::Present { link, .. }) => link.clone(),
-                                _ => String::new(),
-                            };
-                            remote.insert(post_id, Remote::Present { modified_gmt: fetched, status: imported.frontmatter.status, link });
-                        }
-                        this.ctx.buffer.set_text(&imported.body);
-                        *this.ctx.frontmatter.borrow_mut() = imported.frontmatter;
-                        this.ctx.preview_pane.set_article_header(&this.ctx.frontmatter.borrow());
-                        worksave::flush(&this.ctx, true);
-                        this.ctx.bump_generation();
-                        this.ctx.notify_library(false);
-                        window::show_toast(&this.ctx.toast_overlay, &tr("Blog-Fassung geladen."));
-                    }
+                    Ok(imported) => this.apply_blog_version(post_id, imported),
                     Err(err) => window::show_toast(&this.ctx.toast_overlay, &tr("Laden fehlgeschlagen: {err}").replace("{err}", &err)),
                 }
+            },
+        );
+    }
+
+    /// Replaces the working copy with `imported`, the blog's version of
+    /// post `post_id`.
+    fn apply_blog_version(&self, post_id: u64, imported: importer::ImportedPost) {
+        // What we just fetched is the server state now.
+        if let Some(fetched) = imported.frontmatter.wp_modified_gmt.clone() {
+            let mut remote = self.ctx.remote.borrow_mut();
+            let link = match remote.get(&post_id) {
+                Some(Remote::Present { link, .. }) => link.clone(),
+                _ => String::new(),
+            };
+            remote.insert(post_id, Remote::Present { modified_gmt: fetched, status: imported.frontmatter.status, link });
+        }
+        self.ctx.buffer.set_text(&imported.body);
+        *self.ctx.frontmatter.borrow_mut() = imported.frontmatter;
+        self.ctx.preview_pane.set_article_header(&self.ctx.frontmatter.borrow());
+        worksave::flush(&self.ctx, true);
+        self.ctx.bump_generation();
+        self.ctx.notify_library(false);
+        window::show_toast(&self.ctx.toast_overlay, &tr("Blog-Fassung geladen."));
+    }
+
+    /// Fetches the blog's version and shows it next to the local one.
+    fn compare(&self) {
+        let fm = self.ctx.frontmatter.borrow().clone();
+        let Some(post_id) = fm.wp_post_id else { return };
+        let post_type = fm.post_type;
+        let weak = self.weak.clone();
+        importer::run_with_password(
+            &wpsite::load(),
+            move |site, password| importer::fetch_and_convert(site, password, post_type, post_id),
+            move |outcome| {
+                let Some(this) = weak.upgrade() else { return };
+                let Some(window) = this.window.upgrade() else { return };
+                let imported = match outcome {
+                    Ok(imported) => imported,
+                    Err(err) => return window::show_toast(&this.ctx.toast_overlay, &tr("Laden fehlgeschlagen: {err}").replace("{err}", &err)),
+                };
+                let blog = titled_text(&imported.frontmatter.title, &imported.body);
+                let local = this.ctx.current_document();
+                let local_text = match document::split_title_heading(&local.body) {
+                    Some((title, rest)) if local.frontmatter.title.trim().is_empty() => titled_text(&title, rest),
+                    _ => titled_text(&local.frontmatter.title, &local.body),
+                };
+                let conflict = this.state().1.sync == SyncState::Conflict;
+                let weak = this.weak.clone();
+                let imported = std::cell::RefCell::new(Some(imported));
+                crate::compare::open(&window, &blog, &local_text, conflict, move |choice| {
+                    let Some(this) = weak.upgrade() else { return };
+                    match choice {
+                        crate::compare::Choice::TakeBlog => {
+                            if let Some(imported) = imported.borrow_mut().take() {
+                                this.apply_blog_version(post_id, imported);
+                            }
+                        }
+                        crate::compare::Choice::KeepMine => this.keep_mine(),
+                    }
+                });
             },
         );
     }
@@ -477,6 +522,7 @@ impl MainAction {
             Some(&tr("Der Beitrag wurde im Blog geändert, nachdem du ihn zuletzt abgeglichen hast, und du hast hier weitergeschrieben.")),
         );
         dialog.add_response("cancel", &tr("Abbrechen"));
+        dialog.add_response("compare", &tr("Vergleichen …"));
         dialog.add_response("blog", &tr("Blog-Fassung übernehmen"));
         dialog.add_response("mine", &tr("Meine Fassung behalten"));
         dialog.set_response_appearance("blog", adw::ResponseAppearance::Destructive);
@@ -488,6 +534,7 @@ impl MainAction {
             match response {
                 "blog" => this.load_from_blog(),
                 "mine" => this.keep_mine(),
+                "compare" => this.compare(),
                 _ => {}
             }
         });
@@ -545,6 +592,11 @@ impl MainAction {
         });
         dialog.present(Some(&window));
     }
+}
+
+/// `# Title` plus body, the way both sides are compared.
+fn titled_text(title: &str, body: &str) -> String {
+    format!("# {}\n\n{}", title.trim(), body.trim_start())
 }
 
 /// The window subtitle: WordPress status plus what's pending.

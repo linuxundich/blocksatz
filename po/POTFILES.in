@@ -14,6 +14,7 @@ src/browsersettings.rs
 src/changelog.rs
 src/chat.rs
 src/chatsettings.rs
+src/compare.rs
 src/connection.rs
 src/document.rs
 src/export.rs

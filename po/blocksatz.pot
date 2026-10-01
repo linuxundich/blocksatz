@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.64.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-02 00:48+0200\n"
+"POT-Creation-Date: 2026-10-02 00:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -118,7 +118,7 @@ msgstr ""
 msgid "{n} Befunde - zum Aufrufen anklicken."
 msgstr ""
 
-#: src/aiinplace.rs:104 src/mainaction.rs:234
+#: src/aiinplace.rs:104 src/mainaction.rs:235
 msgid "Verwerfen"
 msgstr ""
 
@@ -173,7 +173,7 @@ msgid ""
 msgstr ""
 
 #: src/aimenu.rs:188 src/blogposts.rs:385 src/export.rs:201
-#: src/gallerydialog.rs:154 src/mainaction.rs:479 src/mainaction.rs:533
+#: src/gallerydialog.rs:154 src/mainaction.rs:524 src/mainaction.rs:580
 #: src/mediabrowser.rs:548 src/releasecheck.rs:185 src/taxonomy.rs:352
 #: src/taxonomy.rs:666
 msgid "Abbrechen"
@@ -1272,7 +1272,7 @@ msgstr ""
 msgid "Im Blog gelöscht"
 msgstr ""
 
-#: src/librarysidebar.rs:406 src/mainaction.rs:553
+#: src/librarysidebar.rs:406 src/mainaction.rs:605
 msgid "Nur lokal"
 msgstr ""
 
@@ -1443,6 +1443,10 @@ msgstr ""
 msgid "Aktualisieren und Vorschau öffnen"
 msgstr ""
 
+#: src/mainaction.rs:134 src/mainaction.rs:152 src/compare.rs:98
+msgid "Mit Blog-Fassung vergleichen"
+msgstr ""
+
 #: src/mainaction.rs:138
 msgid "Änderungen hochladen"
 msgstr ""
@@ -1509,125 +1513,129 @@ msgid ""
 "veröffentlichen“ online."
 msgstr ""
 
-#: src/mainaction.rs:224
+#: src/mainaction.rs:225
 msgid "Jetzt veröffentlichen?"
 msgstr ""
 
-#: src/mainaction.rs:224
+#: src/mainaction.rs:225
 msgid "Der geplante Termin entfällt, der Beitrag geht sofort online."
 msgstr ""
 
-#: src/mainaction.rs:224 src/releasecheck.rs:144 src/releasecheck.rs:236
+#: src/mainaction.rs:225 src/releasecheck.rs:144 src/releasecheck.rs:236
 msgid "Veröffentlichen"
 msgstr ""
 
-#: src/mainaction.rs:229
+#: src/mainaction.rs:230
 msgid "Auf Entwurf zurücksetzen?"
 msgstr ""
 
-#: src/mainaction.rs:229
+#: src/mainaction.rs:230
 msgid "Der Beitrag ist danach nicht mehr öffentlich sichtbar."
 msgstr ""
 
-#: src/mainaction.rs:229
+#: src/mainaction.rs:230
 msgid "Auf Entwurf zurücksetzen"
 msgstr ""
 
-#: src/mainaction.rs:234
+#: src/mainaction.rs:235
 msgid "Änderungen verwerfen?"
 msgstr ""
 
-#: src/mainaction.rs:234
+#: src/mainaction.rs:235
 msgid ""
 "Die Arbeitskopie wird durch die Fassung aus dem Blog ersetzt. Deine "
 "Änderungen gehen verloren."
 msgstr ""
 
-#: src/mainaction.rs:276 src/mediapanel.rs:194 src/mediapanel.rs:391
+#: src/mainaction.rs:277 src/mediapanel.rs:194 src/mediapanel.rs:391
 #: src/mediapanel.rs:487 src/mediapanel.rs:693
 msgid "Wird hochgeladen …"
 msgstr ""
 
-#: src/mainaction.rs:314
+#: src/mainaction.rs:315
 msgid "Als Entwurf hochgeladen."
 msgstr ""
 
-#: src/mainaction.rs:315
+#: src/mainaction.rs:316
 msgid "Zur Prüfung eingereicht."
 msgstr ""
 
-#: src/mainaction.rs:316
+#: src/mainaction.rs:317
 msgid "Veröffentlicht."
 msgstr ""
 
-#: src/mainaction.rs:317
+#: src/mainaction.rs:318
 msgid "Geplant."
 msgstr ""
 
-#: src/mainaction.rs:318
+#: src/mainaction.rs:319
 msgid "Aktualisiert."
 msgstr ""
 
-#: src/mainaction.rs:361
+#: src/mainaction.rs:362
 msgid "Vorschau nicht verfügbar: {err}"
 msgstr ""
 
-#: src/mainaction.rs:373
+#: src/mainaction.rs:374
 msgid "Noch nicht im Blog – erst als Entwurf hochladen."
 msgstr ""
 
-#: src/mainaction.rs:405
+#: src/mainaction.rs:406
 msgid ""
 "Vorschau fehlgeschlagen. Bist du im Browser-Tab bei WordPress angemeldet?"
 msgstr ""
 
-#: src/mainaction.rs:465
-msgid "Blog-Fassung geladen."
-msgstr ""
-
-#: src/mainaction.rs:467
+#: src/mainaction.rs:451 src/mainaction.rs:492
 msgid "Laden fehlgeschlagen: {err}"
 msgstr ""
 
-#: src/mainaction.rs:476
+#: src/mainaction.rs:475
+msgid "Blog-Fassung geladen."
+msgstr ""
+
+#: src/mainaction.rs:521
 msgid "Welche Fassung soll gelten?"
 msgstr ""
 
-#: src/mainaction.rs:477
+#: src/mainaction.rs:522
 msgid ""
 "Der Beitrag wurde im Blog geändert, nachdem du ihn zuletzt abgeglichen hast, "
 "und du hast hier weitergeschrieben."
 msgstr ""
 
-#: src/mainaction.rs:480
+#: src/mainaction.rs:525
+msgid "Vergleichen …"
+msgstr ""
+
+#: src/mainaction.rs:526 src/compare.rs:105
 msgid "Blog-Fassung übernehmen"
 msgstr ""
 
-#: src/mainaction.rs:481
+#: src/mainaction.rs:527 src/compare.rs:120
 msgid "Meine Fassung behalten"
 msgstr ""
 
-#: src/mainaction.rs:527
+#: src/mainaction.rs:574
 msgid "Verknüpfung gelöst. Der Artikel ist jetzt nur lokal."
 msgstr ""
 
-#: src/mainaction.rs:561
+#: src/mainaction.rs:613
 msgid "im Blog gelöscht"
 msgstr ""
 
-#: src/mainaction.rs:562
+#: src/mainaction.rs:614
 msgid "Konflikt"
 msgstr ""
 
-#: src/mainaction.rs:563
+#: src/mainaction.rs:615
 msgid "im Blog geändert"
 msgstr ""
 
-#: src/mainaction.rs:564
+#: src/mainaction.rs:616
 msgid "Änderungen nicht online"
 msgstr ""
 
-#: src/mainaction.rs:565
+#: src/mainaction.rs:617
 msgid "nicht hochgeladen"
 msgstr ""
 
@@ -2815,4 +2823,12 @@ msgstr ""
 
 #: src/wpclient.rs:984
 msgid "Kein Term-ID für \"{name}\" erhalten"
+msgstr ""
+
+#: src/compare.rs:99
+msgid "Keine Unterschiede im Text"
+msgstr ""
+
+#: src/compare.rs:99
+msgid "− nur im Blog · + nur hier"
 msgstr ""

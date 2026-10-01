@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-02 00:48+0200\n"
+"POT-Creation-Date: 2026-10-02 00:53+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -121,7 +121,7 @@ msgstr "1 finding - click it to jump there."
 msgid "{n} Befunde - zum Aufrufen anklicken."
 msgstr "{n} findings - click one to jump there."
 
-#: src/aiinplace.rs:104 src/mainaction.rs:234
+#: src/aiinplace.rs:104 src/mainaction.rs:235
 msgid "Verwerfen"
 msgstr "Discard"
 
@@ -178,7 +178,7 @@ msgstr ""
 "adjusted?"
 
 #: src/aimenu.rs:188 src/blogposts.rs:385 src/export.rs:201
-#: src/gallerydialog.rs:154 src/mainaction.rs:479 src/mainaction.rs:533
+#: src/gallerydialog.rs:154 src/mainaction.rs:524 src/mainaction.rs:580
 #: src/mediabrowser.rs:548 src/releasecheck.rs:185 src/taxonomy.rs:352
 #: src/taxonomy.rs:666
 msgid "Abbrechen"
@@ -1307,7 +1307,7 @@ msgstr "Changed on the blog"
 msgid "Im Blog gelöscht"
 msgstr "Deleted on the blog"
 
-#: src/librarysidebar.rs:406 src/mainaction.rs:553
+#: src/librarysidebar.rs:406 src/mainaction.rs:605
 msgid "Nur lokal"
 msgstr "Local only"
 
@@ -1478,6 +1478,10 @@ msgstr "Update Draft"
 msgid "Aktualisieren und Vorschau öffnen"
 msgstr "Update and Open Preview"
 
+#: src/mainaction.rs:134 src/mainaction.rs:152 src/compare.rs:98
+msgid "Mit Blog-Fassung vergleichen"
+msgstr "Compare with Blog Version"
+
 #: src/mainaction.rs:138
 msgid "Änderungen hochladen"
 msgstr "Upload Changes"
@@ -1544,35 +1548,35 @@ msgid ""
 "veröffentlichen“ online."
 msgstr "Published post: your changes only go live with “Publish Changes”."
 
-#: src/mainaction.rs:224
+#: src/mainaction.rs:225
 msgid "Jetzt veröffentlichen?"
 msgstr "Publish Now?"
 
-#: src/mainaction.rs:224
+#: src/mainaction.rs:225
 msgid "Der geplante Termin entfällt, der Beitrag geht sofort online."
 msgstr "The scheduled date is dropped and the post goes live right away."
 
-#: src/mainaction.rs:224 src/releasecheck.rs:144 src/releasecheck.rs:236
+#: src/mainaction.rs:225 src/releasecheck.rs:144 src/releasecheck.rs:236
 msgid "Veröffentlichen"
 msgstr "Publish"
 
-#: src/mainaction.rs:229
+#: src/mainaction.rs:230
 msgid "Auf Entwurf zurücksetzen?"
 msgstr "Revert to Draft?"
 
-#: src/mainaction.rs:229
+#: src/mainaction.rs:230
 msgid "Der Beitrag ist danach nicht mehr öffentlich sichtbar."
 msgstr "The post will no longer be publicly visible."
 
-#: src/mainaction.rs:229
+#: src/mainaction.rs:230
 msgid "Auf Entwurf zurücksetzen"
 msgstr "Revert to Draft"
 
-#: src/mainaction.rs:234
+#: src/mainaction.rs:235
 msgid "Änderungen verwerfen?"
 msgstr "Discard Changes?"
 
-#: src/mainaction.rs:234
+#: src/mainaction.rs:235
 msgid ""
 "Die Arbeitskopie wird durch die Fassung aus dem Blog ersetzt. Deine "
 "Änderungen gehen verloren."
@@ -1580,57 +1584,57 @@ msgstr ""
 "The working copy will be replaced by the version from the blog. Your changes "
 "will be lost."
 
-#: src/mainaction.rs:276 src/mediapanel.rs:194 src/mediapanel.rs:391
+#: src/mainaction.rs:277 src/mediapanel.rs:194 src/mediapanel.rs:391
 #: src/mediapanel.rs:487 src/mediapanel.rs:693
 msgid "Wird hochgeladen …"
 msgstr "Uploading …"
 
-#: src/mainaction.rs:314
+#: src/mainaction.rs:315
 msgid "Als Entwurf hochgeladen."
 msgstr "Uploaded as draft."
 
-#: src/mainaction.rs:315
+#: src/mainaction.rs:316
 msgid "Zur Prüfung eingereicht."
 msgstr "Submitted for review."
 
-#: src/mainaction.rs:316
+#: src/mainaction.rs:317
 msgid "Veröffentlicht."
 msgstr "Published."
 
-#: src/mainaction.rs:317
+#: src/mainaction.rs:318
 msgid "Geplant."
 msgstr "Scheduled."
 
-#: src/mainaction.rs:318
+#: src/mainaction.rs:319
 msgid "Aktualisiert."
 msgstr "Updated."
 
-#: src/mainaction.rs:361
+#: src/mainaction.rs:362
 msgid "Vorschau nicht verfügbar: {err}"
 msgstr "Preview not available: {err}"
 
-#: src/mainaction.rs:373
+#: src/mainaction.rs:374
 msgid "Noch nicht im Blog – erst als Entwurf hochladen."
 msgstr "Not on the blog yet – upload it as a draft first."
 
-#: src/mainaction.rs:405
+#: src/mainaction.rs:406
 msgid ""
 "Vorschau fehlgeschlagen. Bist du im Browser-Tab bei WordPress angemeldet?"
 msgstr "Preview failed. Are you logged in to WordPress in the browser tab?"
 
-#: src/mainaction.rs:465
-msgid "Blog-Fassung geladen."
-msgstr "Blog version loaded."
-
-#: src/mainaction.rs:467
+#: src/mainaction.rs:451 src/mainaction.rs:492
 msgid "Laden fehlgeschlagen: {err}"
 msgstr "Loading failed: {err}"
 
-#: src/mainaction.rs:476
+#: src/mainaction.rs:475
+msgid "Blog-Fassung geladen."
+msgstr "Blog version loaded."
+
+#: src/mainaction.rs:521
 msgid "Welche Fassung soll gelten?"
 msgstr "Which Version Should Count?"
 
-#: src/mainaction.rs:477
+#: src/mainaction.rs:522
 msgid ""
 "Der Beitrag wurde im Blog geändert, nachdem du ihn zuletzt abgeglichen hast, "
 "und du hast hier weitergeschrieben."
@@ -1638,35 +1642,39 @@ msgstr ""
 "The post was changed on the blog after you last synced it, and you kept "
 "writing here."
 
-#: src/mainaction.rs:480
+#: src/mainaction.rs:525
+msgid "Vergleichen …"
+msgstr "Compare…"
+
+#: src/mainaction.rs:526 src/compare.rs:105
 msgid "Blog-Fassung übernehmen"
 msgstr "Use Blog Version"
 
-#: src/mainaction.rs:481
+#: src/mainaction.rs:527 src/compare.rs:120
 msgid "Meine Fassung behalten"
 msgstr "Keep My Version"
 
-#: src/mainaction.rs:527
+#: src/mainaction.rs:574
 msgid "Verknüpfung gelöst. Der Artikel ist jetzt nur lokal."
 msgstr "Unlinked. The article is now local only."
 
-#: src/mainaction.rs:561
+#: src/mainaction.rs:613
 msgid "im Blog gelöscht"
 msgstr "deleted on the blog"
 
-#: src/mainaction.rs:562
+#: src/mainaction.rs:614
 msgid "Konflikt"
 msgstr "conflict"
 
-#: src/mainaction.rs:563
+#: src/mainaction.rs:615
 msgid "im Blog geändert"
 msgstr "changed on the blog"
 
-#: src/mainaction.rs:564
+#: src/mainaction.rs:616
 msgid "Änderungen nicht online"
 msgstr "changes not online"
 
-#: src/mainaction.rs:565
+#: src/mainaction.rs:617
 msgid "nicht hochgeladen"
 msgstr "not uploaded"
 
@@ -2884,6 +2892,14 @@ msgstr "No post ID in the response"
 #: src/wpclient.rs:984
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr "No term ID received for \"{name}\""
+
+#: src/compare.rs:99
+msgid "Keine Unterschiede im Text"
+msgstr "No differences in the text"
+
+#: src/compare.rs:99
+msgid "− nur im Blog · + nur hier"
+msgstr "− only on the blog · + only here"
 
 #~ msgid "Die Adresse, die der „Browser“-Tab beim Start der App öffnet."
 #~ msgstr "The address the “Browser” tab opens when the app starts."

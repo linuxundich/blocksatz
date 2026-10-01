@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **"Mit Blog-Fassung vergleichen"**: a line diff of the working copy
+  against the post as it is on the blog right now (lines only on the
+  blog, lines only here), with "Blog-Fassung übernehmen" and - for a
+  conflict - "Meine Fassung behalten". In the main action's menu for
+  articles with local changes and as "Vergleichen …" in the conflict
+  dialog.
+
 ### Changed
 
 - **"Vorschau" is "Gerendert | Code | Im Blog"**: "Im Blog" shows the open

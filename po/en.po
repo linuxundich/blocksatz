@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-01 21:54+0200\n"
-"PO-Revision-Date: 2026-09-28 22:43+0200\n"
+"POT-Creation-Date: 2026-10-01 22:00+0200\n"
+"PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
 "Language: en\n"
@@ -46,7 +46,7 @@ msgstr "Generate Text"
 msgid "Noch kein Text generiert - auf „Text generieren“ klicken."
 msgstr "No text generated yet - click “Generate Text”."
 
-#: src/aialt.rs:182
+#: src/aialt.rs:182 src/aiinplace.rs:102 src/tagsuggest.rs:74
 msgid "Übernehmen"
 msgstr "Apply"
 
@@ -55,20 +55,111 @@ msgid "KI-Alternativtext"
 msgstr "AI Alt Text"
 
 #: src/aialt.rs:202 src/aiwriter.rs:438 src/imagealt.rs:388 src/imagealt.rs:492
+#: src/tagsuggest.rs:178
 msgid "Wird generiert …"
 msgstr "Generating …"
 
-#: src/aialt.rs:213 src/aiwriter.rs:403 src/aiwriter.rs:472 src/chat.rs:181
-#: src/export.rs:835 src/imagealt.rs:401 src/imagealt.rs:503
+#: src/aialt.rs:213 src/aievaluate.rs:225 src/aiinplace.rs:206
+#: src/aiwriter.rs:403 src/aiwriter.rs:472 src/chat.rs:181 src/export.rs:835
+#: src/gallerydialog.rs:500 src/imagealt.rs:401 src/imagealt.rs:503
 #: src/imageedit.rs:302 src/importer.rs:146 src/importer.rs:365
 #: src/mediabrowser.rs:494 src/mediabrowser.rs:583 src/mediapanel.rs:284
-#: src/mediapanel.rs:748
+#: src/mediapanel.rs:748 src/tagsuggest.rs:209
 msgid "Fehler: {err}"
 msgstr "Error: {err}"
 
-#: src/aialt.rs:267
+#: src/aialt.rs:267 src/aicaption.rs:69 src/tagsuggest.rs:215
 msgid "Interner Fehler: Generierungs-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the generation thread returned no result."
+
+#: src/aievaluate.rs:129
+msgid "Noch keine Bewertung"
+msgstr "No Evaluation Yet"
+
+#: src/aievaluate.rs:130
+msgid ""
+"Lässt den Artikel von der KI auf Grammatik, Klarheit, Lesbarkeit, "
+"Weitschweifigkeit und Tonalität prüfen."
+msgstr ""
+"Has the AI check the article for grammar, clarity, readability, wordiness "
+"and tone."
+
+#: src/aievaluate.rs:135
+msgid "Bewerten"
+msgstr "Evaluate"
+
+#: src/aievaluate.rs:179
+msgid "Der Artikel ist noch zu kurz für eine sinnvolle Bewertung."
+msgstr "The article is still too short for a meaningful evaluation."
+
+#: src/aievaluate.rs:185
+msgid "Wird bewertet …"
+msgstr "Evaluating …"
+
+#: src/aievaluate.rs:210
+msgid "Interner Fehler: Bewertung hat kein Ergebnis geliefert."
+msgstr "Internal error: the evaluation returned no result."
+
+#: src/aievaluate.rs:213
+msgid "Neu bewerten"
+msgstr "Evaluate Again"
+
+#: src/aievaluate.rs:220
+msgid ""
+"Die KI hat kein auswertbares Ergebnis geliefert. Bitte erneut versuchen."
+msgstr "The AI didn't return a usable result. Please try again."
+
+#: src/aievaluate.rs:247
+msgid "Keine konkreten Befunde."
+msgstr "No specific findings."
+
+#: src/aievaluate.rs:248
+msgid "1 Befund - zum Aufrufen anklicken."
+msgstr "1 finding - click it to jump there."
+
+#: src/aievaluate.rs:249
+msgid "{n} Befunde - zum Aufrufen anklicken."
+msgstr "{n} findings - click one to jump there."
+
+#: src/aiinplace.rs:104
+msgid "Verwerfen"
+msgstr "Discard"
+
+#: src/aiinplace.rs:107
+msgid "Schließen"
+msgstr "Close"
+
+#: src/aiinplace.rs:217
+msgid "Interner Fehler: keine Antwort erhalten."
+msgstr "Internal error: no response received."
+
+#: src/aiinplace.rs:226
+msgid "Die KI hat keinen Text zurückgegeben."
+msgstr "The AI returned no text."
+
+#: src/aiinplace.rs:237
+msgid "übernehmen oder verwerfen?"
+msgstr "apply or discard?"
+
+#: src/aiinplace.rs:267
+msgid "Stil korrigieren"
+msgstr "Fix Style"
+
+#: src/aiinplace.rs:268
+msgid "Rechtschreibung korrigieren"
+msgstr "Fix Spelling"
+
+#: src/aiinplace.rs:269
+msgid "Zeichensetzung korrigieren"
+msgstr "Fix Punctuation"
+
+#: src/aiinplace.rs:270 src/aimenu.rs:185 src/aimenu.rs:228 src/aiprompts.rs:58
+msgid "Länge anpassen"
+msgstr "Adjust Length"
+
+#: src/aiinplace.rs:271 src/aiinplace.rs:319 src/aiprompts.rs:59
+msgid "KI-Aktion"
+msgstr "AI Action"
 
 #: src/aimenu.rs:75
 msgid "KI-Aktionen"
@@ -78,10 +169,6 @@ msgstr "AI Actions"
 msgid "Direkt im Text korrigieren"
 msgstr "Correct in Place"
 
-#: src/aimenu.rs:185 src/aimenu.rs:228 src/aiprompts.rs:58
-msgid "Länge anpassen"
-msgstr "Adjust Length"
-
 #: src/aimenu.rs:186
 msgid ""
 "Wie soll die Auswahl (oder der ganze Artikel, falls nichts markiert ist) "
@@ -90,8 +177,9 @@ msgstr ""
 "How should the selection (or the whole article, if nothing is selected) be "
 "adjusted?"
 
-#: src/aimenu.rs:188 src/export.rs:702 src/export.rs:876 src/importer.rs:339
-#: src/mediabrowser.rs:548 src/taxonomy.rs:352 src/taxonomy.rs:666
+#: src/aimenu.rs:188 src/export.rs:702 src/export.rs:876
+#: src/gallerydialog.rs:154 src/importer.rs:339 src/mediabrowser.rs:548
+#: src/taxonomy.rs:352 src/taxonomy.rs:666
 msgid "Abbrechen"
 msgstr "Cancel"
 
@@ -134,10 +222,6 @@ msgstr "Check Spelling"
 #: src/aiprompts.rs:57
 msgid "Zeichensetzung prüfen"
 msgstr "Check Punctuation"
-
-#: src/aiprompts.rs:59
-msgid "KI-Aktion"
-msgstr "AI Action"
 
 #: src/aitasks.rs:50
 msgid "Bildbeschreibungen"
@@ -203,8 +287,9 @@ msgid ""
 msgstr "Imitating your own writing style requires a WordPress connection."
 
 #: src/aiwriter.rs:145 src/aiwriter.rs:160 src/export.rs:350 src/export.rs:670
-#: src/export.rs:787 src/export.rs:899 src/importer.rs:95 src/linkpicker.rs:97
-#: src/mediabrowser.rs:134 src/mediapanel.rs:203 src/mediapanel.rs:496
+#: src/export.rs:787 src/export.rs:899 src/gallerydialog.rs:590
+#: src/importer.rs:95 src/linkpicker.rs:97 src/mediabrowser.rs:134
+#: src/medialibrary.rs:135 src/mediapanel.rs:203 src/mediapanel.rs:496
 #: src/mediapanel.rs:703 src/properties.rs:266 src/properties.rs:488
 #: src/taxonomy.rs:75 src/taxonomy.rs:223 src/taxonomy.rs:296
 #: src/taxonomy.rs:376 src/taxonomy.rs:481 src/taxonomy.rs:610
@@ -401,7 +486,7 @@ msgstr "Reset to Style's Default Font"
 msgid "Adresse eingeben oder suchen…"
 msgstr "Enter address or search…"
 
-#: src/browser.rs:71 src/export.rs:41
+#: src/browser.rs:71 src/export.rs:41 src/firstrun.rs:256
 msgid "Zurück"
 msgstr "Back"
 
@@ -502,7 +587,7 @@ msgstr "Saved."
 
 #: src/chatsettings.rs:116 src/chatsettings.rs:182 src/chatsettings.rs:200
 #: src/chatsettings.rs:256 src/chatsettings.rs:334 src/connection.rs:81
-#: src/promptsettings.rs:131
+#: src/firstrun.rs:190 src/promptsettings.rs:131
 msgid "Fehler beim Speichern: {err}"
 msgstr "Error saving: {err}"
 
@@ -526,11 +611,11 @@ msgstr "System Prompt"
 msgid "KI-Chat"
 msgstr "AI Chat"
 
-#: src/connection.rs:18
+#: src/connection.rs:18 src/firstrun.rs:85
 msgid "Website-URL"
 msgstr "Website URL"
 
-#: src/connection.rs:22
+#: src/connection.rs:22 src/firstrun.rs:86
 msgid "Benutzername"
 msgstr "Username"
 
@@ -538,7 +623,7 @@ msgstr "Username"
 msgid "Speichern"
 msgstr "Save"
 
-#: src/connection.rs:31
+#: src/connection.rs:31 src/firstrun.rs:89
 msgid "WordPress-Verbindung"
 msgstr "WordPress Connection"
 
@@ -552,9 +637,73 @@ msgstr "Credentials are stored in the keyring, not as plain text in this file."
 msgid "Passwort konnte nicht geladen werden: {err}"
 msgstr "Couldn't load password: {err}"
 
-#: src/connection.rs:94
+#: src/connection.rs:94 src/firstrun.rs:203
 msgid "Fehler beim Speichern des Passworts: {err}"
 msgstr "Error saving the password: {err}"
+
+#: src/docsidebar.rs:54
+msgid "Dokument"
+msgstr "Document"
+
+#: src/docsidebar.rs:65
+msgid "Durchsuchen"
+msgstr "Browse"
+
+#: src/docsidebar.rs:133 src/export.rs:179
+msgid "Als Entwurf hochladen"
+msgstr "Upload as Draft"
+
+#: src/docsidebar.rs:134 src/export.rs:192
+msgid "Privat veröffentlichen"
+msgstr "Publish Privately"
+
+#: src/docsidebar.rs:135 src/export.rs:187
+msgid "Terminieren"
+msgstr "Schedule"
+
+#: src/docsidebar.rs:136 src/export.rs:196
+msgid "Von WordPress löschen"
+msgstr "Delete from WordPress"
+
+#: src/docsidebar.rs:138
+msgid "Lokal speichern unter…"
+msgstr "Save Locally As…"
+
+#: src/docsidebar.rs:139
+msgid "Vor Veröffentlichung prüfen…"
+msgstr "Check Before Publishing…"
+
+#: src/docsidebar.rs:176
+msgid "Nur auf WordPress (#{id})"
+msgstr "Only on WordPress (#{id})"
+
+#: src/docsidebar.rs:177
+msgid "Neues, noch nicht gespeichertes Dokument"
+msgstr "New, unsaved document"
+
+#: src/docsidebar.rs:247
+msgid "Lokal"
+msgstr "Local"
+
+#: src/docsidebar.rs:248
+msgid "WordPress"
+msgstr "WordPress"
+
+#: src/docsidebar.rs:318
+msgid "Datei öffnen…"
+msgstr "Open File…"
+
+#: src/docsidebar.rs:329
+msgid "Keine zuletzt geöffneten Artikel"
+msgstr "No recently opened articles"
+
+#: src/docsidebar.rs:369
+msgid "Vorhandene Arbeitskopie geöffnet."
+msgstr "Opened the existing working copy."
+
+#: src/docsidebar.rs:379
+msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
+msgstr "Couldn't create a working copy: {err}"
 
 #: src/document.rs:71 src/importer.rs:378
 msgid "Entwurf"
@@ -584,29 +733,13 @@ msgstr "Blog post"
 msgid "Seite"
 msgstr "Page"
 
-#: src/export.rs:43
+#: src/export.rs:43 src/firstrun.rs:258
 msgid "Weiter"
 msgstr "Next"
 
 #: src/export.rs:110
 msgid "Zu sendendes Gutenberg-HTML:"
 msgstr "Gutenberg HTML to be sent:"
-
-#: src/export.rs:179
-msgid "Als Entwurf hochladen"
-msgstr "Upload as Draft"
-
-#: src/export.rs:187
-msgid "Terminieren"
-msgstr "Schedule"
-
-#: src/export.rs:192
-msgid "Privat veröffentlichen"
-msgstr "Publish Privately"
-
-#: src/export.rs:196
-msgid "Von WordPress löschen"
-msgstr "Delete from WordPress"
 
 #: src/export.rs:211
 msgid "Vorschau öffnen"
@@ -778,6 +911,78 @@ msgstr "Couldn't read image: {err}"
 msgid "Bild {path} nicht lesbar: {err}"
 msgstr "Couldn't read image {path}: {err}"
 
+#: src/firstrun.rs:77
+msgid "Willkommen bei Blocksatz"
+msgstr "Welcome to Blocksatz"
+
+#: src/firstrun.rs:79
+msgid ""
+"Schreibe Artikel in Markdown und veröffentliche sie direkt als native "
+"WordPress-Gutenberg-Blöcke - mit Live-Vorschau, KI-Unterstützung und allem, "
+"was ein Artikel sonst noch braucht."
+msgstr ""
+"Write articles in Markdown and publish them directly as native WordPress "
+"Gutenberg blocks - with live preview, AI assistance and everything else an "
+"article needs."
+
+#: src/firstrun.rs:91
+msgid ""
+"Zugangsdaten werden im Schlüsselbund gespeichert, nicht als Klartext. Ein "
+"Application Password legst du im WordPress-Backend unter Profil → "
+"Anwendungspasswörter an."
+msgstr ""
+"Credentials are stored in the keyring, not as plain text. You can create an "
+"Application Password in the WordPress dashboard under Profile → Application "
+"Passwords."
+
+#: src/firstrun.rs:97
+msgid "Verbindung testen und speichern"
+msgstr "Test and Save Connection"
+
+#: src/firstrun.rs:122
+msgid "Los geht's"
+msgstr "Get Started"
+
+#: src/firstrun.rs:127
+msgid "Bereit."
+msgstr "All set."
+
+#: src/firstrun.rs:128
+msgid "Die Verbindung lässt sich jederzeit in den Einstellungen ändern."
+msgstr "You can change the connection at any time in Preferences."
+
+#: src/firstrun.rs:146
+msgid "Überspringen"
+msgstr "Skip"
+
+#: src/firstrun.rs:155
+msgid "Willkommen"
+msgstr "Welcome"
+
+#: src/firstrun.rs:184
+msgid "Bitte Website-URL und Benutzername angeben."
+msgstr "Please enter the website URL and username."
+
+#: src/firstrun.rs:196
+msgid "Wird gespeichert und getestet …"
+msgstr "Saving and testing …"
+
+#: src/firstrun.rs:230
+msgid "Verbindung erfolgreich - gespeichert."
+msgstr "Connection successful - saved."
+
+#: src/firstrun.rs:232
+msgid "Verbindung erfolgreich, {n} Artikel gefunden - gespeichert."
+msgstr "Connection successful, articles found: {n} - saved."
+
+#: src/firstrun.rs:234
+msgid "Gespeichert, aber die Verbindung schlug fehl: {err}"
+msgstr "Saved, but the connection failed: {err}"
+
+#: src/firstrun.rs:241
+msgid "Interner Fehler: kein Ergebnis vom Verbindungstest."
+msgstr "Internal error: no result from the connection test."
+
 #: src/formatting.rs:51
 msgid "Ausschneiden (Strg+X)"
 msgstr "Cut (Ctrl+X)"
@@ -870,6 +1075,133 @@ msgstr "Cell 1"
 msgid "Zelle 2"
 msgstr "Cell 2"
 
+#: src/gallerydialog.rs:83 src/mediabrowser.rs:170
+msgid "Mediathek durchsuchen…"
+msgstr "Search media library…"
+
+#: src/gallerydialog.rs:102 src/mediabrowser.rs:188
+msgid "Mehr laden"
+msgstr "Load more"
+
+#: src/gallerydialog.rs:131
+msgid "Bilder im Raster anklicken, um sie zur Galerie hinzuzufügen."
+msgstr "Click images in the grid to add them to the gallery."
+
+#: src/gallerydialog.rs:140
+msgid "Spalten"
+msgstr "Columns"
+
+#: src/gallerydialog.rs:140
+msgid "0 = automatisch"
+msgstr "0 = automatic"
+
+#: src/gallerydialog.rs:141
+msgid "Quadratisch zuschneiden"
+msgstr "Crop to Square"
+
+#: src/gallerydialog.rs:142
+msgid "Verlinken zu"
+msgstr "Link To"
+
+#: src/gallerydialog.rs:142
+msgid "Nichts"
+msgstr "None"
+
+#: src/gallerydialog.rs:142
+msgid "Volles Bild"
+msgstr "Full Image"
+
+#: src/gallerydialog.rs:144
+msgid "Bildgröße"
+msgstr "Image Size"
+
+#: src/gallerydialog.rs:145
+msgid "Thumbnail"
+msgstr "Thumbnail"
+
+#: src/gallerydialog.rs:145 src/stats.rs:150
+msgid "Mittel"
+msgstr "Medium"
+
+#: src/gallerydialog.rs:145
+msgid "Groß"
+msgstr "Large"
+
+#: src/gallerydialog.rs:145
+msgid "Volle Größe"
+msgstr "Full Size"
+
+#: src/gallerydialog.rs:148 src/settings.rs:29 src/shortcuts.rs:31
+#: src/window.rs:285
+msgid "Einstellungen"
+msgstr "Preferences"
+
+#: src/gallerydialog.rs:155 src/gallerydialog.rs:186
+msgid "Galerie einfügen"
+msgstr "Insert Gallery"
+
+#: src/gallerydialog.rs:189 src/importer.rs:206 src/linkpicker.rs:61
+#: src/mediabrowser.rs:229 src/medialibrary.rs:76
+msgid ""
+"Keine WordPress-Verbindung eingerichtet - bitte zuerst in den Einstellungen "
+"konfigurieren."
+msgstr ""
+"No WordPress connection set up - please configure one in Settings first."
+
+#: src/gallerydialog.rs:348
+msgid "Noch keine Bilder ausgewählt"
+msgstr "No images selected yet"
+
+#: src/gallerydialog.rs:349
+msgid "1 Bild ausgewählt"
+msgstr "1 image selected"
+
+#: src/gallerydialog.rs:350
+msgid "{n} Bilder ausgewählt"
+msgstr "{n} images selected"
+
+#: src/gallerydialog.rs:373
+msgid "Nach oben verschieben"
+msgstr "Move Up"
+
+#: src/gallerydialog.rs:378
+msgid "Nach unten verschieben"
+msgstr "Move Down"
+
+#: src/gallerydialog.rs:382
+msgid "Aus der Galerie entfernen"
+msgstr "Remove from Gallery"
+
+#: src/gallerydialog.rs:389 src/mediabrowser.rs:340
+msgid "Alt-Text"
+msgstr "Alt text"
+
+#: src/gallerydialog.rs:390 src/imagealt.rs:464 src/imagealt.rs:511
+#: src/mediapanel.rs:649
+msgid "Bildunterschrift"
+msgstr "Caption"
+
+#: src/gallerydialog.rs:455 src/mediabrowser.rs:609
+msgid "Lade Mediathek …"
+msgstr "Loading media library …"
+
+#: src/gallerydialog.rs:488 src/medialibrary.rs:155
+msgid "Keine Bilder gefunden."
+msgstr "No images found."
+
+#: src/gallerydialog.rs:490
+msgid "1 Bild angezeigt."
+msgstr "Showing 1 image."
+
+#: src/gallerydialog.rs:492
+msgid "{n} Bilder angezeigt."
+msgstr "Showing {n} images."
+
+#: src/gallerydialog.rs:601 src/importer.rs:106 src/linkpicker.rs:128
+#: src/mediabrowser.rs:145 src/medialibrary.rs:168
+msgid "Interner Fehler: Lade-Thread hat kein Ergebnis geliefert."
+msgstr "Internal error: the load thread returned no result."
+
 #: src/imagealt.rs:65 src/preview.rs:357
 msgid "Bildbeschriftung bearbeiten…"
 msgstr "Edit Image Description…"
@@ -909,10 +1241,6 @@ msgstr "Generate AI Alt Text…"
 #: src/imagealt.rs:458
 msgid "Für Screenreader - wird im Artikel selbst nicht sichtbar angezeigt."
 msgstr "For screen readers - not shown visibly in the article itself."
-
-#: src/imagealt.rs:464 src/imagealt.rs:511 src/mediapanel.rs:649
-msgid "Bildunterschrift"
-msgstr "Caption"
 
 #: src/imagealt.rs:479
 msgid "KI-Bildunterschrift generieren…"
@@ -963,10 +1291,6 @@ msgstr "Processing …"
 msgid "Interner Fehler: Bildbearbeitungs-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the image-editing thread returned no result."
 
-#: src/importer.rs:106 src/linkpicker.rs:128 src/mediabrowser.rs:145
-msgid "Interner Fehler: Lade-Thread hat kein Ergebnis geliefert."
-msgstr "Internal error: the load thread returned no result."
-
 #: src/importer.rs:129
 msgid "Lade „{title}“ …"
 msgstr "Loading “{title}” …"
@@ -991,13 +1315,6 @@ msgstr "Posts"
 msgid "Seiten"
 msgstr "Pages"
 
-#: src/importer.rs:206 src/linkpicker.rs:61 src/mediabrowser.rs:229
-msgid ""
-"Keine WordPress-Verbindung eingerichtet - bitte zuerst in den Einstellungen "
-"konfigurieren."
-msgstr ""
-"No WordPress connection set up - please configure one in Settings first."
-
 #: src/importer.rs:256 src/linkpicker.rs:91
 msgid "Lade Artikel …"
 msgstr "Loading Articles …"
@@ -1015,7 +1332,7 @@ msgid "{n} Seiten gefunden. Zum Öffnen auswählen."
 msgstr "Found {n} pages. Select one to open it."
 
 #: src/importer.rs:297 src/linkpicker.rs:123 src/mediabrowser.rs:652
-#: src/properties.rs:298 src/properties.rs:520
+#: src/medialibrary.rs:163 src/properties.rs:298 src/properties.rs:520
 msgid "Fehler beim Laden: {err}"
 msgstr "Error loading: {err}"
 
@@ -1193,14 +1510,6 @@ msgstr "Video"
 msgid "Nach Medientyp filtern"
 msgstr "Filter by media type"
 
-#: src/mediabrowser.rs:170
-msgid "Mediathek durchsuchen…"
-msgstr "Search media library…"
-
-#: src/mediabrowser.rs:188
-msgid "Mehr laden"
-msgstr "Load more"
-
 #: src/mediabrowser.rs:222 src/shortcuts.rs:28 src/window.rs:280
 msgid "WordPress-Mediathek"
 msgstr "WordPress Media Library"
@@ -1212,10 +1521,6 @@ msgstr "No file selected"
 #: src/mediabrowser.rs:327
 msgid "Eine Datei im Raster auswählen, um ihre Details zu sehen."
 msgstr "Select a file in the grid to see its details."
-
-#: src/mediabrowser.rs:340
-msgid "Alt-Text"
-msgstr "Alt text"
 
 #: src/mediabrowser.rs:350
 msgid "In Artikel einfügen"
@@ -1277,10 +1582,6 @@ msgstr ""
 msgid "„{name}“ gelöscht."
 msgstr "Deleted “{name}”."
 
-#: src/mediabrowser.rs:609
-msgid "Lade Mediathek …"
-msgstr "Loading media library …"
-
 #: src/mediabrowser.rs:638
 msgid "Keine Medien gefunden."
 msgstr "No media found."
@@ -1292,6 +1593,22 @@ msgstr "Showing 1 file."
 #: src/mediabrowser.rs:642
 msgid "{n} Dateien angezeigt."
 msgstr "Showing {n} files."
+
+#: src/medialibrary.rs:42
+msgid "Bilder suchen…"
+msgstr "Search images…"
+
+#: src/medialibrary.rs:69
+msgid "Aus Mediathek wählen"
+msgstr "Choose from Media Library"
+
+#: src/medialibrary.rs:129
+msgid "Lade Bilder …"
+msgstr "Loading images …"
+
+#: src/medialibrary.rs:157
+msgid "{n} Bilder gefunden."
+msgstr "Images found: {n}."
 
 #: src/mediapanel.rs:42 src/shortcuts.rs:27
 msgid "Medienverwaltung"
@@ -1820,10 +2137,6 @@ msgstr "1 match"
 msgid "{n} Treffer"
 msgstr "{n} matches"
 
-#: src/settings.rs:29 src/shortcuts.rs:31 src/window.rs:285
-msgid "Einstellungen"
-msgstr "Preferences"
-
 #: src/shortcuts.rs:21
 msgid "Neuer Artikel"
 msgstr "New Article"
@@ -1916,10 +2229,6 @@ msgstr "Very Easy"
 msgid "Leicht"
 msgstr "Easy"
 
-#: src/stats.rs:150
-msgid "Mittel"
-msgstr "Medium"
-
 #: src/stats.rs:151
 msgid "Schwer"
 msgstr "Difficult"
@@ -1999,6 +2308,38 @@ msgstr "{words} words · ≈ {minutes} min reading time"
 #: src/statusbar.rs:57
 msgid "  —  Auswahl: {words} Wörter · ≈ {minutes} Min."
 msgstr "  —  Selection: {words} words · ≈ {minutes} min."
+
+#: src/statuscontrols.rs:31
+msgid "Typ"
+msgstr "Type"
+
+#: src/statuscontrols.rs:37
+msgid "Bereits mit WordPress verknüpft - nicht mehr änderbar"
+msgstr "Already linked to WordPress - can no longer be changed"
+
+#: src/statuscontrols.rs:61
+msgid "Status"
+msgstr "Status"
+
+#: src/statuscontrols.rs:67
+msgid "Veröffentlichungstermin (JJJJ-MM-TT HH:MM)"
+msgstr "Publish Date (YYYY-MM-DD HH:MM)"
+
+#: src/tagsuggest.rs:43
+msgid "Vorschläge generieren"
+msgstr "Generate Suggestions"
+
+#: src/tagsuggest.rs:55
+msgid "Noch keine Vorschläge - auf „Vorschläge generieren“ klicken."
+msgstr "No suggestions yet - click “Generate Suggestions”."
+
+#: src/tagsuggest.rs:79 src/tagsuggest.rs:86
+msgid "KI-Tags vorschlagen"
+msgstr "Suggest AI Tags"
+
+#: src/tagsuggest.rs:199
+msgid "Keine neuen Tag-Vorschläge gefunden."
+msgstr "No new tag suggestions found."
 
 #: src/taxonomy.rs:29
 msgid "Lade Kategorien & Tags …"
@@ -2227,23 +2568,3 @@ msgstr "No post ID in the response"
 #: src/wpclient.rs:885
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr "No term ID received for \"{name}\""
-
-#~ msgid "einem unbenannten Artikel"
-#~ msgstr "an untitled article"
-
-#~ msgid "Nicht gespeicherter Stand gefunden"
-#~ msgstr "Unsaved State Found"
-
-#~ msgid ""
-#~ "Von „{name}“ wurde ein nicht gespeicherter Stand gefunden - vermutlich "
-#~ "nach einem Absturz oder weil Blocksatz ohne zu speichern beendet wurde. "
-#~ "Wiederherstellen?"
-#~ msgstr ""
-#~ "An unsaved state was found for “{name}” - probably after a crash, or "
-#~ "because Blocksatz was closed without saving. Restore it?"
-
-#~ msgid "Verwerfen"
-#~ msgstr "Discard"
-
-#~ msgid "Wiederherstellen"
-#~ msgstr "Restore"

@@ -1,6 +1,6 @@
 # Umbenennung Blocksmith → Blocksatz
 
-Stand: 2026-10-01 · **im Code umgesetzt (v0.64.0)**, offen: GitHub-Repo, Projektordner, altes Flatpak
+Stand: 2026-10-01 · **abgeschlossen** (v0.64.0): Code, GitHub-Repo `linuxundich/blocksatz`, Projektordner `05_Projekte/blocksatz`, altes Flatpak samt Daten entfernt
 
 ## App-ID
 

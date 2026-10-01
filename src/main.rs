@@ -47,6 +47,7 @@ mod mediapanel;
 mod modelcheck;
 mod modelsettings;
 mod notify;
+mod postpane;
 mod preview;
 mod promptsettings;
 mod properties;
@@ -104,6 +105,8 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("win.ai-write", &["<Ctrl><Shift>g"]);
     app.set_accels_for_action("win.find", &["<Ctrl>f"]);
     app.set_accels_for_action("win.toggle-focus-mode", &["<Ctrl><Shift>f"]);
+    app.set_accels_for_action("win.toggle-preview", &["F9"]);
+    app.set_accels_for_action("win.properties", &["<Alt>Return"]);
     app.set_accels_for_action("win.show-help-overlay", &["<Ctrl>question"]);
 
     app.connect_activate(|app| {

@@ -283,6 +283,8 @@ impl MainAction {
                         _ => tr("Aktualisiert."),
                     };
                     window::show_toast(&this.ctx.toast_overlay, &message);
+                    // Status and media ids changed under the property fields.
+                    this.ctx.bump_generation();
                     this.ctx.notify_library(false);
                     this.ctx.notify_blog();
                     if this.preview_after_upload.replace(false) {
@@ -362,6 +364,7 @@ impl MainAction {
                         *this.ctx.frontmatter.borrow_mut() = imported.frontmatter;
                         this.ctx.preview_pane.set_article_header(&this.ctx.frontmatter.borrow());
                         worksave::flush(&this.ctx, true);
+                        this.ctx.bump_generation();
                         this.ctx.notify_library(false);
                         window::show_toast(&this.ctx.toast_overlay, &tr("Blog-Fassung geladen."));
                     }
@@ -449,7 +452,7 @@ impl MainAction {
 }
 
 /// The window subtitle: WordPress status plus what's pending.
-fn state_text(doc: &Document, state: PostState) -> String {
+pub(crate) fn state_text(doc: &Document, state: PostState) -> String {
     let status = match state.status {
         None => return tr("Nur lokal"),
         Some(PostStatus::Future) => match &doc.frontmatter.scheduled_at {

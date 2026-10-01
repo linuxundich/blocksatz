@@ -10,9 +10,9 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    blogposts, blogsync, importer, library, librarysidebar, mainaction, syncstate, worksave,
+    blogposts, blogsync, importer, library, librarysidebar, mainaction, postpane, syncstate, worksave,
     about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
-    mediabrowser, medialibrary, mediapanel, preview, properties, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
+    mediabrowser, medialibrary, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
 };
 
 const DEBOUNCE_MS: u64 = 250;
@@ -75,12 +75,19 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     // below, making it unreachable by resizing. Size to the visible tab
     // only instead.
     view_stack.set_hhomogeneous(false);
-    view_stack.add_titled_with_icon(&preview_pane.widget, Some("preview"), &tr("Vorschau"), "view-reveal-symbolic");
-    view_stack.add_titled_with_icon(&code_view.widget, Some("code"), &tr("Gutenberg-Code"), "text-x-generic-symbolic");
-    view_stack.add_titled_with_icon(&stats_view.widget, Some("stats"), &tr("Statistik"), "view-list-symbolic");
-    view_stack.add_titled_with_icon(&chat_view.widget, Some("chat"), &tr("Chat"), "chat-message-new-symbolic");
-    view_stack.add_titled_with_icon(&evaluate_view.widget, Some("evaluate"), &tr("Bewertung"), "edit-find-symbolic");
-    view_stack.add_titled_with_icon(&browser_view.widget, Some("browser"), &tr("Browser"), "web-browser-symbolic");
+    // The right-hand pane (`docs/gui-redesign.md`, 5.5): three views
+    // picked with one toggle group - Vorschau (rendered / Gutenberg code /
+    // web), Beitrag (status and properties, `postpane.rs`) and Assistent
+    // (chat / evaluation). One flat stack holds every page under its old
+    // name, so code that shows e.g. "chat" or "browser" keeps working; the
+    // toggle groups follow whatever page is visible.
+    view_stack.add_named(&preview_pane.widget, Some("preview"));
+    view_stack.add_named(&code_view.widget, Some("code"));
+    view_stack.add_named(&browser_view.widget, Some("browser"));
+    let post_slot = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).build();
+    view_stack.add_named(&post_slot, Some("post"));
+    view_stack.add_named(&chat_view.widget, Some("chat"));
+    view_stack.add_named(&evaluate_view.widget, Some("evaluate"));
     {
         // The active provider/model may have changed in Einstellungen since
         // the Chat tab was built (or since it was last shown), so refresh
@@ -92,51 +99,110 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
             }
         });
     }
-    // `Adw.InlineViewSwitcher` renders all tabs as one seamless linked pill
-    // (unlike `Adw.ViewSwitcher`, which only highlights the active tab and
-    // leaves the others as loose, ungrouped buttons). Held in a plain
-    // `Gtk.Box` with the exact same margins/spacing as `formatting::build`'s
-    // toolbar - not an `Adw.HeaderBar`, which carries its own themed
-    // background and height that never quite matched the editor's toolbar
-    // (and differently so across themes/styles) - so the two toolbar rows
-    // above each pane read as one consistent design regardless of theme.
-    let view_switcher = adw::InlineViewSwitcher::builder().stack(&view_stack).build();
-    let switcher_bar = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Horizontal)
-        .spacing(8)
-        .margin_top(6)
-        .margin_bottom(6)
-        .margin_start(6)
-        .margin_end(6)
-        .build();
-    switcher_bar.append(&view_switcher);
+
+    let toggle_group = |entries: &[(&str, String)]| {
+        let group = adw::ToggleGroup::new();
+        for (name, label) in entries {
+            group.add(adw::Toggle::builder().name(*name).label(label.as_str()).build());
+        }
+        group
+    };
+    let section_toggles = toggle_group(&[("preview", tr("Vorschau")), ("post", tr("Beitrag")), ("assistant", tr("Assistent"))]);
+    section_toggles.set_hexpand(true);
+    let preview_toggles = toggle_group(&[("preview", tr("Gerendert")), ("code", tr("Code")), ("browser", tr("Web"))]);
+    let assistant_toggles = toggle_group(&[("chat", tr("Chat")), ("evaluate", tr("Bewertung"))]);
+    for group in [&preview_toggles, &assistant_toggles] {
+        group.add_css_class("flat");
+        group.set_halign(gtk4::Align::Start);
+        group.set_hexpand(true);
+    }
 
     // Toggles the magazine-style article header (`preview::render_header`)
-    // above the rendered body - only relevant to the Vorschau tab, so only
-    // shown while it's the active one, same live-visibility trick the chat
-    // refresh above uses.
+    // above the rendered body - only shown while the rendered preview is.
     let header_toggle_button = gtk4::ToggleButton::builder()
         .icon_name("document-properties-symbolic")
         .tooltip_text(tr("Artikel-Kopf in der Vorschau ein-/ausblenden"))
         .active(preview_pane.show_article_header())
-        .visible(view_stack.visible_child_name().as_deref() == Some("preview"))
         .build();
+    header_toggle_button.add_css_class("flat");
     {
         let preview_pane = preview_pane.clone();
         header_toggle_button.connect_toggled(move |button| {
             preview_pane.set_show_article_header(button.is_active());
         });
     }
-    {
+
+    let section_bar = gtk4::Box::builder().margin_top(6).margin_bottom(6).margin_start(6).margin_end(6).build();
+    section_bar.append(&section_toggles);
+    let sub_bar = gtk4::Box::builder().spacing(6).margin_bottom(6).margin_start(6).margin_end(6).build();
+    sub_bar.append(&preview_toggles);
+    sub_bar.append(&assistant_toggles);
+    sub_bar.append(&header_toggle_button);
+
+    // Which page each section last showed, to return to it.
+    let last_preview_page = Rc::new(RefCell::new(String::from("preview")));
+    let last_assistant_page = Rc::new(RefCell::new(String::from("chat")));
+    let sync_toggles = {
+        let section_toggles = section_toggles.clone();
+        let preview_toggles = preview_toggles.clone();
+        let assistant_toggles = assistant_toggles.clone();
         let header_toggle_button = header_toggle_button.clone();
-        view_stack.connect_visible_child_name_notify(move |stack| {
-            header_toggle_button.set_visible(stack.visible_child_name().as_deref() == Some("preview"));
+        let sub_bar = sub_bar.clone();
+        let last_preview_page = last_preview_page.clone();
+        let last_assistant_page = last_assistant_page.clone();
+        move |page: &str| {
+            let section = match page {
+                "post" => "post",
+                "chat" | "evaluate" => "assistant",
+                _ => "preview",
+            };
+            section_toggles.set_active_name(Some(section));
+            preview_toggles.set_visible(section == "preview");
+            assistant_toggles.set_visible(section == "assistant");
+            sub_bar.set_visible(section != "post");
+            header_toggle_button.set_visible(page == "preview");
+            match section {
+                "preview" => {
+                    preview_toggles.set_active_name(Some(page));
+                    *last_preview_page.borrow_mut() = page.to_string();
+                }
+                "assistant" => {
+                    assistant_toggles.set_active_name(Some(page));
+                    *last_assistant_page.borrow_mut() = page.to_string();
+                }
+                _ => {}
+            }
+        }
+    };
+    sync_toggles("preview");
+    view_stack.connect_visible_child_name_notify(move |stack| {
+        if let Some(page) = stack.visible_child_name() {
+            sync_toggles(&page);
+        }
+    });
+    {
+        let view_stack = view_stack.clone();
+        section_toggles.connect_active_name_notify(move |group| {
+            let page = match group.active_name().as_deref() {
+                Some("post") => "post".to_string(),
+                Some("assistant") => last_assistant_page.borrow().clone(),
+                _ => last_preview_page.borrow().clone(),
+            };
+            view_stack.set_visible_child_name(&page);
         });
     }
-    switcher_bar.append(&header_toggle_button);
+    for group in [&preview_toggles, &assistant_toggles] {
+        let view_stack = view_stack.clone();
+        group.connect_active_name_notify(move |group| {
+            if let Some(page) = group.active_name().filter(|_| group.is_visible()) {
+                view_stack.set_visible_child_name(&page);
+            }
+        });
+    }
 
     let right_pane = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).build();
-    right_pane.append(&switcher_bar);
+    right_pane.append(&section_bar);
+    right_pane.append(&sub_bar);
     right_pane.append(&gtk4::Separator::new(gtk4::Orientation::Horizontal));
     right_pane.append(&view_stack);
     view_stack.set_vexpand(true);
@@ -165,11 +231,30 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         // width small enough for the shrinking to look cramped.
         .shrink_start_child(true)
         .shrink_end_child(true)
-        // Half of whatever width the window is about to open at (restored
-        // or default, see `saved_window_state` above) - not a fixed pixel
-        // value, so the 50/50 split holds regardless of the actual size.
-        .position(saved_window_state.width / 2)
         .build();
+    // Keeps the split as a ratio - 50/50 to start, then whatever the user
+    // drags it to - and reapplies it whenever the space the Paned gets
+    // changes (window resized, library sidebar shown or hidden), instead
+    // of a pixel position that only fits the width it was computed for.
+    let split_ratio = Rc::new(Cell::new(saved_window_state.split_ratio));
+    {
+        let ratio = split_ratio.clone();
+        let applying = Rc::new(Cell::new(false));
+        {
+            let ratio = ratio.clone();
+            let applying = applying.clone();
+            wide_paned.connect_max_position_notify(move |paned| {
+                applying.set(true);
+                paned.set_position((f64::from(paned.max_position()) * ratio.get()).round() as i32);
+                applying.set(false);
+            });
+        }
+        wide_paned.connect_position_notify(move |paned| {
+            if !applying.get() && paned.max_position() > 0 {
+                ratio.set((f64::from(paned.position()) / f64::from(paned.max_position())).clamp(0.15, 0.85));
+            }
+        });
+    }
     let wide_layout = adw::Layout::new(&wide_paned);
     wide_layout.set_name(Some("wide"));
 
@@ -246,13 +331,6 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     sidebar_toggle_button.set_tooltip_text(Some(&tr("Seitenleiste ein-/ausblenden")));
     sidebar_toggle_button.set_action_name(Some("win.toggle-sidebar"));
 
-    let properties_button = gtk4::Button::from_icon_name("document-properties-symbolic");
-    properties_button.set_tooltip_text(Some(&tr("Artikel-Eigenschaften")));
-    properties_button.set_action_name(Some("win.properties"));
-
-    let media_button = gtk4::Button::from_icon_name("image-x-generic-symbolic");
-    media_button.set_tooltip_text(Some(&tr("Medienverwaltung (Strg+Umschalt+M)")));
-    media_button.set_action_name(Some("win.media-manager"));
 
     // The primary menu, shown in the sidebar's header bar. The editing
     // entries move into the formatting toolbar in a later redesign phase.
@@ -268,7 +346,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     primary_menu.append_section(None, &app_section);
 
     let preview_toggle_button = gtk4::ToggleButton::builder().icon_name("sidebar-show-right-symbolic").active(true).build();
-    preview_toggle_button.set_tooltip_text(Some(&tr("Vorschau ein-/ausblenden")));
+    preview_toggle_button.set_tooltip_text(Some(&tr("Seitenbereich ein-/ausblenden (F9)")));
     preview_toggle_button.set_action_name(Some("win.toggle-preview"));
 
     // No matching "exit" button by design: entering hides the whole header
@@ -287,8 +365,6 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     header_bar.set_title_widget(Some(&title));
     header_bar.pack_start(&sidebar_toggle_button);
     header_bar.pack_end(&main_action_slot);
-    header_bar.pack_end(&properties_button);
-    header_bar.pack_end(&media_button);
     header_bar.pack_end(&preview_toggle_button);
     header_bar.pack_end(&focus_mode_toggle_button);
 
@@ -322,15 +398,28 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     window.add_breakpoint(sidebar_breakpoint);
     window.add_breakpoint(narrow_breakpoint);
 
-    window.connect_close_request(|window| {
-        let state = windowstate::WindowState {
-            width: window.width(),
-            height: window.height(),
-            maximized: window.is_maximized(),
-        };
-        let _ = windowstate::save(&state);
-        glib::Propagation::Proceed
-    });
+    {
+        let split_ratio = split_ratio.clone();
+        let split_view = split_view.clone();
+        let right_pane = right_pane.clone();
+        let view_stack = view_stack.clone();
+        let saved_sidebar = saved_window_state.sidebar_visible;
+        window.connect_close_request(move |window| {
+            let state = windowstate::WindowState {
+                width: window.width(),
+                height: window.height(),
+                maximized: window.is_maximized(),
+                split_ratio: split_ratio.get(),
+                // In overlay mode (narrow window) the sidebar is hidden by
+                // default; that says nothing about the wide-window choice.
+                sidebar_visible: if split_view.is_collapsed() { saved_sidebar } else { split_view.shows_sidebar() },
+                pane_visible: right_pane.is_visible(),
+                pane_page: view_stack.visible_child_name().map(|n| n.to_string()).unwrap_or_else(|| "preview".into()),
+            };
+            let _ = windowstate::save(&state);
+            glib::Propagation::Proceed
+        });
+    }
 
     // A `Gtk.Paned` gives its other child the full width once one side is
     // hidden (no stray empty gap or handle) - so collapsing the whole right
@@ -424,6 +513,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         library_listeners: Rc::new(RefCell::new(Vec::new())),
         remote: Rc::new(RefCell::new(HashMap::new())),
         blog_listeners: Rc::new(RefCell::new(Vec::new())),
+        doc_generation: Rc::new(Cell::new(0)),
     };
 
     wire_live_preview(&buffer, &preview_pane, &stats_view, &code_view, &frontmatter);
@@ -451,16 +541,27 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
             view_stack.set_visible_child_name("browser");
         })
     };
+    let post_pane = postpane::PostPane::new(&window, &doc_ctx, &term_caches, &stats_view.widget, open_url.clone());
+    post_slot.append(&post_pane.widget);
     let main_action = mainaction::MainAction::new(&window, &doc_ctx, open_url);
     main_action_slot.append(&main_action.button);
     toolbar_view.add_top_bar(&main_action.banner);
     // Everything else only holds weak references to it; the window keeps
     // it alive.
     window.connect_destroy(move |_| {
-        let _ = &main_action;
+        let _ = (&main_action, &post_pane);
     });
     blogsync::wire(&window, &doc_ctx);
-    wire_properties_action(&window, &buffer, &frontmatter, &term_caches, &current_path, &preview_pane);
+
+    // Restore the pane layout of the last session.
+    split_view.set_show_sidebar(saved_window_state.sidebar_visible);
+    if view_stack.child_by_name(&saved_window_state.pane_page).is_some() {
+        view_stack.set_visible_child_name(&saved_window_state.pane_page);
+    }
+    if !saved_window_state.pane_visible {
+        let _ = WidgetExt::activate_action(&window, "win.toggle-preview", None);
+    }
+    wire_properties_action(&window, &view_stack, &right_pane);
     wire_settings_action(&window, &buffer, ai_menu_handles, &preview_pane, &browser_view);
     wire_about_action(&window);
     wire_publish_action(&window, &buffer, &current_path, &frontmatter, &preview_pane, &view_stack, &browser_view, document_saver(&doc_ctx));
@@ -739,6 +840,7 @@ fn wire_new_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
             ctx.preview_pane.set_article_header(&ctx.frontmatter.borrow());
             *ctx.saved_text.borrow_mut() = String::new();
             *ctx.written.borrow_mut() = String::new();
+            ctx.bump_generation();
             ctx.notify_library(true);
         });
         window.add_action(&action);
@@ -894,6 +996,9 @@ pub(crate) struct DocContext {
     /// Called after something changed on the blog itself (an upload, a
     /// post trashed or restored) - the sidebar's counters reload.
     pub(crate) blog_listeners: Rc<RefCell<Vec<BlogListener>>>,
+    /// Bumped whenever the editor gets another article (or the same one
+    /// replaced wholesale), so views bound to the old one rebuild.
+    pub(crate) doc_generation: Rc<Cell<u64>>,
 }
 
 impl DocContext {
@@ -905,6 +1010,11 @@ impl DocContext {
         for listener in listeners {
             listener(structural);
         }
+    }
+
+    /// Marks that the editor now holds a different article.
+    pub(crate) fn bump_generation(&self) {
+        self.doc_generation.set(self.doc_generation.get() + 1);
     }
 
     pub(crate) fn notify_blog(&self) {
@@ -997,6 +1107,7 @@ pub(crate) fn open_document_at_path(path: PathBuf, ctx: &DocContext) {
             *ctx.current_path.borrow_mut() = Some(path);
             ctx.preview_pane.set_doc_dir(doc_dir);
             ctx.preview_pane.set_article_header(&ctx.frontmatter.borrow());
+            ctx.bump_generation();
             ctx.notify_library(true);
         }
         Err(err) => show_toast(&ctx.toast_overlay, &tr("Öffnen fehlgeschlagen: {err}").replace("{err}", &err.to_string())),
@@ -1039,27 +1150,20 @@ pub(crate) fn document_saver(ctx: &DocContext) -> export::DocumentSaver {
     })
 }
 
-fn wire_properties_action(
-    window: &adw::ApplicationWindow,
-    buffer: &sourceview5::Buffer,
-    frontmatter: &Rc<RefCell<Frontmatter>>,
-    term_caches: &termcache::TermCacheHandles,
-    current_path: &Rc<RefCell<Option<PathBuf>>>,
-    preview_pane: &Rc<preview::PreviewPane>,
-) {
+/// "Eigenschaften": the article's properties now live in the right-hand
+/// pane's "Beitrag" view (`postpane.rs`) - show the pane and that view.
+fn wire_properties_action(window: &adw::ApplicationWindow, view_stack: &adw::ViewStack, right_pane: &gtk4::Box) {
     let action = gio::SimpleAction::new("properties", None);
-    let buffer = buffer.clone();
-    let frontmatter = frontmatter.clone();
-    let term_caches = term_caches.clone();
-    let current_path = current_path.clone();
-    let preview_pane = preview_pane.clone();
+    let view_stack = view_stack.clone();
+    let right_pane = right_pane.clone();
     let window_weak = window.downgrade();
     action.connect_activate(move |_, _| {
-        if let Some(window) = window_weak.upgrade() {
-            let doc_dir = current_path.borrow().as_ref().and_then(|p| p.parent().map(Path::to_path_buf));
-            let body = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
-            properties::open(&window, body, frontmatter.clone(), term_caches.clone(), doc_dir, preview_pane.clone());
+        if !right_pane.is_visible() {
+            if let Some(window) = window_weak.upgrade() {
+                let _ = WidgetExt::activate_action(&window, "win.toggle-preview", None);
+            }
         }
+        view_stack.set_visible_child_name("post");
     });
     window.add_action(&action);
 }
@@ -1262,6 +1366,7 @@ fn wire_ai_writer_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
                 // yet - `worksave.rs` gives it a library folder next tick.
                 *ctx.saved_text.borrow_mut() = String::new();
                 *ctx.written.borrow_mut() = String::new();
+                ctx.bump_generation();
                 ctx.notify_library(true);
                 ctx.toast_overlay.add_toast(adw::Toast::new(&tr("KI-Entwurf als neues Dokument angelegt - bitte prüfen.")));
             }

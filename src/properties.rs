@@ -1,7 +1,8 @@
-//! "Artikel-Eigenschaften" dialog: edits the document's frontmatter
-//! (title/slug/status/categories/tags/featured image) in place. Changes are
-//! synced live into the shared `Frontmatter` cell as the user types, mirroring
-//! how GNOME preferences dialogs apply immediately without an OK button.
+//! The article's properties (title, slug, status, categories, tags,
+//! featured image, SEO) as preference groups for the "Beitrag" view of the
+//! right-hand pane (`postpane.rs`) - formerly the "Artikel-Eigenschaften"
+//! dialog. Changes are synced live into the shared `Frontmatter` cell as
+//! the user types, the way GNOME preferences apply without an OK button.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -15,7 +16,7 @@ use gtk4::{gio, glib};
 
 use crate::document::{self, parse_list, Frontmatter, PostType};
 use crate::i18n::tr;
-use crate::{aialt, autocomplete, media, preview, secrets, statuscontrols, tagsuggest, taxonomy, termcache, wpclient, wpsite};
+use crate::{aialt, autocomplete, media, secrets, statuscontrols, tagsuggest, taxonomy, termcache, wpclient, wpsite};
 
 /// Shows/hides an alt-text-length warning icon and sets its tooltip from
 /// `media::alt_text_length_warning` - same non-blocking hint as
@@ -135,29 +136,6 @@ fn refresh_tags_status(row: &adw::PreferencesRow, flow_box: &gtk4::FlowBox, tags
     }
 }
 
-/// Wraps `group` in the same margin/clamp/scroller shell every tab of this
-/// dialog uses - a `ScrolledWindow` so an unusually tall tab (a long list
-/// of autocomplete suggestions, a narrow window) still degrades to
-/// scrolling instead of clipping, even though the whole point of splitting
-/// into tabs is that this normally isn't needed.
-fn tab_page(group: &adw::PreferencesGroup) -> gtk4::Widget {
-    let content = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Vertical)
-        .margin_top(18)
-        .margin_bottom(18)
-        .margin_start(18)
-        .margin_end(18)
-        .build();
-    content.append(group);
-    // Matches `dialog`'s own `content_width` below - widened together with
-    // it from the original 480 once five tabs' full labels ("Veröffentlichung",
-    // "Kategorien & Tags", ...) no longer fit the switcher at that width and
-    // started truncating with an ellipsis (a GNOME HIG violation on its
-    // own: a tab whose label you can't actually read).
-    let clamp = adw::Clamp::builder().maximum_size(600).child(&content).build();
-    gtk4::ScrolledWindow::builder().child(&clamp).vexpand(true).build().upcast()
-}
-
 /// A genuine multi-line text box for a field that regularly holds a full
 /// sentence rather than a couple of words ("Auszug / Meta-Beschreibung",
 /// "SEO-Beschreibung") - `Adw.EntryRow` is strictly single-line and just
@@ -213,14 +191,15 @@ fn build_textarea_row(title: &str, initial_text: &str) -> (adw::PreferencesRow, 
     (row, text_view)
 }
 
-pub fn open(
+/// Builds the property groups for the open article, bound to
+/// `frontmatter`. Rebuilt whenever another article is opened.
+pub fn build(
     parent: &adw::ApplicationWindow,
     body: String,
     frontmatter: Rc<RefCell<Frontmatter>>,
     term_caches: termcache::TermCacheHandles,
     doc_dir: Option<PathBuf>,
-    preview_pane: Rc<preview::PreviewPane>,
-) {
+) -> gtk4::Widget {
     let termcache::TermCacheHandles { categories: category_terms, tags: tag_terms, category_slugs } = term_caches;
     let site = wpsite::load();
     let current = frontmatter.borrow().clone();
@@ -664,7 +643,7 @@ pub fn open(
     let taxonomy_header_suffix = gtk4::Box::new(gtk4::Orientation::Horizontal, 6);
     taxonomy_header_suffix.append(&manage_terms_button);
     taxonomy_header_suffix.append(&refresh_button);
-    let taxonomy_group = adw::PreferencesGroup::builder().title(tr("Kategorien & Tags")).build();
+    let taxonomy_group = adw::PreferencesGroup::builder().title(glib::markup_escape_text(&tr("Kategorien & Tags")).as_str()).build();
     taxonomy_group.set_header_suffix(Some(&taxonomy_header_suffix));
     taxonomy_group.add(&categories_row);
     taxonomy_group.add(&tags_row);
@@ -690,52 +669,14 @@ pub fn open(
     seo_group.add(&seo_description_row);
     seo_group.add(&focus_keyword_row);
 
-    let view_stack = adw::ViewStack::new();
-    view_stack.add_titled_with_icon(&tab_page(&general_group), Some("general"), &tr("Allgemein"), "document-properties-symbolic");
-    view_stack.add_titled_with_icon(&tab_page(&publishing_group), Some("publishing"), &tr("Veröffentlichung"), "send-symbolic");
-    let taxonomy_page = view_stack.add_titled_with_icon(&tab_page(&taxonomy_group), Some("taxonomy"), &tr("Kategorien & Tags"), "tag-symbolic");
-    // Pages have no categories/tags (see `PostType`), so the whole tab is
+    // Pages have no categories/tags (see `PostType`), so the group is
     // hidden for one rather than offering fields export would ignore.
-    taxonomy_page.set_visible(current.post_type == PostType::Post);
-    view_stack.add_titled_with_icon(&tab_page(&image_group), Some("image"), &tr("Bild"), "image-x-generic-symbolic");
-    view_stack.add_titled_with_icon(&tab_page(&seo_group), Some("seo"), &tr("SEO"), "edit-find-symbolic");
-    view_stack.set_vexpand(true);
-
-    // A plain `Gtk.Box` row below the header bar, not `header`'s own
-    // title widget - the same reasoning `window.rs`'s own
-    // `Adw.InlineViewSwitcher` already follows: it's a seamless linked
-    // pill, not the loose per-tab buttons `Adw.HeaderBar` centers via
-    // `Adw.ViewSwitcher`, so nesting it as the header's title widget left
-    // it flush against the header's own start edge instead of properly
-    // centered - it needs its own row to center itself in. `header` is
-    // left with no custom title widget, so it shows the dialog's own
-    // `.title()` centered instead, same as `export.rs`'s wizard dialog.
-    let view_switcher = adw::InlineViewSwitcher::builder().stack(&view_stack).build();
-    let switcher_bar = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Horizontal)
-        .halign(gtk4::Align::Center)
-        .margin_top(6)
-        .margin_bottom(6)
-        .build();
-    switcher_bar.append(&view_switcher);
-
-    // No extra `Gtk.Separator` below `switcher_bar` - `Adw.ToolbarView`
-    // already draws its own border under the top-bar stack once the
-    // content below can scroll, so adding one here just doubled it up
-    // into two thin lines stacked right on top of each other.
-    let header = adw::HeaderBar::new();
-    let toolbar_view = adw::ToolbarView::new();
-    toolbar_view.add_top_bar(&header);
-    toolbar_view.add_top_bar(&switcher_bar);
-    toolbar_view.set_content(Some(&view_stack));
-
-    // 600, not the original 480 - see `tab_page`'s own comment on why.
-    let dialog = adw::Dialog::builder()
-        .title(tr("Artikel-Eigenschaften"))
-        .content_width(600)
-        .content_height(560)
-        .child(&toolbar_view)
-        .build();
+    taxonomy_group.set_visible(current.post_type == PostType::Post);
+    let content = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(24).build();
+    for group in [&general_group, &publishing_group, &taxonomy_group, &image_group, &seo_group] {
+        group.set_vexpand(false);
+        content.append(group);
+    }
 
     {
         let frontmatter = frontmatter.clone();
@@ -902,7 +843,7 @@ pub fn open(
         let parent_row = parent_row.clone();
         type_row.connect_selected_notify(move |row| {
             if let Some(post_type) = PostType::ALL.get(row.selected() as usize) {
-                taxonomy_page.set_visible(*post_type == PostType::Post);
+                taxonomy_group.set_visible(*post_type == PostType::Post);
                 parent_row.set_visible(*post_type == PostType::Page);
             }
         });
@@ -910,16 +851,7 @@ pub fn open(
 
     refresh_url_length_row(&url_length_row, &url_length_icon, &site.url, &frontmatter, &category_slugs);
 
-    // The preview's magazine-style header shows exactly these fields, but
-    // isn't refreshed live on every keystroke here (unlike this dialog's
-    // own rows, which all write straight into the shared `Frontmatter`) -
-    // deferred to close, matching `imagealt.rs`'s own "write back on
-    // `connect_closed`, not per keystroke" reasoning for its dialog.
-    dialog.connect_closed(move |_| {
-        preview_pane.set_article_header(&frontmatter.borrow());
-    });
-
-    dialog.present(Some(parent));
+    content.upcast()
 }
 
 #[cfg(test)]

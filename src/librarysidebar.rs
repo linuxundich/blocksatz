@@ -65,6 +65,8 @@ impl LibrarySidebar {
             .map(|filter| {
                 let item = adw::SidebarItem::new(&filter.title());
                 item.set_icon_name(Some(filter.icon_name()));
+                // Shown once the counters say there's something in it.
+                item.set_visible(*filter != BlogFilter::Pending);
                 blog.append(item.clone());
                 (*filter, item)
             })

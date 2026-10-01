@@ -248,18 +248,11 @@ impl StatsView {
         list.append(&vgwort_row);
         list.append(&readability_row);
 
-        let clamp = adw::Clamp::builder().maximum_size(420).child(&list).build();
-        let scroller = gtk4::ScrolledWindow::builder()
-            .child(&clamp)
-            .hexpand(true)
-            .vexpand(true)
-            .margin_top(18)
-            .margin_start(12)
-            .margin_end(12)
-            .build();
-
+        // A plain boxed list: it sits inside the scrolled "Beitrag" view
+        // of the right-hand pane (`postpane.rs`), which brings its own
+        // scrolling and margins.
         Self {
-            widget: scroller.upcast(),
+            widget: list.upcast(),
             words,
             chars_with_spaces,
             chars_without_spaces,

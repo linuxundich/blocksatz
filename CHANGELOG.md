@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Right-hand pane in three views** (GUI redesign, phase 4): an
+  `AdwToggleGroup` "Vorschau | Beitrag | Assistent" replaces the six tabs.
+  Vorschau switches between the rendered preview, the Gutenberg code and
+  the web view; Assistent between chat and evaluation.
+- **"Beitrag" view instead of the properties dialog**: a status card
+  (state, last sync, buttons for the blog preview and wp-admin), all the
+  former "Artikel-Eigenschaften" fields as preference groups, the media
+  manager entry and the statistics - next to the editor, not modal. The
+  fields are rebuilt only when another article is loaded, so typing in
+  them is never interrupted. The Eigenschaften and Medien buttons leave
+  the header bar; Alt+Enter shows the view, F9 toggles the pane.
+- The editor/pane split is kept as a ratio (50/50 to start) instead of a
+  pixel position computed for the window width, so it also fits with the
+  library sidebar and after resizing.
+- **The window remembers its layout**: besides size and maximized state,
+  the split, whether the sidebar and the pane are shown and the pane's
+  last view are restored at the next start. (Its position can't be:
+  under Wayland the compositor places windows.)
+
 - **State-dependent main action** (GUI redesign, phase 3): the editor's
   header bar ends in one `AdwSplitButton` that names what it does for the
   open article - "Als Entwurf hochladen" (only local), "Entwurf

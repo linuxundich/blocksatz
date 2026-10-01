@@ -34,7 +34,7 @@ blocks. Implemented so far:
     for the open article: "Als Entwurf hochladen" (the first upload is
     always a draft), "Entwurf aktualisieren", "Veröffentlichen …",
     "Änderungen veröffentlichen …" - with submit for review, update and
-    preview, schedule, revert to draft and discard in its menu. The window
+    preview, compare, schedule, revert to draft and discard in its menu. The window
     title shows the article and its state ("Entwurf · nicht hochgeladen").
   - **Publishing goes through a release check**: title, excerpt, category,
     tags, featured image, alt texts, links, focus keyword, each with a way
@@ -42,6 +42,11 @@ blocks. Implemented so far:
   - A **sync check** (at start, when the window becomes active again, and
     on demand) notices posts changed or deleted on the blog; a banner then
     offers to load the blog's version, resolve a conflict or unlink.
+    **"Mit Blog-Fassung vergleichen"** shows a line diff of the working
+    copy against the blog's current version before deciding.
+  - A first upload interrupted by a dropped connection doesn't create a
+    second post on the next try: Blocksatz first looks for the post it
+    may already have created.
   - **"Vorschau im Blog"** shows changes to a published post in the blog's
     theme without touching the live post (as a WordPress autosave).
   - **Several blogs**: Einstellungen → WordPress lists them (add, edit,

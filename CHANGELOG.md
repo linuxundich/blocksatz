@@ -20,124 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   copy always use the blog it belongs to (`wp_site`), so a post id never
   addresses the wrong blog. The settings move from `wordpress.conf` to
   `sites.conf`; an existing `wordpress.conf` is taken over automatically.
-
 - **"Mit Blog-Fassung vergleichen"**: a line diff of the working copy
   against the post as it is on the blog right now (lines only on the
   blog, lines only here), with "Blog-Fassung übernehmen" and - for a
   conflict - "Meine Fassung behalten". In the main action's menu for
   articles with local changes and as "Vergleichen …" in the conflict
   dialog.
+- `docs/gui-redesign.md`: the concept behind this release - analysis of
+  comparable tools, workflow, state model, window layout - plus where the
+  implementation deviates from it and what's still open.
 
 ### Changed
-
-- **"Vorschau" is "Gerendert | Code | Im Blog"**: "Im Blog" shows the open
-  article as the blog itself delivers it - the draft preview, the live
-  post, or for a published post with local changes their autosave
-  preview - loaded as soon as it's picked. The free browser became a view
-  of its own, "Vorschau | Beitrag | Assistent | Browser", for links from
-  the preview, the link checker and wp-admin; Einstellungen → Browser can
-  switch it off (links then open in the system browser).
-
-- GUI redesign, phase 6: keyboard shortcuts in an `AdwShortcutsDialog`
-  (Ctrl+?) instead of the deprecated `GtkShortcutsWindow`; builds against
-  GTK 4.22 API without deprecation warnings. The narrow single-pane layout
-  calls the right pane "Seitenbereich". README and
-  `docs/gui-redesign.md` describe the new workflow; the English
-  translation covers all 666 strings again.
-
-### Fixed
-
-- A first upload interrupted after WordPress had already created the post
-  (connection dropped before the answer arrived) no longer creates a
-  second post on the next try: the attempt is recorded in the working copy
-  beforehand (`wp_pending_create`), and the retry first looks for a post
-  with exactly that title created since.
-- The window opens maximized again when it was closed maximized: the
-  saved normal size no longer becomes the monitor's size (too large for a
-  smaller monitor), and the pane's last view (the chat asked for more
-  width than a maximized window has) is restored only once the window is
-  shown.
-
-- **Release check** (GUI redesign, phase 5): "Veröffentlichen …",
-  "Planen …", "Änderungen veröffentlichen …" and Ctrl+Shift+P open one
-  dialog that lists what to look at before going live - title (missing
-  blocks publishing), excerpt, category, tags, featured image and its alt
-  text, images without alt text, links, focus keyword - each with its
-  state and "Beheben" (opens the "Beitrag" view). Images and links open
-  as sub-pages with the media manager and the link checker. "Sofort /
-  Geplant" with the date sits below; only the final button uploads.
-  Replaces the export wizard (carousel) and the plain confirmation. The
-  permanent "Von WordPress löschen" went with the wizard; posts are only
-  ever moved to the trash now.
-- **"Vorschau im Blog" for published posts**: shows local changes in the
-  blog's own theme without touching the live post. The app's browser view
-  saves them as a WordPress autosave (a separate revision) with its own
-  wp-admin login and opens the preview link from that answer - the
-  preview nonce only works for the session that created it.
-
-- **Right-hand pane in three views** (GUI redesign, phase 4): an
-  `AdwToggleGroup` "Vorschau | Beitrag | Assistent" replaces the six tabs.
-  Vorschau switches between the rendered preview, the Gutenberg code and
-  the web view; Assistent between chat and evaluation.
-- **"Beitrag" view instead of the properties dialog**: a status card
-  (state, last sync, buttons for the blog preview and wp-admin), all the
-  former "Artikel-Eigenschaften" fields as preference groups, the media
-  manager entry and the statistics - next to the editor, not modal. The
-  fields are rebuilt only when another article is loaded, so typing in
-  them is never interrupted. The Eigenschaften and Medien buttons leave
-  the header bar; Alt+Enter shows the view, F9 toggles the pane.
-- The editor/pane split is kept as a ratio (50/50 to start) instead of a
-  pixel position computed for the window width, so it also fits with the
-  library sidebar and after resizing.
-- **The window remembers its layout**: besides size and maximized state,
-  the split, whether the sidebar and the pane are shown and the pane's
-  last view are restored at the next start. (Its position can't be:
-  under Wayland the compositor places windows.)
-
-- **State-dependent main action** (GUI redesign, phase 3): the editor's
-  header bar ends in one `AdwSplitButton` that names what it does for the
-  open article - "Als Entwurf hochladen" (only local), "Entwurf
-  aktualisieren" (draft with changes), "Veröffentlichen …" (draft in
-  sync), "Änderungen hochladen" (scheduled), "Änderungen veröffentlichen …"
-  (published with changes), or a plain "Im Blog ansehen" / "Blog-Vorschau
-  öffnen". Its menu holds the alternatives: submit for review, update and
-  open the preview, schedule, publish now, revert to draft, discard
-  changes, and the export wizard as "Vor Veröffentlichung prüfen …". The
-  first upload is always a draft; publishing asks first (the release
-  check of phase 5 will replace that confirmation). Replaces the
-  "Artikel exportieren" button.
-- An article without a frontmatter title takes its leading `# Heading`
-  as the post title on upload (as Ulysses and iA Writer do), instead of
-  being sent untitled with the heading as an extra H1 in the content.
-- The window title shows the article's title, its subtitle the state
-  ("Entwurf · nicht hochgeladen", "Veröffentlicht · Änderungen nicht
-  online", "Nur lokal" ...).
-- **Sync check with the blog** (`blogsync.rs`): at start, when the window
-  becomes active again (at most every two minutes) and from the sidebar's
-  refresh button, one request per post type fetches status,
-  `modified_gmt` and permalink of every working copy's post. A banner
-  below the header bar then reports a post changed on the server ("Blog-
-  Fassung laden"), changed on both sides ("Auflösen …": take the blog's
-  version or keep yours), deleted or trashed ("Verknüpfung lösen"), and
-  reminds that changes to a published post aren't online yet. The
-  sidebar's rows show the same states.
-
-- **New library sidebar** (GUI redesign, phase 2): the left sidebar is an
-  `AdwSidebar` with its own header bar (new article with a menu for page,
-  AI article and opening a file; search; primary menu). "In Arbeit" lists
-  the library's articles, most recently changed first, with the WordPress
-  status as subtitle and a paper-plane icon for changes not uploaded yet;
-  its context menu shows the folder or moves it to the trash. "Im Blog"
-  lists drafts, pending (only when there are any), scheduled, published,
-  pages and the trash with their counts. The footer names the connected
-  site. It replaces the old "Dokument"/"Durchsuchen" sidebar; publishing
-  goes through "Artikel exportieren" until the main action of phase 3.
-- **Blog archive page**: picking an "Im Blog" entry opens the group in the
-  content area - server-side search, 50 posts at a time with more loaded
-  while scrolling, rows marked when the post already has a working copy,
-  trash and restore buttons. Ctrl+Shift+O opens the drafts.
-- The header bar loses New and Save (both in the sidebar or automatic
-  now); the sidebar becomes an overlay below 860sp.
 
 - **Library instead of loose files** (GUI redesign, phase 1 - see
   `docs/gui-redesign.md`): articles live in `~/Dokumente/Blocksatz/`, one
@@ -158,10 +51,107 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `syncstate.rs` derives each article's state from these (only local,
   in sync, local changes, changed on the server, conflict, gone) for the
   library sidebar of the next phase.
-- Builds against libadwaita 1.9 (`v1_9`) and GTK 4.16 API levels.
+- **New library sidebar** (GUI redesign, phase 2): the left sidebar is an
+  `AdwSidebar` with its own header bar (new article with a menu for page,
+  AI article and opening a file; search; primary menu). "In Arbeit" lists
+  the library's articles, most recently changed first, with the WordPress
+  status as subtitle and a paper-plane icon for changes not uploaded yet;
+  its context menu shows the folder or moves it to the trash. "Im Blog"
+  lists drafts, pending (only when there are any), scheduled, published,
+  pages and the trash with their counts. The footer names the connected
+  site. It replaces the old "Dokument"/"Durchsuchen" sidebar.
+- **Blog archive page**: picking an "Im Blog" entry opens the group in the
+  content area - server-side search, 50 posts at a time with more loaded
+  while scrolling, rows marked when the post already has a working copy,
+  trash and restore buttons. Ctrl+Shift+O opens the drafts.
+- The header bar loses New and Save (both in the sidebar or automatic
+  now); the sidebar becomes an overlay below 860sp.
+- **State-dependent main action** (GUI redesign, phase 3): the editor's
+  header bar ends in one `AdwSplitButton` that names what it does for the
+  open article - "Als Entwurf hochladen" (only local), "Entwurf
+  aktualisieren" (draft with changes), "Veröffentlichen …" (draft in
+  sync), "Änderungen hochladen" (scheduled), "Änderungen veröffentlichen …"
+  (published with changes), or a plain "Im Blog ansehen" / "Blog-Vorschau
+  öffnen". Its menu holds the alternatives: submit for review, update and
+  open the preview, compare with the blog's version, schedule, publish
+  now, revert to draft, discard changes. The first upload is always a
+  draft; publishing goes through the release check. Replaces the
+  "Artikel exportieren" button.
+- An article without a frontmatter title takes its leading `# Heading`
+  as the post title on upload (as Ulysses and iA Writer do), instead of
+  being sent untitled with the heading as an extra H1 in the content.
+- The window title shows the article's title, its subtitle the state
+  ("Entwurf · nicht hochgeladen", "Veröffentlicht · Änderungen nicht
+  online", "Nur lokal" ...).
+- **Sync check with the blog** (`blogsync.rs`): at start, when the window
+  becomes active again (at most every two minutes) and from the sidebar's
+  refresh button, one request per post type fetches status,
+  `modified_gmt` and permalink of every working copy's post. A banner
+  below the header bar then reports a post changed on the server ("Blog-
+  Fassung laden"), changed on both sides ("Auflösen …": take the blog's
+  version or keep yours), deleted or trashed ("Verknüpfung lösen"), and
+  reminds that changes to a published post aren't online yet. The
+  sidebar's rows show the same states.
+- **Release check** (GUI redesign, phase 5): "Veröffentlichen …",
+  "Planen …", "Änderungen veröffentlichen …" and Ctrl+Shift+P open one
+  dialog that lists what to look at before going live - title (missing
+  blocks publishing), excerpt, category, tags, featured image and its alt
+  text, images without alt text, links, focus keyword - each with its
+  state and "Beheben" (opens the "Beitrag" view). Images and links open
+  as sub-pages with the media manager and the link checker. "Sofort /
+  Geplant" with the date sits below; only the final button uploads.
+  Replaces the export wizard (carousel). The
+  permanent "Von WordPress löschen" went with the wizard; posts are only
+  ever moved to the trash now.
+- **"Vorschau im Blog" for published posts**: shows local changes in the
+  blog's own theme without touching the live post. The app's browser view
+  saves them as a WordPress autosave (a separate revision) with its own
+  wp-admin login and opens the preview link from that answer - the
+  preview nonce only works for the session that created it.
+- **Right-hand pane in views** (GUI redesign, phase 4): an
+  `AdwToggleGroup` "Vorschau | Beitrag | Assistent | Browser" replaces the
+  six tabs; Assistent switches between chat and evaluation.
+- **"Beitrag" view instead of the properties dialog**: a status card
+  (state, last sync, buttons for the blog preview and wp-admin), all the
+  former "Artikel-Eigenschaften" fields as preference groups, the media
+  manager entry and the statistics - next to the editor, not modal. The
+  fields are rebuilt only when another article is loaded, so typing in
+  them is never interrupted. The Eigenschaften and Medien buttons leave
+  the header bar; Alt+Enter shows the view, F9 toggles the pane.
+- **"Vorschau" is "Gerendert | Code | Im Blog"**: "Im Blog" shows the open
+  article as the blog itself delivers it - the draft preview, the live
+  post, or for a published post with local changes their autosave
+  preview - loaded as soon as it's picked. The free browser became a view
+  of its own, "Vorschau | Beitrag | Assistent | Browser", for links from
+  the preview, the link checker and wp-admin; Einstellungen → Browser can
+  switch it off (links then open in the system browser).
+- The editor/pane split is kept as a ratio (50/50 to start) instead of a
+  pixel position computed for the window width, so it also fits with the
+  library sidebar and after resizing.
+- **The window remembers its layout**: besides size and maximized state,
+  the split, whether the sidebar and the pane are shown and the pane's
+  last view are restored at the next start. (Its position can't be:
+  under Wayland the compositor places windows.)
+- GUI redesign, phase 6: keyboard shortcuts in an `AdwShortcutsDialog`
+  (Ctrl+?) instead of the deprecated `GtkShortcutsWindow`; builds against
+  GTK 4.22 API without deprecation warnings. The narrow single-pane layout
+  calls the right pane "Seitenbereich". README and
+  `docs/gui-redesign.md` describe the new workflow; the English
+  translation covers all 683 strings again.
+- Builds against libadwaita 1.9 (`v1_9`) and GTK 4.22 (`v4_22`) API levels.
 
 ### Fixed
 
+- A first upload interrupted after WordPress had already created the post
+  (connection dropped before the answer arrived) no longer creates a
+  second post on the next try: the attempt is recorded in the working copy
+  beforehand (`wp_pending_create`), and the retry first looks for a post
+  with exactly that title created since.
+- The window opens maximized again when it was closed maximized: the
+  saved normal size no longer becomes the monitor's size (too large for a
+  smaller monitor), and the pane's last view (the chat asked for more
+  width than a maximized window has) is restored only once the window is
+  shown.
 - An existing draft can be published again: the export wizard only ever
   offered "Aktualisieren" (status unchanged) for posts that already exist
   on WordPress. The main action's "Veröffentlichen …" sends `publish`.
@@ -174,14 +164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the two can no longer disagree. This also fixes the export wizard
   showing "Veröffentlichen" after a first "Als Entwurf hochladen" (which
   then only updated the draft) and after deleting the post.
-- Ctrl+Shift+O ("Von WordPress öffnen" in the shortcuts window) works
-  again: it opens the sidebar on "Durchsuchen" → "WordPress". The action
-  behind it had disappeared when the dialog moved into the sidebar.
-
-### Added
-
-- `docs/gui-redesign.md`: concept for the next GUI (library sidebar with
-  `AdwSidebar`, state-dependent main action, release check, utility pane).
+- Ctrl+Shift+O works again (it now opens the blog's drafts in the
+  archive); the action behind it had disappeared in 0.61.
 
 ## [0.64.0] - 2026-10-01
 

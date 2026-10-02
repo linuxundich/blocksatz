@@ -3205,6 +3205,10 @@ msgstr "“Read more” marker"
 msgid "Werbeplatz"
 msgstr "Ad slot"
 
+#: src/preview.rs
+msgid "Wiedergabeliste – die Titel erzeugt das Blog"
+msgstr "Playlist – the blog renders its tracks"
+
 #~ msgid "Blog nicht erreichbar"
 #~ msgstr "Blog unreachable"
 

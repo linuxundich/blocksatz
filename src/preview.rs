@@ -727,6 +727,7 @@ pub fn render_html(markdown: &str, style: PreviewStyle, dark: bool, media: &[Med
     // The blog theme's color/gradient/font-size presets, for attribute
     // lines like `{bg=accent}` (see `themestyle`).
     let theme_css = crate::themestyle::current().preview_css();
+    let playlist_hint = tr("Wiedergabeliste – die Titel erzeugt das Blog").replace('"', "");
     // A user-picked font (if any) overrides just the two font properties,
     // applied after the style's own block so the cascade lets it win
     // while everything else the style defines (colors, indentation,
@@ -794,13 +795,41 @@ object.wp-block-file__embed {{ display: none; }}
 .wp-block-column {{ flex: 1; min-width: 0; }}
 .wp-block-buttons {{ display: flex; flex-wrap: wrap; gap: .5rem; }}
 .wp-block-button__link {{ display: inline-block; padding: .6rem 1.2rem; border: 2px solid currentColor; border-radius: 4px; text-decoration: none; color: inherit; }}
-.wp-block-gallery.has-nested-images {{ display: flex; flex-wrap: wrap; gap: 1rem; }}
-.wp-block-gallery.has-nested-images figure.wp-block-image {{ margin: 0; flex: 1 1 240px; }}
+.wp-block-gallery.has-nested-images {{ display: flex; flex-wrap: wrap; gap: 1rem; align-items: normal; }}
+.wp-block-gallery.has-nested-images figure.wp-block-image {{ margin: 0; flex-grow: 1; width: calc(33.33% - .67rem); box-sizing: border-box; display: flex; flex-direction: column; }}
+.wp-block-gallery.has-nested-images.columns-1 figure.wp-block-image {{ width: 100%; }}
+.wp-block-gallery.has-nested-images.columns-2 figure.wp-block-image {{ width: calc(50% - .5rem); }}
+.wp-block-gallery.has-nested-images.columns-4 figure.wp-block-image {{ width: calc(25% - .75rem); }}
+.wp-block-gallery.has-nested-images.columns-5 figure.wp-block-image {{ width: calc(20% - .8rem); }}
+.wp-block-gallery.has-nested-images.columns-6 figure.wp-block-image {{ width: calc(16.66% - .84rem); }}
+.wp-block-gallery.has-nested-images > figcaption {{ flex-basis: 100%; flex-grow: 1; text-align: center; }}
 .wp-block-gallery.has-nested-images figure.wp-block-image img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
 .wp-block-pullquote {{ text-align: center; margin: 2rem 0; padding: 1.5rem 0; border-top: 3px solid currentColor; border-bottom: 3px solid currentColor; }}
 .wp-block-pullquote blockquote {{ margin: 0; font-size: 1.5rem; font-style: italic; }}
 .wp-block-pullquote cite {{ display: block; margin-top: .75rem; font-size: 1rem; font-style: normal; }}
 .wp-block-details summary {{ cursor: pointer; font-weight: 600; }}
+/* Browsers indent a bare `<figure>` by 40px; WordPress's own CSS resets
+   that for every block (audio, video, embed, file, ...). */
+figure {{ margin: 0 0 1em; }}
+.wp-block-media-text {{ display: grid; grid-template-columns: 50% 1fr; align-items: center; margin: 1.5em 0; box-sizing: border-box; }}
+.wp-block-media-text.has-media-on-the-right {{ grid-template-columns: 1fr 50%; }}
+.wp-block-media-text > .wp-block-media-text__media {{ grid-column: 1; grid-row: 1; margin: 0; align-self: stretch; }}
+.wp-block-media-text > .wp-block-media-text__content {{ grid-column: 2; grid-row: 1; padding: 0 8%; }}
+.wp-block-media-text.has-media-on-the-right > .wp-block-media-text__media {{ grid-column: 2; }}
+.wp-block-media-text.has-media-on-the-right > .wp-block-media-text__content {{ grid-column: 1; }}
+.wp-block-media-text__media img, .wp-block-media-text__media .img-wrap {{ width: 100%; display: block; }}
+.wp-block-media-text.is-image-fill-element > .wp-block-media-text__media {{ position: relative; min-height: 250px; height: 100%; }}
+.wp-block-media-text.is-image-fill-element > .wp-block-media-text__media .img-wrap {{ position: absolute; inset: 0; }}
+.wp-block-media-text.is-image-fill-element > .wp-block-media-text__media img {{ width: 100%; height: 100%; object-fit: cover; }}
+.wp-block-media-text.is-vertically-aligned-top {{ align-items: start; }}
+.wp-block-media-text.is-vertically-aligned-bottom {{ align-items: end; }}
+.wp-block-file {{ display: flex; flex-wrap: wrap; align-items: center; gap: .75em; margin: 0 0 1em; }}
+.wp-block-file__button {{ display: inline-block; padding: .5em 1em; border-radius: 2em; background: #32373c; color: #fff !important; text-decoration: none; font-size: .8em; }}
+:root {{ --wp--preset--shadow--natural: 6px 6px 9px rgba(0,0,0,.2); --wp--preset--shadow--deep: 12px 12px 50px rgba(0,0,0,.4); --wp--preset--shadow--sharp: 6px 6px 0 rgba(0,0,0,.2); --wp--preset--shadow--outlined: 6px 6px 0 -3px #fff, 6px 6px #000; --wp--preset--shadow--crisp: 6px 6px 0 #000; }}
+:where(.has-border-color), :where([style*="border-width"]), :where([style*="border-top-width"]) {{ border-style: solid; }}
+.wp-block-image.has-custom-border img, .wp-block-image img.has-border-color {{ box-sizing: border-box; }}
+.wp-block-playlist {{ border: 1px dashed rgba(127,127,127,.4); border-radius: 8px; padding: 1em; text-align: center; }}
+.wp-block-playlist::before {{ content: "{playlist_hint}"; display: block; font-weight: 600; opacity: .75; }}
 table {{ border-collapse: collapse; }}
 th, td {{ border: 1px solid #ccc; padding: .4rem .6rem; }}
 /* What WordPress's own block CSS does for the attributes an attribute
@@ -1099,7 +1128,30 @@ fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String 
             out.push_str(&block.html);
         }
     }
-    wrap_images_with_badges(&rewrite_media_tags(&inject_group_flex_styles(&out)), media)
+    wrap_images_with_badges(&rewrite_media_tags(&embed_placeholders_in_kept_blocks(&inject_group_flex_styles(&out))), media)
+}
+
+/// A `wp:embed` kept as block markup (say, one with a caption) holds just
+/// its URL in `.wp-block-embed__wrapper` - shown as the same placeholder
+/// card a Markdown embed line gets, instead of a bare URL.
+fn embed_placeholders_in_kept_blocks(html: &str) -> String {
+    const MARKER: &str = "<div class=\"wp-block-embed__wrapper\">";
+    let mut out = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some(start) = rest.find(MARKER) {
+        let content_start = start + MARKER.len();
+        let Some(end_rel) = rest[content_start..].find("</div>") else { break };
+        let url = rest[content_start..content_start + end_rel].trim();
+        out.push_str(&rest[..content_start]);
+        if (url.starts_with("http://") || url.starts_with("https://")) && !url.contains('<') {
+            out.push_str(&render_embed_placeholder(url));
+        } else {
+            out.push_str(&rest[content_start..content_start + end_rel]);
+        }
+        rest = &rest[content_start + end_rel..];
+    }
+    out.push_str(rest);
+    out
 }
 
 /// The top-level blocks of one stretch of plain Markdown (`range` of the
@@ -1532,7 +1584,11 @@ fn wrap_images_with_badges(html: &str, media: &[MediaItem]) -> String {
         out.push_str(tag);
         out.push_str(&badges_html(&src, media));
         out.push_str("</span>");
-        if let Some(caption) = item.and_then(|item| item.caption.as_deref()).filter(|c| !c.is_empty()) {
+        // An image inside a `<figure>` (Gutenberg markup: an attributed
+        // image, a gallery, media & text, a kept block) already has its own
+        // `<figcaption>` - or deliberately none.
+        let in_figure = out.rfind("<figure").is_some_and(|open| out.rfind("</figure>").is_none_or(|close| close < open));
+        if let Some(caption) = item.filter(|_| !in_figure).and_then(|item| item.caption.as_deref()).filter(|c| !c.is_empty()) {
             out.push_str("<span class=\"img-caption\">");
             out.push_str(&glib::markup_escape_text(caption));
             out.push_str("</span>");
@@ -1725,6 +1781,16 @@ mod tests {
         assert!(out.contains("<span class=\"wp-block-accordion-heading__toggle-title\">Frage</span>"), "{out}");
         assert!(!out.contains(":::"), "{out}");
         assert!(out.contains("<div data-line=\"7\""), "{out}");
+    }
+
+    #[test]
+    fn kept_embed_shows_a_placeholder_and_figure_images_get_no_extra_caption() {
+        let markdown = "<!-- wp:embed {\"url\":\"https://vimeo.com/1\"} -->\n<figure class=\"wp-block-embed\"><div class=\"wp-block-embed__wrapper\">\nhttps://vimeo.com/1\n</div><figcaption class=\"wp-element-caption\">Vimeo</figcaption></figure>\n<!-- /wp:embed -->\n\n<!-- wp:image -->\n<figure class=\"wp-block-image\"><img src=\"cat.png\" alt=\"\"/></figure>\n<!-- /wp:image -->\n";
+        let mut item = media_item("cat.png", "cat.png", crate::media::AltText::Undefined, false);
+        item.caption = Some("Aus der Galerie".to_string());
+        let out = render_body_with_line_anchors(markdown, &[item]);
+        assert!(out.contains("embed-placeholder"), "{out}");
+        assert!(!out.contains("img-caption"), "{out}");
     }
 
     #[test]

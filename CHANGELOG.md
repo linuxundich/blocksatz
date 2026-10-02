@@ -183,6 +183,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Preview closer to the blog**: galleries keep their column count and
+  put their caption below; "Medien & Text" is two columns (media left or
+  right, image fill); audio/video/embeds/files are no longer indented;
+  the file block has its download button; a kept embed shows the
+  placeholder card instead of a bare URL; borders and theme shadows on
+  images show; floated images keep their distance to the text; a
+  playlist says that the blog renders its tracks; an image inside a
+  block no longer gets a second caption from the media list.
+
 - **Footnotes survive**: WordPress keeps footnote texts in the `footnotes`
   post meta, not in the content. Opening a post now keeps them
   (`wp_footnotes` in the frontmatter) and uploads send them back, so a

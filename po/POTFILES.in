@@ -37,6 +37,7 @@ src/medialibrary.rs
 src/mediapanel.rs
 src/media.rs
 src/modelsettings.rs
+src/nautilustemplate.rs
 src/postpane.rs
 src/preview.rs
 src/promptsettings.rs

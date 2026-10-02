@@ -225,12 +225,9 @@ that a GNOME/Flatpak-native app is expected to have? Checked against
   Blocksatz - a small D-Bus service on top of existing state, not a new
   subsystem, and the kind of integration that makes a GNOME app feel like
   it belongs on the desktop rather than being "a Linux port."
-- **A `~/Templates` entry for Nautilus's "New Document."** Nautilus's
-  right-click "New Document" submenu is populated straight from files
-  placed in `~/Templates`; shipping a `.md` template there (with the
-  standard frontmatter block already filled in) would let a new article
-  be started from the Files app directly, without opening Blocksatz
-  first.
+- ~~**A `~/Templates` entry for Nautilus's "New Document."**~~ Done (see
+  CHANGELOG.md, Unreleased) - "Blocksatz-Artikel.md" written once into the
+  XDG templates folder; the desktop entry passes files (`%F`).
 
 ### Larger / architectural
 

@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Blocksatz 0.65.0\n"
+"Project-Id-Version: Blocksatz 0.66.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-02 10:55+0200\n"
+"POT-Creation-Date: 2026-10-02 15:54+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1113,15 +1113,15 @@ msgid ""
 "sein."
 msgstr ""
 
-#: src/export.rs:768
+#: src/export.rs:770
 msgid "Bild nicht abrufbar: {err}"
 msgstr ""
 
-#: src/export.rs:772
+#: src/export.rs:774
 msgid "Bild nicht lesbar: {err}"
 msgstr ""
 
-#: src/export.rs:775 src/media.rs:469
+#: src/export.rs:777 src/media.rs:469
 msgid "Bild {path} nicht lesbar: {err}"
 msgstr ""
 
@@ -1977,7 +1977,7 @@ msgstr ""
 msgid "Shortcode"
 msgstr ""
 
-#: src/markdowncheck.rs:101 src/preview.rs:1450
+#: src/markdowncheck.rs:101 src/preview.rs:1457
 msgid "Abfrage-Loop"
 msgstr ""
 
@@ -2406,6 +2406,19 @@ msgid ""
 "Modelle, außer denen, die die Prüfung als gesperrt erkannt hat."
 msgstr ""
 
+#: src/nautilustemplate.rs:21 src/promptsettings.rs:221 src/properties.rs:313
+#: src/releasecheck.rs:58 src/releasecheck.rs:59
+msgid "Titel"
+msgstr ""
+
+#: src/nautilustemplate.rs:21
+msgid "Der erste Absatz."
+msgstr ""
+
+#: src/nautilustemplate.rs:30
+msgid "Blocksatz-Artikel"
+msgstr ""
+
 #: src/postpane.rs:78
 msgid "Medien"
 msgstr ""
@@ -2454,143 +2467,143 @@ msgstr ""
 msgid "Wiedergabeliste – die Titel erzeugt das Blog"
 msgstr ""
 
-#: src/preview.rs:1416
+#: src/preview.rs:1423
 msgid "Seitenumbruch"
 msgstr ""
 
-#: src/preview.rs:1448
+#: src/preview.rs:1455
 msgid "Neueste Beiträge"
 msgstr ""
 
-#: src/preview.rs:1449
+#: src/preview.rs:1456
 msgid "Neueste Kommentare"
 msgstr ""
 
-#: src/preview.rs:1451
+#: src/preview.rs:1458
 msgid "Archive"
 msgstr ""
 
-#: src/preview.rs:1452 src/taxonomy.rs:33
+#: src/preview.rs:1459 src/taxonomy.rs:33
 msgid "Kategorien"
 msgstr ""
 
-#: src/preview.rs:1453
+#: src/preview.rs:1460
 msgid "Schlagwörter-Wolke"
 msgstr ""
 
-#: src/preview.rs:1454
+#: src/preview.rs:1461
 msgid "Kalender"
 msgstr ""
 
-#: src/preview.rs:1455
+#: src/preview.rs:1462
 msgid "Suche"
 msgstr ""
 
-#: src/preview.rs:1456
+#: src/preview.rs:1463
 msgid "Seitenliste"
 msgstr ""
 
-#: src/preview.rs:1457
+#: src/preview.rs:1464
 msgid "Social-Media-Links"
 msgstr ""
 
-#: src/preview.rs:1458
+#: src/preview.rs:1465
 msgid "RSS-Feed"
 msgstr ""
 
-#: src/preview.rs:1459
+#: src/preview.rs:1466
 msgid "Synchronisiertes Muster"
 msgstr ""
 
-#: src/preview.rs:1460
+#: src/preview.rs:1467
 msgid "Inhaltsverzeichnis"
 msgstr ""
 
-#: src/preview.rs:1461
+#: src/preview.rs:1468
 msgid "Werbeplatz"
 msgstr ""
 
-#: src/preview.rs:1462
+#: src/preview.rs:1469
 msgid "Symbol"
 msgstr ""
 
-#: src/preview.rs:1463
+#: src/preview.rs:1470
 msgid "Anmelden/Abmelden"
 msgstr ""
 
-#: src/preview.rs:1464
+#: src/preview.rs:1471
 msgid "Lesezeit"
 msgstr ""
 
-#: src/preview.rs:1465 src/properties.rs:447
+#: src/preview.rs:1472 src/properties.rs:447
 msgid "Autor"
 msgstr ""
 
-#: src/preview.rs:1466
+#: src/preview.rs:1473
 msgid "Kategorien und Schlagwörter"
 msgstr ""
 
-#: src/preview.rs:1467
+#: src/preview.rs:1474
 msgid "Datum"
 msgstr ""
 
-#: src/preview.rs:1468
+#: src/preview.rs:1475
 msgid "Avatar"
 msgstr ""
 
-#: src/preview.rs:1469
+#: src/preview.rs:1476
 msgid "Brotkrümelnavigation"
 msgstr ""
 
-#: src/preview.rs:1470
+#: src/preview.rs:1477
 msgid "Navigation"
 msgstr ""
 
-#: src/preview.rs:1471 src/properties.rs:559
+#: src/preview.rs:1478 src/properties.rs:559
 msgid "Kommentare"
 msgstr ""
 
-#: src/preview.rs:1476 src/preview.rs:1514
+#: src/preview.rs:1483 src/preview.rs:1521
 msgid "{name} – wird vom Blog erzeugt"
 msgstr ""
 
-#: src/preview.rs:1513
+#: src/preview.rs:1520
 msgid "Shortcode [{name}]"
 msgstr ""
 
-#: src/preview.rs:1520
+#: src/preview.rs:1527
 msgid "Weiterlesen"
 msgstr ""
 
-#: src/preview.rs:1534
+#: src/preview.rs:1541
 msgid "Fußnoten"
 msgstr ""
 
-#: src/preview.rs:1549
+#: src/preview.rs:1556
 msgid "YouTube-Video"
 msgstr ""
 
-#: src/preview.rs:1550
+#: src/preview.rs:1557
 msgid "Vimeo-Video"
 msgstr ""
 
-#: src/preview.rs:1555
+#: src/preview.rs:1562
 msgid "Eingebetteter Inhalt"
 msgstr ""
 
-#: src/preview.rs:1753
+#: src/preview.rs:1760
 msgid "Bereits zu WordPress hochgeladen"
 msgstr ""
 
-#: src/preview.rs:1760 src/preview.rs:1761
+#: src/preview.rs:1767 src/preview.rs:1768
 msgid "Alt"
 msgstr ""
 
-#: src/preview.rs:1761
+#: src/preview.rs:1768
 msgid "Bewusst ohne Alternativtext (dekoratives Bild)"
 msgstr ""
 
-#: src/preview.rs:1765
+#: src/preview.rs:1772
 msgid "Bildformat"
 msgstr ""
 
@@ -2622,11 +2635,6 @@ msgstr ""
 
 #: src/promptsettings.rs:217 src/promptsettings.rs:240
 msgid "Neuer Prompt"
-msgstr ""
-
-#: src/promptsettings.rs:221 src/properties.rs:313 src/releasecheck.rs:58
-#: src/releasecheck.rs:59
-msgid "Titel"
 msgstr ""
 
 #: src/promptsettings.rs:286

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Blocksatz
 Comment=Markdown-Artikel schreiben und als WordPress-Gutenberg-Blöcke veröffentlichen
-Exec=blocksatz
+Exec=blocksatz %F
 Icon=de.linuxundich.Blocksatz
 Terminal=false
 Type=Application

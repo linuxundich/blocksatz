@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-02 10:55+0200\n"
+"POT-Creation-Date: 2026-10-02 15:54+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -1148,15 +1148,15 @@ msgid ""
 "sein."
 msgstr "A valid publish date must be set for the “Scheduled” status."
 
-#: src/export.rs:768
+#: src/export.rs:770
 msgid "Bild nicht abrufbar: {err}"
 msgstr "Couldn't fetch image: {err}"
 
-#: src/export.rs:772
+#: src/export.rs:774
 msgid "Bild nicht lesbar: {err}"
 msgstr "Couldn't read image: {err}"
 
-#: src/export.rs:775 src/media.rs:469
+#: src/export.rs:777 src/media.rs:469
 msgid "Bild {path} nicht lesbar: {err}"
 msgstr "Couldn't read image {path}: {err}"
 
@@ -2026,7 +2026,7 @@ msgstr "Classic content"
 msgid "Shortcode"
 msgstr "Shortcode"
 
-#: src/markdowncheck.rs:101 src/preview.rs:1450
+#: src/markdowncheck.rs:101 src/preview.rs:1457
 msgid "Abfrage-Loop"
 msgstr "Query loop"
 
@@ -2471,6 +2471,19 @@ msgstr ""
 "automatically - with a notice. All loaded models are offered, except those "
 "the check found blocked."
 
+#: src/nautilustemplate.rs:21 src/promptsettings.rs:221 src/properties.rs:313
+#: src/releasecheck.rs:58 src/releasecheck.rs:59
+msgid "Titel"
+msgstr "Title"
+
+#: src/nautilustemplate.rs:21
+msgid "Der erste Absatz."
+msgstr "The first paragraph."
+
+#: src/nautilustemplate.rs:30
+msgid "Blocksatz-Artikel"
+msgstr "Blocksatz Article"
+
 #: src/postpane.rs:78
 msgid "Medien"
 msgstr "Media"
@@ -2519,143 +2532,143 @@ msgstr "Edit Image…"
 msgid "Wiedergabeliste – die Titel erzeugt das Blog"
 msgstr "Playlist – the blog renders its tracks"
 
-#: src/preview.rs:1416
+#: src/preview.rs:1423
 msgid "Seitenumbruch"
 msgstr "Page break"
 
-#: src/preview.rs:1448
+#: src/preview.rs:1455
 msgid "Neueste Beiträge"
 msgstr "Latest posts"
 
-#: src/preview.rs:1449
+#: src/preview.rs:1456
 msgid "Neueste Kommentare"
 msgstr "Latest comments"
 
-#: src/preview.rs:1451
+#: src/preview.rs:1458
 msgid "Archive"
 msgstr "Archives"
 
-#: src/preview.rs:1452 src/taxonomy.rs:33
+#: src/preview.rs:1459 src/taxonomy.rs:33
 msgid "Kategorien"
 msgstr "Categories"
 
-#: src/preview.rs:1453
+#: src/preview.rs:1460
 msgid "Schlagwörter-Wolke"
 msgstr "Tag cloud"
 
-#: src/preview.rs:1454
+#: src/preview.rs:1461
 msgid "Kalender"
 msgstr "Calendar"
 
-#: src/preview.rs:1455
+#: src/preview.rs:1462
 msgid "Suche"
 msgstr "Search"
 
-#: src/preview.rs:1456
+#: src/preview.rs:1463
 msgid "Seitenliste"
 msgstr "Page list"
 
-#: src/preview.rs:1457
+#: src/preview.rs:1464
 msgid "Social-Media-Links"
 msgstr "Social links"
 
-#: src/preview.rs:1458
+#: src/preview.rs:1465
 msgid "RSS-Feed"
 msgstr "RSS feed"
 
-#: src/preview.rs:1459
+#: src/preview.rs:1466
 msgid "Synchronisiertes Muster"
 msgstr "Synced pattern"
 
-#: src/preview.rs:1460
+#: src/preview.rs:1467
 msgid "Inhaltsverzeichnis"
 msgstr "Table of contents"
 
-#: src/preview.rs:1461
+#: src/preview.rs:1468
 msgid "Werbeplatz"
 msgstr "Ad slot"
 
-#: src/preview.rs:1462
+#: src/preview.rs:1469
 msgid "Symbol"
 msgstr "Icon"
 
-#: src/preview.rs:1463
+#: src/preview.rs:1470
 msgid "Anmelden/Abmelden"
 msgstr "Log in/out"
 
-#: src/preview.rs:1464
+#: src/preview.rs:1471
 msgid "Lesezeit"
 msgstr "Reading time"
 
-#: src/preview.rs:1465 src/properties.rs:447
+#: src/preview.rs:1472 src/properties.rs:447
 msgid "Autor"
 msgstr "Author"
 
-#: src/preview.rs:1466
+#: src/preview.rs:1473
 msgid "Kategorien und Schlagwörter"
 msgstr "Categories and tags"
 
-#: src/preview.rs:1467
+#: src/preview.rs:1474
 msgid "Datum"
 msgstr "Date"
 
-#: src/preview.rs:1468
+#: src/preview.rs:1475
 msgid "Avatar"
 msgstr "Avatar"
 
-#: src/preview.rs:1469
+#: src/preview.rs:1476
 msgid "Brotkrümelnavigation"
 msgstr "Breadcrumbs"
 
-#: src/preview.rs:1470
+#: src/preview.rs:1477
 msgid "Navigation"
 msgstr "Navigation"
 
-#: src/preview.rs:1471 src/properties.rs:559
+#: src/preview.rs:1478 src/properties.rs:559
 msgid "Kommentare"
 msgstr "Comments"
 
-#: src/preview.rs:1476 src/preview.rs:1514
+#: src/preview.rs:1483 src/preview.rs:1521
 msgid "{name} – wird vom Blog erzeugt"
 msgstr "{name} – rendered by the blog"
 
-#: src/preview.rs:1513
+#: src/preview.rs:1520
 msgid "Shortcode [{name}]"
 msgstr "Shortcode [{name}]"
 
-#: src/preview.rs:1520
+#: src/preview.rs:1527
 msgid "Weiterlesen"
 msgstr "Read more"
 
-#: src/preview.rs:1534
+#: src/preview.rs:1541
 msgid "Fußnoten"
 msgstr "Footnotes"
 
-#: src/preview.rs:1549
+#: src/preview.rs:1556
 msgid "YouTube-Video"
 msgstr "YouTube video"
 
-#: src/preview.rs:1550
+#: src/preview.rs:1557
 msgid "Vimeo-Video"
 msgstr "Vimeo video"
 
-#: src/preview.rs:1555
+#: src/preview.rs:1562
 msgid "Eingebetteter Inhalt"
 msgstr "Embedded content"
 
-#: src/preview.rs:1753
+#: src/preview.rs:1760
 msgid "Bereits zu WordPress hochgeladen"
 msgstr "Already uploaded to WordPress"
 
-#: src/preview.rs:1760 src/preview.rs:1761
+#: src/preview.rs:1767 src/preview.rs:1768
 msgid "Alt"
 msgstr "Alt"
 
-#: src/preview.rs:1761
+#: src/preview.rs:1768
 msgid "Bewusst ohne Alternativtext (dekoratives Bild)"
 msgstr "Deliberately without alt text (decorative image)"
 
-#: src/preview.rs:1765
+#: src/preview.rs:1772
 msgid "Bildformat"
 msgstr "Image format"
 
@@ -2690,11 +2703,6 @@ msgstr "Add New Prompt"
 #: src/promptsettings.rs:217 src/promptsettings.rs:240
 msgid "Neuer Prompt"
 msgstr "New Prompt"
-
-#: src/promptsettings.rs:221 src/properties.rs:313 src/releasecheck.rs:58
-#: src/releasecheck.rs:59
-msgid "Titel"
-msgstr "Title"
 
 #: src/promptsettings.rs:286
 msgid "Diesen Prompt löschen"

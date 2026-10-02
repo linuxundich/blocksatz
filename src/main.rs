@@ -48,6 +48,7 @@ mod mediabrowser;
 mod medialibrary;
 mod mediapanel;
 mod modelcheck;
+mod nautilustemplate;
 mod modelsettings;
 mod notify;
 mod postpane;
@@ -113,6 +114,8 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("win.toggle-preview", &["F9"]);
     app.set_accels_for_action("win.properties", &["<Alt>Return"]);
     app.set_accels_for_action("win.shortcuts", &["<Ctrl>question"]);
+
+    app.connect_startup(|_| nautilustemplate::install_once());
 
     app.connect_activate(|app| {
         appearance::apply_saved_color_scheme();

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **New article from Nautilus**: Blocksatz puts a "Blocksatz-Artikel.md"
+  into the templates folder (`~/Vorlagen`) once, so "Neues Dokument" in
+  Nautilus offers it; a deleted template isn't recreated. The desktop
+  entry now passes files (`%F`), so double-clicking a Markdown file opens
+  it in Blocksatz. The Flatpak may write the templates folder.
+
 ## [0.66.0] - 2026-10-02
 
 ### Added

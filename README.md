@@ -510,8 +510,10 @@ GNOME Shell would otherwise show a blank tile. `build-aux/icons/make_preview.sh`
 renders `docs/icon-preview.png`; `docs/icon.md` explains the design.
 
 The sandbox sees the documents folder (`--filesystem=xdg-documents`,
-where the library `~/Dokumente/Blocksatz` lives) and nothing else of the
-home directory: other files arrive through the file chooser and drag and
+where the library `~/Dokumente/Blocksatz` lives) and the templates folder
+(`xdg-templates`: on the first launch Blocksatz puts a
+"Blocksatz-Artikel.md" there, so Nautilus offers it under "Neues
+Dokument") and nothing else of the home directory: other files arrive through the file chooser and drag and
 drop portals, and an image or video picked from elsewhere is copied into
 the article's folder, so an article stays self-contained.
 

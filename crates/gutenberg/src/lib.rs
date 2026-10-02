@@ -17,7 +17,7 @@ pub use attrs::BlockAttrs;
 pub use containers::Params as ContainerParams;
 pub use editing::{attrs_edit, block_at, BlockAtCursor};
 pub use fidelity::{first_difference, same_structure};
-pub use reverse::{gutenberg_to_markdown, render_gallery_fence};
+pub use reverse::{gutenberg_to_markdown, image_media_ids, render_gallery_fence};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Block {
@@ -182,6 +182,9 @@ pub struct GalleryImage {
     pub url: String,
     pub alt: String,
     pub caption: Option<String>,
+    /// The WordPress attachment id - like `Block::Image::media_id`, filled
+    /// in from `Frontmatter.media` right before rendering.
+    pub media_id: Option<u64>,
 }
 
 /// `wp:gallery`'s own attributes, plus each image's `sizeSlug` (WordPress
@@ -676,6 +679,7 @@ fn parse_gallery_images(text: &str) -> Vec<GalleryImage> {
                 alt: title.to_string(),
                 url: dest_url.to_string(),
                 caption: (!caption.is_empty()).then_some(caption),
+                media_id: None,
             });
             i = end + 1;
         } else {
@@ -1092,7 +1096,8 @@ fn render_gallery(images: &[GalleryImage], settings: &GallerySettings) -> String
     let inner = images
         .iter()
         .map(|img| {
-            let img_tag = format!("<img src=\"{}\" alt=\"{}\"/>", escape_html(&img.url), escape_html(&img.alt));
+            let img_class = img.media_id.map(|id| format!(" class=\"wp-image-{id}\"")).unwrap_or_default();
+            let img_tag = format!("<img src=\"{}\" alt=\"{}\"{img_class}/>", escape_html(&img.url), escape_html(&img.alt));
             // WordPress links each image to its own full-size file for
             // `linkTo:"media"` - this crate has no separate "full size" URL
             // of its own to link to instead, so the image's own `url` (the
@@ -1106,7 +1111,12 @@ fn render_gallery(images: &[GalleryImage], settings: &GallerySettings) -> String
                 .unwrap_or_default();
             wrap(
                 "image",
-                Some(format!("{{\"sizeSlug\":\"{}\",\"linkDestination\":\"{}\"}}", settings.size_slug, if settings.link_to == "media" { "media" } else { "none" })),
+                Some(format!(
+                    "{{{}\"sizeSlug\":\"{}\",\"linkDestination\":\"{}\"}}",
+                    img.media_id.map(|id| format!("\"id\":{id},")).unwrap_or_default(),
+                    settings.size_slug,
+                    if settings.link_to == "media" { "media" } else { "none" }
+                )),
                 &format!("<figure class=\"wp-block-image size-{}\">{linked_img}{figcaption}</figure>", settings.size_slug),
             )
         })
@@ -1163,7 +1173,7 @@ pub fn render_block(block: &Block) -> String {
         Block::Paragraph { html } => wrap("paragraph", None, &format!("<p>{html}</p>")),
         Block::Heading { level, html } => {
             let attrs = (*level != 2).then(|| format!("{{\"level\":{level}}}"));
-            wrap("heading", attrs, &format!("<h{level}>{html}</h{level}>"))
+            wrap("heading", attrs, &format!("<h{level} class=\"wp-block-heading\">{html}</h{level}>"))
         }
         Block::List { ordered, items } => render_list(*ordered, items),
         Block::BlockQuote { blocks } => {
@@ -1263,7 +1273,7 @@ mod tests {
     fn heading_level_two_has_no_attrs() {
         assert_eq!(
             markdown_to_gutenberg("## Title"),
-            "<!-- wp:heading -->\n<h2>Title</h2>\n<!-- /wp:heading -->"
+            "<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">Title</h2>\n<!-- /wp:heading -->"
         );
     }
 
@@ -1271,7 +1281,7 @@ mod tests {
     fn heading_level_three_carries_level_attr() {
         assert_eq!(
             markdown_to_gutenberg("### Sub"),
-            "<!-- wp:heading {\"level\":3} -->\n<h3>Sub</h3>\n<!-- /wp:heading -->"
+            "<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">Sub</h3>\n<!-- /wp:heading -->"
         );
     }
 
@@ -1583,7 +1593,7 @@ mod tests {
         let out = markdown_to_gutenberg("# Title\n\nSome text.\n");
         assert_eq!(
             out,
-            "<!-- wp:heading {\"level\":1} -->\n<h1>Title</h1>\n<!-- /wp:heading -->\n\n\
+            "<!-- wp:heading {\"level\":1} -->\n<h1 class=\"wp-block-heading\">Title</h1>\n<!-- /wp:heading -->\n\n\
              <!-- wp:paragraph -->\n<p>Some text.</p>\n<!-- /wp:paragraph -->"
         );
     }

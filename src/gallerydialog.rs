@@ -285,7 +285,7 @@ pub fn open(parent: &adw::ApplicationWindow, on_insert: OnInsertGallery) {
             };
             let images: Vec<gutenberg::GalleryImage> = selected
                 .iter()
-                .map(|sel| gutenberg::GalleryImage { url: sel.entry.source_url.clone(), alt: sel.alt.clone(), caption: (!sel.caption.trim().is_empty()).then(|| sel.caption.clone()) })
+                .map(|sel| gutenberg::GalleryImage { url: sel.entry.source_url.clone(), alt: sel.alt.clone(), caption: (!sel.caption.trim().is_empty()).then(|| sel.caption.clone()), media_id: Some(sel.entry.id) })
                 .collect();
             let media_refs: Vec<(u64, String, u64, u64)> = selected.iter().map(|sel| (sel.entry.id, sel.entry.source_url.clone(), sel.entry.width, sel.entry.height)).collect();
             let fenced = gutenberg::render_gallery_fence(&images, &settings);

@@ -255,7 +255,7 @@ fn build_bulk_upload_section(
                     Ok((media_result, content_hash)) => match target {
                         BulkTarget::Media(index) => {
                             let reference =
-                                media::WordPressMediaRef { media_id: media_result.id, url: media_result.source_url.clone(), content_hash: content_hash.unwrap_or_default(), width: media_result.width, height: media_result.height };
+                                media::WordPressMediaRef { media_id: media_result.id, url: media_result.source_url.clone(), content_hash: content_hash.unwrap_or_default(), width: media_result.width, height: media_result.height, size_slug: None };
                             if let Some(item) = frontmatter.borrow_mut().media.get_mut(index) {
                                 item.wordpress = Some(reference.clone());
                             }
@@ -731,7 +731,7 @@ fn build_row(
             let filename = filename.clone();
             glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
                 Ok(Ok((media_result, content_hash))) => {
-                    let reference = media::WordPressMediaRef { media_id: media_result.id, url: media_result.source_url.clone(), content_hash, width: media_result.width, height: media_result.height };
+                    let reference = media::WordPressMediaRef { media_id: media_result.id, url: media_result.source_url.clone(), content_hash, width: media_result.width, height: media_result.height, size_slug: None };
                     if let Some(item) = frontmatter.borrow_mut().media.get_mut(index) {
                         item.wordpress = Some(reference.clone());
                     }

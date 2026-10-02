@@ -1464,7 +1464,7 @@ fn insert_wordpress_image(buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell
     let mut fm = frontmatter.borrow_mut();
     fm.media = media::reconcile(&fm.media, &text);
     if let Some(media_item) = fm.media.iter_mut().find(|m| m.source == source_url) {
-        media_item.wordpress = Some(media::WordPressMediaRef { media_id, url: source_url.to_string(), content_hash: String::new(), width, height });
+        media_item.wordpress = Some(media::WordPressMediaRef { media_id, url: source_url.to_string(), content_hash: String::new(), width, height, size_slug: None });
         if !alt_text.trim().is_empty() {
             media_item.alt = media::AltText::Text(alt_text.to_string());
         }
@@ -1551,7 +1551,7 @@ fn wire_insert_gallery_action(window: &adw::ApplicationWindow, buffer: &sourcevi
             fm.media = media::reconcile(&fm.media, &text);
             for (media_id, url, width, height) in &media_refs {
                 if let Some(media_item) = fm.media.iter_mut().find(|m| &m.source == url) {
-                    media_item.wordpress = Some(media::WordPressMediaRef { media_id: *media_id, url: url.clone(), content_hash: String::new(), width: *width, height: *height });
+                    media_item.wordpress = Some(media::WordPressMediaRef { media_id: *media_id, url: url.clone(), content_hash: String::new(), width: *width, height: *height, size_slug: None });
                 }
             }
         });

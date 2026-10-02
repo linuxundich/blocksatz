@@ -17,6 +17,35 @@
 
 use crate::{fidelity, Block, BlockAttrs, ButtonItem, ColumnAlignment, GalleryImage, GallerySettings};
 
+/// Every `<img>` in a post's block markup that carries its attachment id
+/// (`class="wp-image-123"`): `(src, id)`. Markdown has no place for the
+/// id, so an opened post keeps it in `Frontmatter.media` instead - without
+/// it, the next upload would lose the class WordPress needs for `srcset`.
+/// The image size (`large`) comes from the surrounding figure's
+/// `size-large` class, when there is one.
+pub fn image_media_ids(html: &str) -> Vec<(String, u64, Option<String>)> {
+    let mut out: Vec<(String, u64, Option<String>)> = Vec::new();
+    let mut offset = 0;
+    while let Some(rel) = html[offset..].find("<img ") {
+        let start = offset + rel;
+        let Some(end) = html[start..].find('>') else { break };
+        let tag = &html[start..start + end];
+        offset = start + end;
+        let (Some(src), Some(class)) = (extract_attr(tag, "src"), extract_attr(tag, "class")) else { continue };
+        let id = class.split_whitespace().find_map(|c| c.strip_prefix("wp-image-")).and_then(|n| n.parse().ok());
+        let Some(id) = id else { continue };
+        let size = html[..start]
+            .rfind("<figure")
+            .and_then(|figure| extract_attr(&html[figure..start], "class"))
+            .and_then(|classes| classes.split_whitespace().find_map(|c| c.strip_prefix("size-").map(str::to_string)));
+        let src = unescape_entities(&src);
+        if !out.iter().any(|(s, _, _)| *s == src) {
+            out.push((src, id, size));
+        }
+    }
+    out
+}
+
 pub fn gutenberg_to_markdown(html: &str) -> String {
     render_markdown(&parse_blocks_in(html, true))
 }
@@ -471,7 +500,10 @@ fn parse_container(name: &str, json: &mut serde_json::Map<String, serde_json::Va
             if let Some(url) = take_json_string(json, "url") {
                 params.set("image", Some(url));
             }
-            json.remove("id");
+            if let Some(id) = json.get("id").and_then(|i| i.as_u64()) {
+                json.remove("id");
+                params.set("id", Some(id.to_string()));
+            }
             if take_json_true(json, "hasParallax") {
                 params.set("parallax", None);
             }
@@ -719,6 +751,7 @@ fn image_from_html(html: &str) -> GalleryImage {
         .map(|c| unescape_entities(c.trim()))
         .filter(|c| !c.is_empty());
     GalleryImage {
+        media_id: None,
         url: extract_attr(html, "src").unwrap_or_default(),
         alt: extract_attr(html, "alt").unwrap_or_default(),
         caption,

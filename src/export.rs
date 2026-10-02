@@ -586,9 +586,11 @@ fn count_image_sources(blocks: &[gutenberg::Block], counts: &mut std::collection
 /// instead of all getting the first one's.
 fn apply_media_metadata_with(blocks: &mut [gutenberg::Block], media: &[media::MediaItem], counts: &std::collections::HashMap<String, usize>) {
     for block in blocks.iter_mut() {
+        let mut size_slug = None;
         match block {
             gutenberg::Block::Image { url, alt, title, media_id, width, height } => {
                 if let Some(item) = media.iter().find(|item| &item.source == url) {
+                    size_slug = item.wordpress.as_ref().and_then(|wp| wp.size_slug.clone());
                     if counts.get(url.as_str()).copied().unwrap_or(0) <= 1 {
                         if let Some(text) = item.alt.as_wordpress_value() {
                             *alt = text.to_string();
@@ -614,9 +616,21 @@ fn apply_media_metadata_with(blocks: &mut [gutenberg::Block], media: &[media::Me
                 }
             }
             gutenberg::Block::Details { blocks, .. } => apply_media_metadata_with(blocks, media, counts),
+            gutenberg::Block::Gallery { images, .. } => {
+                for image in images.iter_mut() {
+                    if let Some(wp) = media.iter().find(|item| item.source == image.url).and_then(|item| item.wordpress.as_ref()) {
+                        image.media_id = Some(wp.media_id);
+                    }
+                }
+            }
             gutenberg::Block::Styled { block, .. } => apply_media_metadata_with(std::slice::from_mut(block.as_mut()), media, counts),
             gutenberg::Block::Container { blocks, .. } => apply_media_metadata_with(blocks, media, counts),
             _ => {}
+        }
+        // The image size the blog had (`sizeSlug`, `size-large`).
+        if let Some(size) = size_slug {
+            let image = std::mem::replace(block, gutenberg::Block::ThematicBreak);
+            *block = image.with_attrs(gutenberg::BlockAttrs { size_slug: Some(size), ..Default::default() });
         }
     }
 }
@@ -837,7 +851,7 @@ mod tests {
                 columns: vec![vec![gutenberg::Block::Image { url: "local-a.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0 }]],
             },
             gutenberg::Block::Gallery {
-                images: vec![gutenberg::GalleryImage { url: "local-b.png".to_string(), alt: String::new(), caption: None }],
+                images: vec![gutenberg::GalleryImage { url: "local-b.png".to_string(), alt: String::new(), caption: None, media_id: None }],
                 settings: gutenberg::GallerySettings::default(),
             },
         ];
@@ -927,7 +941,7 @@ mod tests {
             source: "cat.png".to_string(),
             alt: media::AltText::Undefined,
             caption: None,
-            wordpress: Some(media::WordPressMediaRef { media_id: 123, url: "https://example.com/cat.png".to_string(), content_hash: "abc".to_string(), width: 640, height: 480 }),
+            wordpress: Some(media::WordPressMediaRef { media_id: 123, url: "https://example.com/cat.png".to_string(), content_hash: "abc".to_string(), width: 640, height: 480, size_slug: None }),
             last_markdown_caption: None,
         }];
         let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0 }];

@@ -730,6 +730,7 @@ mod tests {
                 content_hash: "deadbeef".to_string(),
                 width: 1280,
                 height: 720,
+                size_slug: None,
             }),
             last_markdown_caption: None,
         };
@@ -981,6 +982,7 @@ mod tests {
                         content_hash: "deadbeef".to_string(),
                         width: 0,
                         height: 0,
+                        size_slug: None,
                     }),
                     last_markdown_caption: None,
                 }],

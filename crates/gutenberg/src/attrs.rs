@@ -59,6 +59,9 @@ pub struct BlockAttrs {
     /// `footer` / `footer=2` - how many of a table's last rows form its
     /// footer. Moved into `Block::Table` like `caption`.
     pub footer_rows: u32,
+    /// An image's size (`large`) - not Markdown syntax; set on upload from
+    /// what the blog had (`Frontmatter.media`), rendered as `sizeSlug`.
+    pub size_slug: Option<String>,
 }
 
 /// Blocks whose `align=` means text alignment rather than block alignment.
@@ -95,6 +98,7 @@ impl BlockAttrs {
         self.fixed_layout |= other.fixed_layout;
         self.caption = or(self.caption, other.caption);
         self.footer_rows = self.footer_rows.max(other.footer_rows);
+        self.size_slug = or(self.size_slug, other.size_slug);
         self
     }
 
@@ -305,6 +309,11 @@ impl BlockAttrs {
         if let Some(style) = &self.style {
             classes.push(format!("is-style-{style}"));
         }
+        if name == "image" {
+            if let Some(size) = &self.size_slug {
+                classes.push(format!("size-{size}"));
+            }
+        }
         classes.extend(self.classes.iter().cloned());
 
         let mut extra = Vec::new();
@@ -348,6 +357,10 @@ impl BlockAttrs {
         set("anchor", &self.anchor);
         if name == "image" {
             set("width", &self.width);
+            if let Some(size) = &self.size_slug {
+                json.insert("sizeSlug".to_string(), Value::String(size.clone()));
+                json.entry("linkDestination").or_insert_with(|| Value::String("none".to_string()));
+            }
         }
         if let Some(align) = &self.align {
             if aligns_text(name) {

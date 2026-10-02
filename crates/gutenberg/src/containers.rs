@@ -352,8 +352,12 @@ fn render_cover(params: &Params, blocks: &[Block]) -> String {
     let mut json = Map::new();
     let image = params.get("image");
     let parallax = params.flag("parallax");
+    let image_id = params.get("id").and_then(|id| id.parse::<u64>().ok());
     if let Some(image) = image {
         json.insert("url".into(), image.into());
+        if let Some(id) = image_id {
+            json.insert("id".into(), id.into());
+        }
         if parallax {
             json.insert("hasParallax".into(), true.into());
         }
@@ -395,9 +399,10 @@ fn render_cover(params: &Params, blocks: &[Block]) -> String {
         classes.push_str(" has-parallax");
     }
 
+    let id_class = image_id.map(|id| format!(" wp-image-{id}")).unwrap_or_default();
     let background = match image {
-        Some(url) if parallax => format!("<div class=\"wp-block-cover__image-background has-parallax\" style=\"background-position:50% 50%;background-image:url({})\"></div>", escape_html(url)),
-        Some(url) => format!("<img class=\"wp-block-cover__image-background\" alt=\"\" src=\"{}\" data-object-fit=\"cover\"/>", escape_html(url)),
+        Some(url) if parallax => format!("<div class=\"wp-block-cover__image-background{id_class} has-parallax\" style=\"background-position:50% 50%;background-image:url({})\"></div>", escape_html(url)),
+        Some(url) => format!("<img class=\"wp-block-cover__image-background{id_class}\" alt=\"\" src=\"{}\" data-object-fit=\"cover\"/>", escape_html(url)),
         None => String::new(),
     };
     let mut span_classes = String::from("wp-block-cover__background");

@@ -194,6 +194,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Uploading an opened post keeps its images' attachment ids**: images
+  of a post opened from the blog lost `wp-image-<id>` and `"id"` on the
+  next upload - WordPress then serves them without `srcset`, so mobile
+  visitors got the full-size files. The ids (and the image size,
+  `sizeSlug`) are now kept in the media list and written back, for body
+  images, gallery images (also those from the gallery dialog) and cover
+  backgrounds (`id=` in the cover's opening line). Headings carry
+  `wp-block-heading` again like WordPress's own markup (the theme styles
+  it).
+
 - **Preview closer to the blog**: galleries keep their column count and
   put their caption below; "Medien & Text" is two columns (media left or
   right, image fill); audio/video/embeds/files are no longer indented;

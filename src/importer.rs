@@ -83,6 +83,7 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
     let parent_name = (detail.parent != 0).then(|| client.get_item(post_type.rest_base(), detail.parent).ok().map(|d| d.title)).flatten();
 
     let body = gutenberg::gutenberg_to_markdown(&detail.content);
+    let detail_content_ids = gutenberg::image_media_ids(&detail.content);
     let is_future = detail.status == "future";
     let frontmatter = Frontmatter {
         title: detail.title,
@@ -124,13 +125,46 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
     };
 
     let mut doc = document::Document { frontmatter, body };
+    keep_media_ids(&mut doc.frontmatter.media, &detail_content_ids);
     syncstate::mark_synced(&mut doc, &site.site_id(), &detail.modified_gmt, &syncstate::now_rfc3339());
     Ok(ImportedPost { frontmatter: doc.frontmatter, body: doc.body })
+}
+
+/// The attachment ids the post's images already have on the blog, as
+/// upload records of their (remote) media items - the next upload then
+/// writes `wp-image-<id>` again (`export::apply_media_metadata`), which
+/// WordPress needs for `srcset`. Remote sources are never uploaded again
+/// (`media::sync_uploads` skips them), so the empty hash is never compared.
+fn keep_media_ids(media: &mut [crate::media::MediaItem], ids: &[(String, u64, Option<String>)]) {
+    for item in media.iter_mut().filter(|item| item.wordpress.is_none()) {
+        if let Some((_, id, size)) = ids.iter().find(|(src, _, _)| *src == item.source) {
+            item.wordpress = Some(crate::media::WordPressMediaRef { media_id: *id, url: item.source.clone(), content_hash: String::new(), width: 0, height: 0, size_slug: size.clone() });
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Opening a post and uploading it again keeps every image's
+    /// attachment id (body images and gallery images).
+    fn reupload(html: &str) -> String {
+        let body = gutenberg::gutenberg_to_markdown(html);
+        let mut media = crate::media::reconcile(&[], &body);
+        keep_media_ids(&mut media, &gutenberg::image_media_ids(html));
+        crate::export::gutenberg_preview_html(&body, &media)
+    }
+
+    #[test]
+    fn media_ids_survive_open_and_reupload() {
+        let html = "<!-- wp:image {\"id\":45504,\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"https://example.org/a.webp\" alt=\"Alt\" class=\"wp-image-45504\"/><figcaption class=\"wp-element-caption\">Unterschrift</figcaption></figure>\n<!-- /wp:image -->\n\n<!-- wp:gallery {\"linkTo\":\"none\"} -->\n<figure class=\"wp-block-gallery has-nested-images columns-default is-cropped\"><!-- wp:image {\"id\":7,\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"https://example.org/b.webp\" alt=\"\" class=\"wp-image-7\"/></figure>\n<!-- /wp:image --></figure>\n<!-- /wp:gallery -->";
+        let out = reupload(html);
+        assert!(out.contains("class=\"wp-image-45504\"") && out.contains("\"id\":45504"), "{out}");
+        assert!(out.contains("class=\"wp-image-7\"") && out.contains("\"id\":7"), "{out}");
+        assert!(gutenberg::same_structure(html, &out), "{:?}", gutenberg::first_difference(html, &out));
+    }
+
 
     /// Reads an existing, real, already-published post that's known (as of
     /// writing) to carry categories, tags, AND a featured image - checking

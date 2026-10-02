@@ -443,6 +443,9 @@ fn run_export(
     if let Some(keyword) = &frontmatter.rank_math_focus_keyword {
         meta.insert("rank_math_focus_keyword".to_string(), serde_json::Value::String(keyword.clone()));
     }
+    if let Some(footnotes) = &frontmatter.wp_footnotes {
+        meta.insert("footnotes".to_string(), serde_json::Value::String(footnotes.clone()));
+    }
     if !meta.is_empty() {
         payload["meta"] = serde_json::Value::Object(meta);
     }
@@ -557,14 +560,41 @@ pub(crate) fn gutenberg_preview_html(markdown: &str, media: &[media::MediaItem])
 /// `AltText::Undefined` (nothing decided yet) deliberately leaves the
 /// parsed alt alone rather than blanking it.
 fn apply_media_metadata(blocks: &mut [gutenberg::Block], media: &[media::MediaItem]) {
+    let mut counts = std::collections::HashMap::new();
+    count_image_sources(blocks, &mut counts);
+    apply_media_metadata_with(blocks, media, &counts);
+}
+
+/// How often each image source appears as an image block.
+fn count_image_sources(blocks: &[gutenberg::Block], counts: &mut std::collections::HashMap<String, usize>) {
+    for block in blocks {
+        match block {
+            gutenberg::Block::Image { url, .. } => *counts.entry(url.clone()).or_default() += 1,
+            gutenberg::Block::Gallery { images, .. } => images.iter().for_each(|image| *counts.entry(image.url.clone()).or_default() += 1),
+            gutenberg::Block::BlockQuote { blocks } | gutenberg::Block::Details { blocks, .. } | gutenberg::Block::Container { blocks, .. } => count_image_sources(blocks, counts),
+            gutenberg::Block::List { items, .. } => items.iter().for_each(|item| count_image_sources(item, counts)),
+            gutenberg::Block::Columns { columns } => columns.iter().for_each(|column| count_image_sources(column, counts)),
+            gutenberg::Block::Styled { block, .. } => count_image_sources(std::slice::from_ref(block.as_ref()), counts),
+            _ => {}
+        }
+    }
+}
+
+/// The same image used more than once can carry a different alt text and
+/// caption at each place, while `Frontmatter.media` keeps one entry per
+/// source - there, each occurrence keeps what its own Markdown says
+/// instead of all getting the first one's.
+fn apply_media_metadata_with(blocks: &mut [gutenberg::Block], media: &[media::MediaItem], counts: &std::collections::HashMap<String, usize>) {
     for block in blocks.iter_mut() {
         match block {
             gutenberg::Block::Image { url, alt, title, media_id, width, height } => {
                 if let Some(item) = media.iter().find(|item| &item.source == url) {
-                    if let Some(text) = item.alt.as_wordpress_value() {
-                        *alt = text.to_string();
+                    if counts.get(url.as_str()).copied().unwrap_or(0) <= 1 {
+                        if let Some(text) = item.alt.as_wordpress_value() {
+                            *alt = text.to_string();
+                        }
+                        *title = item.caption.clone();
                     }
-                    *title = item.caption.clone();
                     if let Some(wp) = &item.wordpress {
                         *media_id = Some(wp.media_id);
                         *width = wp.width;
@@ -572,20 +602,20 @@ fn apply_media_metadata(blocks: &mut [gutenberg::Block], media: &[media::MediaIt
                     }
                 }
             }
-            gutenberg::Block::BlockQuote { blocks } => apply_media_metadata(blocks, media),
+            gutenberg::Block::BlockQuote { blocks } => apply_media_metadata_with(blocks, media, counts),
             gutenberg::Block::List { items, .. } => {
                 for item in items.iter_mut() {
-                    apply_media_metadata(item, media);
+                    apply_media_metadata_with(item, media, counts);
                 }
             }
             gutenberg::Block::Columns { columns } => {
                 for column in columns.iter_mut() {
-                    apply_media_metadata(column, media);
+                    apply_media_metadata_with(column, media, counts);
                 }
             }
-            gutenberg::Block::Details { blocks, .. } => apply_media_metadata(blocks, media),
-            gutenberg::Block::Styled { block, .. } => apply_media_metadata(std::slice::from_mut(block.as_mut()), media),
-            gutenberg::Block::Container { blocks, .. } => apply_media_metadata(blocks, media),
+            gutenberg::Block::Details { blocks, .. } => apply_media_metadata_with(blocks, media, counts),
+            gutenberg::Block::Styled { block, .. } => apply_media_metadata_with(std::slice::from_mut(block.as_mut()), media, counts),
+            gutenberg::Block::Container { blocks, .. } => apply_media_metadata_with(blocks, media, counts),
             _ => {}
         }
     }
@@ -717,6 +747,19 @@ pub(crate) fn mime_from_extension(filename: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_image_used_twice_keeps_its_own_caption_at_each_place() {
+        let item = media::MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: media::AltText::Text("Alt aus der Galerie".into()), caption: Some("Bild 1".into()), wordpress: None, last_markdown_caption: None };
+        let mut blocks = gutenberg::parse_markdown("```gallery\n![Bild 1](a.png)\n```\n\n![](a.png)\n");
+        apply_media_metadata(&mut blocks, &[item.clone()]);
+        let gutenberg::Block::Image { title, alt, .. } = &blocks[1] else { panic!("expected image") };
+        assert_eq!((title.as_deref(), alt.as_str()), (None, ""));
+        let mut single = gutenberg::parse_markdown("![](a.png)\n");
+        apply_media_metadata(&mut single, &[item]);
+        let gutenberg::Block::Image { title, .. } = &single[0] else { panic!("expected image") };
+        assert_eq!(title.as_deref(), Some("Bild 1"));
+    }
 
     #[test]
     fn publish_or_keep_publishes_a_post_that_does_not_exist_yet() {
@@ -923,6 +966,7 @@ mod tests {
             rank_math_title: None,
             rank_math_description: None,
             rank_math_focus_keyword: None,
+            wp_footnotes: None,
             featured_image: None,
             featured_image_alt: None,
             wp_post_id: None,
@@ -982,6 +1026,7 @@ mod tests {
             rank_math_title: None,
             rank_math_description: None,
             rank_math_focus_keyword: None,
+            wp_footnotes: None,
             featured_image: None,
             featured_image_alt: None,
             wp_post_id: None,
@@ -1040,6 +1085,7 @@ mod tests {
             rank_math_title: None,
             rank_math_description: None,
             rank_math_focus_keyword: None,
+            wp_footnotes: None,
             featured_image: None,
             featured_image_alt: None,
             wp_post_id: None,
@@ -1097,6 +1143,7 @@ mod tests {
             rank_math_title: None,
             rank_math_description: None,
             rank_math_focus_keyword: None,
+            wp_footnotes: None,
             featured_image: None,
             featured_image_alt: None,
             wp_post_id: None,
@@ -1157,6 +1204,7 @@ mod tests {
             rank_math_title: None,
             rank_math_description: None,
             rank_math_focus_keyword: None,
+            wp_footnotes: None,
             featured_image: None,
             featured_image_alt: None,
             wp_post_id: None,
@@ -1222,6 +1270,7 @@ mod tests {
             rank_math_title: None,
             rank_math_description: None,
             rank_math_focus_keyword: None,
+            wp_footnotes: None,
             featured_image: None,
             featured_image_alt: None,
             wp_post_id: None,

@@ -250,6 +250,8 @@ pub struct PostDetail {
     pub rank_math_title: String,
     pub rank_math_description: String,
     pub rank_math_focus_keyword: String,
+    /// The `footnotes` post meta (JSON), empty if the post has none.
+    pub footnotes: String,
     /// `0` means no featured image is set.
     pub featured_media: u64,
     /// The post's author user id - `0` is a real, if unlikely, WordPress
@@ -851,6 +853,7 @@ impl Client {
             rank_math_title: meta_str("rank_math_title"),
             rank_math_description: meta_str("rank_math_description"),
             rank_math_focus_keyword: meta_str("rank_math_focus_keyword"),
+            footnotes: meta_str("footnotes"),
             status: value.get("status").and_then(Value::as_str).unwrap_or("draft").to_string(),
             slug: value.get("slug").and_then(Value::as_str).unwrap_or_default().to_string(),
             categories: u64_array("categories"),

@@ -96,6 +96,7 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
         rank_math_title: (!detail.rank_math_title.is_empty()).then_some(detail.rank_math_title),
         rank_math_description: (!detail.rank_math_description.is_empty()).then_some(detail.rank_math_description),
         rank_math_focus_keyword: (!detail.rank_math_focus_keyword.is_empty()).then_some(detail.rank_math_focus_keyword),
+        wp_footnotes: (!detail.footnotes.is_empty() && detail.footnotes != "[]").then_some(detail.footnotes),
         featured_image: None,
         featured_image_alt: None,
         wp_post_id: Some(detail.id),

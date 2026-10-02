@@ -90,7 +90,7 @@ pub enum Block {
     /// `wp:gallery` - a photo gallery. Written as a fenced ` ```gallery `
     /// block containing one Markdown image reference per line, each
     /// optionally carrying a caption via CommonMark's own image title
-    /// syntax (`![alt](url "caption")` - same convention `Image.title`
+    /// syntax (`![caption](url "alt")` - same convention `Image.title`
     /// uses) - and, only when it differs from `GallerySettings::default`,
     /// an options line ahead of a `+++` separator (same shape `Pullquote`/
     /// `Details` use for their own optional second section) - see
@@ -658,8 +658,8 @@ pub fn parse_fenced_gallery(text: &str) -> Block {
 
 /// One image per Markdown image reference found in `text` (one per line is
 /// the intended usage, same scanning approach as `parse_fenced_buttons`) -
-/// a title (`![alt](url "caption")`, same convention `as_lone_media` uses
-/// for a body image's own caption) becomes that image's gallery caption.
+/// this app's image convention, the same as a body image's
+/// (`as_lone_media`): `![Bildunterschrift](url "Alternativtext")`.
 fn parse_gallery_images(text: &str) -> Vec<GalleryImage> {
     let mut options = Options::empty();
     options.insert(Options::ENABLE_STRIKETHROUGH);
@@ -669,10 +669,11 @@ fn parse_gallery_images(text: &str) -> Vec<GalleryImage> {
     while i < events.len() {
         if let Event::Start(Tag::Image { dest_url, title, .. }) = &events[i] {
             let end = find_matching_end(&events, i, &TagEnd::Image);
+            let caption = collect_text(&events[i + 1..end]);
             images.push(GalleryImage {
-                alt: collect_text(&events[i + 1..end]),
+                alt: title.to_string(),
                 url: dest_url.to_string(),
-                caption: (!title.is_empty()).then(|| title.to_string()),
+                caption: (!caption.is_empty()).then_some(caption),
             });
             i = end + 1;
         } else {
@@ -1510,7 +1511,7 @@ mod tests {
 
     #[test]
     fn fenced_gallery_block_becomes_wp_gallery() {
-        let out = markdown_to_gutenberg("```gallery\n![First](one.jpg)\n![Second](two.jpg)\n```");
+        let out = markdown_to_gutenberg("```gallery\n![](one.jpg \"First\")\n![](two.jpg \"Second\")\n```");
         assert_eq!(
             out,
             "<!-- wp:gallery {\"linkTo\":\"none\"} -->\n<figure class=\"wp-block-gallery has-nested-images columns-default is-cropped\">\n\
@@ -1522,7 +1523,7 @@ mod tests {
 
     #[test]
     fn fenced_gallery_with_custom_settings_becomes_wp_gallery_with_matching_attrs() {
-        let out = markdown_to_gutenberg("```gallery\ncolumns=4 crop=false link=media size=full\n+++\n![First](one.jpg)\n```");
+        let out = markdown_to_gutenberg("```gallery\ncolumns=4 crop=false link=media size=full\n+++\n![](one.jpg \"First\")\n```");
         assert_eq!(
             out,
             "<!-- wp:gallery {\"linkTo\":\"media\",\"columns\":4,\"imageCrop\":false} -->\n<figure class=\"wp-block-gallery has-nested-images columns-4\">\n\

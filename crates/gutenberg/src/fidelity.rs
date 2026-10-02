@@ -114,6 +114,11 @@ fn skeleton(html: &str) -> Vec<Token> {
 }
 
 fn comment_token(comment: &str) -> Option<Token> {
+    // Explicit classic-block delimiters (see `reverse::push_stray`) stand
+    // for content that had none.
+    if comment.contains("wp:freeform") {
+        return None;
+    }
     let closing = comment.starts_with("<!-- /wp:");
     if closing {
         let name = comment.trim_start_matches("<!-- /wp:").trim_end_matches("-->").trim();

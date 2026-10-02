@@ -183,6 +183,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Footnotes survive**: WordPress keeps footnote texts in the `footnotes`
+  post meta, not in the content. Opening a post now keeps them
+  (`wp_footnotes` in the frontmatter) and uploads send them back, so a
+  copy or a re-upload no longer ends up with empty footnotes.
+- **Classic content stays classic**: content without a block comment (a
+  "Klassisch" block, or a whole post from before the block editor) goes
+  back as a classic block instead of a Custom HTML block.
+- **The same image used twice** (say in a gallery and in a column) keeps
+  its own alt text and caption at each place on upload instead of all
+  getting the first one's.
+- Galleries use the same image convention as the rest of the article:
+  `![Bildunterschrift](url "Alternativtext")`.
+
 - **Importing a post no longer loses its design**: colors, gradients,
   alignment, block styles, anchors, image widths and captions, table
   footers and inline markup like `<mark>` or `<sub>` used to be dropped

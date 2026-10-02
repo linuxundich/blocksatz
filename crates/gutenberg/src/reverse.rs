@@ -55,10 +55,15 @@ fn parse_wp_comment(inner: &str) -> Option<ParsedComment<'_>> {
     Some(ParsedComment { closing, name, attrs, self_closing })
 }
 
+/// Content between blocks without a block comment of its own is what
+/// WordPress shows as a "Klassisch" block (and all of a post written before
+/// the block editor). Kept with explicit `wp:freeform` delimiters - which
+/// WordPress parses as exactly that block - so it goes back as a classic
+/// block instead of becoming a Custom HTML block.
 fn push_stray(blocks: &mut Vec<Block>, html: &str) {
     let trimmed = html.trim();
     if !trimmed.is_empty() {
-        blocks.push(Block::RawHtml { html: trimmed.to_string() });
+        blocks.push(Block::RawHtml { html: format!("<!-- wp:freeform -->\n{trimmed}\n<!-- /wp:freeform -->") });
     }
 }
 
@@ -1106,9 +1111,12 @@ pub fn render_gallery_fence(images: &[GalleryImage], settings: &GallerySettings)
         .iter()
         .map(|img| {
             let destination = markdown_destination(&img.url);
-            match img.caption.as_ref().filter(|c| !c.is_empty()) {
-                Some(caption) => format!("![{}]({destination} \"{caption}\")", img.alt),
-                None => format!("![{}]({destination})", img.alt),
+            // Bracket = caption, title = alt text, like a body image.
+            let caption = img.caption.as_deref().unwrap_or("").replace('[', "\\[").replace(']', "\\]");
+            if img.alt.is_empty() {
+                format!("![{caption}]({destination})")
+            } else {
+                format!("![{caption}]({destination} \"{}\")", img.alt.replace('"', "\\\""))
             }
         })
         .collect::<Vec<_>>()
@@ -1252,6 +1260,16 @@ mod tests {
     fn table_round_trips() {
         let out = round_trip("| A | B |\n|---|---|\n| 1 | 2 |\n");
         assert_eq!(out, "| A | B |\n| --- | --- |\n| 1 | 2 |");
+    }
+
+    #[test]
+    fn classic_content_stays_a_classic_block() {
+        let wp = "<!-- wp:paragraph -->\n<p>Block</p>\n<!-- /wp:paragraph -->\n\n<p>Klassisch <strong>fett</strong></p>\n\n<!-- wp:paragraph -->\n<p>Block</p>\n<!-- /wp:paragraph -->";
+        let md = gutenberg_to_markdown(wp);
+        assert!(md.contains("<!-- wp:freeform -->\n<p>Klassisch <strong>fett</strong></p>\n<!-- /wp:freeform -->"), "{md}");
+        let back = markdown_to_gutenberg(&md);
+        assert!(crate::same_structure(wp, &back), "{:?}", crate::first_difference(wp, &back));
+        assert!(!back.contains("wp:html"), "{back}");
     }
 
     #[test]

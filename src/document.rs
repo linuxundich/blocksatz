@@ -156,6 +156,11 @@ pub struct Frontmatter {
     pub rank_math_title: Option<String>,
     pub rank_math_description: Option<String>,
     pub rank_math_focus_keyword: Option<String>,
+    /// The post's footnote texts - WordPress keeps them in the `footnotes`
+    /// post meta (a JSON array), not in the content, which only holds the
+    /// `<sup data-fn>` markers and the `wp:footnotes` block. Carried along
+    /// so a copy or a re-upload still has them.
+    pub wp_footnotes: Option<String>,
     pub featured_image: Option<String>,
     /// Alt text for `featured_image` - sent as the resulting WordPress
     /// media attachment's `alt_text` on upload (`mediapanel.rs`), the same
@@ -338,6 +343,9 @@ pub fn parse(input: &str) -> Document {
             "rank_math_description" => {
                 frontmatter.rank_math_description = (!value.is_empty()).then(|| unquote(value));
             }
+            "wp_footnotes" => {
+                frontmatter.wp_footnotes = (!value.is_empty()).then(|| unquote(value));
+            }
             "rank_math_focus_keyword" => {
                 frontmatter.rank_math_focus_keyword = (!value.is_empty()).then(|| unquote(value));
             }
@@ -416,6 +424,9 @@ pub fn serialize(doc: &Document) -> String {
     }
     if let Some(description) = &fm.rank_math_description {
         out.push_str(&format!("rank_math_description: \"{}\"\n", escape(description)));
+    }
+    if let Some(footnotes) = &fm.wp_footnotes {
+        out.push_str(&format!("wp_footnotes: \"{}\"\n", escape(footnotes)));
     }
     if let Some(keyword) = &fm.rank_math_focus_keyword {
         out.push_str(&format!("rank_math_focus_keyword: \"{}\"\n", escape(keyword)));
@@ -675,6 +686,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn footnotes_meta_round_trips_through_the_frontmatter() {
+        let mut doc = Document::default();
+        doc.frontmatter.wp_footnotes = Some(r#"[{"id":"9ce9","content":"Ein \"Zitat\" und <a href=\"x\">Link</a>"}]"#.to_string());
+        let parsed = parse(&serialize(&doc));
+        assert_eq!(parsed.frontmatter.wp_footnotes, doc.frontmatter.wp_footnotes);
+    }
+
+    #[test]
     fn an_export_result_survives_a_round_trip_through_a_file() {
         // Regression guard: a successful export fills in `wp_post_id`, the
         // per-image `WordPressMediaRef`s and `wp_content_hash`, and all of
@@ -917,6 +936,7 @@ mod tests {
                 rank_math_title: Some("SEO Title".to_string()),
                 rank_math_description: Some("An SEO description.".to_string()),
                 rank_math_focus_keyword: Some("gtk markdown editor".to_string()),
+                wp_footnotes: None,
                 featured_image: None,
                 featured_image_alt: Some("a sleeping cat".to_string()),
                 wp_post_id: Some(7),

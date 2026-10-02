@@ -339,10 +339,8 @@ feature set against Blocksatz's surfaced these gaps:
 
 Still open from that comparison, roughly by value:
 
-- **Footnotes** (`core/footnotes`, stored in the `footnotes` post meta
-  since WordPress 6.3) - *partly done (0.65.0)*: an opened post keeps its
-  footnotes (`wp_footnotes` in the frontmatter, sent back on upload) and
-  the preview shows them. Still open: writing new ones as Markdown `[^1]`.
+- ~~**Footnotes**~~ Done - opened posts keep theirs (0.65.0), and `[^1]`
+  works both ways (Unreleased).
 - ~~**Accordion / tabs blocks**~~ Done (0.65.0) - `:::: accordion` /
   `::: item`, `:::: tabs` / `::: tab` containers (`docs/markdown-blocks.md`).
 - **An update check on launch** (Quill shows a "new version available"

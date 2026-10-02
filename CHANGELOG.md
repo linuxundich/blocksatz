@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Block inspector** in the "Beitrag" view: design the block at the
   cursor with the theme's colors, gradients, font sizes, alignment and
   block styles; writes the attribute line for you, undoable in one step.
+- **Dynamic blocks in the preview**: blocks the blog renders itself
+  (latest posts, table of contents, ad slot, search, archives, ...) show
+  a labeled placeholder card instead of nothing.
+- **"Einfügen" menu** in the editor toolbar: video/audio, media library,
+  link to an existing article, separator, "Weiterlesen" marker, the
+  containers (group, columns, accordion, tabs, cover, details) and
+  dynamic blocks (latest posts, archives, categories, tag cloud, search).
 - **Theme presets**: the active blog's palette, gradients, font sizes and
   block styles are fetched over the REST API and cached per blog; the
   preview renders attribute lines, table styles, captions, accordions and
@@ -54,6 +61,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   implementation deviates from it and what's still open.
 
 ### Changed
+
+- **Editor toolbar reworked**: symbolic icons instead of text glyphs,
+  three groups (inline formatting · line/block · insert), flat buttons,
+  fits a normal editor width. Headings are a menu (Überschrift 2–4,
+  Normaler Text, Ctrl+2/3/4/0); heading, list, numbered list and quote
+  apply to every selected line and toggle back off; a line's existing
+  prefix is replaced instead of stacked (`- ## Text`). Inline code
+  (Ctrl+E) and strikethrough (Ctrl+Shift+X) got shortcuts. Cut/copy/
+  paste left the toolbar (keyboard and context menu, as in GNOME apps);
+  video, media library, article links and the "Weiterlesen" marker moved
+  into the "Einfügen" menu.
 
 - **Library instead of loose files** (GUI redesign, phase 1 - see
   `docs/gui-redesign.md`): articles live in `~/Dokumente/Blocksatz/`, one

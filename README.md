@@ -79,10 +79,14 @@ blocks. Implemented so far:
   "Unbenannt" document - `Ctrl+N` still gets to a blank one in one step.
   Markdown editing pane (GtkSourceView, syntax
   highlighting, spell-checking via [`libspelling`](https://gitlab.gnome.org/GNOME/libspelling))
-  with a grouped formatting toolbar (cut/copy/paste; bold/italic/
-  strikethrough with Ctrl+B/I; heading/quote/code/code block; lists; table;
-  link with Ctrl+K; "Bild einfügen" opening a native image file picker
-  instead of typing a filename by hand; "Bestehenden Artikel verlinken"
+  with a compact formatting toolbar in three groups - inline (bold Ctrl+B,
+  italic Ctrl+I, strikethrough Ctrl+Shift+X, code Ctrl+E, link Ctrl+K),
+  line/block (heading menu with Ctrl+2/3/4/0, list, numbered list, quote -
+  applied to every selected line and toggled back off - code block,
+  table) and insert ("Bild einfügen" opening a native image file picker
+  instead of typing a filename by hand, plus an "Einfügen" menu with
+  video/audio, media library, separator, "Weiterlesen" marker, containers
+  and dynamic blocks); "Bestehenden Artikel verlinken"
   opening a searchable picker over the site's existing posts and inserting
   a real Markdown link to the one picked; pasting an image straight from the
   clipboard with Ctrl+V - a screenshot, or "Copy Image" from a browser -

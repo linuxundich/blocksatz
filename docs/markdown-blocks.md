@@ -1,6 +1,6 @@
 # Blockgestaltung in Markdown: Bestandsaufnahme und Optionen
 
-Stand: 2026-10-02 · Status: **Schritte 1–6 umgesetzt** (siehe Abschnitt 5)
+Stand: 2026-10-02 · Status: **Schritte 1–7 umgesetzt** (siehe Abschnitt 5)
 
 Anlass: Farben, Farbverläufe, Tabellenvarianten, Akkordeons und weitere
 Elemente aus dem Testbeitrag „Lorem Ipsum: Sämtliche Gutenberg-Blöcke“
@@ -274,3 +274,8 @@ Schritt 1 sollte unabhängig vom Rest sofort kommen.
   eines Containers) und `src/blockinspector.rs` (Abschnitt „Block“ in der
   Ansicht „Beitrag“: Farbfelder für Text und Hintergrund inkl. Verläufe,
   Schriftgröße, Ausrichtung, Stil; Zeilen je nach Block-Unterstützung).
+- **Schritt 7 (E)**: Platzhalterkarten für dynamische Blöcke in der
+  Vorschau (`dynamic_block_placeholder`), Menü „Einfügen“ in der
+  Werkzeugleiste mit Containern und dynamischen Core-Blöcken. Die echte
+  Ausgabe über `block-renderer` ist bewusst nicht eingebaut (eine Anfrage
+  pro Tastendruck, Hoster-Sperren).

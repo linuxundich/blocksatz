@@ -1044,7 +1044,7 @@ fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String 
                 source: range,
             }),
             gutenberg::Segment::Raw(range) => blocks.push(RenderedBlock {
-                html: markdown[range.clone()].to_string(),
+                html: dynamic_block_placeholder(&markdown[range.clone()]).unwrap_or_else(|| markdown[range.clone()].to_string()),
                 line: line_number(markdown, range.start),
                 line_end: block_end_line(markdown, &range),
                 source: range,
@@ -1294,7 +1294,8 @@ fn media_tag_for(src: &str) -> Option<&'static str> {
 const EMBED_CSS: &str = ".embed-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; aspect-ratio: 16 / 9; max-width: 100%; margin: 1rem auto; padding: 1rem; box-sizing: border-box; text-align: center; border: 1px solid rgba(127, 127, 127, 0.3); border-radius: 8px; background: rgba(127, 127, 127, 0.08); }
 .embed-placeholder .embed-icon { font-size: 2.5rem; opacity: .6; }
 .embed-placeholder .embed-label { font-weight: 600; opacity: .85; }
-.embed-placeholder .embed-url { font-size: .8em; opacity: .55; word-break: break-all; max-width: 90%; }";
+.embed-placeholder .embed-url { font-size: .8em; opacity: .55; word-break: break-all; max-width: 90%; }
+.embed-placeholder.dynamic-placeholder { aspect-ratio: auto; min-height: 5rem; border-style: dashed; }";
 
 /// A lone embeddable URL (see `gutenberg::lone_embed_url`) renders as a
 /// fixed-aspect-ratio placeholder card instead of a live embed - matching
@@ -1313,6 +1314,52 @@ fn render_embed_placeholder(url: &str) -> String {
         glib::markup_escape_text(&label),
         glib::markup_escape_text(url)
     )
+}
+
+/// A block the blog renders itself (latest posts, a table of contents, an
+/// ad slot, ...) has no visible markup of its own - shown as a labeled
+/// card instead of nothing. `None` for verbatim markup with content.
+fn dynamic_block_placeholder(raw: &str) -> Option<String> {
+    let mut visible = String::new();
+    let mut rest = raw;
+    while let Some(start) = rest.find('<') {
+        visible.push_str(&rest[..start]);
+        let tag_end = if rest[start..].starts_with("<!--") { rest[start..].find("-->").map(|e| start + e + 3) } else { rest[start..].find('>').map(|e| start + e + 1) };
+        let Some(end) = tag_end else { break };
+        let tag = &rest[start..end];
+        if tag.starts_with("<img") || tag.starts_with("<iframe") || tag.starts_with("<video") || tag.starts_with("<svg") || tag.starts_with("<input") {
+            return None;
+        }
+        rest = &rest[end..];
+    }
+    visible.push_str(rest);
+    if !visible.trim().is_empty() {
+        return None;
+    }
+    let name = raw.trim_start().strip_prefix("<!-- wp:")?.split_whitespace().next()?.trim_end_matches("/-->").to_string();
+    let label = match name.as_str() {
+        "latest-posts" => tr("Neueste Beiträge"),
+        "latest-comments" => tr("Neueste Kommentare"),
+        "query" => tr("Abfrage-Loop"),
+        "archives" => tr("Archive"),
+        "categories" => tr("Kategorien"),
+        "tag-cloud" => tr("Schlagwörter-Wolke"),
+        "calendar" => tr("Kalender"),
+        "search" => tr("Suche"),
+        "page-list" => tr("Seitenliste"),
+        "social-links" => tr("Social-Media-Links"),
+        "rss" => tr("RSS-Feed"),
+        "block" => tr("Synchronisiertes Muster"),
+        "footnotes" => tr("Fußnoten"),
+        "lui/toc" => tr("Inhaltsverzeichnis"),
+        "lui-ads/slot" => tr("Werbeplatz"),
+        _ => name.clone(),
+    };
+    Some(format!(
+        "<div class=\"embed-placeholder dynamic-placeholder\"><span class=\"embed-label\">{}</span><span class=\"embed-url\">{}</span></div>",
+        glib::markup_escape_text(&label),
+        glib::markup_escape_text(&tr("{name} – wird vom Blog erzeugt").replace("{name}", &name))
+    ))
 }
 
 /// An icon glyph and display label for a lone embed URL - German for the
@@ -1675,6 +1722,14 @@ mod tests {
         assert!(out.contains("<span class=\"wp-block-accordion-heading__toggle-title\">Frage</span>"), "{out}");
         assert!(!out.contains(":::"), "{out}");
         assert!(out.contains("<div data-line=\"7\""), "{out}");
+    }
+
+    #[test]
+    fn dynamic_blocks_get_a_placeholder() {
+        let out = render_body_with_line_anchors("<!-- wp:latest-posts {\"postsToShow\":5} /-->\n\n<!-- wp:html -->\n<p>Sichtbar</p>\n<!-- /wp:html -->\n", &[]);
+        assert!(out.contains("dynamic-placeholder"), "{out}");
+        assert!(out.contains("Sichtbar"), "{out}");
+        assert_eq!(out.matches("dynamic-placeholder").count(), 1, "{out}");
     }
 
     #[test]

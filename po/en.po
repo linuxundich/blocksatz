@@ -3093,6 +3093,118 @@ msgstr "Wide width"
 msgid "Zentriert"
 msgstr "Centered"
 
+#: src/formatting.rs
+msgid "Abfrage-Loop"
+msgstr "Query loop"
+
+#: src/formatting.rs
+msgid "Archive"
+msgstr "Archives"
+
+#: src/formatting.rs
+msgid "Aus WordPress-Mediathek …"
+msgstr "From WordPress media library …"
+
+#: src/formatting.rs
+msgid "Bestehenden Artikel verlinken …"
+msgstr "Link existing article …"
+
+#: src/formatting.rs
+msgid "Bild einfügen …"
+msgstr "Insert image …"
+
+#: src/formatting.rs
+msgid "Code (Strg+E)"
+msgstr "Code (Ctrl+E)"
+
+#: src/formatting.rs
+msgid "Container"
+msgstr "Containers"
+
+#: src/formatting.rs
+msgid "Durchgestrichen (Strg+Umschalt+X)"
+msgstr "Strikethrough (Ctrl+Shift+X)"
+
+#: src/formatting.rs
+msgid "Einfügen"
+msgstr "Insert"
+
+#: src/formatting.rs
+msgid "Fußnoten"
+msgstr "Footnotes"
+
+#: src/formatting.rs
+msgid "Inhaltsverzeichnis"
+msgstr "Table of contents"
+
+#: src/formatting.rs
+msgid "Kalender"
+msgstr "Calendar"
+
+#: src/formatting.rs
+msgid "Link (Strg+K)"
+msgstr "Link (Ctrl+K)"
+
+#: src/formatting.rs
+msgid "{name} – wird vom Blog erzeugt"
+msgstr "{name} – rendered by the blog"
+
+#: src/formatting.rs
+msgid "Neueste Beiträge"
+msgstr "Latest posts"
+
+#: src/formatting.rs
+msgid "Neueste Kommentare"
+msgstr "Latest comments"
+
+#: src/formatting.rs
+msgid "Normaler Text"
+msgstr "Normal text"
+
+#: src/formatting.rs
+msgid "RSS-Feed"
+msgstr "RSS feed"
+
+#: src/formatting.rs
+msgid "Schlagwörter-Wolke"
+msgstr "Tag cloud"
+
+#: src/formatting.rs
+msgid "Seitenliste"
+msgstr "Page list"
+
+#: src/formatting.rs
+msgid "Social-Media-Links"
+msgstr "Social links"
+
+#: src/formatting.rs
+msgid "Suche"
+msgstr "Search"
+
+#: src/formatting.rs
+msgid "Synchronisiertes Muster"
+msgstr "Synced pattern"
+
+#: src/formatting.rs
+msgid "Überschrift {n}"
+msgstr "Heading {n}"
+
+#: src/formatting.rs
+msgid "Video/Audio …"
+msgstr "Video/audio …"
+
+#: src/formatting.rs
+msgid "Vom Blog erzeugt"
+msgstr "Rendered by the blog"
+
+#: src/formatting.rs
+msgid "„Weiterlesen“-Marker"
+msgstr "“Read more” marker"
+
+#: src/formatting.rs
+msgid "Werbeplatz"
+msgstr "Ad slot"
+
 #~ msgid "Blog nicht erreichbar"
 #~ msgstr "Blog unreachable"
 

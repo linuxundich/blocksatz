@@ -35,7 +35,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let toolbar_separator = gtk4::Separator::new(gtk4::Orientation::Horizontal);
     let editor_pane = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).build();
     // Below the "narrow" breakpoint the window can (via a tiling WM, or by
-    // dragging an edge) become narrower than the toolbar's ~17 buttons
+    // dragging an edge) become narrower than the toolbar's buttons
     // naturally need - wrapped in a horizontal-only `Gtk.ScrolledWindow`,
     // the overflow is still reachable by scrolling instead of silently
     // clipped off the edge.

@@ -4,6 +4,7 @@
 //! Markdown source.
 
 use gtk4::gdk;
+use gtk4::gio;
 use gtk4::glib;
 use gtk4::prelude::*;
 
@@ -15,117 +16,356 @@ pub fn install_shortcuts(view: &sourceview5::View, buffer: &sourceview5::Buffer)
     let controller = gtk4::EventControllerKey::new();
     let buffer = buffer.clone();
     controller.connect_key_pressed(move |_, key, _, state| {
-        if !state.contains(gdk::ModifierType::CONTROL_MASK) {
+        if !state.contains(gdk::ModifierType::CONTROL_MASK) || state.contains(gdk::ModifierType::ALT_MASK) {
             return glib::Propagation::Proceed;
         }
-        match key {
-            gdk::Key::b => {
-                wrap_selection(&buffer, "**", "**");
-                glib::Propagation::Stop
-            }
-            gdk::Key::i => {
-                wrap_selection(&buffer, "*", "*");
-                glib::Propagation::Stop
-            }
-            gdk::Key::k => {
-                insert_link(&buffer);
-                glib::Propagation::Stop
-            }
-            _ => glib::Propagation::Proceed,
+        let shift = state.contains(gdk::ModifierType::SHIFT_MASK);
+        match (key, shift) {
+            (gdk::Key::b, false) => wrap_selection(&buffer, "**", "**"),
+            (gdk::Key::i, false) => wrap_selection(&buffer, "*", "*"),
+            (gdk::Key::k, false) => insert_link(&buffer),
+            (gdk::Key::e, false) => wrap_selection(&buffer, "`", "`"),
+            (gdk::Key::_0, false) => set_line_style(&buffer, LineStyle::Paragraph),
+            (gdk::Key::_2, false) => set_line_style(&buffer, LineStyle::Heading(2)),
+            (gdk::Key::_3, false) => set_line_style(&buffer, LineStyle::Heading(3)),
+            (gdk::Key::_4, false) => set_line_style(&buffer, LineStyle::Heading(4)),
+            (gdk::Key::X | gdk::Key::x, true) => wrap_selection(&buffer, "~~", "~~"),
+            _ => return glib::Propagation::Proceed,
         }
+        glib::Propagation::Stop
     });
     view.add_controller(controller);
 }
 
+/// The toolbar: three groups - inline formatting, the kind of the current
+/// line/block, and inserting things. Clipboard actions are left to the
+/// keyboard and the context menu, as everywhere in GNOME; everything rarer
+/// lives in two menus, so the bar fits a normal editor width.
 pub fn build(view: &sourceview5::View, buffer: &sourceview5::Buffer) -> gtk4::Box {
+    install_icons();
+    let _ = view;
     let toolbar = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
-        .spacing(8)
-        .margin_top(6)
-        .margin_bottom(6)
+        .spacing(2)
+        .margin_top(4)
+        .margin_bottom(4)
         .margin_start(6)
         .margin_end(6)
         .build();
+    let actions = gio::SimpleActionGroup::new();
+    install_actions(&actions, buffer);
+    toolbar.insert_action_group("fmt", Some(&actions));
 
-    toolbar.append(&group(&[
-        icon_button("edit-cut-symbolic", &tr("Ausschneiden (Strg+X)"), view, |v| v.emit_by_name::<()>("cut-clipboard", &[])),
-        icon_button("edit-copy-symbolic", &tr("Kopieren (Strg+C)"), view, |v| v.emit_by_name::<()>("copy-clipboard", &[])),
-        icon_button("edit-paste-symbolic", &tr("Einfügen (Strg+V)"), view, |v| v.emit_by_name::<()>("paste-clipboard", &[])),
-    ]));
-
-    toolbar.append(&group(&[
+    for button in [
         icon_button("format-text-bold-symbolic", &tr("Fett (Strg+B)"), buffer, |b| wrap_selection(b, "**", "**")),
         icon_button("format-text-italic-symbolic", &tr("Kursiv (Strg+I)"), buffer, |b| wrap_selection(b, "*", "*")),
-        icon_button("format-text-strikethrough-symbolic", &tr("Durchgestrichen"), buffer, |b| wrap_selection(b, "~~", "~~")),
-    ]));
+        icon_button("format-text-strikethrough-symbolic", &tr("Durchgestrichen (Strg+Umschalt+X)"), buffer, |b| wrap_selection(b, "~~", "~~")),
+        icon_button("bs-code-symbolic", &tr("Code (Strg+E)"), buffer, |b| wrap_selection(b, "`", "`")),
+        icon_button("insert-link-symbolic", &tr("Link (Strg+K)"), buffer, insert_link),
+    ] {
+        toolbar.append(&button);
+    }
+    toolbar.append(&separator());
 
-    toolbar.append(&group(&[
-        label_button("H2", &tr("Überschrift"), buffer, |b| insert_line_prefix(b, "## ")),
-        label_button("”", &tr("Zitat"), buffer, |b| insert_line_prefix(b, "> ")),
-        label_button("</>", &tr("Code"), buffer, |b| wrap_selection(b, "`", "`")),
-        label_button("{ }", &tr("Codeblock"), buffer, insert_code_block),
-    ]));
+    toolbar.append(&menu_button("bs-heading-symbolic", &tr("Überschrift"), &heading_menu()));
+    for button in [
+        icon_button("view-list-bullet-symbolic", &tr("Liste"), buffer, |b| set_line_style(b, LineStyle::Bullet)),
+        icon_button("view-list-ordered-symbolic", &tr("Nummerierte Liste"), buffer, |b| set_line_style(b, LineStyle::Ordered)),
+        icon_button("bs-quote-symbolic", &tr("Zitat"), buffer, |b| set_line_style(b, LineStyle::Quote)),
+        icon_button("bs-code-block-symbolic", &tr("Codeblock"), buffer, insert_code_block),
+        icon_button("bs-table-symbolic", &tr("Tabelle"), buffer, insert_table),
+    ] {
+        toolbar.append(&button);
+    }
+    toolbar.append(&separator());
 
-    toolbar.append(&group(&[
-        label_button("•", &tr("Liste"), buffer, |b| insert_line_prefix(b, "- ")),
-        label_button("1.", &tr("Nummerierte Liste"), buffer, |b| insert_line_prefix(b, "1. ")),
-        label_button("▦", &tr("Tabelle einfügen"), buffer, insert_table),
-    ]));
-
-    toolbar.append(&group(&[
-        icon_button("insert-link-symbolic", &tr("Link einfügen (Strg+K)"), buffer, insert_link),
-        action_button("document-open-recent-symbolic", &tr("Bestehenden Artikel verlinken…"), "win.insert-post-link"),
-        action_button("insert-image-symbolic", &tr("Bild einfügen…"), "win.insert-image"),
-        action_button("video-x-generic-symbolic", &tr("Video/Audio einfügen…"), "win.insert-media"),
-        action_button("folder-remote-symbolic", &tr("Aus WordPress-Mediathek einfügen…"), "win.insert-media-library"),
-    ]));
-
-    toolbar.append(&group(&[label_button("⋯", &tr("„Weiterlesen“-Marker einfügen"), buffer, insert_more_marker)]));
-
+    let image = gtk4::Button::builder().icon_name("insert-image-symbolic").tooltip_text(tr("Bild einfügen …")).action_name("win.insert-image").build();
+    image.add_css_class("flat");
+    toolbar.append(&image);
+    toolbar.append(&menu_button("list-add-symbolic", &tr("Einfügen"), &insert_menu()));
     toolbar
 }
 
-/// Unlike the other toolbar buttons, inserting an image needs a file picker
-/// with the main window as its parent - which doesn't exist yet at the point
-/// this toolbar is built (`window.rs` constructs the window itself only
-/// after the editor pane it lives in). So this button doesn't carry a direct
-/// closure like its siblings; it just names a `win.insert-image` action,
-/// wired up in `window.rs` once the window exists, the same way the
-/// header-bar buttons (new/open/save/…) already work.
-fn action_button(icon_name: &str, tooltip: &str, action_name: &str) -> gtk4::Button {
-    let button = gtk4::Button::from_icon_name(icon_name);
-    button.set_tooltip_text(Some(tooltip));
-    button.set_action_name(Some(action_name));
+fn separator() -> gtk4::Separator {
+    let separator = gtk4::Separator::new(gtk4::Orientation::Vertical);
+    separator.set_margin_start(4);
+    separator.set_margin_end(4);
+    separator.set_margin_top(6);
+    separator.set_margin_bottom(6);
+    separator
+}
+
+fn menu_button(icon_name: &str, tooltip: &str, menu: &gio::Menu) -> gtk4::MenuButton {
+    let button = gtk4::MenuButton::builder().icon_name(icon_name).tooltip_text(tooltip).menu_model(menu).build();
+    button.add_css_class("flat");
+    button.update_property(&[gtk4::accessible::Property::Label(tooltip)]);
     button
 }
 
-/// Visually joins a cluster of related buttons into one segmented control
-/// (GNOME's standard "linked" style), instead of a flat row of separately
-/// framed buttons.
-fn group(buttons: &[gtk4::Button]) -> gtk4::Box {
-    let group_box = gtk4::Box::builder().orientation(gtk4::Orientation::Horizontal).build();
-    group_box.add_css_class("linked");
-    for button in buttons {
-        group_box.append(button);
+fn heading_menu() -> gio::Menu {
+    let menu = gio::Menu::new();
+    let headings = gio::Menu::new();
+    for level in 2..=4 {
+        let item = gio::MenuItem::new(Some(&tr("Überschrift {n}").replace("{n}", &level.to_string())), Some(&format!("fmt.line-style::h{level}")));
+        item.set_attribute_value("accel", Some(&format!("<Control>{level}").to_variant()));
+        headings.append_item(&item);
     }
-    group_box
+    menu.append_section(None, &headings);
+    let paragraph = gio::MenuItem::new(Some(&tr("Normaler Text")), Some("fmt.line-style::p"));
+    paragraph.set_attribute_value("accel", Some(&"<Control>0".to_variant()));
+    let rest = gio::Menu::new();
+    rest.append_item(&paragraph);
+    menu.append_section(None, &rest);
+    menu
 }
+
+fn insert_menu() -> gio::Menu {
+    let media = gio::Menu::new();
+    media.append(Some(&tr("Video/Audio …")), Some("win.insert-media"));
+    media.append(Some(&tr("Aus WordPress-Mediathek …")), Some("win.insert-media-library"));
+    media.append(Some(&tr("Bestehenden Artikel verlinken …")), Some("win.insert-post-link"));
+    let elements = gio::Menu::new();
+    elements.append(Some(&tr("Trenner")), Some("fmt.insert-separator"));
+    elements.append(Some(&tr("„Weiterlesen“-Marker")), Some("fmt.insert-more"));
+    let containers = gio::Menu::new();
+    let dynamic = gio::Menu::new();
+    for (id, label, snippet) in BLOCK_SNIPPETS {
+        let target = if snippet.starts_with("<!--") { &dynamic } else { &containers };
+        target.append(Some(&tr(label)), Some(&format!("fmt.insert-block::{id}")));
+    }
+    let menu = gio::Menu::new();
+    menu.append_section(None, &media);
+    menu.append_section(None, &elements);
+    menu.append_section(Some(&tr("Container")), &containers);
+    menu.append_section(Some(&tr("Vom Blog erzeugt")), &dynamic);
+    menu
+}
+
+fn install_actions(actions: &gio::SimpleActionGroup, buffer: &sourceview5::Buffer) {
+    let insert = gio::SimpleAction::new("insert-block", Some(glib::VariantTy::STRING));
+    {
+        let buffer = buffer.clone();
+        insert.connect_activate(move |_, parameter| {
+            let Some(id) = parameter.and_then(|p| p.get::<String>()) else { return };
+            if let Some((_, _, snippet)) = BLOCK_SNIPPETS.iter().find(|(snippet_id, _, _)| *snippet_id == id) {
+                insert_block(&buffer, snippet);
+            }
+        });
+    }
+    actions.add_action(&insert);
+    let line_style = gio::SimpleAction::new("line-style", Some(glib::VariantTy::STRING));
+    {
+        let buffer = buffer.clone();
+        line_style.connect_activate(move |_, parameter| {
+            let style = match parameter.and_then(|p| p.get::<String>()).as_deref() {
+                Some("h2") => LineStyle::Heading(2),
+                Some("h3") => LineStyle::Heading(3),
+                Some("h4") => LineStyle::Heading(4),
+                _ => LineStyle::Paragraph,
+            };
+            set_line_style(&buffer, style);
+        });
+    }
+    actions.add_action(&line_style);
+    let separator = gio::SimpleAction::new("insert-separator", None);
+    {
+        let buffer = buffer.clone();
+        separator.connect_activate(move |_, _| insert_block(&buffer, "---"));
+    }
+    actions.add_action(&separator);
+    let more = gio::SimpleAction::new("insert-more", None);
+    {
+        let buffer = buffer.clone();
+        more.connect_activate(move |_, _| insert_block(&buffer, "<!--more-->"));
+    }
+    actions.add_action(&more);
+}
+
+/// What a line is: the prefix the line-style buttons set.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LineStyle {
+    Paragraph,
+    Heading(u8),
+    Bullet,
+    Ordered,
+    Quote,
+}
+
+/// The block prefix a line starts with, and its length.
+fn line_style_of(line: &str) -> (LineStyle, usize) {
+    let hashes = line.chars().take_while(|c| *c == '#').count();
+    if (1..=6).contains(&hashes) && line[hashes..].starts_with(' ') {
+        return (LineStyle::Heading(hashes as u8), hashes + 1);
+    }
+    for marker in ["- ", "* ", "+ "] {
+        if line.starts_with(marker) {
+            return (LineStyle::Bullet, 2);
+        }
+    }
+    if line.starts_with("> ") {
+        return (LineStyle::Quote, 2);
+    }
+    let digits = line.chars().take_while(char::is_ascii_digit).count();
+    if digits > 0 && line[digits..].starts_with(". ") {
+        return (LineStyle::Ordered, digits + 2);
+    }
+    (LineStyle::Paragraph, 0)
+}
+
+/// One line with `style` - or back to plain text if it already had it
+/// (`toggle`). `number` counts ordered list items.
+pub fn restyle_line(line: &str, style: LineStyle, toggle: bool, number: usize) -> String {
+    let (current, prefix_len) = line_style_of(line);
+    let text = &line[prefix_len..];
+    let style = if toggle && current == style { LineStyle::Paragraph } else { style };
+    match style {
+        LineStyle::Paragraph => text.to_string(),
+        LineStyle::Heading(level) => format!("{} {text}", "#".repeat(level as usize)),
+        LineStyle::Bullet => format!("- {text}"),
+        LineStyle::Ordered => format!("{number}. {text}"),
+        LineStyle::Quote => format!("> {text}"),
+    }
+}
+
+/// Gives every line of the selection (or the cursor's line) `style`; if
+/// all of them already have it, they go back to plain text. Blank lines in
+/// a selection are left alone. One undo step.
+fn set_line_style(buffer: &sourceview5::Buffer, style: LineStyle) {
+    let (start, end) = buffer.selection_bounds().unwrap_or_else(|| {
+        let cursor = buffer.iter_at_mark(&buffer.get_insert());
+        (cursor, cursor)
+    });
+    let first = start.line();
+    let mut last = end.line();
+    if end.line_offset() == 0 && last > first {
+        last -= 1;
+    }
+    let line_text = |line: i32| -> String {
+        let Some(line_start) = buffer.iter_at_line(line) else { return String::new() };
+        let mut line_end = line_start;
+        if !line_end.ends_line() {
+            line_end.forward_to_line_end();
+        }
+        buffer.text(&line_start, &line_end, false).to_string()
+    };
+    let lines: Vec<String> = (first..=last).map(line_text).collect();
+    let toggle = lines.iter().filter(|l| !l.trim().is_empty()).all(|l| line_style_of(l).0 == style);
+    let single = lines.len() == 1;
+    buffer.begin_user_action();
+    let mut number = 0;
+    for (i, line) in lines.iter().enumerate() {
+        if line.trim().is_empty() && !single {
+            continue;
+        }
+        number += 1;
+        let new_line = restyle_line(line, style, toggle, number);
+        if new_line == *line {
+            continue;
+        }
+        let line_no = first + i as i32;
+        let Some(mut line_start) = buffer.iter_at_line(line_no) else { continue };
+        let mut line_end = line_start;
+        if !line_end.ends_line() {
+            line_end.forward_to_line_end();
+        }
+        buffer.delete(&mut line_start, &mut line_end);
+        let mut at = buffer.iter_at_line(line_no).unwrap_or(line_start);
+        buffer.insert(&mut at, &new_line);
+    }
+    buffer.end_user_action();
+}
+
+/// Icons Adwaita doesn't have (heading, quote, code, table), shipped
+/// inside the binary and handed to the icon theme through a small
+/// directory in the user cache - works the same from `cargo run` and
+/// from the Flatpak.
+fn install_icons() {
+    const ICONS: &[(&str, &str)] = &[
+        ("bs-heading-symbolic", r##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path fill="#2e3436" d="M2 2h2v5h5V2h2v12H9V9H4v5H2zm11 6h1.5v6H13z"/></svg>"##),
+        ("bs-quote-symbolic", r##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path fill="#2e3436" d="M2 9a3 3 0 0 1 3-3V4a5 5 0 0 0-5 5v3h5V9zm7 0a3 3 0 0 1 3-3V4a5 5 0 0 0-5 5v3h5V9z" transform="translate(1 0)"/></svg>"##),
+        ("bs-code-symbolic", r##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path fill="#2e3436" d="M5.3 3.3 6.7 4.7 3.4 8l3.3 3.3-1.4 1.4L.6 8zm5.4 0L15.4 8l-4.7 4.7-1.4-1.4L12.6 8 9.3 4.7z"/></svg>"##),
+        ("bs-code-block-symbolic", r##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path fill="#2e3436" d="M2 1h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm1 2v10h10V3zm2.3 2.3 1.4 1.4L5.4 8l1.3 1.3-1.4 1.4L2.6 8zm5.4 0L13.4 8l-2.7 2.7-1.4-1.4L10.6 8 9.3 6.7z"/></svg>"##),
+        ("bs-table-symbolic", r##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path fill="#2e3436" fill-rule="evenodd" d="M1 2h14v12H1zm1.5 1.5v2.5h5V3.5zm6.5 0v2.5h5V3.5zM2.5 7.5v2h5v-2zm6.5 0v2h5v-2zM2.5 11v1.5h5V11zm6.5 0v1.5h5V11z"/></svg>"##),
+    ];
+    let mut dir = glib::user_cache_dir();
+    dir.push(crate::APP_DIR);
+    dir.push("icons");
+    let actions_dir = dir.join("hicolor").join("scalable").join("actions");
+    if std::fs::create_dir_all(&actions_dir).is_err() {
+        return;
+    }
+    for (name, svg) in ICONS {
+        let path = actions_dir.join(format!("{name}.svg"));
+        if std::fs::read_to_string(&path).ok().as_deref() != Some(*svg) {
+            let _ = std::fs::write(&path, svg);
+        }
+    }
+    if let Some(display) = gdk::Display::default() {
+        let theme = gtk4::IconTheme::for_display(&display);
+        if !theme.search_path().iter().any(|p| p == &dir) {
+            theme.add_search_path(&dir);
+        }
+    }
+}
+
+/// The blocks "Block einfügen" offers: id, label, Markdown. The text to
+/// select afterwards (so typing replaces it) is the first line that isn't
+/// a fence or block comment.
+const BLOCK_SNIPPETS: &[(&str, &str, &str)] = &[
+    ("group", "Gruppe", "::: group\nText\n:::"),
+    ("columns", "Spalten", ":::: columns\n::: column\nLinke Spalte\n:::\n\n::: column\nRechte Spalte\n:::\n::::"),
+    ("accordion", "Akkordeon", ":::: accordion\n::: item \"Frage\"\nAntwort\n:::\n\n::: item \"Zweite Frage\"\nAntwort\n:::\n::::"),
+    ("tabs", "Reiter", ":::: tabs\n::: tab \"Reiter 1\"\nInhalt\n:::\n\n::: tab \"Reiter 2\"\nInhalt\n:::\n::::"),
+    ("cover", "Cover", "::: cover {overlay=contrast dim=60 height=400px}\n## Titel\n:::"),
+    ("details", "Details", "::: details \"Zusammenfassung\"\nInhalt\n:::"),
+    ("latest-posts", "Neueste Beiträge", "<!-- wp:latest-posts {\"postsToShow\":5} /-->"),
+    ("archives", "Archive", "<!-- wp:archives /-->"),
+    ("categories", "Kategorien", "<!-- wp:categories /-->"),
+    ("tag-cloud", "Schlagwörter-Wolke", "<!-- wp:tag-cloud /-->"),
+    ("search", "Suche", "<!-- wp:search {\"label\":\"Suchen\",\"buttonText\":\"Suchen\"} /-->"),
+];
+
+/// Inserts `snippet` as a block of its own at the cursor - blank lines
+/// around it as needed - and selects its first editable text.
+fn insert_block(buffer: &sourceview5::Buffer, snippet: &str) {
+    let mut iter = buffer.iter_at_mark(&buffer.get_insert());
+    if !iter.ends_line() {
+        iter.forward_to_line_end();
+    }
+    let line_start = buffer.iter_at_line(iter.line()).unwrap_or(iter);
+    let current_line_empty = buffer.text(&line_start, &iter, false).trim().is_empty();
+    let before = if current_line_empty { if iter.line() == 0 { "" } else { "\n" } } else { "\n\n" };
+    let text = format!("{before}{snippet}\n\n");
+    buffer.begin_user_action();
+    let start = iter.offset();
+    buffer.insert(&mut iter, &text);
+    buffer.end_user_action();
+    let mut offset = start + before.chars().count() as i32;
+    for line in snippet.lines() {
+        let editable = !line.starts_with(":::") && !line.starts_with("<!--") && !line.is_empty();
+        if editable {
+            let content = line.trim_start_matches('#').trim_start();
+            let skip = (line.chars().count() - content.chars().count()) as i32;
+            select(buffer, offset + skip, offset + line.chars().count() as i32);
+            return;
+        }
+        offset += line.chars().count() as i32 + 1;
+    }
+    buffer.place_cursor(&buffer.iter_at_offset(start + text.chars().count() as i32));
+}
+
+
 
 fn icon_button<T: Clone + 'static>(icon_name: &str, tooltip: &str, target: &T, action: impl Fn(&T) + 'static) -> gtk4::Button {
     let button = gtk4::Button::from_icon_name(icon_name);
     button.set_tooltip_text(Some(tooltip));
+    button.add_css_class("flat");
+    button.update_property(&[gtk4::accessible::Property::Label(tooltip)]);
     let target = target.clone();
     button.connect_clicked(move |_| action(&target));
     button
 }
 
-fn label_button<T: Clone + 'static>(label: &str, tooltip: &str, target: &T, action: impl Fn(&T) + 'static) -> gtk4::Button {
-    let button = gtk4::Button::with_label(label);
-    button.set_tooltip_text(Some(tooltip));
-    let target = target.clone();
-    button.connect_clicked(move |_| action(&target));
-    button
-}
 
 /// Wraps the current selection in `prefix`...`suffix`; with no selection,
 /// inserts an empty `prefix``suffix` pair with the cursor placed between them.
@@ -147,12 +387,6 @@ fn wrap_selection(buffer: &sourceview5::Buffer, prefix: &str, suffix: &str) {
     }
 }
 
-/// Inserts `prefix` at the start of the line the cursor is currently on.
-fn insert_line_prefix(buffer: &sourceview5::Buffer, prefix: &str) {
-    let mut iter = buffer.iter_at_mark(&buffer.get_insert());
-    iter.set_line_offset(0);
-    buffer.insert(&mut iter, prefix);
-}
 
 fn insert_code_block(buffer: &sourceview5::Buffer) {
     if let Some((mut start, mut end)) = buffer.selection_bounds() {
@@ -184,16 +418,6 @@ fn insert_table(buffer: &sourceview5::Buffer) {
     select(buffer, pos + 2, pos + 2 + col1_len);
 }
 
-/// Inserts WordPress's "Weiterlesen" marker - a lone `<!--more-->` HTML
-/// comment - on its own line. Both Markdown and `crates/gutenberg`'s
-/// forward converter already treat that as a raw-HTML passthrough, mapped
-/// specifically to `wp:more` there (not the generic `wp:html`), so nothing
-/// beyond the literal text needs inserting here. Like "Tabelle einfügen",
-/// this expects the cursor to already be on its own blank line.
-fn insert_more_marker(buffer: &sourceview5::Buffer) {
-    let mut iter = buffer.iter_at_mark(&buffer.get_insert());
-    buffer.insert(&mut iter, "<!--more-->\n");
-}
 
 /// Inserts a Markdown link, selecting the placeholder text (existing
 /// selection becomes the link text, or "text"/"url" placeholders otherwise)
@@ -296,6 +520,18 @@ mod tests {
     #[test]
     fn markdown_destination_wraps_a_path_containing_a_space_in_angle_brackets() {
         assert_eq!(markdown_destination("my photo.png"), "<my photo.png>");
+    }
+
+    #[test]
+    fn line_styles_replace_each_other_and_toggle_off() {
+        assert_eq!(restyle_line("Text", LineStyle::Heading(2), true, 1), "## Text");
+        assert_eq!(restyle_line("## Text", LineStyle::Heading(3), true, 1), "### Text");
+        assert_eq!(restyle_line("## Text", LineStyle::Heading(2), true, 1), "Text");
+        assert_eq!(restyle_line("- Punkt", LineStyle::Ordered, true, 3), "3. Punkt");
+        assert_eq!(restyle_line("12. Punkt", LineStyle::Quote, true, 1), "> Punkt");
+        assert_eq!(restyle_line("> Zitat", LineStyle::Quote, true, 1), "Zitat");
+        assert_eq!(restyle_line("> Zitat", LineStyle::Quote, false, 1), "> Zitat");
+        assert_eq!(restyle_line("#hashtag", LineStyle::Bullet, true, 1), "- #hashtag");
     }
 
     #[test]

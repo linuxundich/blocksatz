@@ -335,7 +335,21 @@ fn insert_block(buffer: &sourceview5::Buffer, snippet: &str) {
     let line_start = buffer.iter_at_line(iter.line()).unwrap_or(iter);
     let current_line_empty = buffer.text(&line_start, &iter, false).trim().is_empty();
     let before = if current_line_empty { if iter.line() == 0 { "" } else { "\n" } } else { "\n\n" };
-    let text = format!("{before}{snippet}\n\n");
+    // Exactly one blank line after the block: the line break the cursor's
+    // line already has, plus one more unless a blank line follows anyway.
+    let mut next_line = iter;
+    let next_blank = if next_line.forward_line() {
+        let mut next_end = next_line;
+        if !next_end.ends_line() {
+            next_end.forward_to_line_end();
+        }
+        buffer.text(&next_line, &next_end, false).trim().is_empty()
+    } else {
+        false
+    };
+    let at_end = iter.is_end();
+    let after = if at_end { "\n" } else if next_blank { "" } else { "\n" };
+    let text = format!("{before}{snippet}{after}");
     buffer.begin_user_action();
     let start = iter.offset();
     buffer.insert(&mut iter, &text);

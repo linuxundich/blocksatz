@@ -33,6 +33,9 @@ pub enum Block {
     Image {
         url: String,
         alt: String,
+        /// The caption as inline HTML (from the Markdown brackets, which
+        /// may hold links and emphasis). `gutenberg_to_markdown` keeps the
+        /// Markdown text here instead.
         title: Option<String>,
         /// The uploaded WordPress attachment's id - `None` for a plain
         /// parse straight from Markdown text (there's no syntax slot to
@@ -101,6 +104,11 @@ pub enum Block {
     /// fenced ` ```buttons ` block containing one Markdown link per line -
     /// see `parse_fenced_buttons`.
     Buttons { buttons: Vec<ButtonItem> },
+    /// `wp:preformatted` / `wp:verse` (`kind`) - text whose lines and
+    /// spacing are kept, written as a ` ```preformatted ` or ` ```verse `
+    /// fence; each line may hold inline Markdown and becomes one line
+    /// (`<br>`) of the block - see `parse_fenced_pre`.
+    Pre { kind: String, lines: Vec<String> },
     /// `wp:gallery` - a photo gallery. Written as a fenced ` ```gallery `
     /// block containing one Markdown image reference per line, each
     /// optionally carrying a caption via CommonMark's own image title
@@ -569,7 +577,10 @@ fn as_lone_media(events: &[Event]) -> Option<Block> {
             // This app's convention (see `media::markdown_image_text_for`):
             // the bracket text is the caption, the title the alt text -
             // the opposite of CommonMark's usual pairing.
-            let caption = collect_text(&events[1..events.len() - 1]);
+            // The caption may carry inline Markdown (a credit link,
+            // emphasis) - kept as inline HTML.
+            let mut caption = String::new();
+            pulldown_cmark::html::push_html(&mut caption, events[1..events.len() - 1].iter().cloned());
             let alt = title.to_string();
             let title = (!caption.is_empty()).then_some(caption);
             Some(Block::Image {
@@ -794,6 +805,25 @@ pub fn split_quote_citation(mut blocks: Vec<Block>) -> (Vec<Block>, Option<Strin
     (blocks, citation)
 }
 
+/// A ` ```preformatted ` / ` ```verse ` fence: every line keeps its
+/// leading spaces, the rest is inline Markdown.
+pub fn parse_fenced_pre(kind: &str, text: &str) -> Block {
+    let text = text.strip_suffix('\n').unwrap_or(text);
+    let lines = text
+        .split('\n')
+        .map(|line| {
+            let rest = line.trim_start_matches([' ', '\t']);
+            let indent = &line[..line.len() - rest.len()];
+            let html = match parse_plain_markdown(rest).into_iter().next() {
+                Some(Block::Paragraph { html }) => html,
+                _ => escape_html(rest),
+            };
+            format!("{indent}{html}")
+        })
+        .collect();
+    Block::Pre { kind: kind.to_string(), lines }
+}
+
 /// Splits a ` ```pullquote ` block's raw text into quote text and an
 /// optional citation on a `+++` line (see `split_on_plus_separator`). The
 /// quote text is parsed as ordinary Markdown and flattened to one HTML
@@ -871,6 +901,7 @@ fn parse_blocks(events: &[Event], mut i: usize, stop: usize) -> Vec<Block> {
                             Some("gallery") => parse_fenced_gallery(&text),
                             Some("pullquote") => parse_fenced_pullquote(&text),
                             Some("details") => parse_fenced_details(&text),
+                            Some(kind @ ("preformatted" | "verse")) => parse_fenced_pre(kind, &text),
                             _ => Block::CodeBlock { lang, text },
                         });
                     }
@@ -989,7 +1020,7 @@ fn parse_table_row_cells(events: &[Event], mut i: usize, end: usize) -> Vec<Stri
 // Rendering: Block tree -> Gutenberg block-comment HTML
 // ---------------------------------------------------------------------
 
-fn escape_html(s: &str) -> String {
+pub fn escape_html(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
         match c {
@@ -1313,7 +1344,7 @@ pub fn render_block(block: &Block) -> String {
             let figcaption = title
                 .as_ref()
                 .filter(|t| !t.is_empty())
-                .map(|t| format!("<figcaption class=\"wp-element-caption\">{}</figcaption>", escape_html(t)))
+                .map(|t| format!("<figcaption class=\"wp-element-caption\">{t}</figcaption>"))
                 .unwrap_or_default();
             // `wp-image-<id>` is what WordPress's own `the_content` filter
             // keys off to inject `srcset`/`sizes` (and, if missing,
@@ -1349,6 +1380,7 @@ pub fn render_block(block: &Block) -> String {
         Block::Table { alignments, header, rows, footer, caption } => render_table(alignments, header, rows, footer, caption.as_deref()),
         Block::Columns { columns } => render_columns(columns),
         Block::Buttons { buttons } => render_buttons(buttons),
+        Block::Pre { kind, lines } => wrap(kind, None, &format!("<pre class=\"wp-block-{kind}\">{}</pre>", lines.join("<br>"))),
         Block::Gallery { images, settings } => render_gallery(images, settings),
         Block::Pullquote { paragraphs, citation } => render_pullquote(paragraphs, citation),
         Block::Details { summary, blocks } => render_details(summary, blocks),

@@ -370,6 +370,8 @@ const BLOCK_SNIPPETS: &[(&str, &str, &str)] = &[
     ("cover", "Cover", "::: cover {overlay=contrast dim=60 height=400px}\n## Titel\n:::"),
     ("media-text", "Medien & Text", "::: media-text {image=bild.png}\nText neben dem Bild\n:::"),
     ("details", "Details", "::: details \"Zusammenfassung\"\nInhalt\n:::"),
+    ("preformatted", "Vorformatierter Text", "```preformatted\nText, dessen Zeilen und Leerzeichen bleiben\n```"),
+    ("verse", "Gedicht", "```verse\nErste Zeile\nZweite Zeile\n```"),
     ("latest-posts", "Neueste Beiträge", "<!-- wp:latest-posts {\"postsToShow\":5} /-->"),
     ("archives", "Archive", "<!-- wp:archives /-->"),
     ("categories", "Kategorien", "<!-- wp:categories /-->"),
@@ -408,7 +410,7 @@ fn insert_block(buffer: &sourceview5::Buffer, snippet: &str) {
     buffer.end_user_action();
     let mut offset = start + before.chars().count() as i32;
     for line in snippet.lines() {
-        let editable = !line.starts_with(":::") && !line.starts_with("<!--") && !line.is_empty();
+        let editable = !line.starts_with(":::") && !line.starts_with("<!--") && !line.starts_with("```") && !line.is_empty();
         if editable {
             let content = line.trim_start_matches('#').trim_start();
             let skip = (line.chars().count() - content.chars().count()) as i32;

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-02 15:54+0200\n"
+"POT-Creation-Date: 2026-10-02 18:10+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -125,7 +125,7 @@ msgstr "{n} findings - click one to jump there."
 msgid "Verwerfen"
 msgstr "Discard"
 
-#: src/aiinplace.rs:107 src/markdowncheck.rs:184
+#: src/aiinplace.rs:107 src/markdowncheck.rs:186
 msgid "Schließen"
 msgstr "Close"
 
@@ -179,7 +179,7 @@ msgstr ""
 
 #: src/aimenu.rs:188 src/blogposts.rs:385 src/export.rs:202
 #: src/gallerydialog.rs:154 src/mainaction.rs:557 src/mainaction.rs:613
-#: src/markdowncheck.rs:160 src/mediabrowser.rs:548 src/releasecheck.rs:185
+#: src/markdowncheck.rs:162 src/mediabrowser.rs:548 src/releasecheck.rs:185
 #: src/taxonomy.rs:352 src/taxonomy.rs:666
 msgid "Abbrechen"
 msgstr "Cancel"
@@ -482,19 +482,19 @@ msgstr "Choose Preview Font"
 msgid "Auf Stil-Standardschrift zurücksetzen"
 msgstr "Reset to Style's Default Font"
 
-#: src/blockinspector.rs:54 src/markdowncheck.rs:89
+#: src/blockinspector.rs:54 src/markdowncheck.rs:91
 msgid "Absatz"
 msgstr "Paragraph"
 
-#: src/blockinspector.rs:55 src/formatting.rs:70 src/markdowncheck.rs:90
+#: src/blockinspector.rs:55 src/formatting.rs:70 src/markdowncheck.rs:92
 msgid "Überschrift"
 msgstr "Heading"
 
-#: src/blockinspector.rs:56 src/formatting.rs:72 src/markdowncheck.rs:91
+#: src/blockinspector.rs:56 src/formatting.rs:72 src/markdowncheck.rs:93
 msgid "Liste"
 msgstr "List"
 
-#: src/blockinspector.rs:57 src/formatting.rs:74 src/markdowncheck.rs:88
+#: src/blockinspector.rs:57 src/formatting.rs:74 src/markdowncheck.rs:90
 msgid "Zitat"
 msgstr "Quote"
 
@@ -502,27 +502,27 @@ msgstr "Quote"
 msgid "Code"
 msgstr "Code"
 
-#: src/blockinspector.rs:59 src/markdowncheck.rs:92
+#: src/blockinspector.rs:59 src/markdowncheck.rs:94
 msgid "Bild"
 msgstr "Image"
 
-#: src/blockinspector.rs:60 src/markdowncheck.rs:95 src/mediabrowser.rs:37
+#: src/blockinspector.rs:60 src/markdowncheck.rs:97 src/mediabrowser.rs:37
 msgid "Video"
 msgstr "Video"
 
-#: src/blockinspector.rs:61 src/markdowncheck.rs:94 src/mediabrowser.rs:36
+#: src/blockinspector.rs:61 src/markdowncheck.rs:96 src/mediabrowser.rs:36
 msgid "Audio"
 msgstr "Audio"
 
-#: src/blockinspector.rs:62 src/markdowncheck.rs:96
+#: src/blockinspector.rs:62 src/markdowncheck.rs:98
 msgid "Einbettung"
 msgstr "Embed"
 
-#: src/blockinspector.rs:63 src/formatting.rs:128 src/markdowncheck.rs:102
+#: src/blockinspector.rs:63 src/formatting.rs:128 src/markdowncheck.rs:104
 msgid "Trenner"
 msgstr "Separator"
 
-#: src/blockinspector.rs:64 src/formatting.rs:76 src/markdowncheck.rs:93
+#: src/blockinspector.rs:64 src/formatting.rs:76 src/markdowncheck.rs:95
 msgid "Tabelle"
 msgstr "Table"
 
@@ -534,15 +534,15 @@ msgstr "Columns"
 msgid "Spalte"
 msgstr "Column"
 
-#: src/blockinspector.rs:67 src/markdowncheck.rs:86
+#: src/blockinspector.rs:67 src/markdowncheck.rs:88
 msgid "Buttons"
 msgstr "Buttons"
 
-#: src/blockinspector.rs:68 src/markdowncheck.rs:85
+#: src/blockinspector.rs:68 src/markdowncheck.rs:87
 msgid "Galerie"
 msgstr "Gallery"
 
-#: src/blockinspector.rs:69 src/markdowncheck.rs:87
+#: src/blockinspector.rs:69 src/markdowncheck.rs:89
 msgid "Hervorgehobenes Zitat"
 msgstr "Pullquote"
 
@@ -1148,15 +1148,15 @@ msgid ""
 "sein."
 msgstr "A valid publish date must be set for the “Scheduled” status."
 
-#: src/export.rs:770
+#: src/export.rs:790
 msgid "Bild nicht abrufbar: {err}"
 msgstr "Couldn't fetch image: {err}"
 
-#: src/export.rs:774
+#: src/export.rs:794
 msgid "Bild nicht lesbar: {err}"
 msgstr "Couldn't read image: {err}"
 
-#: src/export.rs:777 src/media.rs:469
+#: src/export.rs:797 src/media.rs:469
 msgid "Bild {path} nicht lesbar: {err}"
 msgstr "Couldn't read image {path}: {err}"
 
@@ -1312,19 +1312,19 @@ msgstr "Containers"
 msgid "Vom Blog erzeugt"
 msgstr "Rendered by the blog"
 
-#: src/formatting.rs:478
+#: src/formatting.rs:480
 msgid "Spalte 1"
 msgstr "Column 1"
 
-#: src/formatting.rs:479
+#: src/formatting.rs:481
 msgid "Spalte 2"
 msgstr "Column 2"
 
-#: src/formatting.rs:480
+#: src/formatting.rs:482
 msgid "Zelle 1"
 msgstr "Cell 1"
 
-#: src/formatting.rs:481
+#: src/formatting.rs:483
 msgid "Zelle 2"
 msgstr "Cell 2"
 
@@ -2010,47 +2010,55 @@ msgstr "medium"
 msgid "gering"
 msgstr "low"
 
-#: src/markdowncheck.rs:97
+#: src/markdowncheck.rs:85
+msgid "Vorformatierter Text"
+msgstr "Preformatted Text"
+
+#: src/markdowncheck.rs:86
+msgid "Gedicht"
+msgstr "Verse"
+
+#: src/markdowncheck.rs:99
 msgid "Datei"
 msgstr "File"
 
-#: src/markdowncheck.rs:98
+#: src/markdowncheck.rs:100
 msgid "HTML"
 msgstr "HTML"
 
-#: src/markdowncheck.rs:99 src/markdowncheck.rs:141
+#: src/markdowncheck.rs:101 src/markdowncheck.rs:143
 msgid "Klassischer Inhalt"
 msgstr "Classic content"
 
-#: src/markdowncheck.rs:100
+#: src/markdowncheck.rs:102
 msgid "Shortcode"
 msgstr "Shortcode"
 
-#: src/markdowncheck.rs:101 src/preview.rs:1457
+#: src/markdowncheck.rs:103 src/preview.rs:1465
 msgid "Abfrage-Loop"
 msgstr "Query loop"
 
-#: src/markdowncheck.rs:103
+#: src/markdowncheck.rs:105
 msgid "Abstandhalter"
 msgstr "Spacer"
 
-#: src/markdowncheck.rs:112
+#: src/markdowncheck.rs:114
 msgid "…"
 msgstr "…"
 
-#: src/markdowncheck.rs:120
+#: src/markdowncheck.rs:122
 msgid "{n} Blöcke lassen sich hier nur als WordPress-Markup bearbeiten."
 msgstr "{n} blocks can only be edited as WordPress markup here."
 
-#: src/markdowncheck.rs:122
+#: src/markdowncheck.rs:124
 msgid "Der Beitrag besteht zum großen Teil aus verschachtelten Containern."
 msgstr "Most of the post consists of nested containers."
 
-#: src/markdowncheck.rs:127
+#: src/markdowncheck.rs:129
 msgid "Darunter: {kinds}."
 msgstr "Among them: {kinds}."
 
-#: src/markdowncheck.rs:130
+#: src/markdowncheck.rs:132
 msgid ""
 "Blocksatz ist für Artikel gedacht, die in Markdown geschrieben sind. Solche "
 "Beiträge bearbeitest du besser im Block-Editor von WordPress."
@@ -2058,51 +2066,51 @@ msgstr ""
 "Blocksatz is meant for articles written in Markdown. Posts like this are "
 "better edited in the WordPress block editor."
 
-#: src/markdowncheck.rs:138
+#: src/markdowncheck.rs:140
 msgid "Als WordPress-Markup im Text"
 msgstr "Kept as WordPress markup"
 
-#: src/markdowncheck.rs:138
+#: src/markdowncheck.rs:140
 msgid "{n} Blöcke ({share} %)"
 msgstr "{n} blocks ({share} %)"
 
-#: src/markdowncheck.rs:141
+#: src/markdowncheck.rs:143
 msgid "aus der Zeit vor dem Block-Editor"
 msgstr "from before the block editor"
 
-#: src/markdowncheck.rs:144
+#: src/markdowncheck.rs:146
 msgid "Container und Sonderblöcke"
 msgstr "Containers and special blocks"
 
-#: src/markdowncheck.rs:147
+#: src/markdowncheck.rs:149
 msgid "Gestaltungsangaben"
 msgstr "Design settings"
 
-#: src/markdowncheck.rs:151
+#: src/markdowncheck.rs:153
 msgid "Betroffene Blöcke"
 msgstr "Blocks involved"
 
-#: src/markdowncheck.rs:159
+#: src/markdowncheck.rs:161
 msgid "Dieser Beitrag nutzt viele Gutenberg-Funktionen"
 msgstr "This post uses many Gutenberg features"
 
-#: src/markdowncheck.rs:160 src/postpane.rs:55
+#: src/markdowncheck.rs:162 src/postpane.rs:55
 msgid "In wp-admin bearbeiten"
 msgstr "Edit in wp-admin"
 
-#: src/markdowncheck.rs:160
+#: src/markdowncheck.rs:162
 msgid "Trotzdem öffnen"
 msgstr "Open anyway"
 
-#: src/markdowncheck.rs:175
+#: src/markdowncheck.rs:177
 msgid "Gutenberg-Funktionen in diesem Beitrag"
 msgstr "Gutenberg features in this post"
 
-#: src/markdowncheck.rs:175 src/postpane.rs:164
+#: src/markdowncheck.rs:177 src/postpane.rs:164
 msgid "Markdown-Nähe: {level}"
 msgstr "Closeness to Markdown: {level}"
 
-#: src/markdowncheck.rs:186
+#: src/markdowncheck.rs:188
 msgid "Hinweis ausblenden"
 msgstr "Hide notice"
 
@@ -2532,143 +2540,143 @@ msgstr "Edit Image…"
 msgid "Wiedergabeliste – die Titel erzeugt das Blog"
 msgstr "Playlist – the blog renders its tracks"
 
-#: src/preview.rs:1423
+#: src/preview.rs:1431
 msgid "Seitenumbruch"
 msgstr "Page break"
 
-#: src/preview.rs:1455
+#: src/preview.rs:1463
 msgid "Neueste Beiträge"
 msgstr "Latest posts"
 
-#: src/preview.rs:1456
+#: src/preview.rs:1464
 msgid "Neueste Kommentare"
 msgstr "Latest comments"
 
-#: src/preview.rs:1458
+#: src/preview.rs:1466
 msgid "Archive"
 msgstr "Archives"
 
-#: src/preview.rs:1459 src/taxonomy.rs:33
+#: src/preview.rs:1467 src/taxonomy.rs:33
 msgid "Kategorien"
 msgstr "Categories"
 
-#: src/preview.rs:1460
+#: src/preview.rs:1468
 msgid "Schlagwörter-Wolke"
 msgstr "Tag cloud"
 
-#: src/preview.rs:1461
+#: src/preview.rs:1469
 msgid "Kalender"
 msgstr "Calendar"
 
-#: src/preview.rs:1462
+#: src/preview.rs:1470
 msgid "Suche"
 msgstr "Search"
 
-#: src/preview.rs:1463
+#: src/preview.rs:1471
 msgid "Seitenliste"
 msgstr "Page list"
 
-#: src/preview.rs:1464
+#: src/preview.rs:1472
 msgid "Social-Media-Links"
 msgstr "Social links"
 
-#: src/preview.rs:1465
+#: src/preview.rs:1473
 msgid "RSS-Feed"
 msgstr "RSS feed"
 
-#: src/preview.rs:1466
+#: src/preview.rs:1474
 msgid "Synchronisiertes Muster"
 msgstr "Synced pattern"
 
-#: src/preview.rs:1467
+#: src/preview.rs:1475
 msgid "Inhaltsverzeichnis"
 msgstr "Table of contents"
 
-#: src/preview.rs:1468
+#: src/preview.rs:1476
 msgid "Werbeplatz"
 msgstr "Ad slot"
 
-#: src/preview.rs:1469
+#: src/preview.rs:1477
 msgid "Symbol"
 msgstr "Icon"
 
-#: src/preview.rs:1470
+#: src/preview.rs:1478
 msgid "Anmelden/Abmelden"
 msgstr "Log in/out"
 
-#: src/preview.rs:1471
+#: src/preview.rs:1479
 msgid "Lesezeit"
 msgstr "Reading time"
 
-#: src/preview.rs:1472 src/properties.rs:447
+#: src/preview.rs:1480 src/properties.rs:447
 msgid "Autor"
 msgstr "Author"
 
-#: src/preview.rs:1473
+#: src/preview.rs:1481
 msgid "Kategorien und Schlagwörter"
 msgstr "Categories and tags"
 
-#: src/preview.rs:1474
+#: src/preview.rs:1482
 msgid "Datum"
 msgstr "Date"
 
-#: src/preview.rs:1475
+#: src/preview.rs:1483
 msgid "Avatar"
 msgstr "Avatar"
 
-#: src/preview.rs:1476
+#: src/preview.rs:1484
 msgid "Brotkrümelnavigation"
 msgstr "Breadcrumbs"
 
-#: src/preview.rs:1477
+#: src/preview.rs:1485
 msgid "Navigation"
 msgstr "Navigation"
 
-#: src/preview.rs:1478 src/properties.rs:559
+#: src/preview.rs:1486 src/properties.rs:559
 msgid "Kommentare"
 msgstr "Comments"
 
-#: src/preview.rs:1483 src/preview.rs:1521
+#: src/preview.rs:1491 src/preview.rs:1529
 msgid "{name} – wird vom Blog erzeugt"
 msgstr "{name} – rendered by the blog"
 
-#: src/preview.rs:1520
+#: src/preview.rs:1528
 msgid "Shortcode [{name}]"
 msgstr "Shortcode [{name}]"
 
-#: src/preview.rs:1527
+#: src/preview.rs:1535
 msgid "Weiterlesen"
 msgstr "Read more"
 
-#: src/preview.rs:1541
+#: src/preview.rs:1549
 msgid "Fußnoten"
 msgstr "Footnotes"
 
-#: src/preview.rs:1556
+#: src/preview.rs:1564
 msgid "YouTube-Video"
 msgstr "YouTube video"
 
-#: src/preview.rs:1557
+#: src/preview.rs:1565
 msgid "Vimeo-Video"
 msgstr "Vimeo video"
 
-#: src/preview.rs:1562
+#: src/preview.rs:1570
 msgid "Eingebetteter Inhalt"
 msgstr "Embedded content"
 
-#: src/preview.rs:1760
+#: src/preview.rs:1768
 msgid "Bereits zu WordPress hochgeladen"
 msgstr "Already uploaded to WordPress"
 
-#: src/preview.rs:1767 src/preview.rs:1768
+#: src/preview.rs:1775 src/preview.rs:1776
 msgid "Alt"
 msgstr "Alt"
 
-#: src/preview.rs:1768
+#: src/preview.rs:1776
 msgid "Bewusst ohne Alternativtext (dekoratives Bild)"
 msgstr "Deliberately without alt text (decorative image)"
 
-#: src/preview.rs:1772
+#: src/preview.rs:1780
 msgid "Bildformat"
 msgstr "Image format"
 

@@ -82,6 +82,8 @@ fn kind_label(kind: &str) -> String {
         "accordion" => tr("Akkordeon"),
         "tabs" => tr("Reiter"),
         "details" => tr("Details"),
+        "preformatted" => tr("Vorformatierter Text"),
+        "verse" => tr("Gedicht"),
         "gallery" => tr("Galerie"),
         "buttons" | "button" => tr("Buttons"),
         "pullquote" => tr("Hervorgehobenes Zitat"),

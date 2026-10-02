@@ -308,3 +308,12 @@ Schritt 1 sollte unabhängig vom Rest sofort kommen.
   Link-Attribute von Buttons und Bildern selbst. Testbeitrag: 64 → 52 rohe
   Blöcke; roh bleibt eine Tabelle, deren Kopfzeile anders ausgerichtet ist
   als die Zellen, und eine Bildunterschrift mit Link.
+- **Schritt 10**: ` ```preformatted ` / ` ```verse ` (`Block::Pre`, Zeilen
+  per `<br>`, Einrückung bleibt, Inline-Markdown je Zeile) und
+  Bildunterschriften als Inline-Markdown in der Klammer (`Image.title` ist
+  in der Engine jetzt Inline-HTML; die Medienverwaltung hält nur den Text
+  und ersetzt die Unterschrift nur, wenn der Text abweicht). Testbeitrag:
+  52 → 49 rohe Blöcke. Bewusst roh: die Tabelle mit abweichend
+  ausgerichteter Kopfzeile (GFM richtet nur ganze Spalten aus; der
+  Block-Editor selbst richtet Spalten ebenfalls komplett aus), Formel,
+  Datei, Abstandhalter, Symbol und alle dynamischen Blöcke.

@@ -619,7 +619,12 @@ fn apply_media_metadata_with(blocks: &mut [gutenberg::Block], media: &[media::Me
                         if let Some(text) = item.alt.as_wordpress_value() {
                             *alt = text.to_string();
                         }
-                        *title = item.caption.clone();
+                        // The block's caption is inline HTML from the Markdown
+                        // (links, emphasis); Medienverwaltung keeps its text.
+                        // Only a different text replaces it.
+                        if item.caption.as_deref() != title.as_deref().map(caption_text).as_deref() {
+                            *title = item.caption.as_deref().map(gutenberg::escape_html);
+                        }
                     }
                     if let Some(wp) = &item.wordpress {
                         *media_id = Some(wp.media_id);
@@ -685,6 +690,21 @@ fn apply_container_image_metadata(kind: &str, params: &mut gutenberg::ContainerP
             params.set("alt", Some(alt.to_string()));
         }
     }
+}
+
+/// The text of a caption's inline HTML, as Medienverwaltung keeps it.
+fn caption_text(html: &str) -> String {
+    let mut out = String::new();
+    let mut in_tag = false;
+    for c in html.chars() {
+        match c {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            c if !in_tag => out.push(c),
+            _ => {}
+        }
+    }
+    out.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&#39;", "'").replace("&amp;", "&")
 }
 
 /// Recursively substitutes `wp:image`/`wp:video`/`wp:audio` blocks' source
@@ -899,6 +919,20 @@ mod tests {
         // Without Markdown footnotes, an opened post's meta goes back.
         assert_eq!(footnotes_meta(&with_footnotes("Text").1, Some("[]")).as_deref(), Some("[]"));
         assert_eq!(footnotes_meta(&[], None), None);
+    }
+
+    /// A caption with a link survives the media list, which only keeps
+    /// its text; a caption changed there replaces it.
+    #[test]
+    fn a_rich_caption_survives_the_media_list() {
+        let md = "![Foto: [Name](https://example.org/) & Co](bild.png \"Alt\")\n";
+        let mut media = media::reconcile(&[], md);
+        assert_eq!(media[0].caption.as_deref(), Some("Foto: Name & Co"));
+        let html = gutenberg_preview_html(md, &media);
+        assert!(html.contains("<figcaption class=\"wp-element-caption\">Foto: <a href=\"https://example.org/\">Name</a> &amp; Co</figcaption>"), "{html}");
+        media[0].caption = Some("Neu <b>".to_string());
+        let html = gutenberg_preview_html(md, &media);
+        assert!(html.contains("<figcaption class=\"wp-element-caption\">Neu &lt;b&gt;</figcaption>"), "{html}");
     }
 
     #[test]

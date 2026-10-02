@@ -231,14 +231,22 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
         }
         "image" => {
             let caption = inner.find("<figcaption").and_then(|idx| extract_between(&inner[idx..], ">", "</figcaption>")).map(str::trim).unwrap_or("");
-            // Markdown's image title is plain text - a caption with its own
-            // markup (a link, emphasis) can't go there.
-            if caption.contains('<') {
-                return verbatim();
-            }
+            // The caption goes into the Markdown brackets: plain text with
+            // its brackets escaped, or - with markup - as inline Markdown,
+            // whose own text then must not hold brackets.
+            let caption = if caption.contains('<') {
+                let markdown = inline_html_to_markdown(caption);
+                if strip_tags_text(caption).contains(['[', ']']) {
+                    return verbatim();
+                }
+                markdown
+            } else {
+                unescape_entities(caption).replace('[', "\\[").replace(']', "\\]")
+            };
             // A link around the image keeps only its address in Markdown
             // (`[![…](bild)](ziel)`) - a new-tab target or rel stays raw.
-            if let Some(a) = inner.find("<a ") {
+            let img_at = inner.find("<img").unwrap_or(inner.len());
+            if let Some(a) = inner[..img_at].find("<a ") {
                 let tag = &inner[a + 3..a + inner[a..].find('>').unwrap_or(inner.len() - a)];
                 if crate::attrs::parse_tag_attrs(tag).iter().any(|(key, _)| key != "href") {
                     return verbatim();
@@ -247,7 +255,7 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
             Block::Image {
                 url: extract_attr(inner, "src").unwrap_or_default(),
                 alt: unescape_entities(&extract_attr(inner, "alt").unwrap_or_default()),
-                title: Some(unescape_entities(caption)).filter(|t| !t.is_empty()),
+                title: Some(caption).filter(|t| !t.is_empty()),
                 // Plain Markdown has no slot to carry these through a
                 // round-trip (see the field's own doc comment in `lib.rs`) -
                 // re-acquired fresh from `Frontmatter.media` on the next
@@ -310,6 +318,25 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
             }
         }
         "pullquote" => parse_pullquote_block(inner),
+        "preformatted" | "verse" => {
+            let text = strip_wrapper_tag(inner.trim(), "pre");
+            let lines: Vec<String> = text
+                .replace("<br/>", "<br>")
+                .replace("<br />", "<br>")
+                .replace('\n', "<br>")
+                .split("<br>")
+                .map(|line| {
+                    let rest = line.trim_start_matches([' ', '\t']);
+                    let indent = &line[..line.len() - rest.len()];
+                    format!("{indent}{}", inline_html_to_markdown(rest))
+                })
+                .collect();
+            // A line of backticks would end the fence.
+            if lines.iter().any(|line| line.trim_start().starts_with("```")) {
+                return verbatim();
+            }
+            Block::Pre { kind: name.to_string(), lines }
+        }
         // Our own "html" passthrough, and WordPress's own unusual "more"
         // block (whose inner content already just *is* the bare
         // `<!--more-->` marker - see the matching arm in `lib.rs`'s
@@ -809,6 +836,21 @@ fn with_button_attrs(button: ButtonItem, attrs: &BlockAttrs) -> ButtonItem {
     ButtonItem { attrs, ..button }
 }
 
+/// The text of some inline HTML, tags left out.
+fn strip_tags_text(html: &str) -> String {
+    let mut out = String::new();
+    let mut in_tag = false;
+    for c in html.chars() {
+        match c {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            c if !in_tag => out.push(c),
+            _ => {}
+        }
+    }
+    out
+}
+
 /// Whether every button link's attributes are ones the Markdown form
 /// keeps: class, href, style, and the new-tab pair.
 fn button_links_supported(html: &str) -> bool {
@@ -1147,7 +1189,8 @@ fn render_block_markdown(block: &Block) -> String {
         Block::Image { url, alt, title, link, .. } => {
             // Bracket = caption, title = alt text - see `as_lone_media`.
             let destination = markdown_destination(url);
-            let caption = title.as_deref().unwrap_or("").replace('[', "\\[").replace(']', "\\]");
+            // Already Markdown, brackets escaped (see the "image" arm above).
+            let caption = title.as_deref().unwrap_or("");
             let image = if alt.is_empty() {
                 format!("![{caption}]({destination})")
             } else {
@@ -1173,6 +1216,7 @@ fn render_block_markdown(block: &Block) -> String {
         }
         Block::Columns { columns } => render_columns_markdown(columns),
         Block::Buttons { buttons } => render_buttons_markdown(buttons),
+        Block::Pre { kind, lines } => format!("```{kind}\n{}\n```", lines.join("\n")),
         Block::Gallery { images, settings } => render_gallery_fence(images, settings),
         Block::Pullquote { paragraphs, citation } => render_pullquote_markdown(paragraphs, citation),
         Block::Details { summary, blocks } => render_details_markdown(summary, blocks),
@@ -1658,9 +1702,25 @@ mod tests {
     }
 
     #[test]
-    fn image_with_a_linked_caption_stays_verbatim() {
-        let wp = "<!-- wp:image -->\n<figure class=\"wp-block-image\"><img src=\"a.webp\" alt=\"\"/><figcaption class=\"wp-element-caption\">Mit <a href=\"x\">Link</a></figcaption></figure>\n<!-- /wp:image -->";
-        assert_eq!(assert_lossless(wp), wp);
+    fn a_caption_with_markup_becomes_inline_markdown() {
+        let wp = "<!-- wp:image -->\n<figure class=\"wp-block-image\"><img src=\"a.webp\" alt=\"\"/><figcaption class=\"wp-element-caption\">Foto: <a href=\"https://example.org/\">Name</a>, <em>CC BY</em></figcaption></figure>\n<!-- /wp:image -->";
+        assert_eq!(assert_lossless(wp), "![Foto: [Name](https://example.org/), *CC BY*](a.webp)");
+        let back = crate::markdown_to_gutenberg("![Foto: [Name](https://example.org/), *CC BY*](a.webp)");
+        assert!(back.contains("<figcaption class=\"wp-element-caption\">Foto: <a href=\"https://example.org/\">Name</a>, <em>CC BY</em></figcaption>"), "{back}");
+        // Plain captions keep their brackets escaped; with markup, a bracket
+        // in the text keeps the block raw.
+        assert!(gutenberg_to_markdown("<!-- wp:image -->\n<figure class=\"wp-block-image\"><img src=\"a.webp\" alt=\"\"/><figcaption class=\"wp-element-caption\">Bild [1]</figcaption></figure>\n<!-- /wp:image -->").starts_with("![Bild \\[1\\]]"));
+        assert!(gutenberg_to_markdown("<!-- wp:image -->\n<figure class=\"wp-block-image\"><img src=\"a.webp\" alt=\"\"/><figcaption class=\"wp-element-caption\">[1] <em>x</em></figcaption></figure>\n<!-- /wp:image -->").starts_with("<!-- wp:image"));
+    }
+
+    #[test]
+    fn preformatted_and_verse_round_trip() {
+        let md = assert_lossless("<!-- wp:preformatted -->\n<pre class=\"wp-block-preformatted\">Lorem   ipsum<br>    sit <strong>amet</strong></pre>\n<!-- /wp:preformatted -->");
+        assert_eq!(md, "```preformatted\nLorem   ipsum\n    sit **amet**\n```");
+        let html = crate::markdown_to_gutenberg(&md);
+        assert!(html.contains("<pre class=\"wp-block-preformatted\">Lorem   ipsum<br>    sit <strong>amet</strong></pre>"), "{html}");
+        let md = assert_lossless("<!-- wp:verse -->\n<pre class=\"wp-block-verse\">Erste Zeile,<br>zweite Zeile.</pre>\n<!-- /wp:verse -->");
+        assert_eq!(md, "```verse\nErste Zeile,\nzweite Zeile.\n```");
     }
 
     #[test]

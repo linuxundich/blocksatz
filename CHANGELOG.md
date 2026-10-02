@@ -26,6 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - buttons: `{justify=center}` below the fence, and per button
     `[Text](url){style=outline bg=accent gradient=… radius=0px width=50% newtab}`.
 
+- **Preformatted text and verse** as fences, ` ```preformatted ` and
+  ` ```verse `: every line becomes one line of the block, indentation and
+  runs of spaces stay, inline Markdown works (also in "Einfügen").
+- **Image captions with links or emphasis**, written as inline Markdown in
+  the brackets: `![Foto: [Name](https://…), *CC BY*](bild.png)`. The
+  preview shows them; Medienverwaltung keeps their text, and only a
+  caption changed there replaces the Markdown one. In the test post 49
+  blocks stay raw now - dynamic blocks, shortcodes, Custom HTML, classic
+  content, and a table whose header is aligned differently from its cells.
+
 ### Fixed
 
 - **Opening a post no longer drops a button's "open in new tab"**: it is

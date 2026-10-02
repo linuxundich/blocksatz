@@ -824,6 +824,8 @@ object.wp-block-file__embed {{ display: none; }}
 .wp-block-pullquote blockquote {{ margin: 0; font-size: 1.5rem; font-style: italic; }}
 .wp-block-pullquote cite {{ display: block; margin-top: .75rem; font-size: 1rem; font-style: normal; }}
 .wp-block-quote cite {{ display: block; margin-top: .5rem; font-size: .875em; font-style: normal; opacity: .8; }}
+.wp-block-preformatted, .wp-block-verse {{ white-space: pre-wrap; font-family: inherit; margin: 1.5em 0; overflow-wrap: anywhere; }}
+.wp-block-preformatted {{ font-family: monospace; }}
 .wp-block-details summary {{ cursor: pointer; font-weight: 600; }}
 /* Browsers indent a bare `<figure>` by 40px; WordPress's own CSS resets
    that for every block (audio, video, embed, file, ...). */
@@ -1207,6 +1209,11 @@ fn render_markdown_chunk(markdown: &str, range: std::ops::Range<usize>, out: &mu
                     .then(|| events[i + 1..end].iter().map(|(event, _)| event.clone()).collect::<Vec<_>>())
                     .and_then(|inner_events| gutenberg::lone_embed_url(&inner_events));
                 let has_heading_attrs = matches!(tag, Tag::Heading { id, classes, attrs, .. } if id.is_some() || !classes.is_empty() || !attrs.is_empty());
+                // A lone image whose caption carries markup (a credit
+                // link, emphasis) shows the `<figcaption>` WordPress gets.
+                let rich_caption = matches!(tag, Tag::Paragraph)
+                    && matches!(events.get(i + 1).map(|(e, _)| e), Some(Event::Start(Tag::Image { .. })))
+                    && events[i + 2..end].iter().any(|(e, _)| matches!(e, Event::Start(Tag::Link { .. } | Tag::Emphasis | Tag::Strong) | Event::Code(_)));
                 // A quote whose last paragraph is its source (`> — Quelle`)
                 // shows the `<cite>` WordPress will get.
                 let cited_quote = matches!(tag, Tag::BlockQuote(_))
@@ -1217,6 +1224,7 @@ fn render_markdown_chunk(markdown: &str, range: std::ops::Range<usize>, out: &mu
                     Some(url) => render_embed_placeholder(&url),
                     // `## Titel {#anker color=accent}` - through Gutenberg,
                     // like an attribute line.
+                    None if rich_caption => gutenberg::parse_markdown(&markdown[source.clone()]).pop().map(|block| gutenberg::render_block(&block)).unwrap_or_default(),
                     None if cited_quote.is_some() => cited_quote.as_ref().map(gutenberg::render_block).unwrap_or_default(),
                     None if has_heading_attrs => gutenberg::parse_markdown(&markdown[source.clone()]).pop().map(|block| gutenberg::render_block(&block)).unwrap_or_default(),
                     None => {
@@ -1860,6 +1868,7 @@ fn render_special_fenced_block(lang: &str, text: &str) -> Option<String> {
         "gallery" => gutenberg::parse_fenced_gallery(text),
         "pullquote" => gutenberg::parse_fenced_pullquote(text),
         "details" => gutenberg::parse_fenced_details(text),
+        "preformatted" | "verse" => gutenberg::parse_fenced_pre(lang, text),
         _ => return None,
     };
     Some(gutenberg::render_block(&block))
@@ -1922,6 +1931,12 @@ mod tests {
         let out = render_body_with_line_anchors(markdown, &[item]);
         assert!(out.contains("embed-placeholder"), "{out}");
         assert!(!out.contains("img-caption"), "{out}");
+    }
+
+    #[test]
+    fn a_caption_with_a_link_shows_it() {
+        let out = render_body("![Foto: [Name](https://example.org/)](bild.png)\n", &[], None);
+        assert!(out.contains("<figcaption class=\"wp-element-caption\">Foto: <a href=\"https://example.org/\">Name</a></figcaption>"), "{out}");
     }
 
     #[test]

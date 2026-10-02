@@ -191,6 +191,8 @@ fn block_name(block: &Block) -> &'static str {
         Block::Gallery { .. } => "gallery",
         Block::Pullquote { .. } => "pullquote",
         Block::Details { .. } => "details",
+        Block::Pre { kind, .. } if kind == "verse" => "verse",
+        Block::Pre { .. } => "preformatted",
         Block::RawHtml { .. } => "html",
         Block::Container { .. } => "group",
         Block::Styled { block, .. } => block_name(block),

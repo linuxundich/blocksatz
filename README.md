@@ -171,7 +171,8 @@ blocks. Implemented so far:
   ` ```gallery ` (one Markdown image per line), ` ```pullquote ` (quote
   text and an optional citation, split on a `+++` line), and
   ` ```details ` (a summary and its body, also `+++`-split, the body
-  re-parsed as ordinary Markdown, `wp:details` in modern WordPress) - all
+  re-parsed as ordinary Markdown, `wp:details` in modern WordPress),
+  ` ```preformatted ` and ` ```verse ` (lines and spacing kept) - all
   with full round-trip support back to the same Markdown when re-opening
   an existing post. Design Markdown has no syntax for goes into an
   **attribute line** in curly braces below the block (Pandoc/kramdown
@@ -189,7 +190,8 @@ blocks. Implemented so far:
   `{footer}` (last row is the footer); an ordered list starting at `5.`
   keeps its start number. Images follow this app's convention
   `![Bildunterschrift](bild.png "Alternativtext")` - the same brackets
-  caption audio and video - and a linked image is plain Markdown,
+  caption audio and video, and may hold links and emphasis
+  (`![Foto: [Name](https://…)](bild.png)`) - and a linked image is plain Markdown,
   `[![BU](bild.png)](ziel)`. A quote's last paragraph starting with an em
   dash becomes its citation: `> — Cicero, *De finibus*`. **Footnotes**
   are written as on GitHub, `Satz.[^1]` with `[^1]: Quelle` anywhere

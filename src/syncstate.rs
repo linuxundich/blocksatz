@@ -45,6 +45,8 @@ pub fn fingerprint(doc: &Document) -> String {
         wp_pending_create: None,
         featured_media_id: None,
         media: Vec::new(),
+        // A local notice (`markdowncheck.rs`), never sent.
+        markdown_hint: false,
         ..doc.frontmatter.clone()
     };
     let mut hasher = sha2::Sha256::new();
@@ -151,6 +153,15 @@ pub fn state(doc: &Document, remote: &Remote) -> PostState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_markdown_hint_does_not_count_as_a_change() {
+        let mut doc = Document::default();
+        doc.body = "Text".into();
+        let before = fingerprint(&doc);
+        doc.frontmatter.markdown_hint = true;
+        assert_eq!(fingerprint(&doc), before);
+    }
     use crate::media::{AltText, MediaItem};
 
     fn doc(body: &str) -> Document {

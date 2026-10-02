@@ -3373,6 +3373,30 @@ msgstr "Open anyway"
 msgid "Vor stark gestalteten Beiträgen warnen"
 msgstr "Warn about heavily designed posts"
 
+#: src/markdowncheck.rs
+msgid "Als WordPress-Markup im Text"
+msgstr "Kept as WordPress markup"
+
+#: src/markdowncheck.rs
+msgid "{n} Blöcke ({share} %)"
+msgstr "{n} blocks ({share} %)"
+
+#: src/markdowncheck.rs
+msgid "aus der Zeit vor dem Block-Editor"
+msgstr "from before the block editor"
+
+#: src/markdowncheck.rs
+msgid "Container und Sonderblöcke"
+msgstr "Containers and special blocks"
+
+#: src/markdowncheck.rs
+msgid "Gestaltungsangaben"
+msgstr "Design settings"
+
+#: src/markdowncheck.rs
+msgid "Betroffene Blöcke"
+msgstr "Blocks involved"
+
 #~ msgid "Blog nicht erreichbar"
 #~ msgstr "Blog unreachable"
 

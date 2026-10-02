@@ -131,26 +131,26 @@ fn warning_text(assessment: &Assessment) -> String {
     text
 }
 
-/// One line per kind of extra, for the details dialog.
-pub fn details_text(assessment: &Assessment) -> String {
-    let mut lines = vec![tr("Markdown-Nähe: {level}").replace("{level}", &closeness_label(assessment.closeness))];
+/// The extras as (label, value) rows, for the details dialog.
+fn detail_rows(assessment: &Assessment) -> Vec<(String, String)> {
+    let mut rows = Vec::new();
     if assessment.foreign > 0 {
-        lines.push(tr("Als WordPress-Markup im Text: {n} Blöcke ({share} %)").replace("{n}", &assessment.foreign.to_string()).replace("{share}", &format!("{:.0}", assessment.foreign_share() * 100.0)));
+        rows.push((tr("Als WordPress-Markup im Text"), tr("{n} Blöcke ({share} %)").replace("{n}", &assessment.foreign.to_string()).replace("{share}", &format!("{:.0}", assessment.foreign_share() * 100.0))));
     }
     if assessment.classic {
-        lines.push(tr("Enthält klassischen Inhalt aus der Zeit vor dem Block-Editor."));
+        rows.push((tr("Klassischer Inhalt"), tr("aus der Zeit vor dem Block-Editor")));
     }
     if assessment.structure > 0 {
-        lines.push(tr("Container und Sonderblöcke: {n}").replace("{n}", &assessment.structure.to_string()));
+        rows.push((tr("Container und Sonderblöcke"), assessment.structure.to_string()));
     }
     if assessment.design > 0 {
-        lines.push(tr("Gestaltungsangaben (Farben, Größen, Ausrichtung, Stile): {n}").replace("{n}", &assessment.design.to_string()));
+        rows.push((tr("Gestaltungsangaben"), assessment.design.to_string()));
     }
     let kinds = kinds_text(assessment, 8);
     if !kinds.is_empty() {
-        lines.push(tr("Betroffene Blöcke: {kinds}").replace("{kinds}", &kinds));
+        rows.push((tr("Betroffene Blöcke"), kinds));
     }
-    lines.join("\n")
+    rows
 }
 
 /// Before a heavily designed post becomes a working copy: open it anyway,
@@ -172,7 +172,15 @@ pub fn confirm_heavy_open(parent: Option<&gtk4::Widget>, assessment: &Assessment
 /// The details behind the banner and the status line. `on_hide` (if
 /// given) offers to stop pointing it out for this article.
 pub fn show_details(parent: Option<&gtk4::Widget>, assessment: &Assessment, on_hide: Option<Rc<dyn Fn()>>) {
-    let dialog = adw::AlertDialog::new(Some(&tr("Gutenberg-Funktionen in diesem Beitrag")), Some(&details_text(assessment)));
+    let dialog = adw::AlertDialog::new(Some(&tr("Gutenberg-Funktionen in diesem Beitrag")), Some(&tr("Markdown-Nähe: {level}").replace("{level}", &closeness_label(assessment.closeness))));
+    let list = gtk4::ListBox::builder().selection_mode(gtk4::SelectionMode::None).build();
+    list.add_css_class("boxed-list");
+    for (title, value) in detail_rows(assessment) {
+        let row = adw::ActionRow::builder().title(title.as_str()).subtitle(value.as_str()).subtitle_selectable(true).build();
+        row.add_css_class("property");
+        list.append(&row);
+    }
+    dialog.set_extra_child(Some(&list));
     dialog.add_response("close", &tr("Schließen"));
     if on_hide.is_some() {
         dialog.add_response("hide", &tr("Hinweis ausblenden"));

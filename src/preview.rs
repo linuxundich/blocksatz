@@ -812,7 +812,10 @@ p.has-background, h1.has-background, h2.has-background, h3.has-background, h4.ha
 .alignright {{ float: right; margin: .3em 0 .3em 1.5em; }}
 .aligncenter {{ margin-left: auto; margin-right: auto; text-align: center; }}
 figure.wp-block-image {{ margin: 1.5em 0; }}
-figure.wp-block-image.alignleft, figure.wp-block-image.alignright {{ max-width: 50%; }}
+figure.wp-block-image.alignleft, figure.wp-block-image.alignright {{ max-width: 50%; margin-top: .3em; margin-bottom: 1em; }}
+figure.wp-block-image.alignleft {{ margin-left: 0; margin-right: 1.5em; }}
+figure.wp-block-image.alignright {{ margin-left: 1.5em; margin-right: 0; }}
+figure.wp-block-image.aligncenter {{ margin-left: auto; margin-right: auto; }}
 .wp-block-image.is-style-rounded img {{ border-radius: 9999px; }}
 .wp-element-caption {{ font-size: .875em; opacity: .75; margin-top: .5em; text-align: center; }}
 figure.wp-block-table {{ margin: 1.5em 0; overflow-x: auto; }}

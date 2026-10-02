@@ -9,6 +9,27 @@ listed as open). Not a commitment or a schedule, just a prioritized list
 to pick from in a future session. See [CHANGELOG.md](CHANGELOG.md) for
 what's already shipped.
 
+## Next up (after 0.65.0)
+
+The short list from the 0.65.0 review (2026-10-02), roughly by value.
+All of 0.65.0's features were tested live against linuxundich.de -
+import warning (all three answers), banner, autosave preview, image
+sizes, connection check.
+
+- **Block design gaps** (`docs/markdown-blocks.md`): blocks that still stay
+  WordPress markup when a post is opened - a quote with a citation
+  (`<cite>`), Media & Text, groups/paragraphs with a border or custom
+  padding, captions on audio/video/embeds, linked images and images with
+  a border or shadow. Quote and Media & Text first - the ones real posts
+  use.
+- **Cover image from a local file**: a cover's `image=` has to be a URL
+  today; the export should upload a local file like any other image.
+- **Write footnotes in Markdown** (`[^1]`): opened posts keep theirs
+  already (`wp_footnotes`), new ones can't be written yet.
+- **Flathub**: narrow the Flatpak sandbox (see "Flatpak sandbox is wider
+  than the app needs" below) and submit; the domain verification via
+  linuxundich.de is prepared (`docs/flathub-verification.md`).
+
 ## Quick wins (small scope, low risk)
 
 - ~~**Write the attachment id into exported `wp:image` blocks.**~~ Done

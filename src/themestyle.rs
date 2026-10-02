@@ -48,6 +48,11 @@ pub struct ThemeStyle {
     /// since older posts may still use them.
     pub default_palette: bool,
     pub default_gradients: bool,
+    /// CSS for buttons from the theme's global styles
+    /// (`styles.elements.button`, the outline variation).
+    pub button_css: String,
+    /// `styles.spacing.blockGap` - the gap in flex/grid layouts.
+    pub block_gap: Option<String>,
 }
 
 impl ThemeStyle {
@@ -78,6 +83,8 @@ impl ThemeStyle {
                 .unwrap_or_default(),
             default_palette: settings["color"]["defaultPalette"].as_bool().unwrap_or(true),
             default_gradients: settings["color"]["defaultGradients"].as_bool().unwrap_or(true),
+            button_css: button_css(&global_styles["styles"]),
+            block_gap: global_styles["styles"]["spacing"]["blockGap"].as_str().map(css_value),
         }
     }
 
@@ -100,7 +107,19 @@ impl ThemeStyle {
     /// The preset classes WordPress generates, as CSS for the preview.
     /// Defaults first, so a theme preset with the same slug wins.
     pub fn preview_css(&self) -> String {
-        let mut css = String::new();
+        let mut css = String::from(":root {\n");
+        for (kind, list) in [("color", &self.colors), ("gradient", &self.gradients), ("font-size", &self.font_sizes)] {
+            let mut list = list.clone();
+            list.sort_by_key(|p| p.from_theme);
+            for p in list {
+                css.push_str(&format!("  --wp--preset--{kind}--{}: {};\n", css_ident(&p.slug), css_value(&p.value)));
+            }
+        }
+        if let Some(gap) = &self.block_gap {
+            css.push_str(&format!("  --wp--style--block-gap: {gap};\n"));
+        }
+        css.push_str("}\n");
+        css.push_str(&self.button_css);
         let ordered = |list: &[Preset]| -> Vec<Preset> {
             let mut list = list.to_vec();
             list.sort_by_key(|p| p.from_theme);
@@ -130,6 +149,8 @@ impl ThemeStyle {
             "block_styles": self.block_styles.iter().map(|(block, styles)| serde_json::json!({"block": block, "styles": styles.iter().map(|s| serde_json::json!({"name": s.name, "label": s.label})).collect::<Vec<_>>()})).collect::<Vec<_>>(),
             "default_palette": self.default_palette,
             "default_gradients": self.default_gradients,
+            "button_css": self.button_css,
+            "block_gap": self.block_gap,
         })
     }
 
@@ -157,8 +178,62 @@ impl ThemeStyle {
                 .collect(),
             default_palette: value["default_palette"].as_bool().unwrap_or(true),
             default_gradients: value["default_gradients"].as_bool().unwrap_or(true),
+            button_css: value["button_css"].as_str().unwrap_or_default().to_string(),
+            block_gap: value["block_gap"].as_str().map(str::to_string),
         }
     }
+}
+
+/// `var:preset|color|accent` -> `var(--wp--preset--color--accent)`.
+fn style_value(value: &Value) -> Option<String> {
+    let value = value.as_str()?;
+    let value = match value.strip_prefix("var:") {
+        Some(path) => format!("var(--wp--{})", path.replace('|', "--")),
+        None => value.to_string(),
+    };
+    Some(css_value(&value))
+}
+
+/// A global-styles style object (color, spacing, border, typography) as
+/// CSS declarations.
+fn style_declarations(style: &Value) -> String {
+    let mut out = String::new();
+    let mut push = |property: &str, value: &Value| {
+        if let Some(value) = style_value(value) {
+            out.push_str(&format!("{property}: {value}; "));
+        }
+    };
+    push("color", &style["color"]["text"]);
+    push("background-color", &style["color"]["background"]);
+    push("background", &style["color"]["gradient"]);
+    for side in ["top", "right", "bottom", "left"] {
+        push(&format!("padding-{side}"), &style["spacing"]["padding"][side]);
+    }
+    push("border-width", &style["border"]["width"]);
+    push("border-style", &style["border"]["style"]);
+    push("border-color", &style["border"]["color"]);
+    push("border-radius", &style["border"]["radius"]);
+    for (key, property) in [("fontFamily", "font-family"), ("fontSize", "font-size"), ("fontStyle", "font-style"), ("fontWeight", "font-weight"), ("letterSpacing", "letter-spacing"), ("lineHeight", "line-height"), ("textTransform", "text-transform"), ("textDecoration", "text-decoration")] {
+        push(property, &style["typography"][key]);
+    }
+    out
+}
+
+fn button_css(styles: &Value) -> String {
+    let mut css = String::new();
+    let button = style_declarations(&styles["elements"]["button"]);
+    if !button.is_empty() {
+        css.push_str(&format!(".wp-element-button, .wp-block-button__link {{ {button}}}\n"));
+    }
+    let hover = style_declarations(&styles["elements"]["button"][":hover"]);
+    if !hover.is_empty() {
+        css.push_str(&format!(".wp-element-button:hover, .wp-block-button__link:hover {{ {hover}}}\n"));
+    }
+    let outline = style_declarations(&styles["blocks"]["core/button"]["variations"]["outline"]);
+    if !outline.is_empty() {
+        css.push_str(&format!(".wp-block-button.is-style-outline > .wp-block-button__link {{ background-color: transparent; {outline}}}\n"));
+    }
+    css
 }
 
 /// `{theme: [...], default: [...], custom: [...]}` -> one list.

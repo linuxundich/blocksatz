@@ -190,7 +190,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   placeholder card instead of a bare URL; borders and theme shadows on
   images show; floated images keep their distance to the text; a
   playlist says that the blog renders its tracks; an image inside a
-  block no longer gets a second caption from the media list.
+  block no longer gets a second caption from the media list. Buttons use
+  the theme's button style (filled, outline variation, colors,
+  gradients) and their layout's justification; columns with a fixed
+  width stay in one row and honor vertical alignment; flex and grid
+  groups use the theme's block gap; "Weiterlesen" and page breaks show
+  as marker lines, spacers stay empty space, footnotes list their texts,
+  social links name their services, and every placeholder is labeled in
+  German.
 
 - **Footnotes survive**: WordPress keeps footnote texts in the `footnotes`
   post meta, not in the content. Opening a post now keeps them

@@ -720,7 +720,7 @@ impl ScrollRestore {
 #[allow(clippy::too_many_arguments)]
 pub fn render_html(markdown: &str, style: PreviewStyle, dark: bool, media: &[MediaItem], restore: ScrollRestore, frontmatter: &Frontmatter, show_header: bool, code_colors: Option<(String, String)>) -> String {
     let restore_js = restore.script();
-    let body = render_body_with_line_anchors(markdown, media);
+    let body = render_body(markdown, media, frontmatter.wp_footnotes.as_deref());
     let header = if show_header { render_header(frontmatter) } else { String::new() };
     let css = style_css(style, dark);
     let code_css = code_block_css(code_colors.as_ref().map(|(background, foreground)| (background.as_str(), foreground.as_str())));
@@ -791,10 +791,21 @@ object.wp-block-file__embed {{ display: none; }}
    block-level elements without it. `.wp-block-details` needs no layout
    CSS at all - `<details>`/`<summary>` are native, already-interactive
    HTML elements, unlike every other block on this list. */
-.wp-block-columns {{ display: flex; flex-wrap: wrap; gap: 2rem; }}
-.wp-block-column {{ flex: 1; min-width: 0; }}
-.wp-block-buttons {{ display: flex; flex-wrap: wrap; gap: .5rem; }}
-.wp-block-button__link {{ display: inline-block; padding: .6rem 1.2rem; border: 2px solid currentColor; border-radius: 4px; text-decoration: none; color: inherit; }}
+.wp-block-columns {{ display: flex; flex-wrap: nowrap; gap: 2rem; margin-bottom: 1.75em; }}
+.wp-block-columns.are-vertically-aligned-center {{ align-items: center; }}
+.wp-block-columns.are-vertically-aligned-top {{ align-items: flex-start; }}
+.wp-block-columns.are-vertically-aligned-bottom {{ align-items: flex-end; }}
+.wp-block-column {{ flex-grow: 1; flex-basis: 0; min-width: 0; }}
+.wp-block-column[style*="flex-basis"] {{ flex-grow: 0; }}
+.wp-block-column.is-vertically-aligned-center {{ align-self: center; }}
+.wp-block-columns.has-background {{ padding: 1.25em 2.375em; }}
+.wp-block-buttons {{ display: flex; flex-wrap: wrap; gap: .5em; margin: 1em 0; }}
+/* WordPress's own default; the blog theme's button style (themestyle)
+   follows below and wins. */
+.wp-block-button__link {{ display: inline-block; cursor: pointer; text-align: center; text-decoration: none; background-color: #32373c; color: #fff; border-radius: 9999px; padding: calc(.667em + 2px) calc(1.333em + 2px); }}
+.wp-block-button.is-style-outline > .wp-block-button__link {{ background: transparent; color: currentColor; border: 2px solid; }}
+.wp-block-group {{ margin-bottom: var(--wp--style--block-gap, 1em); }}
+.wp-block-group[style*="display:flex"] > *, .wp-block-group[style*="display:grid"] > *, .wp-block-buttons > * {{ margin-top: 0; margin-bottom: 0; }}
 .wp-block-gallery.has-nested-images {{ display: flex; flex-wrap: wrap; gap: 1rem; align-items: normal; }}
 .wp-block-gallery.has-nested-images figure.wp-block-image {{ margin: 0; flex-grow: 1; width: calc(33.33% - .67rem); box-sizing: border-box; display: flex; flex-direction: column; }}
 .wp-block-gallery.has-nested-images.columns-1 figure.wp-block-image {{ width: 100%; }}
@@ -1062,7 +1073,14 @@ struct RenderedBlock {
     source: std::ops::Range<usize>,
 }
 
+#[cfg(test)]
 fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String {
+    render_body(markdown, media, None)
+}
+
+/// `footnotes`: the post's footnote texts (`Frontmatter::wp_footnotes`),
+/// shown where the `wp:footnotes` block sits.
+fn render_body(markdown: &str, media: &[MediaItem], footnotes: Option<&str>) -> String {
     let mut blocks: Vec<RenderedBlock> = Vec::new();
     for segment in gutenberg::split_segments(markdown) {
         match segment {
@@ -1076,7 +1094,7 @@ fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String 
                 source: range,
             }),
             gutenberg::Segment::Raw(range) => blocks.push(RenderedBlock {
-                html: dynamic_block_placeholder(&markdown[range.clone()]).unwrap_or_else(|| markdown[range.clone()].to_string()),
+                html: dynamic_block_placeholder(&markdown[range.clone()], footnotes).unwrap_or_else(|| markdown[range.clone()].to_string()),
                 line: line_number(markdown, range.start),
                 line_end: block_end_line(markdown, &range),
                 source: range,
@@ -1128,7 +1146,8 @@ fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String 
             out.push_str(&block.html);
         }
     }
-    wrap_images_with_badges(&rewrite_media_tags(&embed_placeholders_in_kept_blocks(&inject_group_flex_styles(&out))), media)
+    let laid_out = inject_layout_styles(&inject_group_flex_styles(&out), "<!-- wp:buttons ", "<div class=\"wp-block-buttons");
+    wrap_images_with_badges(&rewrite_media_tags(&embed_placeholders_in_kept_blocks(&laid_out)), media)
 }
 
 /// A `wp:embed` kept as block markup (say, one with a caption) holds just
@@ -1219,22 +1238,28 @@ fn render_markdown_chunk(markdown: &str, range: std::ops::Range<usize>, out: &mu
 /// straight onto the group's own `<div>`. Handles `"type":"flex"`
 /// (row/stack) and `"type":"grid"` (with or without `columnCount`).
 fn inject_group_flex_styles(html: &str) -> String {
+    inject_layout_styles(html, "<!-- wp:group ", "<div class=\"wp-block-group")
+}
+
+/// `inject_group_flex_styles` for any block with a `layout` attribute:
+/// `comment` opens its block comment, `div` starts its element.
+fn inject_layout_styles(html: &str, comment: &str, div: &str) -> String {
     let mut out = String::with_capacity(html.len());
     let mut rest = html;
-    while let Some(marker) = rest.find("<!-- wp:group ") {
+    while let Some(marker) = rest.find(comment) {
         out.push_str(&rest[..marker]);
         let Some(comment_end_rel) = rest[marker..].find("-->") else {
             out.push_str(&rest[marker..]);
             return out;
         };
-        let attrs_start = marker + "<!-- wp:group ".len();
+        let attrs_start = marker + comment.len();
         let comment_end = marker + comment_end_rel + 3;
         let style = flex_style_for_group_attrs(&rest[attrs_start..marker + comment_end_rel]);
         out.push_str(&rest[marker..comment_end]);
         rest = &rest[comment_end..];
 
         let Some(style) = style else { continue };
-        let Some(div_start) = rest.find("<div class=\"wp-block-group") else { continue };
+        let Some(div_start) = rest.find(div) else { continue };
         let Some(tag_end_rel) = rest[div_start..].find('>') else { continue };
         let tag_end = div_start + tag_end_rel;
         let tag = &rest[..tag_end];
@@ -1268,15 +1293,15 @@ fn flex_style_for_group_attrs(attrs: &str) -> Option<String> {
     if attrs.contains("\"type\":\"grid\"") {
         let columns = attrs.split("\"columnCount\":").nth(1).map(|rest| rest.chars().take_while(char::is_ascii_digit).collect::<String>()).filter(|n| !n.is_empty());
         return Some(match columns {
-            Some(n) => format!("display:grid;grid-template-columns:repeat({n},minmax(0,1fr));gap:1em;"),
-            None => "display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:1em;".to_string(),
+            Some(n) => format!("display:grid;grid-template-columns:repeat({n},minmax(0,1fr));gap:var(--wp--style--block-gap,.5em);"),
+            None => "display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:var(--wp--style--block-gap,.5em);".to_string(),
         });
     }
     if !attrs.contains("\"type\":\"flex\"") {
         return None;
     }
     let vertical = attrs.contains("\"orientation\":\"vertical\"");
-    let mut style = String::from("display:flex;");
+    let mut style = String::from("display:flex;gap:var(--wp--style--block-gap,.5em);");
     style.push_str(if vertical { "flex-direction:column;align-items:flex-start;" } else { "flex-direction:row;align-items:center;" });
     style.push_str(if attrs.contains("\"flexWrap\":\"nowrap\"") { "flex-wrap:nowrap;" } else { "flex-wrap:wrap;" });
     if let Some(justify) = extract_json_string_value(attrs, "justifyContent") {
@@ -1350,7 +1375,10 @@ const EMBED_CSS: &str = ".embed-placeholder { display: flex; flex-direction: col
 .embed-placeholder .embed-icon { font-size: 2.5rem; opacity: .6; }
 .embed-placeholder .embed-label { font-weight: 600; opacity: .85; }
 .embed-placeholder .embed-url { font-size: .8em; opacity: .55; word-break: break-all; max-width: 90%; }
-.embed-placeholder.dynamic-placeholder { aspect-ratio: auto; min-height: 5rem; border-style: dashed; }";
+.embed-placeholder.dynamic-placeholder { aspect-ratio: auto; min-height: 5rem; border-style: dashed; }
+.marker-line { display: flex; align-items: center; gap: 1em; margin: 1.5em 0; font-size: .8em; text-transform: uppercase; letter-spacing: .08em; opacity: .55; }
+.marker-line::before, .marker-line::after { content: \"\"; flex: 1; border-top: 1px dashed currentColor; }
+.wp-block-footnotes { font-size: .875em; border-top: 1px solid rgba(127,127,127,.3); padding-top: 1em; }";
 
 /// A lone embeddable URL (see `gutenberg::lone_embed_url`) renders as a
 /// fixed-aspect-ratio placeholder card instead of a live embed - matching
@@ -1374,24 +1402,39 @@ fn render_embed_placeholder(url: &str) -> String {
 /// A block the blog renders itself (latest posts, a table of contents, an
 /// ad slot, ...) has no visible markup of its own - shown as a labeled
 /// card instead of nothing. `None` for verbatim markup with content.
-fn dynamic_block_placeholder(raw: &str) -> Option<String> {
+fn dynamic_block_placeholder(raw: &str, footnotes: Option<&str>) -> Option<String> {
+    let name = raw.trim_start().strip_prefix("<!-- wp:")?.split_whitespace().next()?.trim_end_matches("/-->").to_string();
+    // Blocks with a look of their own but no text.
+    match name.as_str() {
+        "more" => return Some(format!("<div class=\"marker-line\"><span>{}</span></div>", glib::markup_escape_text(&more_label(raw)))),
+        "nextpage" => return Some(format!("<div class=\"marker-line\"><span>{}</span></div>", glib::markup_escape_text(&tr("Seitenumbruch")))),
+        "footnotes" => return Some(render_footnotes(footnotes)),
+        "html" | "spacer" | "separator" => return None,
+        _ => {}
+    }
     let mut visible = String::new();
+    let mut has_element = false;
     let mut rest = raw;
     while let Some(start) = rest.find('<') {
         visible.push_str(&rest[..start]);
-        let tag_end = if rest[start..].starts_with("<!--") { rest[start..].find("-->").map(|e| start + e + 3) } else { rest[start..].find('>').map(|e| start + e + 1) };
+        let is_comment = rest[start..].starts_with("<!--");
+        let tag_end = if is_comment { rest[start..].find("-->").map(|e| start + e + 3) } else { rest[start..].find('>').map(|e| start + e + 1) };
         let Some(end) = tag_end else { break };
         let tag = &rest[start..end];
-        if tag.starts_with("<img") || tag.starts_with("<iframe") || tag.starts_with("<video") || tag.starts_with("<svg") || tag.starts_with("<input") {
+        if tag.starts_with("<img") || tag.starts_with("<iframe") || tag.starts_with("<video") || tag.starts_with("<svg") || tag.starts_with("<input") || tag.starts_with("<hr") {
             return None;
         }
+        has_element |= !is_comment;
         rest = &rest[end..];
     }
     visible.push_str(rest);
-    if !visible.trim().is_empty() {
+    // An element without text (a spacer, an empty group) is layout, not
+    // a block the blog fills in - except for these, whose content is
+    // nested blocks the server renders.
+    let server_filled = matches!(name.as_str(), "query" | "social-links" | "navigation" | "comments" | "post-template");
+    if !visible.trim().is_empty() || (has_element && !server_filled) {
         return None;
     }
-    let name = raw.trim_start().strip_prefix("<!-- wp:")?.split_whitespace().next()?.trim_end_matches("/-->").to_string();
     let label = match name.as_str() {
         "latest-posts" => tr("Neueste Beiträge"),
         "latest-comments" => tr("Neueste Kommentare"),
@@ -1405,16 +1448,54 @@ fn dynamic_block_placeholder(raw: &str) -> Option<String> {
         "social-links" => tr("Social-Media-Links"),
         "rss" => tr("RSS-Feed"),
         "block" => tr("Synchronisiertes Muster"),
-        "footnotes" => tr("Fußnoten"),
         "lui/toc" => tr("Inhaltsverzeichnis"),
         "lui-ads/slot" => tr("Werbeplatz"),
+        "icon" => tr("Symbol"),
+        "loginout" => tr("Anmelden/Abmelden"),
+        "post-time-to-read" => tr("Lesezeit"),
+        "post-author" | "post-author-name" => tr("Autor"),
+        "post-terms" => tr("Kategorien und Schlagwörter"),
+        "post-date" => tr("Datum"),
+        "avatar" => tr("Avatar"),
+        "breadcrumbs" => tr("Brotkrümelnavigation"),
+        "navigation" => tr("Navigation"),
+        "comments" => tr("Kommentare"),
         _ => name.clone(),
     };
+    // Social links name their services.
+    let services: Vec<&str> = raw.split("\"service\":\"").skip(1).filter_map(|rest| rest.split('"').next()).collect();
+    let detail = if services.is_empty() { tr("{name} – wird vom Blog erzeugt").replace("{name}", &name) } else { services.join(" · ") };
     Some(format!(
         "<div class=\"embed-placeholder dynamic-placeholder\"><span class=\"embed-label\">{}</span><span class=\"embed-url\">{}</span></div>",
         glib::markup_escape_text(&label),
-        glib::markup_escape_text(&tr("{name} – wird vom Blog erzeugt").replace("{name}", &name))
+        glib::markup_escape_text(&detail)
     ))
+}
+
+/// "Weiterlesen" or the custom text of a `wp:more` block.
+fn more_label(raw: &str) -> String {
+    raw.split("\"customText\":\"").nth(1).and_then(|rest| rest.split('"').next()).filter(|t| !t.is_empty()).map(str::to_string).unwrap_or_else(|| tr("Weiterlesen"))
+}
+
+/// The `wp:footnotes` block: the footnote texts from the post meta,
+/// numbered in the order WordPress stores them.
+fn render_footnotes(footnotes: Option<&str>) -> String {
+    let items: Vec<(String, String)> = footnotes
+        .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
+        .and_then(|value| value.as_array().cloned())
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|note| Some((note["id"].as_str()?.to_string(), note["content"].as_str()?.to_string())))
+        .collect();
+    if items.is_empty() {
+        return format!("<div class=\"embed-placeholder dynamic-placeholder\"><span class=\"embed-label\">{}</span></div>", glib::markup_escape_text(&tr("Fußnoten")));
+    }
+    let list: String = items
+        .iter()
+        // Footnote contents are inline HTML written in the block editor.
+        .map(|(id, content)| format!("<li id=\"{}\">{content} <a href=\"#{}-link\">↩︎</a></li>", glib::markup_escape_text(id), glib::markup_escape_text(id)))
+        .collect();
+    format!("<ol class=\"wp-block-footnotes\">{list}</ol>")
 }
 
 /// An icon glyph and display label for a lone embed URL - German for the
@@ -1791,6 +1872,16 @@ mod tests {
         let out = render_body_with_line_anchors(markdown, &[item]);
         assert!(out.contains("embed-placeholder"), "{out}");
         assert!(!out.contains("img-caption"), "{out}");
+    }
+
+    #[test]
+    fn markers_spacers_and_footnotes_are_not_generic_placeholders() {
+        let markdown = "<!-- wp:more {\"customText\":\"Mehr\"} -->\n<!--more Mehr-->\n<!-- /wp:more -->\n\n<!-- wp:spacer -->\n<div style=\"height:50px\" aria-hidden=\"true\" class=\"wp-block-spacer\"></div>\n<!-- /wp:spacer -->\n\n<!-- wp:footnotes /-->\n";
+        let out = render_body(markdown, &[], Some(r#"[{"id":"a1","content":"Erste <em>Fußnote</em>"}]"#));
+        assert!(out.contains("<span>Mehr</span>"), "{out}");
+        assert!(out.contains("wp-block-spacer"), "{out}");
+        assert!(out.contains("<li id=\"a1\">Erste <em>Fußnote</em>"), "{out}");
+        assert!(!out.contains("dynamic-placeholder"), "{out}");
     }
 
     #[test]

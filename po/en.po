@@ -3209,6 +3209,46 @@ msgstr "Ad slot"
 msgid "Wiedergabeliste – die Titel erzeugt das Blog"
 msgstr "Playlist – the blog renders its tracks"
 
+#: src/preview.rs
+msgid "Symbol"
+msgstr "Icon"
+
+#: src/preview.rs
+msgid "Seitenumbruch"
+msgstr "Page break"
+
+#: src/preview.rs
+msgid "Weiterlesen"
+msgstr "Read more"
+
+#: src/preview.rs
+msgid "Anmelden/Abmelden"
+msgstr "Log in/out"
+
+#: src/preview.rs
+msgid "Lesezeit"
+msgstr "Reading time"
+
+#: src/preview.rs
+msgid "Kategorien und Schlagwörter"
+msgstr "Categories and tags"
+
+#: src/preview.rs
+msgid "Datum"
+msgstr "Date"
+
+#: src/preview.rs
+msgid "Avatar"
+msgstr "Avatar"
+
+#: src/preview.rs
+msgid "Brotkrümelnavigation"
+msgstr "Breadcrumbs"
+
+#: src/preview.rs
+msgid "Navigation"
+msgstr "Navigation"
+
 #~ msgid "Blog nicht erreichbar"
 #~ msgstr "Blog unreachable"
 

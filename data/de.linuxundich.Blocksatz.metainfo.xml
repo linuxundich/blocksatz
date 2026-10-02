@@ -25,6 +25,13 @@
   <url type="homepage">https://github.com/linuxundich/blocksatz</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksatz</url>
   <releases>
+    <release version="0.65.0" date="2026-10-02">
+      <description>
+        <p>Neuer Arbeitsablauf: Artikel liegen in einer Bibliothek mit fortlaufender Sicherung, die Seitenleiste zeigt „In Arbeit“ und die Beiträge des Blogs, und eine einzige Hauptaktion führt vom Entwurf über die Freigabe-Prüfung bis zur Veröffentlichung. Mehrere Blogs lassen sich verwalten.</p>
+        <p>Gestaltung in Markdown: Farben, Verläufe, Schriftgrößen und Blockstile aus der Palette des Themes per Attributzeile oder Block-Inspektor; Akkordeons, Reiter, Spalten, Gruppen und Cover als verschachtelbare Container; Tabellen mit Fuß- und Beschriftungszeile. Die Vorschau zeigt all das wie im Blog.</p>
+        <p>Beiträge aus dem Blog öffnen jetzt verlustfrei, und bei stark gestalteten Beiträgen schlägt Blocksatz den Block-Editor von WordPress vor. Bilder werden wie im Block-Editor in der Größe „large“ übertragen. Neu sind außerdem ein Verbindungscheck in den Einstellungen und eine überarbeitete Werkzeugleiste.</p>
+      </description>
+    </release>
     <release version="0.64.0" date="2026-10-01">
       <description>
         <p>Blocksmith heißt jetzt Blocksatz und hat ein neues Icon nach den GNOME-Richtlinien. Durch die neue App-ID (de.linuxundich.Blocksatz) müssen Einstellungen, das WordPress-Anwendungspasswort und die KI-Schlüssel einmal neu eingegeben werden.</p>

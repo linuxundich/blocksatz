@@ -12,7 +12,7 @@ use crate::i18n::tr;
 use crate::{
     blogposts, blogsync, importer, library, librarysidebar, mainaction, postpane, releasecheck, syncstate, worksave,
     about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
-    mediabrowser, medialibrary, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, windowstate,
+    mediabrowser, medialibrary, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, themestyle, windowstate,
 };
 
 const DEBOUNCE_MS: u64 = 250;
@@ -531,6 +531,11 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         category_slugs: Rc::new(RefCell::new(cached_terms.category_slugs)),
     };
     termcache::spawn_refresh(&term_caches);
+    themestyle::spawn_refresh();
+    {
+        let preview_pane = preview_pane.clone();
+        themestyle::connect_changed(move || preview_pane.refresh());
+    }
 
     let image_alt_menu = imagealt::install(&view, &buffer, frontmatter.clone(), current_path.clone(), preview_pane.clone());
     preview::PreviewPane::install_alt_text_menu(&preview_pane, &window, frontmatter.clone(), buffer.clone());
@@ -625,6 +630,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let ctx = doc_ctx.clone();
         doc_ctx.site_listeners.borrow_mut().push(Rc::new(move || {
             termcache::reload(&term_caches);
+            themestyle::reload();
             blogsync::refresh(&ctx);
         }));
     }

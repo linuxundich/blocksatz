@@ -6,7 +6,11 @@
 
 use pulldown_cmark::{Alignment, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
+mod attrs;
+mod fidelity;
 mod reverse;
+pub use attrs::BlockAttrs;
+pub use fidelity::{first_difference, same_structure};
 pub use reverse::{gutenberg_to_markdown, render_gallery_fence};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -57,10 +61,17 @@ pub enum Block {
     /// block editor's own immediate preview, not load-bearing.
     Embed { url: String },
     ThematicBreak,
+    /// A header row of only empty cells means "no header" - GFM can't
+    /// write a table without one.
     Table {
         alignments: Vec<ColumnAlignment>,
         header: Vec<String>,
         rows: Vec<Vec<String>>,
+        /// Rows of the table footer - in Markdown the last body rows,
+        /// marked with `{footer}` / `{footer=2}`.
+        footer: Vec<Vec<String>>,
+        /// `{caption="..."}`, plain text.
+        caption: Option<String>,
     },
     /// `wp:columns` - side-by-side columns, each an independent block list.
     /// Markdown has no native syntax for this, so it's written as a fenced
@@ -103,6 +114,51 @@ pub enum Block {
     /// comment, not just its inner HTML, and `render_block` below re-emits
     /// that form byte-for-byte instead of wrapping it in a fresh `wp:html`.
     RawHtml { html: String },
+    /// Any block plus attributes Markdown has no syntax for (colors,
+    /// alignment, block style, ...), written as an attribute line `{...}`
+    /// below the block - see `attrs.rs`.
+    Styled { attrs: BlockAttrs, block: Box<Block> },
+}
+
+impl Block {
+    /// Wraps `self` with `attrs`, merging into an existing `Styled`. A
+    /// table's caption and footer go into the table itself.
+    pub fn with_attrs(self, mut attrs: BlockAttrs) -> Block {
+        match self {
+            Block::Styled { attrs: existing, block } => {
+                let inner = block.with_attrs(BlockAttrs { caption: attrs.caption.take(), footer_rows: std::mem::take(&mut attrs.footer_rows), ..Default::default() });
+                inner.with_attrs(existing.merged(attrs))
+            }
+            Block::Table { alignments, header, mut rows, mut footer, caption } => {
+                if attrs.footer_rows > 0 {
+                    let keep = rows.len().saturating_sub(attrs.footer_rows as usize);
+                    footer = rows.split_off(keep);
+                    attrs.footer_rows = 0;
+                }
+                let caption = attrs.caption.take().or(caption);
+                Block::Table { alignments, header, rows, footer, caption }.wrapped(attrs)
+            }
+            block => block.wrapped(attrs),
+        }
+    }
+
+    fn wrapped(self, attrs: BlockAttrs) -> Block {
+        if attrs.is_empty() {
+            return self;
+        }
+        match self {
+            Block::Styled { attrs: existing, block } => Block::Styled { attrs: existing.merged(attrs), block },
+            block => Block::Styled { attrs, block: Box::new(block) },
+        }
+    }
+
+    /// The block without its attributes.
+    pub fn unstyled(&self) -> &Block {
+        match self {
+            Block::Styled { block, .. } => block.unstyled(),
+            block => block,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -162,14 +218,144 @@ impl From<Alignment> for ColumnAlignment {
     }
 }
 
+/// The pulldown-cmark options every Markdown parse in this crate (and the
+/// live preview) uses.
+pub fn markdown_options() -> Options {
+    Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TABLES | Options::ENABLE_TASKLISTS | Options::ENABLE_HEADING_ATTRIBUTES
+}
+
 /// Parse Markdown into a `Block` tree.
 pub fn parse_markdown(md: &str) -> Vec<Block> {
-    let mut options = Options::empty();
-    options.insert(Options::ENABLE_STRIKETHROUGH);
-    options.insert(Options::ENABLE_TABLES);
-    options.insert(Options::ENABLE_TASKLISTS);
-    let events: Vec<Event> = Parser::new_ext(md, options).collect();
+    let mut blocks: Vec<Block> = Vec::new();
+    for segment in split_segments(md) {
+        match segment {
+            Segment::Markdown(range) => blocks.extend(parse_plain_markdown(&md[range])),
+            Segment::Raw(range) => blocks.push(Block::RawHtml { html: md[range].trim().to_string() }),
+            Segment::Attrs { attrs, range } => match blocks.pop() {
+                Some(previous) => blocks.push(previous.with_attrs(attrs)),
+                None => blocks.push(Block::Paragraph { html: escape_html(md[range].trim()) }),
+            },
+        }
+    }
+    blocks
+}
+
+fn parse_plain_markdown(md: &str) -> Vec<Block> {
+    let events: Vec<Event> = Parser::new_ext(md, markdown_options()).collect();
     parse_blocks(&events, 0, events.len())
+}
+
+/// A piece of a Markdown document as `split_segments` cuts it up: plain
+/// Markdown, or an attribute line for the block right before it.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Segment {
+    Markdown(std::ops::Range<usize>),
+    /// A block comment kept verbatim (`<!-- wp:name ... -->` through its
+    /// matching `<!-- /wp:name -->`) - taken as one piece, since
+    /// pulldown-cmark would split its markup into several HTML blocks at
+    /// every blank line or comment boundary.
+    Raw(std::ops::Range<usize>),
+    Attrs { attrs: BlockAttrs, range: std::ops::Range<usize> },
+}
+
+/// Cuts `md` at every attribute line (`{bg=accent}` alone on a line,
+/// starting in the first column, outside fenced code) and around every
+/// verbatim block comment. Cutting *before* handing the text to
+/// pulldown-cmark matters: left in, an attribute line would continue the
+/// paragraph above it, or become another table row.
+pub fn split_segments(md: &str) -> Vec<Segment> {
+    let mut segments = Vec::new();
+    let mut chunk_start = 0;
+    let mut fence: Option<(char, usize)> = None;
+    let mut pos = 0;
+    for line in md.split_inclusive('\n') {
+        let line_start = pos;
+        if line_start < chunk_start {
+            // Inside a verbatim block already taken whole.
+            pos += line.len();
+            continue;
+        }
+        pos += line.len();
+        let content = line.trim_end_matches(['\n', '\r']);
+        if fence.is_none() && content.starts_with("<!-- wp:") {
+            if let Some(end) = verbatim_block_end(md, line_start) {
+                if line_start > chunk_start {
+                    segments.push(Segment::Markdown(chunk_start..line_start));
+                }
+                segments.push(Segment::Raw(line_start..end));
+                chunk_start = md[end..].find('\n').map_or(md.len(), |nl| end + nl + 1);
+                continue;
+            }
+        }
+        if let Some(marker) = fence_marker(content) {
+            match fence {
+                None => fence = Some(marker),
+                Some((ch, len)) if marker.0 == ch && marker.1 >= len && content.trim_start().trim_start_matches(ch).trim().is_empty() => fence = None,
+                Some(_) => {}
+            }
+            continue;
+        }
+        if fence.is_some() || !content.starts_with('{') {
+            continue;
+        }
+        let Some(attrs) = BlockAttrs::parse_line(content) else { continue };
+        if line_start > chunk_start {
+            segments.push(Segment::Markdown(chunk_start..line_start));
+        }
+        segments.push(Segment::Attrs { attrs, range: line_start..line_start + content.len() });
+        chunk_start = pos;
+    }
+    if chunk_start < md.len() {
+        segments.push(Segment::Markdown(chunk_start..md.len()));
+    }
+    segments
+}
+
+/// Where the block comment opening at `start` ends: after its own `/-->`
+/// if self-closing, else after the matching `<!-- /wp:name -->` (nested
+/// blocks of the same name counted). `None` if it's never closed.
+fn verbatim_block_end(md: &str, start: usize) -> Option<usize> {
+    let open_end = start + md[start..].find("-->")? + 3;
+    let opening = &md[start..open_end];
+    if opening.ends_with("/-->") {
+        return Some(open_end);
+    }
+    let name = opening["<!-- wp:".len()..].split_whitespace().next()?;
+    let open_marker = format!("<!-- wp:{name}");
+    let close_marker = format!("<!-- /wp:{name} -->");
+    let mut depth = 1;
+    let mut pos = open_end;
+    loop {
+        let next_close = md[pos..].find(&close_marker).map(|i| pos + i)?;
+        let mut search = pos;
+        while let Some(rel) = md[search..next_close].find(&open_marker) {
+            let at = search + rel;
+            let after = md[at + open_marker.len()..].chars().next();
+            let tag_end = md[at..].find("-->").map(|e| at + e);
+            if matches!(after, Some(c) if c.is_whitespace()) && !tag_end.is_some_and(|e| md[..e].ends_with('/')) {
+                depth += 1;
+            }
+            search = at + open_marker.len();
+        }
+        depth -= 1;
+        pos = next_close + close_marker.len();
+        if depth == 0 {
+            return Some(pos);
+        }
+    }
+}
+
+/// ```` ``` ```` / `~~~` (three or more, up to three spaces of indent) -
+/// the fence character and run length.
+fn fence_marker(line: &str) -> Option<(char, usize)> {
+    let indent = line.len() - line.trim_start_matches(' ').len();
+    if indent > 3 {
+        return None;
+    }
+    let rest = &line[indent..];
+    let ch = rest.chars().next().filter(|c| *c == '`' || *c == '~')?;
+    let len = rest.chars().take_while(|c| *c == ch).count();
+    (len >= 3).then_some((ch, len))
 }
 
 /// Render a `Block` tree as Gutenberg block-comment HTML, ready to hand to
@@ -281,8 +467,12 @@ fn as_lone_media(events: &[Event]) -> Option<Block> {
         MediaKind::Video => Some(Block::Video { url: dest_url.to_string() }),
         MediaKind::Audio => Some(Block::Audio { url: dest_url.to_string() }),
         MediaKind::Image => {
-            let alt = collect_text(&events[1..events.len() - 1]);
-            let title = if title.is_empty() { None } else { Some(title.to_string()) };
+            // This app's convention (see `media::markdown_image_text_for`):
+            // the bracket text is the caption, the title the alt text -
+            // the opposite of CommonMark's usual pairing.
+            let caption = collect_text(&events[1..events.len() - 1]);
+            let alt = title.to_string();
+            let title = (!caption.is_empty()).then_some(caption);
             Some(Block::Image {
                 url: dest_url.to_string(),
                 alt,
@@ -512,12 +702,13 @@ fn parse_blocks(events: &[Event], mut i: usize, stop: usize) -> Vec<Block> {
                             html: inline_html(inner),
                         }));
                     }
-                    Tag::Heading { level, .. } => {
+                    Tag::Heading { level, id, classes, attrs } => {
                         let inner = &events[i + 1..end];
-                        blocks.push(Block::Heading {
+                        let heading = Block::Heading {
                             level: heading_level_num(*level),
                             html: inline_html(inner),
-                        });
+                        };
+                        blocks.push(heading.with_attrs(heading_attrs(id.as_deref(), classes, attrs)));
                     }
                     Tag::BlockQuote(_) => {
                         blocks.push(Block::BlockQuote {
@@ -525,10 +716,12 @@ fn parse_blocks(events: &[Event], mut i: usize, stop: usize) -> Vec<Block> {
                         });
                     }
                     Tag::List(start_num) => {
-                        blocks.push(Block::List {
+                        let list = Block::List {
                             ordered: start_num.is_some(),
                             items: parse_list_items(events, i + 1, end),
-                        });
+                        };
+                        let start = start_num.filter(|n| *n != 1).and_then(|n| u32::try_from(n).ok());
+                        blocks.push(list.with_attrs(BlockAttrs { start, ..Default::default() }));
                     }
                     Tag::CodeBlock(kind) => {
                         let lang = match kind {
@@ -581,6 +774,26 @@ fn parse_blocks(events: &[Event], mut i: usize, stop: usize) -> Vec<Block> {
     blocks
 }
 
+/// pulldown-cmark's own split of a heading's `{#id .class key=value}` back
+/// into a `BlockAttrs` - whatever it doesn't understand is dropped.
+fn heading_attrs(id: Option<&str>, classes: &[pulldown_cmark::CowStr], attrs: &[(pulldown_cmark::CowStr, Option<pulldown_cmark::CowStr>)]) -> BlockAttrs {
+    let mut tokens = Vec::new();
+    if let Some(id) = id {
+        tokens.push(format!("#{id}"));
+    }
+    tokens.extend(classes.iter().map(|c| format!(".{c}")));
+    for (key, value) in attrs {
+        tokens.push(match value {
+            Some(value) => format!("{key}={value}"),
+            None => key.to_string(),
+        });
+    }
+    tokens
+        .iter()
+        .filter_map(|token| BlockAttrs::parse_tokens(token))
+        .fold(BlockAttrs::default(), BlockAttrs::merged)
+}
+
 fn parse_list_items(events: &[Event], mut i: usize, stop: usize) -> Vec<Vec<Block>> {
     let mut items = Vec::new();
     while i < stop {
@@ -619,6 +832,8 @@ fn parse_table(events: &[Event], start: usize, end: usize, aligns: &[Alignment])
         alignments,
         header,
         rows,
+        footer: Vec::new(),
+        caption: None,
     }
 }
 
@@ -750,15 +965,23 @@ fn render_list(ordered: bool, items: &[Vec<Block>]) -> String {
 
 fn align_style(alignments: &[ColumnAlignment], idx: usize) -> &'static str {
     match alignments.get(idx) {
-        Some(ColumnAlignment::Left) => " style=\"text-align:left\"",
-        Some(ColumnAlignment::Center) => " style=\"text-align:center\"",
-        Some(ColumnAlignment::Right) => " style=\"text-align:right\"",
+        Some(ColumnAlignment::Left) => " class=\"has-text-align-left\" data-align=\"left\"",
+        Some(ColumnAlignment::Center) => " class=\"has-text-align-center\" data-align=\"center\"",
+        Some(ColumnAlignment::Right) => " class=\"has-text-align-right\" data-align=\"right\"",
         _ => "",
     }
 }
 
-fn render_table(alignments: &[ColumnAlignment], header: &[String], rows: &[Vec<String>]) -> String {
-    let thead = if header.is_empty() {
+fn render_table(alignments: &[ColumnAlignment], header: &[String], rows: &[Vec<String>], footer: &[Vec<String>], caption: Option<&str>) -> String {
+    let render_rows = |rows: &[Vec<String>]| -> String {
+        rows.iter()
+            .map(|row| {
+                let cells: String = row.iter().enumerate().map(|(idx, c)| format!("<td{}>{c}</td>", align_style(alignments, idx))).collect();
+                format!("<tr>{cells}</tr>")
+            })
+            .collect()
+    };
+    let thead = if header.iter().all(|h| h.trim().is_empty()) {
         String::new()
     } else {
         let cells: String = header
@@ -768,23 +991,9 @@ fn render_table(alignments: &[ColumnAlignment], header: &[String], rows: &[Vec<S
             .collect();
         format!("<thead><tr>{cells}</tr></thead>")
     };
-    let body_rows: String = rows
-        .iter()
-        .map(|row| {
-            let cells: String = row
-                .iter()
-                .enumerate()
-                .map(|(idx, c)| format!("<td{}>{c}</td>", align_style(alignments, idx)))
-                .collect();
-            format!("<tr>{cells}</tr>")
-        })
-        .collect();
-    wrap(
-        "table",
-        None,
-        &format!("<figure class=\"wp-block-table\"><table><tbody>{body_rows}</tbody></table></figure>")
-            .replacen("<tbody>", &format!("{thead}<tbody>"), 1),
-    )
+    let tfoot = if footer.is_empty() { String::new() } else { format!("<tfoot>{}</tfoot>", render_rows(footer)) };
+    let figcaption = caption.map(|c| format!("<figcaption class=\"wp-element-caption\">{}</figcaption>", escape_html(c))).unwrap_or_default();
+    wrap("table", None, &format!("<figure class=\"wp-block-table\"><table>{thead}<tbody>{}</tbody>{tfoot}</table>{figcaption}</figure>", render_rows(rows)))
 }
 
 fn render_columns(columns: &[Vec<Block>]) -> String {
@@ -947,11 +1156,7 @@ pub fn render_block(block: &Block) -> String {
             None,
             "<hr class=\"wp-block-separator has-alpha-channel-opacity\"/>",
         ),
-        Block::Table {
-            alignments,
-            header,
-            rows,
-        } => render_table(alignments, header, rows),
+        Block::Table { alignments, header, rows, footer, caption } => render_table(alignments, header, rows, footer, caption.as_deref()),
         Block::Columns { columns } => render_columns(columns),
         Block::Buttons { buttons } => render_buttons(buttons),
         Block::Gallery { images, settings } => render_gallery(images, settings),
@@ -973,6 +1178,7 @@ pub fn render_block(block: &Block) -> String {
         // actual functioning block.
         Block::RawHtml { html } if html.trim_start().starts_with("<!-- wp:") => html.trim().to_string(),
         Block::RawHtml { html } => wrap("html", None, html.trim()),
+        Block::Styled { attrs, block } => attrs.apply(&render_block(block)),
     }
 }
 
@@ -1052,7 +1258,7 @@ mod tests {
 
     #[test]
     fn lone_image_line_becomes_wp_image() {
-        let out = markdown_to_gutenberg("![a cat](https://example.com/cat.png)");
+        let out = markdown_to_gutenberg("![](https://example.com/cat.png \"a cat\")");
         assert_eq!(
             out,
             "<!-- wp:image -->\n<figure class=\"wp-block-image\">\
@@ -1092,7 +1298,8 @@ mod tests {
 
     #[test]
     fn lone_image_line_with_a_title_gets_a_visible_figcaption() {
-        let out = markdown_to_gutenberg("![a cat](https://example.com/cat.png \"A very good cat\")");
+        // Bracket = caption, title = alt text (this app's convention).
+        let out = markdown_to_gutenberg("![A very good cat](https://example.com/cat.png \"a cat\")");
         assert_eq!(
             out,
             "<!-- wp:image -->\n<figure class=\"wp-block-image\">\

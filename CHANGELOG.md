@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Block attributes in Markdown**: an attribute line in curly braces
+  below a block sets what Markdown has no syntax for - text and
+  background color, gradient, font size, alignment, block style, anchor,
+  image width, drop cap, list numbering (`{bg=accent color=base}`,
+  `## Titel {#anker}`, `{style=stripes}`). Values are the blog theme's
+  preset slugs. Tables get a footer row (`{footer}`) and a caption
+  (`{caption="..."}`), and tables without a header row work.
+- **Theme presets**: the active blog's palette, gradients, font sizes and
+  block styles are fetched over the REST API and cached per blog; the
+  preview renders attribute lines, table styles, captions, accordions and
+  tabs (clickable) the way the blog will.
 - **Several blogs**: Einstellungen → WordPress has a list of blogs (add,
   edit, remove, choose the active one with its radio button) and a form
   for each blog's URL, username and Application Password (one keyring
@@ -141,6 +152,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Builds against libadwaita 1.9 (`v1_9`) and GTK 4.22 (`v4_22`) API levels.
 
 ### Fixed
+
+- **Importing a post no longer loses its design**: colors, gradients,
+  alignment, block styles, anchors, image widths and captions, table
+  footers and inline markup like `<mark>` or `<sub>` used to be dropped
+  when a post was opened and uploaded again. A block now only becomes
+  Markdown if it renders back to the same structure; everything else stays
+  as the original block markup.
+- Imported images had alt text and caption swapped (the import wrote
+  CommonMark's `![alt](url "title")`, the app reads
+  `![Bildunterschrift](url "Alternativtext")`).
+- A preserved block containing blank lines (a group, an accordion) no
+  longer falls apart into several HTML blocks on the next upload.
 
 - A first upload interrupted after WordPress had already created the post
   (connection dropped before the answer arrived) no longer creates a

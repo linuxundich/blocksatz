@@ -584,6 +584,7 @@ fn apply_media_metadata(blocks: &mut [gutenberg::Block], media: &[media::MediaIt
                 }
             }
             gutenberg::Block::Details { blocks, .. } => apply_media_metadata(blocks, media),
+            gutenberg::Block::Styled { block, .. } => apply_media_metadata(std::slice::from_mut(block.as_mut()), media),
             _ => {}
         }
     }
@@ -621,6 +622,7 @@ fn rewrite_image_urls(blocks: &mut [gutenberg::Block], urls: &std::collections::
                 }
             }
             gutenberg::Block::Details { blocks, .. } => rewrite_image_urls(blocks, urls),
+            gutenberg::Block::Styled { block, .. } => rewrite_image_urls(std::slice::from_mut(block.as_mut()), urls),
             _ => {}
         }
     }

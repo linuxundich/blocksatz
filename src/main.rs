@@ -66,6 +66,7 @@ mod syncstate;
 mod tagsuggest;
 mod taxonomy;
 mod termcache;
+mod themestyle;
 mod websession;
 mod window;
 mod windowstate;

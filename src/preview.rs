@@ -32,7 +32,7 @@ use std::rc::Rc;
 
 use adw::prelude::*;
 use gtk4::{gio, glib, pango};
-use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{CodeBlockKind, Event, Parser, Tag, TagEnd};
 use webkit6::prelude::*;
 
 use crate::appearance;
@@ -724,6 +724,9 @@ pub fn render_html(markdown: &str, style: PreviewStyle, dark: bool, media: &[Med
     let header = if show_header { render_header(frontmatter) } else { String::new() };
     let css = style_css(style, dark);
     let code_css = code_block_css(code_colors.as_ref().map(|(background, foreground)| (background.as_str(), foreground.as_str())));
+    // The blog theme's color/gradient/font-size presets, for attribute
+    // lines like `{bg=accent}` (see `themestyle`).
+    let theme_css = crate::themestyle::current().preview_css();
     // A user-picked font (if any) overrides just the two font properties,
     // applied after the style's own block so the cascade lets it win
     // while everything else the style defines (colors, indentation,
@@ -791,6 +794,45 @@ object.wp-block-file__embed {{ display: none; }}
 .wp-block-details summary {{ cursor: pointer; font-weight: 600; }}
 table {{ border-collapse: collapse; }}
 th, td {{ border: 1px solid #ccc; padding: .4rem .6rem; }}
+/* What WordPress's own block CSS does for the attributes an attribute
+   line (`bg=accent`, `style=stripes`, ...) can set - the colors themselves
+   come from the blog theme (`theme_css` below). */
+p.has-background, h1.has-background, h2.has-background, h3.has-background, h4.has-background, h5.has-background, h6.has-background {{ padding: 1.25em 2.375em; }}
+.has-drop-cap:not(:focus)::first-letter {{ float: left; font-size: 8.4em; line-height: .68; font-weight: 100; margin: .05em .1em 0 0; text-transform: uppercase; }}
+.alignleft {{ float: left; margin: .3em 1.5em .3em 0; }}
+.alignright {{ float: right; margin: .3em 0 .3em 1.5em; }}
+.aligncenter {{ margin-left: auto; margin-right: auto; text-align: center; }}
+figure.wp-block-image {{ margin: 1.5em 0; }}
+figure.wp-block-image.alignleft, figure.wp-block-image.alignright {{ max-width: 50%; }}
+.wp-block-image.is-style-rounded img {{ border-radius: 9999px; }}
+.wp-element-caption {{ font-size: .875em; opacity: .75; margin-top: .5em; text-align: center; }}
+figure.wp-block-table {{ margin: 1.5em 0; overflow-x: auto; }}
+.wp-block-table table {{ width: 100%; }}
+.wp-block-table .has-fixed-layout {{ table-layout: fixed; }}
+.wp-block-table thead {{ border-bottom: 3px solid; }}
+.wp-block-table tfoot {{ border-top: 3px solid; font-weight: 600; }}
+.wp-block-table.is-style-stripes {{ border-bottom: 1px solid #f0f0f0; }}
+.wp-block-table.is-style-stripes th, .wp-block-table.is-style-stripes td {{ border-color: transparent; }}
+.wp-block-table.is-style-stripes tbody tr:nth-child(odd) {{ background-color: rgba(128,128,128,.12); }}
+.wp-block-quote.is-style-plain {{ border: none; padding-left: 0; }}
+.wp-block-separator.is-style-dots {{ border: none; height: auto; text-align: center; }}
+.wp-block-separator.is-style-dots::before {{ content: "\00b7 \00b7 \00b7"; font-size: 1.5em; letter-spacing: 2em; }}
+.wp-block-separator.is-style-wide {{ border-width: 0 0 2px; }}
+.wp-block-separator.has-background {{ border: none; height: 2px; }}
+.wp-block-button.is-style-outline > .wp-block-button__link, .wp-block-button.is-style-lui-outline > .wp-block-button__link {{ background: transparent; }}
+.wp-block-group.has-background {{ padding: 1.25em 2.375em; }}
+/* Accordion and tabs: closed/hidden like on the blog, opened by the small
+   script at the end of the page. */
+.wp-block-accordion-item {{ border-bottom: 1px solid rgba(128,128,128,.35); }}
+.wp-block-accordion-heading {{ margin: 0; }}
+.wp-block-accordion-heading__toggle {{ all: unset; display: flex; width: 100%; justify-content: space-between; align-items: center; cursor: pointer; padding: .6em 0; font: inherit; font-weight: 600; }}
+.wp-block-accordion-item:not(.is-open) > .wp-block-accordion-panel {{ display: none; }}
+.wp-block-accordion-item.is-open .wp-block-accordion-heading__toggle-icon {{ transform: rotate(45deg); }}
+.wp-block-tab-list {{ display: flex; gap: .25em; border-bottom: 1px solid rgba(128,128,128,.35); }}
+.wp-block-tab-list > button {{ all: unset; cursor: pointer; padding: .5em 1em; border-bottom: 2px solid transparent; }}
+.wp-block-tab-list > button.is-active {{ border-bottom-color: currentColor; font-weight: 600; }}
+.wp-block-tab-panel:not(.is-active) {{ display: none; }}
+{theme_css}
 {BADGE_CSS}
 {EMBED_CSS}
 {HEADER_CSS}
@@ -924,6 +966,32 @@ window.addEventListener('scroll', function() {{
     window.webkit.messageHandlers.{SCROLL_SYNC_HANDLER}.postMessage(state.join(';'));
   }});
 }});
+// Accordions and tabs from the blog work here too.
+document.addEventListener('click', function(e) {{
+  const toggle = e.target.closest('.wp-block-accordion-heading__toggle');
+  if (toggle) {{
+    toggle.closest('.wp-block-accordion-item').classList.toggle('is-open');
+    window.__reapplySync && (window.__blocks = null);
+    return;
+  }}
+  const tab = e.target.closest('.wp-block-tab-list > button');
+  if (tab) {{
+    const tabs = tab.closest('.wp-block-tabs');
+    const buttons = Array.from(tab.parentElement.children);
+    const panels = tabs.querySelectorAll(':scope > .wp-block-tab-panels > .wp-block-tab-panel');
+    buttons.forEach(function(b, i) {{
+      b.classList.toggle('is-active', b === tab);
+      if (panels[i]) panels[i].classList.toggle('is-active', b === tab);
+    }});
+    window.__blocks = null;
+  }}
+}});
+for (const tabs of document.querySelectorAll('.wp-block-tabs')) {{
+  const first = tabs.querySelector('.wp-block-tab-list > button');
+  const panel = tabs.querySelector('.wp-block-tab-panels > .wp-block-tab-panel');
+  if (first) first.classList.add('is-active');
+  if (panel) panel.classList.add('is-active');
+}}
 {restore_js}
 </script></body></html>"#
     )
@@ -944,11 +1012,82 @@ fn block_end_line(markdown: &str, range: &std::ops::Range<usize>) -> usize {
     line_number(markdown, last_byte) + 1
 }
 
+/// One rendered top-level block of the preview.
+struct RenderedBlock {
+    html: String,
+    line: usize,
+    line_end: usize,
+    /// The block's Markdown source, for re-rendering it with attributes.
+    source: std::ops::Range<usize>,
+}
+
 fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String {
-    let options = Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
-    let events: Vec<(Event, std::ops::Range<usize>)> = Parser::new_ext(markdown, options).into_offset_iter().collect();
+    let mut blocks: Vec<RenderedBlock> = Vec::new();
+    for segment in gutenberg::split_segments(markdown) {
+        match segment {
+            gutenberg::Segment::Markdown(range) => render_markdown_chunk(markdown, range, &mut blocks),
+            gutenberg::Segment::Raw(range) => blocks.push(RenderedBlock {
+                html: markdown[range.clone()].to_string(),
+                line: line_number(markdown, range.start),
+                line_end: block_end_line(markdown, &range),
+                source: range,
+            }),
+            // An attribute line restyles the block above it - rendered the
+            // way WordPress will, from the Gutenberg markup, so the theme
+            // preset classes (`themestyle`) apply.
+            gutenberg::Segment::Attrs { attrs, range } => match blocks.last_mut() {
+                Some(last) => {
+                    if let Some(block) = gutenberg::parse_markdown(&markdown[last.source.clone()]).pop() {
+                        last.html = gutenberg::render_block(&block.with_attrs(attrs));
+                    }
+                    last.line_end = block_end_line(markdown, &range);
+                    last.source = last.source.start..range.end;
+                }
+                None => blocks.push(RenderedBlock {
+                    html: format!("<p>{}</p>", glib::markup_escape_text(&markdown[range.clone()])),
+                    line: line_number(markdown, range.start),
+                    line_end: block_end_line(markdown, &range),
+                    source: range,
+                }),
+            },
+        }
+    }
 
     let mut out = String::new();
+    for block in blocks {
+        // A raw HTML block (e.g. one "paragraph" of a `wp:group`'s
+        // own verbatim-preserved markup, see `inject_group_flex_styles`)
+        // can have its own `<div>` split from its matching `</div>`
+        // by a blank line in the source markdown - each side lands
+        // in a *different* top-level block here. Wrapping a block
+        // like that in our own `<div data-line>` would insert a
+        // second, unrelated div boundary between them, prematurely
+        // closing the real one (a bare `</div>` always closes the
+        // innermost *currently open* div, which would be ours, not
+        // theirs) and cutting its later children out of it entirely
+        // - fatal for anything, like a flex/grid `wp:group`, that
+        // depends on its children actually being its DOM children.
+        // Leaving an unbalanced block unwrapped lets its real div
+        // tag reach across block boundaries intact; the wrapped
+        // blocks in between still nest correctly *inside* it, since
+        // each of those, individually, opens and closes exactly as
+        // many divs as it has.
+        let div_balance = block.html.matches("<div").count() as isize - block.html.matches("</div>").count() as isize;
+        if div_balance == 0 {
+            out.push_str(&format!("<div data-line=\"{}\" data-line-end=\"{}\">{}</div>\n", block.line, block.line_end, block.html));
+        } else {
+            out.push_str(&block.html);
+        }
+    }
+    wrap_images_with_badges(&rewrite_media_tags(&inject_group_flex_styles(&out)), media)
+}
+
+/// The top-level blocks of one stretch of plain Markdown (`range` of the
+/// whole document, so line numbers stay document-wide).
+fn render_markdown_chunk(markdown: &str, range: std::ops::Range<usize>, out: &mut Vec<RenderedBlock>) {
+    let offset = range.start;
+    let events: Vec<(Event, std::ops::Range<usize>)> = Parser::new_ext(&markdown[range], gutenberg::markdown_options()).into_offset_iter().map(|(event, r)| (event, r.start + offset..r.end + offset)).collect();
+
     let mut i = 0;
     while i < events.len() {
         match &events[i].0 {
@@ -957,8 +1096,8 @@ fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String 
                 let end = find_matching_end(&events, i, &TagEnd::CodeBlock);
                 let line = line_number(markdown, events[i].1.start);
                 let line_end = block_end_line(markdown, &events[i].1);
-                let inner = render_code_block_with_line_anchors(&events[i..=end], &kind, line);
-                out.push_str(&format!("<div data-line=\"{line}\" data-line-end=\"{line_end}\">{inner}</div>\n"));
+                let html = render_code_block_with_line_anchors(&events[i..=end], &kind, line);
+                out.push(RenderedBlock { html, line, line_end, source: events[i].1.clone() });
                 i = end + 1;
             }
             Event::Start(tag) => {
@@ -966,51 +1105,33 @@ fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String 
                 let end = find_matching_end(&events, i, &end_marker);
                 let line = line_number(markdown, events[i].1.start);
                 let line_end = block_end_line(markdown, &events[i].1);
+                let source = events[i].1.clone();
                 let embed_url = matches!(tag, Tag::Paragraph)
                     .then(|| events[i + 1..end].iter().map(|(event, _)| event.clone()).collect::<Vec<_>>())
                     .and_then(|inner_events| gutenberg::lone_embed_url(&inner_events));
-                let inner = match embed_url {
+                let has_heading_attrs = matches!(tag, Tag::Heading { id, classes, attrs, .. } if id.is_some() || !classes.is_empty() || !attrs.is_empty());
+                let html = match embed_url {
                     Some(url) => render_embed_placeholder(&url),
+                    // `## Titel {#anker color=accent}` - through Gutenberg,
+                    // like an attribute line.
+                    None if has_heading_attrs => gutenberg::parse_markdown(&markdown[source.clone()]).pop().map(|block| gutenberg::render_block(&block)).unwrap_or_default(),
                     None => {
                         let mut inner = String::new();
                         pulldown_cmark::html::push_html(&mut inner, events[i..=end].iter().map(|(event, _)| event.clone()));
                         inner
                     }
                 };
-                // A raw HTML block (e.g. one "paragraph" of a `wp:group`'s
-                // own verbatim-preserved markup, see `inject_group_flex_styles`)
-                // can have its own `<div>` split from its matching `</div>`
-                // by a blank line in the source markdown - each side lands
-                // in a *different* top-level block here. Wrapping a block
-                // like that in our own `<div data-line>` would insert a
-                // second, unrelated div boundary between them, prematurely
-                // closing the real one (a bare `</div>` always closes the
-                // innermost *currently open* div, which would be ours, not
-                // theirs) and cutting its later children out of it entirely
-                // - fatal for anything, like a flex/grid `wp:group`, that
-                // depends on its children actually being its DOM children.
-                // Leaving an unbalanced block unwrapped lets its real div
-                // tag reach across block boundaries intact; the wrapped
-                // blocks in between still nest correctly *inside* it, since
-                // each of those, individually, opens and closes exactly as
-                // many divs as it has.
-                let div_balance = inner.matches("<div").count() as isize - inner.matches("</div>").count() as isize;
-                if div_balance == 0 {
-                    out.push_str(&format!("<div data-line=\"{line}\" data-line-end=\"{line_end}\">{inner}</div>\n"));
-                } else {
-                    out.push_str(&inner);
-                }
+                out.push(RenderedBlock { html, line, line_end, source });
                 i = end + 1;
             }
             Event::Rule => {
                 let line = line_number(markdown, events[i].1.start);
-                out.push_str(&format!("<div data-line=\"{line}\" data-line-end=\"{}\"><hr/></div>\n", line + 1));
+                out.push(RenderedBlock { html: "<hr/>".to_string(), line, line_end: line + 1, source: events[i].1.clone() });
                 i += 1;
             }
             _ => i += 1,
         }
     }
-    wrap_images_with_badges(&rewrite_media_tags(&inject_group_flex_styles(&out)), media)
 }
 
 /// `wp:group`'s flex/grid layout is driven entirely by its `layout` JSON
@@ -1515,6 +1636,31 @@ fn find_matching_end(events: &[(Event, std::ops::Range<usize>)], start: usize, e
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn attribute_line_restyles_the_block_above_and_is_not_shown() {
+        let out = render_body_with_line_anchors("Erster Absatz.\n\nHinweis.\n{bg=accent color=base}\n\nDanach.\n", &[]);
+        assert!(out.contains("class=\"has-base-color has-accent-background-color has-text-color has-background\""), "{out}");
+        assert!(!out.contains("{bg="), "{out}");
+        assert!(out.contains("data-line=\"3\" data-line-end=\"5\""), "{out}");
+        assert!(out.contains("<p>Danach.</p>"), "{out}");
+    }
+
+    #[test]
+    fn heading_attributes_are_not_shown_as_text() {
+        let out = render_body_with_line_anchors("## Titel {#anker color=accent}\n", &[]);
+        assert!(out.contains("id=\"anker\""), "{out}");
+        assert!(out.contains("has-accent-color"), "{out}");
+        assert!(!out.contains("{#anker"), "{out}");
+    }
+
+    #[test]
+    fn verbatim_block_with_blank_lines_stays_one_block() {
+        let markdown = "<!-- wp:group -->\n<div class=\"wp-block-group\"><!-- wp:paragraph -->\n<p>Eins</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Zwei</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:group -->\n\nText\n";
+        let out = render_body_with_line_anchors(markdown, &[]);
+        assert!(out.starts_with("<div data-line=\"1\" data-line-end=\"10\"><!-- wp:group -->"), "{out}");
+        assert!(out.contains("<div data-line=\"11\""), "{out}");
+    }
 
     #[test]
     fn single_paragraph_is_tagged_with_its_line() {

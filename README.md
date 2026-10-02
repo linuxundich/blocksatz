@@ -169,7 +169,27 @@ blocks. Implemented so far:
   ` ```details ` (a summary and its body, also `+++`-split, the body
   re-parsed as ordinary Markdown, `wp:details` in modern WordPress) - all
   with full round-trip support back to the same Markdown when re-opening
-  an existing post.
+  an existing post. Design Markdown has no syntax for goes into an
+  **attribute line** in curly braces below the block (Pandoc/kramdown
+  style), using the blog theme's preset slugs: `{bg=accent color=base}`,
+  `{gradient=accent-fade}`, `{size=large align=center}`,
+  `{style=stripes}`, `{width=100%}`, `{dropcap}`, `{reversed}`; a heading
+  carries it at its end (`## Titel {#anker color=accent}`). Tables take
+  `{footer}` (last row is the footer) and `{caption="..."}`; an ordered
+  list starting at `5.` keeps its start number. Images follow this app's
+  convention `![Bildunterschrift](bild.png "Alternativtext")`.
+- **Lossless import** — opening a post from the blog turns a block into
+  Markdown only if that Markdown renders back to the same block structure
+  (attributes, classes, styles, captions, table footers); anything
+  Markdown can't carry (custom padding or borders, a linked image, a
+  quote's citation, dynamic blocks) stays as its original block markup and
+  goes back unchanged. Inline markup without Markdown syntax (`<mark>`,
+  `<sub>`, a link with `target`) is kept as inline HTML.
+- **Theme presets in the preview** — the active blog's color palette,
+  gradients, font sizes and block styles are fetched over the REST API
+  (`src/themestyle.rs`, cached per blog) and turned into the same preset
+  classes WordPress generates, so attribute lines, striped tables,
+  accordions and tabs look in the preview as they will on the blog.
 - **Document model** — per-article frontmatter (title, slug, status -
   Entwurf/Ausstehend/Veröffentlicht/Geplant/Privat, matching every native
   WordPress post status -, scheduled publish date/time, categories, tags,

@@ -545,6 +545,27 @@ impl Client {
         Ok(())
     }
 
+    /// The active theme's global styles (`settings.color.palette`,
+    /// gradients, font sizes, ...) - two requests: the active theme's
+    /// stylesheet name, then its global-styles object.
+    pub fn get_theme_global_styles(&self) -> Result<Value> {
+        let themes = self.get_json(&format!("{}?status=active&_fields=stylesheet", self.endpoint("themes")))?;
+        let stylesheet = themes
+            .as_array()
+            .and_then(|list| list.first())
+            .and_then(|theme| theme.get("stylesheet"))
+            .and_then(Value::as_str)
+            .ok_or_else(|| ApiError { status: 0, message: tr("Kein aktives Theme gefunden.") })?
+            .to_string();
+        self.get_json(&self.endpoint(&format!("global-styles/themes/{stylesheet}")))
+    }
+
+    /// Every core block type's registered block styles (`name`, `label`) -
+    /// including those a theme registers for core blocks.
+    pub fn get_core_block_styles(&self) -> Result<Value> {
+        self.get_json(&format!("{}?namespace=core&_fields=name,styles", self.endpoint("block-types")))
+    }
+
     /// Lists every existing term name for a taxonomy (`"categories"` or
     /// `"tags"`), for autocomplete suggestions.
     pub fn list_term_names(&self, taxonomy: &str) -> Result<Vec<String>> {

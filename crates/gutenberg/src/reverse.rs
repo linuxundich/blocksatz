@@ -15,10 +15,10 @@
 //! full original block comment included, rather than silently losing
 //! content - see `make_block`'s fallback arm.
 
-use crate::{Block, ButtonItem, ColumnAlignment, GalleryImage, GallerySettings};
+use crate::{fidelity, Block, BlockAttrs, ButtonItem, ColumnAlignment, GalleryImage, GallerySettings};
 
 pub fn gutenberg_to_markdown(html: &str) -> String {
-    render_markdown(&parse_gutenberg_blocks(html))
+    render_markdown(&parse_blocks_in(html, true))
 }
 
 // ---------------------------------------------------------------------
@@ -86,7 +86,16 @@ fn find_block_end(html: &str, start: usize, name: &str) -> Option<(usize, usize)
     }
 }
 
+/// Blocks nested somewhere the Markdown form has no room for an attribute
+/// line (a quote, a list item) - an attributed block there stays raw.
 fn parse_gutenberg_blocks(html: &str) -> Vec<Block> {
+    parse_blocks_in(html, false)
+}
+
+/// `styled_ok`: whether a block here may carry attributes as a `{...}`
+/// line - true at the top level and inside fenced containers, whose content
+/// is parsed as a document of its own.
+fn parse_blocks_in(html: &str, styled_ok: bool) -> Vec<Block> {
     let mut blocks = Vec::new();
     let mut pos = 0;
     while pos < html.len() {
@@ -106,17 +115,17 @@ fn parse_gutenberg_blocks(html: &str) -> Vec<Block> {
             push_stray(&mut blocks, &html[pos..cstart]);
         }
         if parsed.self_closing {
-            blocks.push(make_block(parsed.name, parsed.attrs, "", &html[cstart..cend]));
+            blocks.push(make_block(parsed.name, parsed.attrs, "", &html[cstart..cend], styled_ok));
             pos = cend;
             continue;
         }
         match find_block_end(html, cend, parsed.name) {
             Some((inner_end, after)) => {
-                blocks.push(make_block(parsed.name, parsed.attrs, &html[cend..inner_end], &html[cstart..after]));
+                blocks.push(make_block(parsed.name, parsed.attrs, &html[cend..inner_end], &html[cstart..after], styled_ok));
                 pos = after;
             }
             None => {
-                blocks.push(make_block(parsed.name, parsed.attrs, &html[cend..], &html[cstart..]));
+                blocks.push(make_block(parsed.name, parsed.attrs, &html[cend..], &html[cstart..], styled_ok));
                 pos = html.len();
             }
         }
@@ -131,8 +140,13 @@ fn parse_gutenberg_blocks(html: &str) -> Vec<Block> {
 /// block (a Synced Pattern reference, a Page Break, ...) has no `inner` at
 /// all, so falling back to `inner` there would silently turn it into an
 /// empty block - see the fallback arm below and `render_block` in `lib.rs`.
-fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str) -> Block {
-    match name {
+///
+/// A recognized block only becomes Markdown when that Markdown renders back
+/// to the same structure (see `fidelity`) - otherwise it, too, is kept
+/// verbatim, so attributes Markdown can't carry are never lost.
+fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok: bool) -> Block {
+    let verbatim = || Block::RawHtml { html: raw.trim().to_string() };
+    let candidate = match name {
         "paragraph" => Block::Paragraph {
             html: inline_html_to_markdown(&strip_wrapper_tag(inner, "p")),
         },
@@ -157,24 +171,36 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str) -> Block 
                 text: unescape_entities(code.trim()),
             }
         }
-        "image" => Block::Image {
-            url: extract_attr(inner, "src").unwrap_or_default(),
-            alt: extract_attr(inner, "alt").unwrap_or_default(),
-            title: extract_attr(inner, "title").filter(|t| !t.is_empty()),
-            // Plain Markdown has no slot to carry these through a
-            // round-trip (see the field's own doc comment in `lib.rs`) -
-            // re-acquired fresh from `Frontmatter.media` on the next
-            // export instead, the same as importing never recovers a
-            // body image's own WordPress upload state in general.
-            media_id: None,
-            width: 0,
-            height: 0,
-        },
+        "image" => {
+            let caption = inner.find("<figcaption").and_then(|idx| extract_between(&inner[idx..], ">", "</figcaption>")).map(str::trim).unwrap_or("");
+            // Markdown's image title is plain text - a caption with its own
+            // markup (a link, emphasis) can't go there.
+            if caption.contains('<') {
+                return verbatim();
+            }
+            Block::Image {
+                url: extract_attr(inner, "src").unwrap_or_default(),
+                alt: unescape_entities(&extract_attr(inner, "alt").unwrap_or_default()),
+                title: Some(unescape_entities(caption)).filter(|t| !t.is_empty()),
+                // Plain Markdown has no slot to carry these through a
+                // round-trip (see the field's own doc comment in `lib.rs`) -
+                // re-acquired fresh from `Frontmatter.media` on the next
+                // export instead, the same as importing never recovers a
+                // body image's own WordPress upload state in general.
+                media_id: None,
+                width: 0,
+                height: 0,
+            }
+        }
         "separator" => Block::ThematicBreak,
         "video" => Block::Video { url: extract_attr(inner, "src").unwrap_or_default() },
         "audio" => Block::Audio { url: extract_attr(inner, "src").unwrap_or_default() },
         "embed" => Block::Embed { url: extract_json_string(attrs, "url").unwrap_or_default() },
-        "table" => parse_table_block(inner),
+        "table" => match parse_table_block(inner) {
+            // The caption goes into a quoted attribute value - plain text only.
+            Block::Table { caption: Some(caption), .. } if caption.contains(['<', '"']) => return verbatim(),
+            table => table,
+        },
         "columns" => Block::Columns {
             columns: parse_columns(&strip_wrapper_tag(inner, "div")),
         },
@@ -202,7 +228,7 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str) -> Block 
         // before - `inner` is exactly what's wanted for the Markdown these
         // two produce, and neither is ever self-closing (an empty `raw`
         // fallback risk, see below, doesn't apply to either).
-        "html" | "more" => Block::RawHtml { html: inner.trim().to_string() },
+        "html" | "more" if attrs.is_none() && !inner.trim().is_empty() => return Block::RawHtml { html: inner.trim().to_string() },
         // Any other unrecognized block type (third-party plugin blocks,
         // Synced Patterns, Page Break, Query Loop, ...) keeps its ENTIRE
         // original `<!-- wp:name {...} -->...<!-- /wp:name -->` markup
@@ -214,7 +240,32 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str) -> Block 
         // this verbatim form and re-emits it unchanged instead of
         // re-wrapping it as a generic (and, for these blocks, likely
         // non-functional) Custom HTML block.
-        _ => Block::RawHtml { html: raw.trim().to_string() },
+        _ => return verbatim(),
+    };
+
+    let mut json = match attrs.map(serde_json::from_str::<serde_json::Value>) {
+        None => serde_json::Map::new(),
+        Some(Ok(serde_json::Value::Object(map))) => map,
+        Some(_) => return verbatim(),
+    };
+    let mut block_attrs = BlockAttrs::take_from_json(name, &mut json);
+    if name == "table" && inner.find("<table").is_some_and(|i| inner[i..].split('>').next().unwrap_or("").contains("has-fixed-layout")) {
+        block_attrs.fixed_layout = true;
+    }
+    if !styled_ok && !block_attrs.is_empty() {
+        return verbatim();
+    }
+    let candidate = candidate.with_attrs(block_attrs);
+    // Checked on the real round trip - Markdown text, parsed and rendered
+    // again - since that is what the next upload sends.
+    let back = crate::render_blocks(&crate::parse_markdown(&render_block_markdown(&candidate)));
+    if fidelity::same_structure(raw, &back) {
+        candidate
+    } else {
+        if std::env::var_os("GUTENBERG_DEBUG").is_some() {
+            eprintln!("keeping {name} verbatim: {:?}", fidelity::first_difference(raw, &back));
+        }
+        verbatim()
     }
 }
 
@@ -352,11 +403,11 @@ fn parse_columns(columns_inner: &str) -> Vec<Vec<Block>> {
         }
         match find_block_end(columns_inner, cend, "column") {
             Some((inner_end, after)) => {
-                columns.push(parse_gutenberg_blocks(&strip_wrapper_tag(&columns_inner[cend..inner_end], "div")));
+                columns.push(parse_blocks_in(&strip_wrapper_tag(&columns_inner[cend..inner_end], "div"), true));
                 pos = after;
             }
             None => {
-                columns.push(parse_gutenberg_blocks(&strip_wrapper_tag(&columns_inner[cend..], "div")));
+                columns.push(parse_blocks_in(&strip_wrapper_tag(&columns_inner[cend..], "div"), true));
                 pos = columns_inner.len();
             }
         }
@@ -493,14 +544,15 @@ fn parse_details_block(inner: &str) -> Block {
         Some(close_rel) => {
             let summary = extract_between(&details_inner, "<summary>", "</summary>").map(inline_html_to_markdown).unwrap_or_default();
             let body = &details_inner[close_rel + "</summary>".len()..];
-            Block::Details { summary, blocks: parse_gutenberg_blocks(body) }
+            Block::Details { summary, blocks: parse_blocks_in(body, true) }
         }
-        None => Block::Details { summary: String::new(), blocks: parse_gutenberg_blocks(&details_inner) },
+        None => Block::Details { summary: String::new(), blocks: parse_blocks_in(&details_inner, true) },
     }
 }
 
 fn parse_table_block(inner: &str) -> Block {
-    let table_inner = strip_wrapper_tag(inner, "table");
+    let figure_inner = strip_wrapper_tag(inner, "figure");
+    let table_inner = extract_between(&figure_inner, ">", "</table>").map(str::to_string).unwrap_or_else(|| strip_wrapper_tag(inner, "table"));
     let mut alignments = Vec::new();
     let mut header = Vec::new();
     if let Some(thead) = extract_between(&table_inner, "<thead>", "</thead>") {
@@ -511,21 +563,29 @@ fn parse_table_block(inner: &str) -> Block {
             }
         }
     }
+    let read_rows = |section: &str| -> Vec<Vec<String>> {
+        extract_all_between(section, "<tr>", "</tr>").into_iter().map(|row| extract_all_tags(row, "td").into_iter().map(|(_, content)| inline_html_to_markdown(content)).collect()).collect()
+    };
     let tbody = extract_between(&table_inner, "<tbody>", "</tbody>").unwrap_or(table_inner.as_str());
-    let mut rows = Vec::new();
-    for row in extract_all_between(tbody, "<tr>", "</tr>") {
-        let cells = extract_all_tags(row, "td").into_iter().map(|(_, content)| inline_html_to_markdown(content)).collect();
-        rows.push(cells);
+    let rows = read_rows(tbody);
+    if alignments.is_empty() {
+        if let Some(first_row) = extract_all_between(tbody, "<tr>", "</tr>").first() {
+            alignments = extract_all_tags(first_row, "td").into_iter().map(|(tag, _)| alignment_from_style(tag)).collect();
+        }
     }
-    Block::Table { alignments, header, rows }
+    let footer = extract_between(&table_inner, "<tfoot>", "</tfoot>").map(read_rows).unwrap_or_default();
+    let caption = figure_inner.find("<figcaption").and_then(|idx| extract_between(&figure_inner[idx..], ">", "</figcaption>")).map(|c| unescape_entities(c.trim())).filter(|c| !c.is_empty());
+    Block::Table { alignments, header, rows, footer, caption }
 }
 
+/// A cell's alignment - current WordPress writes a class plus
+/// `data-align`, older versions an inline style.
 fn alignment_from_style(open_tag: &str) -> ColumnAlignment {
-    if open_tag.contains("text-align:left") {
+    if open_tag.contains("text-align:left") || open_tag.contains("has-text-align-left") {
         ColumnAlignment::Left
-    } else if open_tag.contains("text-align:center") {
+    } else if open_tag.contains("text-align:center") || open_tag.contains("has-text-align-center") {
         ColumnAlignment::Center
-    } else if open_tag.contains("text-align:right") {
+    } else if open_tag.contains("text-align:right") || open_tag.contains("has-text-align-right") {
         ColumnAlignment::Right
     } else {
         ColumnAlignment::None
@@ -584,50 +644,109 @@ fn extract_attr(html: &str, attr: &str) -> Option<String> {
 // Inline HTML -> Markdown
 // ---------------------------------------------------------------------
 
+/// Inline HTML -> Markdown. What Markdown has syntax for (strong, em,
+/// code, strikethrough, plain links) becomes that syntax; every other inline
+/// element - `<mark>` with a color, `<sub>`, `<kbd>`, a link with `target`
+/// or `rel`, a line break - is kept as inline HTML, which Markdown passes
+/// through unchanged, instead of being dropped.
 fn inline_html_to_markdown(html: &str) -> String {
     let mut out = String::new();
-    let mut link_hrefs: Vec<String> = Vec::new();
+    // Per open `<a>`: its href when written as Markdown, `None` when kept
+    // as HTML (so the matching `</a>` stays HTML too).
+    let mut links: Vec<Option<String>> = Vec::new();
+    let mut code_depth = 0usize;
     let mut i = 0;
     while i < html.len() {
         if html.as_bytes()[i] == b'<' {
             let Some(rel_end) = html[i..].find('>') else {
+                out.push_str(&escape_markdown_text(&html[i..], code_depth > 0));
                 break;
             };
+            let tag_text = &html[i..i + rel_end + 1];
             let tag_content = &html[i + 1..i + rel_end];
             i += rel_end + 1;
             let is_closing = tag_content.starts_with('/');
             let body = tag_content.trim_start_matches('/').trim_end_matches('/');
             let name = body.split_whitespace().next().unwrap_or("").to_lowercase();
-            if is_closing {
-                match name.as_str() {
-                    "strong" | "b" => out.push_str("**"),
-                    "em" | "i" => out.push('*'),
-                    "code" => out.push('`'),
-                    "s" | "del" => out.push_str("~~"),
-                    "a" => out.push_str(&format!("]({})", link_hrefs.pop().unwrap_or_default())),
-                    _ => {}
+            let plain = !body.contains(char::is_whitespace);
+            match (name.as_str(), is_closing) {
+                ("strong" | "b", _) if plain => out.push_str("**"),
+                ("em" | "i", _) if plain => out.push('*'),
+                ("s" | "del", _) if plain => out.push_str("~~"),
+                ("code", false) if plain => {
+                    code_depth += 1;
+                    out.push('`');
                 }
-            } else {
-                match name.as_str() {
-                    "strong" | "b" => out.push_str("**"),
-                    "em" | "i" => out.push('*'),
-                    "code" => out.push('`'),
-                    "s" | "del" => out.push_str("~~"),
-                    "br" => out.push('\n'),
-                    "a" => {
-                        link_hrefs.push(extract_attr(body, "href").unwrap_or_default());
+                ("code", true) if code_depth > 0 => {
+                    code_depth -= 1;
+                    out.push('`');
+                }
+                ("a", false) => {
+                    let attrs = crate::attrs::parse_tag_attrs(&body[1..]);
+                    if attrs.len() == 1 && attrs[0].0 == "href" {
+                        links.push(Some(attrs[0].1.clone()));
                         out.push('[');
+                    } else {
+                        links.push(None);
+                        out.push_str(tag_text);
                     }
-                    _ => {}
                 }
+                ("a", true) => match links.pop() {
+                    Some(Some(href)) => out.push_str(&format!("]({})", markdown_destination(&href))),
+                    _ => out.push_str(tag_text),
+                },
+                _ => out.push_str(tag_text),
             }
         } else {
             let next = html[i..].find('<').map(|p| i + p).unwrap_or(html.len());
-            out.push_str(&unescape_entities(&html[i..next]));
+            out.push_str(&escape_markdown_text(&html[i..next], code_depth > 0));
             i = next;
         }
     }
     out.trim().to_string()
+}
+
+/// Text between tags. Inside a code span entities are decoded (backticks
+/// show text literally); outside, `&lt;`/`&amp;` stay encoded wherever
+/// decoding them would turn into markup (`&lt;b&gt;` must not become a
+/// real `<b>`), and are decoded everywhere else for readability.
+fn escape_markdown_text(text: &str, in_code: bool) -> String {
+    if in_code {
+        return unescape_entities(text);
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(amp) = rest.find('&') {
+        out.push_str(&rest[..amp]);
+        rest = &rest[amp..];
+        let entity_len = rest.find(';').filter(|&e| e <= 10).map(|e| e + 1);
+        let Some(len) = entity_len else {
+            out.push('&');
+            rest = &rest[1..];
+            continue;
+        };
+        let entity = &rest[..len];
+        let after = &rest[len..];
+        let decoded = match entity {
+            "&lt;" if !after.starts_with(|c: char| c.is_ascii_alphabetic() || c == '/' || c == '!' || c == '?') => Some("<"),
+            "&gt;" => Some(">"),
+            "&quot;" => Some("\""),
+            "&#039;" | "&apos;" => Some("'"),
+            "&amp;" if !looks_like_entity(after) => Some("&"),
+            _ => None,
+        };
+        out.push_str(decoded.unwrap_or(entity));
+        rest = after;
+    }
+    out.push_str(rest);
+    out
+}
+
+fn looks_like_entity(s: &str) -> bool {
+    match s.find(';') {
+        Some(end) if end > 0 && end <= 10 => s[..end].chars().all(|c| c.is_ascii_alphanumeric() || c == '#'),
+        _ => false,
+    }
 }
 
 fn unescape_entities(s: &str) -> String {
@@ -651,7 +770,7 @@ fn render_block_markdown(block: &Block) -> String {
     match block {
         Block::Paragraph { html } => html.clone(),
         Block::Heading { level, html } => format!("{} {html}", "#".repeat(*level as usize)),
-        Block::List { ordered, items } => render_list_markdown(*ordered, items, 0),
+        Block::List { ordered, items } => render_list_markdown(*ordered, items, 0, 1),
         Block::BlockQuote { blocks } => render_markdown(blocks)
             .lines()
             .map(|line| if line.is_empty() { ">".to_string() } else { format!("> {line}") })
@@ -659,23 +778,52 @@ fn render_block_markdown(block: &Block) -> String {
             .join("\n"),
         Block::CodeBlock { lang, text } => format!("```{}\n{text}\n```", lang.clone().unwrap_or_default()),
         Block::Image { url, alt, title, .. } => {
+            // Bracket = caption, title = alt text - see `as_lone_media`.
             let destination = markdown_destination(url);
-            match title {
-                Some(title) => format!("![{alt}]({destination} \"{title}\")"),
-                None => format!("![{alt}]({destination})"),
+            let caption = title.as_deref().unwrap_or("").replace('[', "\\[").replace(']', "\\]");
+            if alt.is_empty() {
+                format!("![{caption}]({destination})")
+            } else {
+                format!("![{caption}]({destination} \"{}\")", alt.replace('"', "\\\""))
             }
         }
         Block::Video { url } => format!("![]({})", markdown_destination(url)),
         Block::Audio { url } => format!("![]({})", markdown_destination(url)),
         Block::Embed { url } => url.clone(),
         Block::ThematicBreak => "---".to_string(),
-        Block::Table { alignments, header, rows } => render_table_markdown(alignments, header, rows),
+        Block::Table { alignments, header, rows, footer, caption } => {
+            let table = render_table_markdown(alignments, header, rows, footer);
+            let attrs = BlockAttrs { caption: caption.clone(), footer_rows: footer.len() as u32, ..Default::default() };
+            if attrs.is_empty() {
+                table
+            } else {
+                format!("{table}\n{}", attrs.to_markdown())
+            }
+        }
         Block::Columns { columns } => render_columns_markdown(columns),
         Block::Buttons { buttons } => render_buttons_markdown(buttons),
         Block::Gallery { images, settings } => render_gallery_fence(images, settings),
         Block::Pullquote { paragraphs, citation } => render_pullquote_markdown(paragraphs, citation),
         Block::Details { summary, blocks } => render_details_markdown(summary, blocks),
         Block::RawHtml { html } => html.clone(),
+        Block::Styled { attrs, block } => match block.as_ref() {
+            Block::Heading { .. } => format!("{} {}", render_block_markdown(block), attrs.to_markdown()),
+            // An ordered list's first number is plain Markdown.
+            Block::List { ordered: true, items } if attrs.start.is_some() => {
+                let list = render_list_markdown(true, items, 0, attrs.start.unwrap_or(1));
+                let rest = BlockAttrs { start: None, ..attrs.clone() };
+                if rest.is_empty() {
+                    list
+                } else {
+                    format!("{list}\n{}", rest.to_markdown())
+                }
+            }
+            Block::Table { alignments, header, rows, footer, caption } => {
+                let table_attrs = BlockAttrs { caption: caption.clone(), footer_rows: footer.len() as u32, ..Default::default() };
+                format!("{}\n{}", render_table_markdown(alignments, header, rows, footer), table_attrs.merged(attrs.clone()).to_markdown())
+            }
+            _ => format!("{}\n{}", render_block_markdown(block), attrs.to_markdown()),
+        },
     }
 }
 
@@ -694,19 +842,19 @@ fn markdown_destination(url: &str) -> String {
     }
 }
 
-fn render_list_markdown(ordered: bool, items: &[Vec<Block>], indent: usize) -> String {
+fn render_list_markdown(ordered: bool, items: &[Vec<Block>], indent: usize, start: u32) -> String {
     let pad = " ".repeat(indent);
     items
         .iter()
         .enumerate()
         .map(|(idx, item_blocks)| {
-            let marker = if ordered { format!("{}.", idx + 1) } else { "-".to_string() };
+            let marker = if ordered { format!("{}.", start as usize + idx) } else { "-".to_string() };
             let mut lines = Vec::new();
             for (i, block) in item_blocks.iter().enumerate() {
                 if i == 0 {
                     lines.push(format!("{pad}{marker} {}", render_block_markdown(block)));
                 } else if let Block::List { ordered: nested_ordered, items: nested_items } = block {
-                    lines.push(render_list_markdown(*nested_ordered, nested_items, indent + 2));
+                    lines.push(render_list_markdown(*nested_ordered, nested_items, indent + 2, 1));
                 } else {
                     lines.push(render_block_markdown(block));
                 }
@@ -790,23 +938,24 @@ fn render_details_markdown(summary: &str, blocks: &[Block]) -> String {
     format!("```details\n{summary}\n+++\n{}\n```", render_markdown(blocks))
 }
 
-fn render_table_markdown(alignments: &[ColumnAlignment], header: &[String], rows: &[Vec<String>]) -> String {
-    let mut lines = Vec::new();
-    if !header.is_empty() {
-        lines.push(format!("| {} |", header.join(" | ")));
-        let seps: Vec<String> = (0..header.len())
-            .map(|i| match alignments.get(i) {
-                Some(ColumnAlignment::Left) => ":---".to_string(),
-                Some(ColumnAlignment::Center) => ":---:".to_string(),
-                Some(ColumnAlignment::Right) => "---:".to_string(),
-                _ => "---".to_string(),
-            })
-            .collect();
-        lines.push(format!("| {} |", seps.join(" | ")));
-    }
-    for row in rows {
-        lines.push(format!("| {} |", row.join(" | ")));
-    }
+fn render_table_markdown(alignments: &[ColumnAlignment], header: &[String], rows: &[Vec<String>], footer: &[Vec<String>]) -> String {
+    let columns = header.len().max(rows.iter().chain(footer).map(Vec::len).max().unwrap_or(0));
+    let cell = |s: &str| s.replace('|', "\\|").replace('\n', "<br>");
+    let line = |cells: &[String]| {
+        let padded: Vec<String> = (0..columns).map(|i| cells.get(i).map(|c| cell(c)).unwrap_or_default()).collect();
+        format!("| {} |", padded.join(" | "))
+    };
+    let mut lines = vec![line(header)];
+    let seps: Vec<String> = (0..columns)
+        .map(|i| match alignments.get(i) {
+            Some(ColumnAlignment::Left) => ":---".to_string(),
+            Some(ColumnAlignment::Center) => ":---:".to_string(),
+            Some(ColumnAlignment::Right) => "---:".to_string(),
+            _ => "---".to_string(),
+        })
+        .collect();
+    lines.push(format!("| {} |", seps.join(" | ")));
+    lines.extend(rows.iter().chain(footer).map(|row| line(row)));
     lines.join("\n")
 }
 
@@ -866,7 +1015,7 @@ mod tests {
     #[test]
     fn image_with_space_in_url_is_wrapped_in_angle_brackets() {
         let block = Block::Image { url: "my cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: None, width: 0, height: 0 };
-        assert_eq!(render_block_markdown(&block), "![a cat](<my cat.png>)");
+        assert_eq!(render_block_markdown(&block), "![](<my cat.png> \"a cat\")");
     }
 
     #[test]
@@ -1036,5 +1185,91 @@ mod tests {
     fn table_alignment_round_trips() {
         let out = round_trip("| A | B | C |\n|:---|:---:|---:|\n| 1 | 2 | 3 |\n");
         assert_eq!(out, "| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |");
+    }
+
+    /// WordPress markup -> Markdown -> WordPress markup keeps the structure.
+    fn assert_lossless(wp: &str) -> String {
+        let md = gutenberg_to_markdown(wp);
+        let back = markdown_to_gutenberg(&md);
+        assert!(crate::same_structure(wp, &back), "{:?}\nMarkdown:\n{md}\nBack:\n{back}", crate::first_difference(wp, &back));
+        md
+    }
+
+    #[test]
+    fn colored_paragraph_gets_an_attribute_line() {
+        let md = assert_lossless("<!-- wp:paragraph {\"backgroundColor\":\"line\"} -->\n<p class=\"has-line-background-color has-background\"><strong>Update:</strong> Text</p>\n<!-- /wp:paragraph -->");
+        assert_eq!(md, "**Update:** Text\n{bg=line}");
+    }
+
+    #[test]
+    fn gradient_and_text_color_round_trip() {
+        let md = assert_lossless("<!-- wp:paragraph {\"textColor\":\"base\",\"gradient\":\"accent-fade\",\"fontSize\":\"large\"} -->\n<p class=\"has-base-color has-accent-fade-gradient-background has-text-color has-background has-large-font-size\">Text</p>\n<!-- /wp:paragraph -->");
+        assert_eq!(md, "Text\n{color=base gradient=accent-fade size=large}");
+    }
+
+    #[test]
+    fn heading_anchor_stays_on_the_heading_line() {
+        let md = assert_lossless("<!-- wp:heading {\"anchor\":\"mein-eindruck\"} -->\n<h2 id=\"mein-eindruck\" class=\"wp-block-heading\">Mein Eindruck</h2>\n<!-- /wp:heading -->");
+        assert_eq!(md, "## Mein Eindruck {#mein-eindruck}");
+    }
+
+    #[test]
+    fn centered_heading_with_color_round_trips() {
+        assert_lossless("<!-- wp:heading {\"level\":3,\"textColor\":\"accent\",\"anchor\":\"anker\",\"style\":{\"typography\":{\"textAlign\":\"center\"}}} -->\n<h3 class=\"wp-block-heading has-text-align-center has-accent-color has-text-color\" id=\"anker\">Zentriert</h3>\n<!-- /wp:heading -->");
+    }
+
+    #[test]
+    fn image_caption_and_width_round_trip() {
+        let md = assert_lossless("<!-- wp:image {\"id\":45504,\"sizeSlug\":\"large\",\"linkDestination\":\"none\",\"width\":\"100%\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"https://example.org/a.webp\" alt=\"Ein &quot;Bild&quot;\" class=\"wp-image-45504\" style=\"width:100%\"/><figcaption class=\"wp-element-caption\">Bildunterschrift</figcaption></figure>\n<!-- /wp:image -->");
+        assert_eq!(md, "![Bildunterschrift](https://example.org/a.webp \"Ein \\\"Bild\\\"\")\n{width=100%}");
+    }
+
+    #[test]
+    fn image_with_a_linked_caption_stays_verbatim() {
+        let wp = "<!-- wp:image -->\n<figure class=\"wp-block-image\"><img src=\"a.webp\" alt=\"\"/><figcaption class=\"wp-element-caption\">Mit <a href=\"x\">Link</a></figcaption></figure>\n<!-- /wp:image -->";
+        assert_eq!(assert_lossless(wp), wp);
+    }
+
+    #[test]
+    fn padding_markdown_cannot_express_keeps_the_block_verbatim() {
+        let wp = "<!-- wp:paragraph {\"backgroundColor\":\"base-2\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"1rem\"}}}} -->\n<p class=\"has-base-2-background-color has-background\" style=\"padding-top:1rem\">Text</p>\n<!-- /wp:paragraph -->";
+        assert_eq!(assert_lossless(wp), wp);
+    }
+
+    #[test]
+    fn verbatim_block_with_blank_lines_survives_as_one_block() {
+        let wp = "<!-- wp:group {\"layout\":{\"type\":\"constrained\"}} -->\n<div class=\"wp-block-group\"><!-- wp:paragraph -->\n<p>Eins</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Zwei</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:group -->";
+        let md = assert_lossless(wp);
+        assert_eq!(markdown_to_gutenberg(&md), wp);
+    }
+
+    #[test]
+    fn striped_table_with_footer_and_caption_round_trips() {
+        let md = assert_lossless("<!-- wp:table {\"align\":\"wide\",\"className\":\"is-style-stripes\"} -->\n<figure class=\"wp-block-table alignwide is-style-stripes\"><table class=\"has-fixed-layout\"><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody><tfoot><tr><td>Summe</td><td>3</td></tr></tfoot></table><figcaption class=\"wp-element-caption\">Eine Tabelle</figcaption></figure>\n<!-- /wp:table -->");
+        assert_eq!(md, "| A | B |\n| --- | --- |\n| 1 | 2 |\n| Summe | 3 |\n{style=stripes align=wide fixed footer caption=\"Eine Tabelle\"}");
+    }
+
+    #[test]
+    fn table_without_header_round_trips() {
+        let md = assert_lossless("<!-- wp:table -->\n<figure class=\"wp-block-table\"><table><tbody><tr><td>1</td><td>2</td></tr></tbody></table></figure>\n<!-- /wp:table -->");
+        assert_eq!(md, "|  |  |\n| --- | --- |\n| 1 | 2 |");
+    }
+
+    #[test]
+    fn inline_markup_without_markdown_syntax_is_kept_as_html() {
+        let md = assert_lossless("<!-- wp:paragraph -->\n<p>H<sub>2</sub>O, <mark style=\"background-color:#ff0\" class=\"has-inline-color\">markiert</mark>, <a href=\"https://example.org\" target=\"_blank\" rel=\"noreferrer noopener\">extern</a>, <a href=\"https://example.org\">intern</a>, &lt;b&gt; und Tom &amp; Jerry</p>\n<!-- /wp:paragraph -->");
+        assert_eq!(md, "H<sub>2</sub>O, <mark style=\"background-color:#ff0\" class=\"has-inline-color\">markiert</mark>, <a href=\"https://example.org\" target=\"_blank\" rel=\"noreferrer noopener\">extern</a>, [intern](https://example.org), &lt;b> und Tom & Jerry");
+        assert!(markdown_to_gutenberg(&md).contains("&lt;b&gt; und Tom &amp; Jerry"));
+    }
+
+    #[test]
+    fn attributes_inside_a_quote_keep_the_inner_block_verbatim() {
+        assert_lossless("<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><!-- wp:paragraph {\"textColor\":\"accent\"} -->\n<p class=\"has-accent-color has-text-color\">Zitat</p>\n<!-- /wp:paragraph --></blockquote>\n<!-- /wp:quote -->");
+    }
+
+    #[test]
+    fn list_start_and_reversed_round_trip() {
+        let md = assert_lossless("<!-- wp:list {\"ordered\":true,\"start\":5,\"reversed\":true} -->\n<ol reversed start=\"5\" class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Eins</li>\n<!-- /wp:list-item --></ol>\n<!-- /wp:list -->");
+        assert_eq!(md, "5. Eins\n{reversed}");
     }
 }

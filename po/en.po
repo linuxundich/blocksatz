@@ -1513,6 +1513,10 @@ msgstr "No response received."
 msgid "Antwort nicht lesbar: {err}"
 msgstr "Couldn't read the response: {err}"
 
+#: src/wpclient.rs
+msgid "Kein aktives Theme gefunden."
+msgstr "No active theme found."
+
 #: src/mainaction.rs:60 src/mainaction.rs:126
 msgid "Als Entwurf hochladen"
 msgstr "Upload as Draft"

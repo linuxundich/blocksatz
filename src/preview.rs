@@ -1207,10 +1207,17 @@ fn render_markdown_chunk(markdown: &str, range: std::ops::Range<usize>, out: &mu
                     .then(|| events[i + 1..end].iter().map(|(event, _)| event.clone()).collect::<Vec<_>>())
                     .and_then(|inner_events| gutenberg::lone_embed_url(&inner_events));
                 let has_heading_attrs = matches!(tag, Tag::Heading { id, classes, attrs, .. } if id.is_some() || !classes.is_empty() || !attrs.is_empty());
+                // A quote whose last paragraph is its source (`> — Quelle`)
+                // shows the `<cite>` WordPress will get.
+                let cited_quote = matches!(tag, Tag::BlockQuote(_))
+                    .then(|| gutenberg::parse_markdown(&markdown[source.clone()]).pop())
+                    .flatten()
+                    .filter(|block| matches!(block, gutenberg::Block::BlockQuote { citation: Some(_), .. }));
                 let html = match embed_url {
                     Some(url) => render_embed_placeholder(&url),
                     // `## Titel {#anker color=accent}` - through Gutenberg,
                     // like an attribute line.
+                    None if cited_quote.is_some() => cited_quote.as_ref().map(gutenberg::render_block).unwrap_or_default(),
                     None if has_heading_attrs => gutenberg::parse_markdown(&markdown[source.clone()]).pop().map(|block| gutenberg::render_block(&block)).unwrap_or_default(),
                     None => {
                         let mut inner = String::new();
@@ -1915,6 +1922,14 @@ mod tests {
         let out = render_body_with_line_anchors(markdown, &[item]);
         assert!(out.contains("embed-placeholder"), "{out}");
         assert!(!out.contains("img-caption"), "{out}");
+    }
+
+    #[test]
+    fn a_quote_with_its_source_shows_the_cite() {
+        let out = render_body("> Zitat.\n>\n> — Cicero, *De finibus*\n", &[], None);
+        assert!(out.contains("<cite>Cicero, <em>De finibus</em></cite></blockquote>"), "{out}");
+        let plain = render_body("> Nur ein Zitat.\n", &[], None);
+        assert!(!plain.contains("<cite>") && plain.contains("<blockquote>"), "{plain}");
     }
 
     #[test]

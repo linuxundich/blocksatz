@@ -25,6 +25,13 @@
   <url type="homepage">https://github.com/linuxundich/blocksatz</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksatz</url>
   <releases>
+    <release version="0.66.0" date="2026-10-02">
+      <description>
+        <p>Mehr Gestaltung bleibt Markdown: Zitate mit Quelle („> — Quelle“), Medien &amp; Text, Kästen mit Innenabstand, Rahmen und Schatten, Bildunterschriften bei Audio, Video, Einbettungen und Galerien sowie verlinkte Bilder. Cover und Medien &amp; Text nehmen lokale Bilder, die beim Hochladen mitgehen.</p>
+        <p>Fußnoten lassen sich in Markdown schreiben ([^1]) und werden zu WordPress-Fußnoten; Beiträge aus dem Blog bringen ihre Fußnoten in derselben Form mit.</p>
+        <p>Das Flatpak sieht nur noch den Dokumente-Ordner und läuft auf GNOME 51. Bilder von außerhalb des Artikelordners werden in ihn kopiert.</p>
+      </description>
+    </release>
     <release version="0.65.0" date="2026-10-02">
       <description>
         <p>Neuer Arbeitsablauf: Artikel liegen in einer Bibliothek mit fortlaufender Sicherung, die Seitenleiste zeigt „In Arbeit“ und die Beiträge des Blogs, und eine einzige Hauptaktion führt vom Entwurf über die Freigabe-Prüfung bis zur Veröffentlichung. Mehrere Blogs lassen sich verwalten.</p>

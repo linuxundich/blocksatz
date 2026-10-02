@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.66.0] - 2026-10-02
+
 ### Added
 
 - **Flathub submission files**: `build-aux/flathub/prepare.sh <tag>`
@@ -2110,7 +2112,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.65.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.66.0...HEAD
+[0.66.0]: https://github.com/linuxundich/blocksatz/compare/v0.65.0...v0.66.0
 [0.65.0]: https://github.com/linuxundich/blocksatz/compare/v0.64.0...v0.65.0
 [0.7.0]: https://github.com/linuxundich/blocksmith/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/linuxundich/blocksmith/compare/v0.5.0...v0.6.0

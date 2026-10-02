@@ -770,6 +770,15 @@ object.wp-block-file__embed {{ display: none; }}
 .wp-block-cover {{ position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }}
 .wp-block-cover__image-background, .wp-block-cover__video-background {{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background-size: cover; background-position: 50% 50%; z-index: 0; }}
 .wp-block-cover__background {{ position: absolute; inset: 0; z-index: 1; }}
+.wp-block-cover__background.has-background-dim {{ opacity: .5; }}
+.wp-block-cover__background.has-background-dim-10 {{ opacity: .1; }} .wp-block-cover__background.has-background-dim-20 {{ opacity: .2; }} .wp-block-cover__background.has-background-dim-30 {{ opacity: .3; }}
+.wp-block-cover__background.has-background-dim-40 {{ opacity: .4; }} .wp-block-cover__background.has-background-dim-50 {{ opacity: .5; }} .wp-block-cover__background.has-background-dim-60 {{ opacity: .6; }}
+.wp-block-cover__background.has-background-dim-70 {{ opacity: .7; }} .wp-block-cover__background.has-background-dim-80 {{ opacity: .8; }} .wp-block-cover__background.has-background-dim-90 {{ opacity: .9; }}
+.wp-block-cover__background.has-background-dim-100 {{ opacity: 1; }}
+.wp-block-cover.has-custom-content-position.is-position-bottom-left {{ align-items: flex-end; justify-content: flex-start; }}
+.wp-block-cover.has-custom-content-position.is-position-top-left {{ align-items: flex-start; justify-content: flex-start; }}
+.wp-block-cover {{ color: #fff; padding: 1em; box-sizing: border-box; }}
+.wp-block-cover > span.img-wrap {{ position: absolute; inset: 0; z-index: 0; display: block; }}
 .wp-block-cover__inner-container {{ position: relative; z-index: 1; width: 100%; }}
 .has-text-align-center {{ text-align: center; }}
 .has-text-align-left {{ text-align: left; }}
@@ -1026,6 +1035,14 @@ fn render_body_with_line_anchors(markdown: &str, media: &[MediaItem]) -> String 
     for segment in gutenberg::split_segments(markdown) {
         match segment {
             gutenberg::Segment::Markdown(range) => render_markdown_chunk(markdown, range, &mut blocks),
+            // A `:::` container renders as the Gutenberg markup it will
+            // become, its content included.
+            gutenberg::Segment::Container { range, .. } => blocks.push(RenderedBlock {
+                html: gutenberg::parse_markdown(&markdown[range.clone()]).iter().map(gutenberg::render_block).collect::<Vec<_>>().join("\n"),
+                line: line_number(markdown, range.start),
+                line_end: block_end_line(markdown, &range),
+                source: range,
+            }),
             gutenberg::Segment::Raw(range) => blocks.push(RenderedBlock {
                 html: markdown[range.clone()].to_string(),
                 line: line_number(markdown, range.start),
@@ -1144,10 +1161,8 @@ fn render_markdown_chunk(markdown: &str, range: std::ops::Range<usize>, out: &mu
 /// included) already survives verbatim in the raw HTML via `make_block`'s
 /// "unrecognized block" fallback (`crates/gutenberg`'s `reverse.rs`) -
 /// read directly here instead, and turned into an inline `style` written
-/// straight onto the group's own `<div>`. Only `"type":"flex"` (the one
-/// shape actually seen in real content so far) is handled; a `"grid"`
-/// layout is left alone rather than guessed at with nothing to check it
-/// against.
+/// straight onto the group's own `<div>`. Handles `"type":"flex"`
+/// (row/stack) and `"type":"grid"` (with or without `columnCount`).
 fn inject_group_flex_styles(html: &str) -> String {
     let mut out = String::with_capacity(html.len());
     let mut rest = html;
@@ -1195,6 +1210,13 @@ fn inject_group_flex_styles(html: &str) -> String {
 /// no `layout` at all, WordPress's own default "constrained" layout, which
 /// needs no flex styling here since normal block flow already matches it).
 fn flex_style_for_group_attrs(attrs: &str) -> Option<String> {
+    if attrs.contains("\"type\":\"grid\"") {
+        let columns = attrs.split("\"columnCount\":").nth(1).map(|rest| rest.chars().take_while(char::is_ascii_digit).collect::<String>()).filter(|n| !n.is_empty());
+        return Some(match columns {
+            Some(n) => format!("display:grid;grid-template-columns:repeat({n},minmax(0,1fr));gap:1em;"),
+            None => "display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:1em;".to_string(),
+        });
+    }
     if !attrs.contains("\"type\":\"flex\"") {
         return None;
     }
@@ -1644,6 +1666,15 @@ mod tests {
         assert!(!out.contains("{bg="), "{out}");
         assert!(out.contains("data-line=\"3\" data-line-end=\"5\""), "{out}");
         assert!(out.contains("<p>Danach.</p>"), "{out}");
+    }
+
+    #[test]
+    fn container_renders_as_gutenberg_markup() {
+        let out = render_body_with_line_anchors(":::: accordion\n::: item \"Frage\" {open}\nAntwort.\n:::\n::::\n\nDanach.\n", &[]);
+        assert!(out.contains("<div class=\"wp-block-accordion-item is-open\">"), "{out}");
+        assert!(out.contains("<span class=\"wp-block-accordion-heading__toggle-title\">Frage</span>"), "{out}");
+        assert!(!out.contains(":::"), "{out}");
+        assert!(out.contains("<div data-line=\"7\""), "{out}");
     }
 
     #[test]

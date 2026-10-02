@@ -1,6 +1,6 @@
 # Blockgestaltung in Markdown: Bestandsaufnahme und Optionen
 
-Stand: 2026-10-02 · Status: **Schritte 1–4 umgesetzt** (siehe Abschnitt 5)
+Stand: 2026-10-02 · Status: **Schritte 1–5 umgesetzt** (siehe Abschnitt 5)
 
 Anlass: Farben, Farbverläufe, Tabellenvarianten, Akkordeons und weitere
 Elemente aus dem Testbeitrag „Lorem Ipsum: Sämtliche Gutenberg-Blöcke“
@@ -258,3 +258,13 @@ Schritt 1 sollte unabhängig vom Rest sofort kommen.
   WordPress-Format (`has-text-align-*`, `data-align`).
 - Nebenbei: Bildunterschrift/Alternativtext beim Import vertauscht (jetzt
   `![Bildunterschrift](url "Alternativtext")` wie in der App).
+- **Schritt 5 (C)**: `crates/gutenberg/src/containers.rs` – `group`,
+  `columns`/`column`, `accordion`/`item`, `tabs`/`tab`, `cover`,
+  `details`. Kopfzeile `::: art "Titel" {einstellungen attribute}`, eine
+  Zeile aus Doppelpunkten schließt den innersten Container, Code-Fences
+  innen werden übersprungen. Beim Import entstehen Container nur, wo der
+  Rundweg die Struktur erhält (Testbeitrag: 112 → 83 rohe Blöcke; offen
+  sind u. a. Gruppen mit Rahmen/Innenabstand, Media-Text, Zitat mit
+  Quelle, Bild-/Medien-Unterschriften bei Audio/Video/Embed).
+  Einschränkung: Ein Cover-Bild muss eine URL sein, lokale Dateien lädt
+  der Export dort (noch) nicht hoch.

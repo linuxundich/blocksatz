@@ -146,6 +146,20 @@ fn parse_blocks_in(html: &str, styled_ok: bool) -> Vec<Block> {
 /// verbatim, so attributes Markdown can't carry are never lost.
 fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok: bool) -> Block {
     let verbatim = || Block::RawHtml { html: raw.trim().to_string() };
+    let mut json = match attrs.map(serde_json::from_str::<serde_json::Value>) {
+        None => serde_json::Map::new(),
+        Some(Ok(serde_json::Value::Object(map))) => map,
+        Some(_) => return verbatim(),
+    };
+    // Containers are written as `:::` fences, which only exist where a
+    // block may carry its own lines (not inside a quote or list item).
+    if CONTAINER_BLOCKS.contains(&name) {
+        if !styled_ok {
+            return verbatim();
+        }
+        let Some(container) = parse_container(name, &mut json, inner) else { return verbatim() };
+        return finish(name, container, json, inner, raw, styled_ok);
+    }
     let candidate = match name {
         "paragraph" => Block::Paragraph {
             html: inline_html_to_markdown(&strip_wrapper_tag(inner, "p")),
@@ -201,9 +215,6 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
             Block::Table { caption: Some(caption), .. } if caption.contains(['<', '"']) => return verbatim(),
             table => table,
         },
-        "columns" => Block::Columns {
-            columns: parse_columns(&strip_wrapper_tag(inner, "div")),
-        },
         "buttons" => Block::Buttons {
             buttons: parse_buttons(&strip_wrapper_tag(inner, "div")),
         },
@@ -220,7 +231,6 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
             }
         }
         "pullquote" => parse_pullquote_block(inner),
-        "details" => parse_details_block(inner),
         // Our own "html" passthrough, and WordPress's own unusual "more"
         // block (whose inner content already just *is* the bare
         // `<!--more-->` marker - see the matching arm in `lib.rs`'s
@@ -243,11 +253,13 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
         _ => return verbatim(),
     };
 
-    let mut json = match attrs.map(serde_json::from_str::<serde_json::Value>) {
-        None => serde_json::Map::new(),
-        Some(Ok(serde_json::Value::Object(map))) => map,
-        Some(_) => return verbatim(),
-    };
+    finish(name, candidate, json, inner, raw, styled_ok)
+}
+
+/// Moves the remaining attributes onto `candidate` and keeps it only if
+/// its Markdown round trip has the original structure.
+fn finish(name: &str, candidate: Block, mut json: serde_json::Map<String, serde_json::Value>, inner: &str, raw: &str, styled_ok: bool) -> Block {
+    let verbatim = || Block::RawHtml { html: raw.trim().to_string() };
     let mut block_attrs = BlockAttrs::take_from_json(name, &mut json);
     if name == "table" && inner.find("<table").is_some_and(|i| inner[i..].split('>').next().unwrap_or("").contains("has-fixed-layout")) {
         block_attrs.fixed_layout = true;
@@ -267,6 +279,234 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
         }
         verbatim()
     }
+}
+
+const CONTAINER_BLOCKS: &[&str] = &["group", "columns", "accordion", "tabs", "cover", "details"];
+
+/// Direct child blocks of a container's inner HTML: name, attrs JSON,
+/// inner HTML.
+fn child_blocks(html: &str) -> Vec<(String, Option<String>, String)> {
+    let mut children = Vec::new();
+    let mut pos = 0;
+    while let Some((comment, _cstart, cend)) = next_comment(html, pos) {
+        let Some(parsed) = parse_wp_comment(comment) else {
+            pos = cend;
+            continue;
+        };
+        if parsed.closing {
+            pos = cend;
+            continue;
+        }
+        let (name, attrs) = (parsed.name.to_string(), parsed.attrs.map(str::to_string));
+        if parsed.self_closing {
+            children.push((name, attrs, String::new()));
+            pos = cend;
+            continue;
+        }
+        match find_block_end(html, cend, &name) {
+            Some((inner_end, after)) => {
+                children.push((name, attrs, html[cend..inner_end].to_string()));
+                pos = after;
+            }
+            None => break,
+        }
+    }
+    children
+}
+
+fn json_map(attrs: Option<&str>) -> Option<serde_json::Map<String, serde_json::Value>> {
+    match attrs.map(serde_json::from_str::<serde_json::Value>) {
+        None => Some(serde_json::Map::new()),
+        Some(Ok(serde_json::Value::Object(map))) => Some(map),
+        Some(_) => None,
+    }
+}
+
+fn take_json_string(json: &mut serde_json::Map<String, serde_json::Value>, key: &str) -> Option<String> {
+    let value = json.get(key)?.as_str()?.to_string();
+    json.remove(key);
+    Some(value)
+}
+
+fn take_json_true(json: &mut serde_json::Map<String, serde_json::Value>, key: &str) -> bool {
+    let is_true = json.get(key) == Some(&serde_json::Value::Bool(true));
+    if is_true {
+        json.remove(key);
+    }
+    is_true
+}
+
+/// Content of the element the container's markup starts with, e.g. the
+/// `<div class="wp-block-group">` - everything up to its last closing tag.
+fn element_content(html: &str) -> &str {
+    let html = html.trim();
+    let Some(open_end) = html.find('>') else { return "" };
+    let Some(close) = html.rfind("</") else { return "" };
+    if close <= open_end {
+        return "";
+    }
+    &html[open_end + 1..close]
+}
+
+fn container(kind: &str, title: Option<String>, params: crate::ContainerParams, blocks: Vec<Block>) -> Block {
+    Block::Container { kind: kind.to_string(), title, params, blocks }
+}
+
+/// Reads a container block into `Block::Container`, taking the settings
+/// it understands out of `json` (the rest becomes block attributes or, if
+/// Markdown can't carry it, fails the structure check).
+fn parse_container(name: &str, json: &mut serde_json::Map<String, serde_json::Value>, inner: &str) -> Option<Block> {
+    let mut params = crate::ContainerParams::default();
+    let content = element_content(inner);
+    let block = match name {
+        "group" => {
+            if let Some(serde_json::Value::Object(layout)) = json.get("layout").cloned() {
+                let kind = layout.get("type").and_then(|t| t.as_str()).unwrap_or("default");
+                let vertical = layout.get("orientation").and_then(|o| o.as_str()) == Some("vertical");
+                params.set("layout", Some(if kind == "flex" && vertical { "stack".to_string() } else { kind.to_string() }));
+                if layout.get("flexWrap").and_then(|w| w.as_str()) == Some("nowrap") {
+                    params.set("nowrap", None);
+                }
+                if let Some(justify) = layout.get("justifyContent").and_then(|j| j.as_str()) {
+                    params.set("justify", Some(justify.to_string()));
+                }
+                if let Some(columns) = layout.get("columnCount").and_then(|c| c.as_u64()) {
+                    params.set("columns", Some(columns.to_string()));
+                }
+                json.remove("layout");
+            }
+            if let Some(tag) = take_json_string(json, "tagName") {
+                params.set("tag", Some(tag));
+            }
+            container("group", None, params, parse_blocks_in(content, true))
+        }
+        "columns" => {
+            if let Some(valign) = take_json_string(json, "verticalAlignment") {
+                params.set("valign", Some(valign));
+            }
+            if json.get("isStackedOnMobile") == Some(&serde_json::Value::Bool(false)) {
+                json.remove("isStackedOnMobile");
+                params.set("nostack", None);
+            }
+            let mut columns = Vec::new();
+            for (child, attrs, child_inner) in child_blocks(content) {
+                if child != "column" {
+                    return None;
+                }
+                let mut column_json = json_map(attrs.as_deref())?;
+                let mut column_params = crate::ContainerParams::default();
+                if let Some(width) = take_json_string(&mut column_json, "width") {
+                    column_params.set("width", Some(width));
+                }
+                if let Some(valign) = take_json_string(&mut column_json, "verticalAlignment") {
+                    column_params.set("valign", Some(valign));
+                }
+                let column_attrs = BlockAttrs::take_from_json("column", &mut column_json);
+                columns.push(container("column", None, column_params, parse_blocks_in(element_content(&child_inner), true)).with_attrs(column_attrs));
+            }
+            container("columns", None, params, columns)
+        }
+        "accordion" => {
+            let mut items = Vec::new();
+            for (child, attrs, child_inner) in child_blocks(content) {
+                if child != "accordion-item" {
+                    return None;
+                }
+                let mut item_json = json_map(attrs.as_deref())?;
+                let mut item_params = crate::ContainerParams::default();
+                if take_json_true(&mut item_json, "openByDefault") {
+                    item_params.set("open", None);
+                }
+                let mut title = String::new();
+                let mut blocks = Vec::new();
+                for (part, _, part_inner) in child_blocks(element_content(&child_inner)) {
+                    match part.as_str() {
+                        "accordion-heading" => {
+                            if let Some(level) = part_inner.trim().strip_prefix("<h").and_then(|r| r.chars().next()).and_then(|c| c.to_digit(10)).filter(|l| *l != 3) {
+                                item_params.set("level", Some(level.to_string()));
+                            }
+                            title = extract_between(&part_inner, "wp-block-accordion-heading__toggle-title\">", "</span>").map(inline_html_to_markdown).unwrap_or_default();
+                        }
+                        "accordion-panel" => blocks = parse_blocks_in(element_content(&part_inner), true),
+                        _ => return None,
+                    }
+                }
+                let item_attrs = BlockAttrs::take_from_json("accordion-item", &mut item_json);
+                items.push(container("item", Some(title), item_params, blocks).with_attrs(item_attrs));
+            }
+            container("accordion", None, params, items)
+        }
+        "tabs" => {
+            let mut tabs = Vec::new();
+            for (child, _, child_inner) in child_blocks(content) {
+                match child.as_str() {
+                    "tab-list" => {}
+                    "tab-panels" => {
+                        for (panel, attrs, panel_inner) in child_blocks(element_content(&child_inner)) {
+                            if panel != "tab-panel" {
+                                return None;
+                            }
+                            let mut panel_json = json_map(attrs.as_deref())?;
+                            let label = take_json_string(&mut panel_json, "label").unwrap_or_default();
+                            let mut tab_params = crate::ContainerParams::default();
+                            if let Some(anchor) = take_json_string(&mut panel_json, "anchor") {
+                                if anchor != crate::containers::slug(&label) {
+                                    tab_params.set("anchor", Some(anchor));
+                                }
+                            }
+                            tabs.push(container("tab", Some(label), tab_params, parse_blocks_in(element_content(&panel_inner), true)));
+                        }
+                    }
+                    _ => return None,
+                }
+            }
+            container("tabs", None, params, tabs)
+        }
+        "cover" => {
+            if let Some(url) = take_json_string(json, "url") {
+                params.set("image", Some(url));
+            }
+            json.remove("id");
+            if take_json_true(json, "hasParallax") {
+                params.set("parallax", None);
+            }
+            if let Some(dim) = json.get("dimRatio").and_then(|d| d.as_u64()) {
+                json.remove("dimRatio");
+                params.set("dim", Some(dim.to_string()));
+            }
+            if let Some(overlay) = take_json_string(json, "overlayColor") {
+                params.set("overlay", Some(overlay));
+            }
+            if let Some(gradient) = take_json_string(json, "gradient") {
+                params.set("gradient", Some(gradient));
+            }
+            if let Some(height) = json.get("minHeight").and_then(|h| h.as_f64()) {
+                json.remove("minHeight");
+                let unit = take_json_string(json, "minHeightUnit").unwrap_or_else(|| "px".to_string());
+                params.set("height", Some(format!("{height}{unit}")));
+            }
+            if let Some(position) = take_json_string(json, "contentPosition") {
+                params.set("position", Some(position));
+            }
+            let marker = "wp-block-cover__inner-container\">";
+            let start = content.find(marker)? + marker.len();
+            let body = &content[start..];
+            let body = &body[..body.rfind("</div>")?];
+            container("cover", None, params, parse_blocks_in(body, true))
+        }
+        "details" => {
+            if take_json_true(json, "showContent") {
+                params.set("open", None);
+            }
+            let (summary, body) = match content.find("</summary>") {
+                Some(end) => (extract_between(content, "<summary>", "</summary>").map(inline_html_to_markdown).unwrap_or_default(), &content[end + "</summary>".len()..]),
+                None => (String::new(), content),
+            };
+            container("details", Some(summary), params, parse_blocks_in(body, true))
+        }
+        _ => return None,
+    };
+    Some(block)
 }
 
 fn attr_flag(attrs: Option<&str>, key: &str) -> bool {
@@ -382,38 +622,6 @@ fn parse_list_item_content(li_wrapped: &str) -> Vec<Block> {
     }]
 }
 
-/// Scans a `wp:columns` block's stripped `<div>` content for its `wp:column`
-/// children - same depth-aware comment-scanning structure as
-/// `parse_list_items`, just one nesting level shallower since a column has
-/// no sibling-name ambiguity to worry about.
-fn parse_columns(columns_inner: &str) -> Vec<Vec<Block>> {
-    let mut columns = Vec::new();
-    let mut pos = 0;
-    while pos < columns_inner.len() {
-        let Some((inner, _cstart, cend)) = next_comment(columns_inner, pos) else {
-            break;
-        };
-        let Some(parsed) = parse_wp_comment(inner) else {
-            pos = cend;
-            continue;
-        };
-        if parsed.closing || parsed.name != "column" {
-            pos = cend;
-            continue;
-        }
-        match find_block_end(columns_inner, cend, "column") {
-            Some((inner_end, after)) => {
-                columns.push(parse_blocks_in(&strip_wrapper_tag(&columns_inner[cend..inner_end], "div"), true));
-                pos = after;
-            }
-            None => {
-                columns.push(parse_blocks_in(&strip_wrapper_tag(&columns_inner[cend..], "div"), true));
-                pos = columns_inner.len();
-            }
-        }
-    }
-    columns
-}
 
 /// Scans a `wp:buttons` block's stripped `<div>` content for its `wp:button`
 /// children, reading each one's `<a href>`/link text directly rather than
@@ -535,20 +743,6 @@ fn parse_pullquote_block(inner: &str) -> Block {
     Block::Pullquote { paragraphs, citation }
 }
 
-/// Reads a `wp:details` block's `<details><summary>...</summary>...` inner
-/// HTML back into a summary + body block tree - the reverse of
-/// `render_details`.
-fn parse_details_block(inner: &str) -> Block {
-    let details_inner = strip_wrapper_tag(inner, "details");
-    match details_inner.find("</summary>") {
-        Some(close_rel) => {
-            let summary = extract_between(&details_inner, "<summary>", "</summary>").map(inline_html_to_markdown).unwrap_or_default();
-            let body = &details_inner[close_rel + "</summary>".len()..];
-            Block::Details { summary, blocks: parse_blocks_in(body, true) }
-        }
-        None => Block::Details { summary: String::new(), blocks: parse_blocks_in(&details_inner, true) },
-    }
-}
 
 fn parse_table_block(inner: &str) -> Block {
     let figure_inner = strip_wrapper_tag(inner, "figure");
@@ -806,7 +1000,9 @@ fn render_block_markdown(block: &Block) -> String {
         Block::Pullquote { paragraphs, citation } => render_pullquote_markdown(paragraphs, citation),
         Block::Details { summary, blocks } => render_details_markdown(summary, blocks),
         Block::RawHtml { html } => html.clone(),
+        Block::Container { kind, title, params, blocks } => render_container_markdown(kind, title.as_deref(), params, &BlockAttrs::default(), blocks),
         Block::Styled { attrs, block } => match block.as_ref() {
+            Block::Container { kind, title, params, blocks } => render_container_markdown(kind, title.as_deref(), params, attrs, blocks),
             Block::Heading { .. } => format!("{} {}", render_block_markdown(block), attrs.to_markdown()),
             // An ordered list's first number is plain Markdown.
             Block::List { ordered: true, items } if attrs.start.is_some() => {
@@ -825,6 +1021,30 @@ fn render_block_markdown(block: &Block) -> String {
             _ => format!("{}\n{}", render_block_markdown(block), attrs.to_markdown()),
         },
     }
+}
+
+fn render_container_markdown(kind: &str, title: Option<&str>, params: &crate::ContainerParams, attrs: &BlockAttrs, blocks: &[Block]) -> String {
+    let colons = 3 + nested_container_depth(blocks);
+    let header = crate::containers::header_markdown(colons, kind, title, params, attrs);
+    let body = render_markdown(blocks);
+    if body.is_empty() {
+        format!("{header}\n{}", ":".repeat(colons))
+    } else {
+        format!("{header}\n{body}\n{}", ":".repeat(colons))
+    }
+}
+
+/// How many container levels `blocks` hold - so an outer fence gets more
+/// colons than the ones inside it.
+fn nested_container_depth(blocks: &[Block]) -> usize {
+    blocks
+        .iter()
+        .map(|block| match block.unstyled() {
+            Block::Container { blocks, .. } => 1 + nested_container_depth(blocks),
+            _ => 0,
+        })
+        .max()
+        .unwrap_or(0)
 }
 
 /// CommonMark's plain `(destination)` link/image syntax breaks on raw
@@ -1108,7 +1328,7 @@ mod tests {
     fn fenced_columns_round_trip() {
         assert_eq!(
             round_trip("```columns\nColumn A text.\n+++\nColumn B text.\n```"),
-            "```columns\nColumn A text.\n+++\nColumn B text.\n```"
+            ":::: columns\n::: column\nColumn A text.\n:::\n\n::: column\nColumn B text.\n:::\n::::"
         );
     }
 
@@ -1116,7 +1336,7 @@ mod tests {
     fn fenced_columns_with_multiple_blocks_per_column_round_trip() {
         assert_eq!(
             round_trip("```columns\n## Left\n\nSome text.\n+++\n## Right\n\nMore text.\n```"),
-            "```columns\n## Left\n\nSome text.\n+++\n## Right\n\nMore text.\n```"
+            ":::: columns\n::: column\n## Left\n\nSome text.\n:::\n\n::: column\n## Right\n\nMore text.\n:::\n::::"
         );
     }
 
@@ -1169,7 +1389,7 @@ mod tests {
     fn fenced_details_round_trips() {
         assert_eq!(
             round_trip("```details\nWie funktioniert das?\n+++\nSo funktioniert das.\n```"),
-            "```details\nWie funktioniert das?\n+++\nSo funktioniert das.\n```"
+            "::: details \"Wie funktioniert das?\"\nSo funktioniert das.\n:::"
         );
     }
 
@@ -1177,7 +1397,7 @@ mod tests {
     fn fenced_details_with_an_image_in_the_body_round_trips() {
         assert_eq!(
             round_trip("```details\nGalerie?\n+++\n![a cat](cat.png)\n```"),
-            "```details\nGalerie?\n+++\n![a cat](cat.png)\n```"
+            "::: details \"Galerie?\"\n![a cat](cat.png)\n:::"
         );
     }
 
@@ -1271,5 +1491,47 @@ mod tests {
     fn list_start_and_reversed_round_trip() {
         let md = assert_lossless("<!-- wp:list {\"ordered\":true,\"start\":5,\"reversed\":true} -->\n<ol reversed start=\"5\" class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Eins</li>\n<!-- /wp:list-item --></ol>\n<!-- /wp:list -->");
         assert_eq!(md, "5. Eins\n{reversed}");
+    }
+
+    #[test]
+    fn accordion_becomes_a_container_and_round_trips() {
+        let md = assert_lossless("<!-- wp:accordion -->\n<div role=\"group\" class=\"wp-block-accordion\"><!-- wp:accordion-item {\"openByDefault\":true} -->\n<div class=\"wp-block-accordion-item is-open\"><!-- wp:accordion-heading {\"openByDefault\":true} -->\n<h3 class=\"wp-block-accordion-heading has-icon has-icon-right\"><button type=\"button\" class=\"wp-block-accordion-heading__toggle\"><span class=\"wp-block-accordion-heading__toggle-title\">Akkordeon-Eintrag 1</span><span class=\"wp-block-accordion-heading__toggle-icon\" aria-hidden=\"true\">+</span></button></h3>\n<!-- /wp:accordion-heading -->\n\n<!-- wp:accordion-panel -->\n<div role=\"region\" class=\"wp-block-accordion-panel\"><!-- wp:paragraph -->\n<p>Laboris consectetur quis cillum excepteu</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item -->\n\n<!-- wp:accordion-item -->\n<div class=\"wp-block-accordion-item\"><!-- wp:accordion-heading -->\n<h3 class=\"wp-block-accordion-heading has-icon has-icon-right\"><button type=\"button\" class=\"wp-block-accordion-heading__toggle\"><span class=\"wp-block-accordion-heading__toggle-title\">Akkordeon-Eintrag 2</span><span class=\"wp-block-accordion-heading__toggle-icon\" aria-hidden=\"true\">+</span></button></h3>\n<!-- /wp:accordion-heading -->\n\n<!-- wp:accordion-panel -->\n<div role=\"region\" class=\"wp-block-accordion-panel\"><!-- wp:paragraph -->\n<p>Magna nec in sit sunt erat luctus risus </p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item -->\n\n<!-- wp:accordion-item -->\n<div class=\"wp-block-accordion-item\"><!-- wp:accordion-heading -->\n<h3 class=\"wp-block-accordion-heading has-icon has-icon-right\"><button type=\"button\" class=\"wp-block-accordion-heading__toggle\"><span class=\"wp-block-accordion-heading__toggle-title\">Akkordeon-Eintrag 3</span><span class=\"wp-block-accordion-heading__toggle-icon\" aria-hidden=\"true\">+</span></button></h3>\n<!-- /wp:accordion-heading -->\n\n<!-- wp:accordion-panel -->\n<div role=\"region\" class=\"wp-block-accordion-panel\"><!-- wp:paragraph -->\n<p>Integer dapibus labore minim placerat li</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item --></div>\n<!-- /wp:accordion -->");
+        assert!(md.starts_with(":::"), "{md}");
+    }
+
+    #[test]
+    fn tabs_becomes_a_container_and_round_trips() {
+        let md = assert_lossless("<!-- wp:tabs -->\n<div class=\"wp-block-tabs\"><!-- wp:tab-list -->\n<div role=\"tablist\" class=\"wp-block-tab-list\"><button type=\"button\" role=\"tab\">Reiter 1</button><button type=\"button\" role=\"tab\">Reiter 2</button><button type=\"button\" role=\"tab\">Reiter 3</button></div>\n<!-- /wp:tab-list -->\n\n<!-- wp:tab-panels -->\n<div class=\"wp-block-tab-panels\"><!-- wp:tab-panel {\"label\":\"Reiter 1\",\"anchor\":\"reiter-1\"} -->\n<section role=\"tabpanel\" tabindex=\"0\" id=\"reiter-1\" class=\"wp-block-tab-panel\"><!-- wp:paragraph -->\n<p>Elit commodo erat; labore in fugiat grav</p>\n<!-- /wp:paragraph --></section>\n<!-- /wp:tab-panel -->\n\n<!-- wp:tab-panel {\"label\":\"Reiter 2\",\"anchor\":\"reiter-2\"} -->\n<section role=\"tabpanel\" tabindex=\"0\" id=\"reiter-2\" class=\"wp-block-tab-panel\"><!-- wp:paragraph -->\n<p>Culpa aliquam ultrices. Fermentum posuer</p>\n<!-- /wp:paragraph --></section>\n<!-- /wp:tab-panel -->\n\n<!-- wp:tab-panel {\"label\":\"Reiter 3\",\"anchor\":\"reiter-3\"} -->\n<section role=\"tabpanel\" tabindex=\"0\" id=\"reiter-3\" class=\"wp-block-tab-panel\"><!-- wp:paragraph -->\n<p>Occaecat. Aliquam aliquip. Luctus magna.</p>\n<!-- /wp:paragraph --></section>\n<!-- /wp:tab-panel --></div>\n<!-- /wp:tab-panels --></div>\n<!-- /wp:tabs -->");
+        assert!(md.starts_with(":::"), "{md}");
+    }
+
+    #[test]
+    fn cover_with_gradient_becomes_a_container_and_round_trips() {
+        let md = assert_lossless("<!-- wp:cover {\"minHeight\":260,\"minHeightUnit\":\"px\",\"gradient\":\"hero-overlay\",\"contentPosition\":\"bottom left\"} -->\n<div class=\"wp-block-cover has-custom-content-position is-position-bottom-left\" style=\"min-height:260px\"><span aria-hidden=\"true\" class=\"wp-block-cover__background has-background-dim-100 has-background-dim has-background-gradient has-hero-overlay-gradient-background\"></span><div class=\"wp-block-cover__inner-container\"><!-- wp:paragraph {\"textColor\":\"base\"} -->\n<p class=\"has-base-color has-text-color\">Mollit dolor; et consectetur elit nisi. </p>\n<!-- /wp:paragraph --></div></div>\n<!-- /wp:cover -->");
+        assert!(md.starts_with(":::"), "{md}");
+    }
+
+    #[test]
+    fn columns_with_widths_becomes_a_container_and_round_trips() {
+        let md = assert_lossless("<!-- wp:columns {\"verticalAlignment\":\"center\",\"align\":\"wide\"} -->\n<div class=\"wp-block-columns alignwide are-vertically-aligned-center\"><!-- wp:column {\"width\":\"25%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:25%\"><!-- wp:image {\"id\":45654,\"sizeSlug\":\"full\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-full\"><img src=\"https://linuxundich.de/wp-content/uploads/2026/09/tfm-archlinux-01.webp\" alt=\"\" class=\"wp-image-45654\"/></figure>\n<!-- /wp:image --></div>\n<!-- /wp:column -->\n\n<!-- wp:column {\"width\":\"50%\"} -->\n<div class=\"wp-block-column\" style=\"flex-basis:50%\"><!-- wp:paragraph -->\n<p>Risus aliquip esse magna pretium varius </p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column -->\n\n<!-- wp:column {\"width\":\"25%\",\"backgroundColor\":\"base-2\"} -->\n<div class=\"wp-block-column has-base-2-background-color has-background\" style=\"flex-basis:25%\"><!-- wp:heading {\"level\":4} -->\n<h4 class=\"wp-block-heading\">Spalte</h4>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Pariatur do laboris nisi duis ipsum sed </p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:column --></div>\n<!-- /wp:columns -->");
+        assert!(md.starts_with(":::"), "{md}");
+    }
+
+    #[test]
+    fn grid_group_becomes_a_container_and_round_trips() {
+        let md = assert_lossless("<!-- wp:group {\"layout\":{\"type\":\"grid\",\"columnCount\":3}} -->\n<div class=\"wp-block-group\"><!-- wp:paragraph {\"backgroundColor\":\"base-2\"} -->\n<p class=\"has-base-2-background-color has-background\">Raster 1</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph {\"backgroundColor\":\"base-2\"} -->\n<p class=\"has-base-2-background-color has-background\">Raster 2</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph {\"backgroundColor\":\"base-2\"} -->\n<p class=\"has-base-2-background-color has-background\">Raster 3</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph {\"backgroundColor\":\"base-2\"} -->\n<p class=\"has-base-2-background-color has-background\">Raster 4</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph {\"backgroundColor\":\"base-2\"} -->\n<p class=\"has-base-2-background-color has-background\">Raster 5</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph {\"backgroundColor\":\"base-2\"} -->\n<p class=\"has-base-2-background-color has-background\">Raster 6</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:group -->");
+        assert!(md.starts_with(":::"), "{md}");
+    }
+
+    #[test]
+    fn open_details_becomes_a_container_and_round_trips() {
+        let md = assert_lossless("<!-- wp:details {\"showContent\":true} -->\n<details class=\"wp-block-details\" open><summary>Details: bereits geöffnet</summary><!-- wp:paragraph -->\n<p>Cubilia felis nulla aliquam integer pret</p>\n<!-- /wp:paragraph --></details>\n<!-- /wp:details -->");
+        assert!(md.starts_with(":::"), "{md}");
+    }
+
+    #[test]
+    fn container_markdown_reads_back() {
+        let md = ":::: accordion\n::: item \"Frage \\\"eins\\\"\" {open}\nAntwort mit **Fett**.\n\n```\n:::\n```\n:::\n\n::: item \"Frage zwei\"\nZweite Antwort.\n:::\n::::";
+        assert_eq!(round_trip(md), md);
     }
 }

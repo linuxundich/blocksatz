@@ -7,9 +7,11 @@
 use pulldown_cmark::{Alignment, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
 mod attrs;
+mod containers;
 mod fidelity;
 mod reverse;
 pub use attrs::BlockAttrs;
+pub use containers::Params as ContainerParams;
 pub use fidelity::{first_difference, same_structure};
 pub use reverse::{gutenberg_to_markdown, render_gallery_fence};
 
@@ -114,6 +116,10 @@ pub enum Block {
     /// comment, not just its inner HTML, and `render_block` below re-emits
     /// that form byte-for-byte instead of wrapping it in a fresh `wp:html`.
     RawHtml { html: String },
+    /// A block holding other blocks - group, columns/column, accordion/item,
+    /// tabs/tab, cover, details - written as a fenced div (`::: group`),
+    /// see `containers.rs`.
+    Container { kind: String, title: Option<String>, params: containers::Params, blocks: Vec<Block> },
     /// Any block plus attributes Markdown has no syntax for (colors,
     /// alignment, block style, ...), written as an attribute line `{...}`
     /// below the block - see `attrs.rs`.
@@ -231,6 +237,10 @@ pub fn parse_markdown(md: &str) -> Vec<Block> {
         match segment {
             Segment::Markdown(range) => blocks.extend(parse_plain_markdown(&md[range])),
             Segment::Raw(range) => blocks.push(Block::RawHtml { html: md[range].trim().to_string() }),
+            Segment::Container { header, inner, .. } => {
+                let container = Block::Container { kind: header.kind, title: header.title, params: header.params, blocks: parse_markdown(&md[inner]) };
+                blocks.push(container.with_attrs(header.attrs));
+            }
             Segment::Attrs { attrs, range } => match blocks.pop() {
                 Some(previous) => blocks.push(previous.with_attrs(attrs)),
                 None => blocks.push(Block::Paragraph { html: escape_html(md[range].trim()) }),
@@ -255,6 +265,9 @@ pub enum Segment {
     /// pulldown-cmark would split its markup into several HTML blocks at
     /// every blank line or comment boundary.
     Raw(std::ops::Range<usize>),
+    /// A fenced container (`::: group` ... `:::`): its parsed opening line,
+    /// the content between the fences, and the whole span.
+    Container { header: containers::Header, inner: std::ops::Range<usize>, range: std::ops::Range<usize> },
     Attrs { attrs: BlockAttrs, range: std::ops::Range<usize> },
 }
 
@@ -277,6 +290,18 @@ pub fn split_segments(md: &str) -> Vec<Segment> {
         }
         pos += line.len();
         let content = line.trim_end_matches(['\n', '\r']);
+        if fence.is_none() && content.starts_with(":::") {
+            if let Some(header) = containers::parse_header(content) {
+                if let Some((inner_end, end)) = container_end(md, pos) {
+                    if line_start > chunk_start {
+                        segments.push(Segment::Markdown(chunk_start..line_start));
+                    }
+                    segments.push(Segment::Container { header, inner: pos.min(inner_end)..inner_end, range: line_start..end });
+                    chunk_start = md[end..].find('\n').map_or(md.len(), |nl| end + nl + 1);
+                    continue;
+                }
+            }
+        }
         if fence.is_none() && content.starts_with("<!-- wp:") {
             if let Some(end) = verbatim_block_end(md, line_start) {
                 if line_start > chunk_start {
@@ -309,6 +334,40 @@ pub fn split_segments(md: &str) -> Vec<Segment> {
         segments.push(Segment::Markdown(chunk_start..md.len()));
     }
     segments
+}
+
+/// For a container whose content starts at `from`: where its content ends
+/// (start of the closing line) and where the closing line ends. Nested
+/// openings are counted, fenced code skipped. `None` if never closed.
+fn container_end(md: &str, from: usize) -> Option<(usize, usize)> {
+    let mut depth = 1;
+    let mut fence: Option<(char, usize)> = None;
+    let mut pos = from;
+    for line in md[from..].split_inclusive('\n') {
+        let line_start = pos;
+        pos += line.len();
+        let content = line.trim_end_matches(['\n', '\r']);
+        if let Some(marker) = fence_marker(content) {
+            match fence {
+                None => fence = Some(marker),
+                Some((ch, len)) if marker.0 == ch && marker.1 >= len && content.trim_start().trim_start_matches(ch).trim().is_empty() => fence = None,
+                Some(_) => {}
+            }
+            continue;
+        }
+        if fence.is_some() {
+            continue;
+        }
+        if containers::is_closing(content) {
+            depth -= 1;
+            if depth == 0 {
+                return Some((line_start, line_start + content.len()));
+            }
+        } else if containers::parse_header(content).is_some() {
+            depth += 1;
+        }
+    }
+    None
 }
 
 /// Where the block comment opening at `start` ends: after its own `/-->`
@@ -1179,6 +1238,7 @@ pub fn render_block(block: &Block) -> String {
         Block::RawHtml { html } if html.trim_start().starts_with("<!-- wp:") => html.trim().to_string(),
         Block::RawHtml { html } => wrap("html", None, html.trim()),
         Block::Styled { attrs, block } => attrs.apply(&render_block(block)),
+        Block::Container { kind, title, params, blocks } => containers::render(kind, title.as_deref(), params, blocks),
     }
 }
 

@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `## Titel {#anker}`, `{style=stripes}`). Values are the blog theme's
   preset slugs. Tables get a footer row (`{footer}`) and a caption
   (`{caption="..."}`), and tables without a header row work.
+- **Containers in Markdown**: `:::` fences for group (background,
+  block style, flex/stack/grid layout), columns and column (width,
+  vertical alignment, background), accordion with items (open by
+  default, heading level), tabs, cover (image, overlay color or gradient,
+  dim, height, content position, parallax) and details. Their content is
+  ordinary Markdown and they nest. Imported posts use them instead of raw
+  block markup wherever nothing is lost; columns and details are now
+  written this way too (the old fences still work). The preview renders
+  them like the blog, accordions and tabs clickable.
 - **Theme presets**: the active blog's palette, gradients, font sizes and
   block styles are fetched over the REST API and cached per blog; the
   preview renders attribute lines, table styles, captions, accordions and

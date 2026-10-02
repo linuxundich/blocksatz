@@ -535,6 +535,40 @@ pub(crate) fn parse_tag_attrs(s: &str) -> Vec<(String, String)> {
     attrs
 }
 
+/// Like `split_tokens`, but a quoted token keeps its quotes (so a caller
+/// can tell a quoted title from a bare word), and `\"` is a literal quote.
+pub(crate) fn split_tokens_keeping_quotes(inner: &str) -> Option<Vec<String>> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut in_quotes = false;
+    let mut chars = inner.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' if in_quotes && chars.peek() == Some(&'"') => {
+                current.push('\\');
+                current.push(chars.next().unwrap_or('"'));
+            }
+            '"' => {
+                in_quotes = !in_quotes;
+                current.push('"');
+            }
+            c if c.is_whitespace() && !in_quotes => {
+                if !current.is_empty() {
+                    tokens.push(std::mem::take(&mut current));
+                }
+            }
+            c => current.push(c),
+        }
+    }
+    if in_quotes {
+        return None;
+    }
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+    Some(tokens)
+}
+
 fn split_tokens(inner: &str) -> Option<Vec<String>> {
     let mut tokens = Vec::new();
     let mut current = String::new();

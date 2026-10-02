@@ -178,6 +178,15 @@ blocks. Implemented so far:
   `{footer}` (last row is the footer) and `{caption="..."}`; an ordered
   list starting at `5.` keeps its start number. Images follow this app's
   convention `![Bildunterschrift](bild.png "Alternativtext")`.
+  Blocks that hold other blocks are **fenced containers** (Pandoc/MyST
+  style), their content ordinary Markdown, nestable:
+  `::: group {bg=base-2 style=lui-card layout=grid columns=3}`,
+  `:::: columns` with `::: column {width=25%}`, `:::: accordion` with
+  `::: item "Frage" {open}`, `:::: tabs` with `::: tab "Reiter 1"`,
+  `::: cover {image=URL overlay=contrast dim=60 height=420px}`,
+  `::: details "Zusammenfassung" {open}`. A line of colons closes the
+  innermost container. The older ` ```columns `/` ```details ` fences are
+  still read.
 - **Lossless import** — opening a post from the blog turns a block into
   Markdown only if that Markdown renders back to the same block structure
   (attributes, classes, styles, captions, table footers); anything

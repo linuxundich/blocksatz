@@ -156,8 +156,7 @@ mod tests {
 
     #[test]
     fn the_markdown_hint_does_not_count_as_a_change() {
-        let mut doc = Document::default();
-        doc.body = "Text".into();
+        let mut doc = Document { body: "Text".into(), ..Default::default() };
         let before = fingerprint(&doc);
         doc.frontmatter.markdown_hint = true;
         assert_eq!(fingerprint(&doc), before);

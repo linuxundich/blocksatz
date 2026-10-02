@@ -796,7 +796,7 @@ mod tests {
     fn an_image_used_twice_keeps_its_own_caption_at_each_place() {
         let item = media::MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: media::AltText::Text("Alt aus der Galerie".into()), caption: Some("Bild 1".into()), wordpress: None, last_markdown_caption: None };
         let mut blocks = gutenberg::parse_markdown("```gallery\n![Bild 1](a.png)\n```\n\n![](a.png)\n");
-        apply_media_metadata(&mut blocks, &[item.clone()]);
+        apply_media_metadata(&mut blocks, std::slice::from_ref(&item));
         let gutenberg::Block::Image { title, alt, .. } = &blocks[1] else { panic!("expected image") };
         assert_eq!((title.as_deref(), alt.as_str()), (None, ""));
         let mut single = gutenberg::parse_markdown("![](a.png)\n");

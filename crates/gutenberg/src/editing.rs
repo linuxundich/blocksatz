@@ -32,7 +32,7 @@ enum Placement {
     /// Braces at the end of a heading line.
     HeadingInline { line_end: usize, braces: Option<Range<usize>> },
     /// The opening line of a container.
-    ContainerHeader { line: Range<usize>, header: Header },
+    ContainerHeader { line: Range<usize>, header: Box<Header> },
     /// Verbatim markup - nothing to edit here.
     None,
 }
@@ -90,7 +90,7 @@ fn block_at_in(md: &str, start: usize, end: usize, offset: usize) -> Option<Bloc
                     verbatim_name: None,
                     attrs: header.attrs.clone(),
                     range: absolute.clone(),
-                    placement: Placement::ContainerHeader { line: header_line.clone(), header: header.clone() },
+                    placement: Placement::ContainerHeader { line: header_line.clone(), header: Box::new(header.clone()) },
                 };
                 if offset <= header_line.end || offset >= inner_abs.end {
                     return Some(container);

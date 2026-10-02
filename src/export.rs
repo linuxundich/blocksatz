@@ -571,7 +571,7 @@ fn count_image_sources(blocks: &[gutenberg::Block], counts: &mut std::collection
         match block {
             gutenberg::Block::Image { url, .. } => *counts.entry(url.clone()).or_default() += 1,
             gutenberg::Block::Gallery { images, .. } => images.iter().for_each(|image| *counts.entry(image.url.clone()).or_default() += 1),
-            gutenberg::Block::BlockQuote { blocks } | gutenberg::Block::Details { blocks, .. } | gutenberg::Block::Container { blocks, .. } => count_image_sources(blocks, counts),
+            gutenberg::Block::BlockQuote { blocks, .. } | gutenberg::Block::Details { blocks, .. } | gutenberg::Block::Container { blocks, .. } => count_image_sources(blocks, counts),
             gutenberg::Block::List { items, .. } => items.iter().for_each(|item| count_image_sources(item, counts)),
             gutenberg::Block::Columns { columns } => columns.iter().for_each(|column| count_image_sources(column, counts)),
             gutenberg::Block::Styled { block, .. } => count_image_sources(std::slice::from_ref(block.as_ref()), counts),
@@ -588,7 +588,7 @@ fn apply_media_metadata_with(blocks: &mut [gutenberg::Block], media: &[media::Me
     for block in blocks.iter_mut() {
         let mut size_slug = None;
         match block {
-            gutenberg::Block::Image { url, alt, title, media_id, width, height } => {
+            gutenberg::Block::Image { url, alt, title, media_id, width, height, .. } => {
                 if let Some(item) = media.iter().find(|item| &item.source == url) {
                     size_slug = item.wordpress.as_ref().and_then(|wp| wp.size_slug.clone());
                     if counts.get(url.as_str()).copied().unwrap_or(0) <= 1 {
@@ -604,7 +604,7 @@ fn apply_media_metadata_with(blocks: &mut [gutenberg::Block], media: &[media::Me
                     }
                 }
             }
-            gutenberg::Block::BlockQuote { blocks } => apply_media_metadata_with(blocks, media, counts),
+            gutenberg::Block::BlockQuote { blocks, .. } => apply_media_metadata_with(blocks, media, counts),
             gutenberg::Block::List { items, .. } => {
                 for item in items.iter_mut() {
                     apply_media_metadata_with(item, media, counts);
@@ -624,13 +624,39 @@ fn apply_media_metadata_with(blocks: &mut [gutenberg::Block], media: &[media::Me
                 }
             }
             gutenberg::Block::Styled { block, .. } => apply_media_metadata_with(std::slice::from_mut(block.as_mut()), media, counts),
-            gutenberg::Block::Container { blocks, .. } => apply_media_metadata_with(blocks, media, counts),
+            gutenberg::Block::Container { kind, params, blocks, .. } => {
+                apply_container_image_metadata(kind, params, media);
+                apply_media_metadata_with(blocks, media, counts);
+            }
             _ => {}
         }
         // The image size the blog had (`sizeSlug`, `size-large`).
         if let Some(size) = size_slug {
             let image = std::mem::replace(block, gutenberg::Block::ThematicBreak);
             *block = image.with_attrs(gutenberg::BlockAttrs { size_slug: Some(size), ..Default::default() });
+        }
+    }
+}
+
+/// A cover's or media-text's image: the attachment id (for `wp-image-…`
+/// and `srcset`), the size the upload links and the alt text from
+/// Medienverwaltung.
+fn apply_container_image_metadata(kind: &str, params: &mut gutenberg::ContainerParams, media: &[media::MediaItem]) {
+    if !gutenberg::CONTAINER_IMAGE_KINDS.contains(&kind) || params.get("type") == Some("video") {
+        return;
+    }
+    let Some(item) = params.get("image").and_then(|image| media.iter().find(|item| item.source == image)) else { return };
+    if let Some(wp) = &item.wordpress {
+        params.set("id", Some(wp.media_id.to_string()));
+        if kind == "media-text" {
+            if let Some(size) = &wp.size_slug {
+                params.set("size", Some(size.clone()));
+            }
+        }
+    }
+    if kind == "media-text" {
+        if let Some(alt) = item.alt.as_wordpress_value() {
+            params.set("alt", Some(alt.to_string()));
         }
     }
 }
@@ -643,12 +669,21 @@ fn apply_media_metadata_with(blocks: &mut [gutenberg::Block], media: &[media::Me
 fn rewrite_image_urls(blocks: &mut [gutenberg::Block], urls: &std::collections::HashMap<String, String>) {
     for block in blocks.iter_mut() {
         match block {
-            gutenberg::Block::Image { url, .. } | gutenberg::Block::Video { url } | gutenberg::Block::Audio { url } => {
+            gutenberg::Block::Image { url, link, .. } => {
+                if let Some(new_url) = urls.get(url) {
+                    // A link to the image's own file follows it.
+                    if link.as_deref() == Some(url.as_str()) {
+                        *link = Some(new_url.clone());
+                    }
+                    *url = new_url.clone();
+                }
+            }
+            gutenberg::Block::Video { url, .. } | gutenberg::Block::Audio { url, .. } => {
                 if let Some(new_url) = urls.get(url) {
                     *url = new_url.clone();
                 }
             }
-            gutenberg::Block::BlockQuote { blocks } => rewrite_image_urls(blocks, urls),
+            gutenberg::Block::BlockQuote { blocks, .. } => rewrite_image_urls(blocks, urls),
             gutenberg::Block::List { items, .. } => {
                 for item in items.iter_mut() {
                     rewrite_image_urls(item, urls);
@@ -668,7 +703,14 @@ fn rewrite_image_urls(blocks: &mut [gutenberg::Block], urls: &std::collections::
             }
             gutenberg::Block::Details { blocks, .. } => rewrite_image_urls(blocks, urls),
             gutenberg::Block::Styled { block, .. } => rewrite_image_urls(std::slice::from_mut(block.as_mut()), urls),
-            gutenberg::Block::Container { blocks, .. } => rewrite_image_urls(blocks, urls),
+            gutenberg::Block::Container { kind, params, blocks, .. } => {
+                if gutenberg::CONTAINER_IMAGE_KINDS.contains(&kind.as_str()) {
+                    if let Some(new_url) = params.get("image").and_then(|image| urls.get(image)) {
+                        params.set("image", Some(new_url.clone()));
+                    }
+                }
+                rewrite_image_urls(blocks, urls);
+            }
             _ => {}
         }
     }
@@ -785,6 +827,33 @@ mod tests {
         assert!(out.contains("<figcaption class=\"wp-element-caption\">Bildunterschrift</figcaption>"), "{out}");
     }
 
+    /// A cover's or media-text's local `image=` is uploaded like any other
+    /// image and goes out with its attachment id.
+    #[test]
+    fn container_images_are_listed_uploaded_and_linked() {
+        let sizes = |name: &str| {
+            vec![
+                crate::wpclient::ImageSize { slug: "full".into(), url: format!("https://example.org/{name}.png"), width: 2560, height: 1600 },
+                crate::wpclient::ImageSize { slug: "large".into(), url: format!("https://example.org/{name}-1280x800.png"), width: 1280, height: 800 },
+            ]
+        };
+        let md = "::: cover {image=titel.png dim=50}\n# Titel\n:::\n\n::: media-text {image=seite.png alt=\"Ein Bild\"}\nText\n:::\n";
+        let mut media = media::reconcile(&[], md);
+        let sources: Vec<&str> = media.iter().map(|item| item.source.as_str()).collect();
+        assert_eq!(sources, ["titel.png", "seite.png"]);
+        assert_eq!(media[1].alt.as_wordpress_value(), Some("Ein Bild"));
+        media[0].wordpress = media::WordPressMediaRef::for_article(42, &sizes("titel"), "hash".into());
+        media[1].wordpress = media::WordPressMediaRef::for_article(43, &sizes("seite"), "hash".into());
+        let mut blocks = gutenberg::parse_markdown(md);
+        apply_media_metadata(&mut blocks, &media);
+        let urls: std::collections::HashMap<String, String> = media.iter().map(|item| (item.source.clone(), item.wordpress.as_ref().unwrap().url.clone())).collect();
+        rewrite_image_urls(&mut blocks, &urls);
+        let out = gutenberg::render_blocks(&blocks);
+        assert!(out.contains("<img class=\"wp-block-cover__image-background wp-image-42\" alt=\"\" src=\"https://example.org/titel-1280x800.png\""), "{out}");
+        assert!(out.contains("\"mediaId\":43") && out.contains("\"mediaSizeSlug\":\"large\""), "{out}");
+        assert!(out.contains("<img src=\"https://example.org/seite-1280x800.png\" alt=\"Ein Bild\" class=\"wp-image-43 size-large\"/>"), "{out}");
+    }
+
     #[test]
     fn a_small_image_without_a_large_size_keeps_the_original() {
         let sizes = vec![crate::wpclient::ImageSize { slug: "full".into(), url: "https://example.org/klein.png".into(), width: 600, height: 400 }];
@@ -878,7 +947,7 @@ mod tests {
                 .collect();
         let mut blocks = vec![
             gutenberg::Block::Columns {
-                columns: vec![vec![gutenberg::Block::Image { url: "local-a.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0 }]],
+                columns: vec![vec![gutenberg::Block::Image { url: "local-a.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0, link: None }]],
             },
             gutenberg::Block::Gallery {
                 images: vec![gutenberg::GalleryImage { url: "local-b.png".to_string(), alt: String::new(), caption: None, media_id: None }],
@@ -898,7 +967,7 @@ mod tests {
         let urls: std::collections::HashMap<String, String> = [("local-c.png".to_string(), "https://example.com/c.png".to_string())].into_iter().collect();
         let mut blocks = vec![gutenberg::Block::Details {
             summary: "Mehr anzeigen".to_string(),
-            blocks: vec![gutenberg::Block::Image { url: "local-c.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0 }],
+            blocks: vec![gutenberg::Block::Image { url: "local-c.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0, link: None }],
         }];
         rewrite_image_urls(&mut blocks, &urls);
         let gutenberg::Block::Details { blocks: inner, .. } = &blocks[0] else { panic!("expected Details") };
@@ -939,7 +1008,7 @@ mod tests {
             wordpress: None,
             last_markdown_caption: None,
         }];
-        let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0 }];
+        let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0, link: None }];
         apply_media_metadata(&mut blocks, &media);
         let gutenberg::Block::Image { alt, title, .. } = &blocks[0] else { panic!("expected Image") };
         assert_eq!(alt, "a red cat");
@@ -957,7 +1026,7 @@ mod tests {
             wordpress: None,
             last_markdown_caption: None,
         }];
-        let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: "from the markdown source".to_string(), title: None, media_id: None, width: 0, height: 0 }];
+        let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: "from the markdown source".to_string(), title: None, media_id: None, width: 0, height: 0, link: None }];
         apply_media_metadata(&mut blocks, &media);
         let gutenberg::Block::Image { alt, .. } = &blocks[0] else { panic!("expected Image") };
         assert_eq!(alt, "from the markdown source");
@@ -974,7 +1043,7 @@ mod tests {
             wordpress: Some(media::WordPressMediaRef { media_id: 123, url: "https://example.com/cat.png".to_string(), content_hash: "abc".to_string(), width: 640, height: 480, size_slug: None }),
             last_markdown_caption: None,
         }];
-        let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0 }];
+        let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0, link: None }];
         apply_media_metadata(&mut blocks, &media);
         let gutenberg::Block::Image { media_id, width, height, .. } = &blocks[0] else { panic!("expected Image") };
         assert_eq!(*media_id, Some(123));

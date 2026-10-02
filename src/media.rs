@@ -368,6 +368,10 @@ fn set_markdown_image_text(markdown: &str, source: &str, caption: Option<&str>, 
 /// losing that occurrence's own alt text/caption, and making the preview
 /// show one occurrence's alt-defined badge on the other, unedited one too.
 pub fn reconcile(existing: &[MediaItem], markdown: &str) -> Vec<MediaItem> {
+    let mut images = scan_images(markdown);
+    // A cover's or media-text's `image=` - no caption, `alt=` as alt text.
+    images.extend(gutenberg::container_images(markdown).into_iter().map(|(source, alt)| (source, String::new(), alt.unwrap_or_default())));
+
     let mut next_serial = existing
         .iter()
         .filter_map(|item| item.id.strip_prefix("media-").and_then(|n| n.parse::<u32>().ok()))
@@ -376,7 +380,7 @@ pub fn reconcile(existing: &[MediaItem], markdown: &str) -> Vec<MediaItem> {
         + 1;
 
     let mut seen_sources = std::collections::HashSet::new();
-    scan_images(markdown)
+    images
         .into_iter()
         .filter(|(source, _, _)| seen_sources.insert(source.clone()))
         .map(|(source, markdown_bracket, markdown_title)| {

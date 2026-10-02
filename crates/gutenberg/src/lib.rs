@@ -14,7 +14,7 @@ mod fidelity;
 mod reverse;
 pub use assess::{assess, Assessment, Closeness};
 pub use attrs::BlockAttrs;
-pub use containers::Params as ContainerParams;
+pub use containers::{images as container_images, Params as ContainerParams, IMAGE_KINDS as CONTAINER_IMAGE_KINDS};
 pub use editing::{attrs_edit, block_at, BlockAtCursor};
 pub use fidelity::{first_difference, same_structure};
 pub use reverse::{gutenberg_to_markdown, image_media_ids, render_gallery_fence};
@@ -24,7 +24,10 @@ pub enum Block {
     Paragraph { html: String },
     Heading { level: u8, html: String },
     List { ordered: bool, items: Vec<Vec<Block>> },
-    BlockQuote { blocks: Vec<Block> },
+    /// `wp:quote`. `citation` is the source WordPress shows below the
+    /// quote (`<cite>`), written as a last paragraph starting with an em
+    /// dash: `> — Cicero, *De finibus*` - see `split_quote_citation`.
+    BlockQuote { blocks: Vec<Block>, citation: Option<String> },
     CodeBlock { lang: Option<String>, text: String },
     Image {
         url: String,
@@ -51,12 +54,17 @@ pub enum Block {
         /// from `Frontmatter.media`" reasoning as `media_id`.
         width: u64,
         height: u64,
+        /// Where a click on the image leads - `[![...](bild.png)](ziel)`.
+        /// The image's own address means its file (`linkDestination`
+        /// `media`), anything else a custom link.
+        link: Option<String>,
     },
     /// `wp:video` - see `as_lone_media` for how a Markdown image reference
     /// ends up here instead of `Image`.
-    Video { url: String },
+    /// The bracket text is the caption, as for an image.
+    Video { url: String, caption: Option<String> },
     /// `wp:audio` - see `as_lone_media`.
-    Audio { url: String },
+    Audio { url: String, caption: Option<String> },
     /// A bare URL alone on its own line - CommonMark's only way to write
     /// "embed this", the same way `![alt](url)` alone is its only way to
     /// write a block-level image (see `as_lone_image`). Maps to WordPress's
@@ -65,7 +73,10 @@ pub enum Block {
     /// saved here, so only `url` itself needs to round-trip correctly -
     /// the type/provider info this crate adds is a cosmetic nicety for the
     /// block editor's own immediate preview, not load-bearing.
-    Embed { url: String },
+    ///
+    /// A caption is an attribute line below the URL (`{caption="..."}`),
+    /// moved in here by `with_attrs` like a table's.
+    Embed { url: String, caption: Option<String> },
     ThematicBreak,
     /// A header row of only empty cells means "no header" - GFM can't
     /// write a table without one.
@@ -127,7 +138,7 @@ pub enum Block {
     /// Any block plus attributes Markdown has no syntax for (colors,
     /// alignment, block style, ...), written as an attribute line `{...}`
     /// below the block - see `attrs.rs`.
-    Styled { attrs: BlockAttrs, block: Box<Block> },
+    Styled { attrs: Box<BlockAttrs>, block: Box<Block> },
 }
 
 impl Block {
@@ -137,7 +148,7 @@ impl Block {
         match self {
             Block::Styled { attrs: existing, block } => {
                 let inner = block.with_attrs(BlockAttrs { caption: attrs.caption.take(), footer_rows: std::mem::take(&mut attrs.footer_rows), ..Default::default() });
-                inner.with_attrs(existing.merged(attrs))
+                inner.with_attrs((*existing).merged(attrs))
             }
             Block::Table { alignments, header, mut rows, mut footer, caption } => {
                 if attrs.footer_rows > 0 {
@@ -148,6 +159,14 @@ impl Block {
                 let caption = attrs.caption.take().or(caption);
                 Block::Table { alignments, header, rows, footer, caption }.wrapped(attrs)
             }
+            Block::Embed { url, caption } => {
+                let caption = attrs.caption.take().or(caption);
+                Block::Embed { url, caption }.wrapped(attrs)
+            }
+            Block::Gallery { images, mut settings } => {
+                settings.caption = attrs.caption.take().or(settings.caption);
+                Block::Gallery { images, settings }.wrapped(attrs)
+            }
             block => block.wrapped(attrs),
         }
     }
@@ -157,8 +176,8 @@ impl Block {
             return self;
         }
         match self {
-            Block::Styled { attrs: existing, block } => Block::Styled { attrs: existing.merged(attrs), block },
-            block => Block::Styled { attrs, block: Box::new(block) },
+            Block::Styled { attrs: existing, block } => Block::Styled { attrs: Box::new((*existing).merged(attrs)), block },
+            block => Block::Styled { attrs: Box::new(attrs), block: Box::new(block) },
         }
     }
 
@@ -204,11 +223,14 @@ pub struct GallerySettings {
     /// modeled here since this crate never has a page to link to.
     pub link_to: String,
     pub size_slug: String,
+    /// The caption below the whole gallery - an attribute line after the
+    /// fence (`{caption="..."}`), moved in here by `Block::with_attrs`.
+    pub caption: Option<String>,
 }
 
 impl Default for GallerySettings {
     fn default() -> Self {
-        GallerySettings { columns: None, cropped: true, link_to: "none".to_string(), size_slug: "large".to_string() }
+        GallerySettings { columns: None, cropped: true, link_to: "none".to_string(), size_slug: "large".to_string(), caption: None }
     }
 }
 
@@ -523,6 +545,13 @@ fn heading_level_num(level: HeadingLevel) -> u8 {
 /// url's file extension, the same way "Bild einfügen" and "Video/Audio
 /// einfügen" both just insert a plain `![]()` reference regardless of type.
 fn as_lone_media(events: &[Event]) -> Option<Block> {
+    // `[![...](bild.png)](ziel)` - a linked image.
+    if let (Some(Event::Start(Tag::Link { dest_url, .. })), Some(Event::End(TagEnd::Link))) = (events.first(), events.last()) {
+        return match as_lone_media(&events[1..events.len() - 1])? {
+            Block::Image { url, alt, title, media_id, width, height, .. } => Some(Block::Image { url, alt, title, media_id, width, height, link: Some(dest_url.to_string()) }),
+            _ => None,
+        };
+    }
     let Some(Event::Start(Tag::Image { dest_url, title, .. })) = events.first() else {
         return None;
     };
@@ -530,8 +559,8 @@ fn as_lone_media(events: &[Event]) -> Option<Block> {
         return None;
     };
     match media_kind(dest_url) {
-        MediaKind::Video => Some(Block::Video { url: dest_url.to_string() }),
-        MediaKind::Audio => Some(Block::Audio { url: dest_url.to_string() }),
+        MediaKind::Video => Some(Block::Video { url: dest_url.to_string(), caption: media_caption(events) }),
+        MediaKind::Audio => Some(Block::Audio { url: dest_url.to_string(), caption: media_caption(events) }),
         MediaKind::Image => {
             // This app's convention (see `media::markdown_image_text_for`):
             // the bracket text is the caption, the title the alt text -
@@ -546,9 +575,16 @@ fn as_lone_media(events: &[Event]) -> Option<Block> {
                 media_id: None,
                 width: 0,
                 height: 0,
+                link: None,
             })
         }
     }
+}
+
+/// The bracket text of a lone `![...](...)` as a caption.
+fn media_caption(events: &[Event]) -> Option<String> {
+    let text = collect_text(&events[1..events.len() - 1]);
+    (!text.is_empty()).then_some(text)
 }
 
 enum MediaKind {
@@ -582,7 +618,7 @@ fn as_lone_embed(events: &[Event]) -> Option<Block> {
         _ => return None,
     };
     let url = url.trim();
-    (url.starts_with("http://") || url.starts_with("https://")).then(|| Block::Embed { url: url.to_string() })
+    (url.starts_with("http://") || url.starts_with("https://")).then(|| Block::Embed { url: url.to_string(), caption: None })
 }
 
 /// Same detection as `as_lone_embed`, exposed for the live preview
@@ -592,7 +628,7 @@ fn as_lone_embed(events: &[Event]) -> Option<Block> {
 /// to know about this crate's block tree at all.
 pub fn lone_embed_url(events: &[Event]) -> Option<String> {
     match as_lone_embed(events)? {
-        Block::Embed { url } => Some(url),
+        Block::Embed { url, .. } => Some(url),
         _ => unreachable!("as_lone_embed only ever returns Block::Embed"),
     }
 }
@@ -727,6 +763,27 @@ fn split_on_plus_separator(text: &str) -> Vec<String> {
     sections
 }
 
+/// The marker that turns a quote's last paragraph into its citation.
+pub const CITATION_DASH: &str = "— ";
+
+/// A quote's last paragraph becomes its citation (`<cite>`) when it starts
+/// with an em dash (or `--`), the usual way to attribute a quote in plain
+/// text - Markdown renderers without this convention still show the source
+/// below the quote. A quote of nothing but that line stays a quote.
+pub fn split_quote_citation(mut blocks: Vec<Block>) -> (Vec<Block>, Option<String>) {
+    if blocks.len() < 2 {
+        return (blocks, None);
+    }
+    let citation = match blocks.last() {
+        Some(Block::Paragraph { html }) => ["— ", "&mdash; ", "-- "].iter().find_map(|dash| html.strip_prefix(dash)).map(|rest| rest.trim().to_string()).filter(|rest| !rest.is_empty()),
+        _ => None,
+    };
+    if citation.is_some() {
+        blocks.pop();
+    }
+    (blocks, citation)
+}
+
 /// Splits a ` ```pullquote ` block's raw text into quote text and an
 /// optional citation on a `+++` line (see `split_on_plus_separator`). The
 /// quote text is parsed as ordinary Markdown and flattened to one HTML
@@ -779,9 +836,8 @@ fn parse_blocks(events: &[Event], mut i: usize, stop: usize) -> Vec<Block> {
                         blocks.push(heading.with_attrs(heading_attrs(id.as_deref(), classes, attrs)));
                     }
                     Tag::BlockQuote(_) => {
-                        blocks.push(Block::BlockQuote {
-                            blocks: parse_blocks(events, i + 1, end),
-                        });
+                        let (inner, citation) = split_quote_citation(parse_blocks(events, i + 1, end));
+                        blocks.push(Block::BlockQuote { blocks: inner, citation });
                     }
                     Tag::List(start_num) => {
                         let list = Block::List {
@@ -966,11 +1022,15 @@ fn embed_provider_for(url: &str) -> Option<&'static EmbedProvider> {
     EMBED_PROVIDERS.iter().find(|p| url.contains(p.host_contains))
 }
 
-fn render_media_tag(tag: &str, url: &str) -> String {
-    wrap(tag, None, &format!("<figure class=\"wp-block-{tag}\"><{tag} controls src=\"{}\"></{tag}></figure>", escape_html(url)))
+fn figcaption(caption: Option<&str>) -> String {
+    caption.map(|c| format!("<figcaption class=\"wp-element-caption\">{}</figcaption>", escape_html(c))).unwrap_or_default()
 }
 
-fn render_embed(url: &str) -> String {
+fn render_media_tag(tag: &str, url: &str, caption: Option<&str>) -> String {
+    wrap(tag, None, &format!("<figure class=\"wp-block-{tag}\"><{tag} controls src=\"{}\"></{tag}>{}</figure>", escape_html(url), figcaption(caption)))
+}
+
+fn render_embed(url: &str, caption: Option<&str>) -> String {
     let provider = embed_provider_for(url);
     let attrs = match provider {
         Some(p) => format!(
@@ -988,7 +1048,7 @@ fn render_embed(url: &str) -> String {
     wrap(
         "embed",
         Some(attrs),
-        &format!("<figure class=\"{classes}\"><div class=\"wp-block-embed__wrapper\">\n{}\n</div></figure>", escape_html(url)),
+        &format!("<figure class=\"{classes}\"><div class=\"wp-block-embed__wrapper\">\n{}\n</div>{}</figure>", escape_html(url), figcaption(caption)),
     )
 }
 
@@ -1134,7 +1194,10 @@ fn render_gallery(images: &[GalleryImage], settings: &GallerySettings) -> String
     wrap(
         "gallery",
         Some(format!("{{{attrs}}}")),
-        &format!("<figure class=\"wp-block-gallery has-nested-images {columns_class}{crop_class}\">\n{inner}\n</figure>"),
+        &format!(
+            "<figure class=\"wp-block-gallery has-nested-images {columns_class}{crop_class}\">\n{inner}\n{}</figure>",
+            settings.caption.as_ref().map(|c| format!("<figcaption class=\"blocks-gallery-caption wp-element-caption\">{}</figcaption>", escape_html(c))).unwrap_or_default()
+        ),
     )
 }
 
@@ -1176,12 +1239,13 @@ pub fn render_block(block: &Block) -> String {
             wrap("heading", attrs, &format!("<h{level} class=\"wp-block-heading\">{html}</h{level}>"))
         }
         Block::List { ordered, items } => render_list(*ordered, items),
-        Block::BlockQuote { blocks } => {
+        Block::BlockQuote { blocks, citation } => {
             let inner = render_blocks(blocks);
+            let cite = citation.as_ref().map(|c| format!("<cite>{c}</cite>")).unwrap_or_default();
             wrap(
                 "quote",
                 None,
-                &format!("<blockquote class=\"wp-block-quote\">{inner}</blockquote>"),
+                &format!("<blockquote class=\"wp-block-quote\">{inner}{cite}</blockquote>"),
             )
         }
         Block::CodeBlock { lang: _, text } => wrap(
@@ -1192,7 +1256,7 @@ pub fn render_block(block: &Block) -> String {
                 escape_html(text.trim_end_matches('\n'))
             ),
         ),
-        Block::Image { url, alt, title, media_id, width, height } => {
+        Block::Image { url, alt, title, media_id, width, height, link } => {
             // A markdown image "title" is the caption - rendered as a real
             // `<figcaption>` inside the figure, matching WordPress's own
             // image block markup, so it actually shows up on the published
@@ -1211,20 +1275,24 @@ pub fn render_block(block: &Block) -> String {
             // filter runs.
             let img_class = media_id.map(|id| format!(" class=\"wp-image-{id}\"")).unwrap_or_default();
             let dimensions = if *width > 0 && *height > 0 { format!(" width=\"{width}\" height=\"{height}\"") } else { String::new() };
-            let attrs = media_id.map(|id| format!("{{\"id\":{id}}}"));
-            wrap(
-                "image",
-                attrs,
-                &format!(
-                    "<figure class=\"wp-block-image\"><img src=\"{}\" alt=\"{}\"{img_class}{dimensions}/>{figcaption}</figure>",
-                    escape_html(url),
-                    escape_html(alt)
-                ),
-            )
+            let mut json = serde_json::Map::new();
+            if let Some(id) = media_id {
+                json.insert("id".into(), (*id).into());
+            }
+            let img = format!("<img src=\"{}\" alt=\"{}\"{img_class}{dimensions}/>", escape_html(url), escape_html(alt));
+            let img = match link {
+                Some(link) => {
+                    json.insert("linkDestination".into(), if link == url { "media" } else { "custom" }.into());
+                    format!("<a href=\"{}\">{img}</a>", escape_html(link))
+                }
+                None => img,
+            };
+            let attrs = (!json.is_empty()).then(|| serde_json::Value::Object(json).to_string());
+            wrap("image", attrs, &format!("<figure class=\"wp-block-image\">{img}{figcaption}</figure>"))
         }
-        Block::Video { url } => render_media_tag("video", url),
-        Block::Audio { url } => render_media_tag("audio", url),
-        Block::Embed { url } => render_embed(url),
+        Block::Video { url, caption } => render_media_tag("video", url, caption.as_deref()),
+        Block::Audio { url, caption } => render_media_tag("audio", url, caption.as_deref()),
+        Block::Embed { url, caption } => render_embed(url, caption.as_deref()),
         Block::ThematicBreak => wrap(
             "separator",
             None,
@@ -1312,6 +1380,19 @@ mod tests {
     }
 
     #[test]
+    fn last_quote_paragraph_with_em_dash_becomes_citation() {
+        let out = markdown_to_gutenberg("> Zitat.\n>\n> — Cicero, *De finibus*");
+        assert!(out.contains("<p>Zitat.</p>\n<!-- /wp:paragraph --><cite>Cicero, <em>De finibus</em></cite></blockquote>"), "{out}");
+        assert!(markdown_to_gutenberg("> Zitat.\n>\n> -- Cicero").contains("<cite>Cicero</cite>"));
+    }
+
+    #[test]
+    fn a_quote_of_only_a_dash_line_has_no_citation() {
+        assert!(!markdown_to_gutenberg("> — nur das").contains("<cite>"));
+        assert!(!markdown_to_gutenberg("> Zitat — mitten im Satz").contains("<cite>"));
+    }
+
+    #[test]
     fn blockquote_wraps_child_paragraph_block() {
         let out = markdown_to_gutenberg("> quoted text");
         assert_eq!(
@@ -1343,7 +1424,7 @@ mod tests {
 
     #[test]
     fn image_with_a_media_id_gets_the_wp_image_class_and_attrs() {
-        let block = Block::Image { url: "https://example.com/cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: Some(42), width: 0, height: 0 };
+        let block = Block::Image { url: "https://example.com/cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: Some(42), width: 0, height: 0, link: None };
         assert_eq!(
             render_block(&block),
             "<!-- wp:image {\"id\":42} -->\n<figure class=\"wp-block-image\">\
@@ -1353,7 +1434,7 @@ mod tests {
 
     #[test]
     fn image_with_known_dimensions_gets_width_and_height_attrs() {
-        let block = Block::Image { url: "https://example.com/cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: Some(42), width: 640, height: 480 };
+        let block = Block::Image { url: "https://example.com/cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: Some(42), width: 640, height: 480, link: None };
         assert_eq!(
             render_block(&block),
             "<!-- wp:image {\"id\":42} -->\n<figure class=\"wp-block-image\">\
@@ -1363,7 +1444,7 @@ mod tests {
 
     #[test]
     fn image_without_a_media_id_omits_class_and_attrs_as_before() {
-        let block = Block::Image { url: "https://example.com/cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: None, width: 640, height: 480 };
+        let block = Block::Image { url: "https://example.com/cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: None, width: 640, height: 480, link: None };
         assert_eq!(
             render_block(&block),
             "<!-- wp:image -->\n<figure class=\"wp-block-image\">\

@@ -62,6 +62,17 @@ pub struct BlockAttrs {
     /// An image's size (`large`) - not Markdown syntax; set on upload from
     /// what the blog had (`Frontmatter.media`), rendered as `sizeSlug`.
     pub size_slug: Option<String>,
+    /// `padding=1.5rem` / `padding="0.5rem 1rem"` - inner spacing, CSS
+    /// shorthand with one to four values (`var:preset|spacing|50` for a
+    /// theme preset).
+    pub padding: Option<String>,
+    /// `border="2px dashed #1d4ed8"` - width, style and color, each
+    /// optional, in any order.
+    pub border: Option<String>,
+    /// `radius=8px` - rounded corners.
+    pub radius: Option<String>,
+    /// `shadow=natural` - a theme shadow preset.
+    pub shadow: Option<String>,
 }
 
 /// Blocks whose `align=` means text alignment rather than block alignment.
@@ -99,6 +110,10 @@ impl BlockAttrs {
         self.caption = or(self.caption, other.caption);
         self.footer_rows = self.footer_rows.max(other.footer_rows);
         self.size_slug = or(self.size_slug, other.size_slug);
+        self.padding = or(self.padding, other.padding);
+        self.border = or(self.border, other.border);
+        self.radius = or(self.radius, other.radius);
+        self.shadow = or(self.shadow, other.shadow);
         self
     }
 
@@ -142,6 +157,10 @@ impl BlockAttrs {
                     "start" => attrs.start = Some(value.parse().ok()?),
                     "caption" => attrs.caption = Some(value),
                     "footer" => attrs.footer_rows = value.parse().ok().filter(|n| *n > 0)?,
+                    "padding" if (1..=4).contains(&value.split_whitespace().count()) => attrs.padding = Some(value),
+                    "border" if parse_border(&value).is_some() => attrs.border = Some(value),
+                    "radius" => attrs.radius = Some(value),
+                    "shadow" => attrs.shadow = Some(value),
                     _ => return None,
                 }
             } else {
@@ -176,6 +195,10 @@ impl BlockAttrs {
         push("size", &self.font_size);
         push("align", &self.align);
         push("width", &self.width);
+        push("padding", &self.padding);
+        push("border", &self.border);
+        push("radius", &self.radius);
+        push("shadow", &self.shadow);
         if let Some(start) = self.start {
             tokens.push(format!("start={start}"));
         }
@@ -235,6 +258,7 @@ impl BlockAttrs {
         if aligns_text(block) {
             attrs.align = take_nested_str(json, &["style", "typography", "textAlign"]);
         }
+        take_box_styles(json, &mut attrs);
         if block == "paragraph" && json.get("dropCap") == Some(&Value::Bool(true)) {
             json.remove("dropCap");
             attrs.drop_cap = true;
@@ -314,13 +338,30 @@ impl BlockAttrs {
                 classes.push(format!("size-{size}"));
             }
         }
+        // Border and shadow sit on an image's `<img>`, the rest on the
+        // block's outer element.
+        let has_border = self.border.is_some() || self.radius.is_some();
+        let border_color = self.border.as_deref().and_then(parse_border).is_some_and(|(_, _, color)| color.is_some());
+        if name == "image" {
+            if has_border {
+                classes.push("has-custom-border".to_string());
+            }
+        } else if border_color {
+            classes.push("has-border-color".to_string());
+        }
         classes.extend(self.classes.iter().cloned());
 
+        let box_style = self.box_style(name == "image");
         let mut extra = Vec::new();
         if let Some(anchor) = &self.anchor {
             extra.push(("id", anchor.clone()));
         }
-        body = edit_first_tag(&body, None, &classes, &extra, None);
+        let outer_style = (name != "image" && !box_style.is_empty()).then_some(box_style.as_str());
+        body = edit_first_tag(&body, None, &classes, &extra, outer_style);
+        if name == "image" && !box_style.is_empty() {
+            let img_classes = if border_color { vec!["has-border-color".to_string()] } else { Vec::new() };
+            body = edit_first_tag(&body, Some("img"), &img_classes, &[], Some(&box_style));
+        }
 
         if name == "image" {
             if let Some(width) = &self.width {
@@ -342,6 +383,37 @@ impl BlockAttrs {
             body = edit_first_tag(&body, Some("table"), &["has-fixed-layout".to_string()], &[], None);
         }
         format!("{comment}{body}")
+    }
+
+    /// The inline CSS WordPress writes for padding, border and shadow (for
+    /// an image without the padding, which it doesn't support).
+    fn box_style(&self, image: bool) -> String {
+        let mut parts = Vec::new();
+        if let Some((width, style, color)) = self.border.as_deref().and_then(parse_border) {
+            if let Some(color) = color {
+                parts.push(format!("border-color:{color}"));
+            }
+            if let Some(style) = style {
+                parts.push(format!("border-style:{style}"));
+            }
+            if let Some(width) = width {
+                parts.push(format!("border-width:{width}"));
+            }
+        }
+        if let Some(radius) = &self.radius {
+            parts.push(format!("border-radius:{}", css_value(radius)));
+        }
+        if !image {
+            if let Some([top, right, bottom, left]) = self.padding.as_deref().and_then(expand_box) {
+                for (side, value) in [("top", top), ("right", right), ("bottom", bottom), ("left", left)] {
+                    parts.push(format!("padding-{side}:{}", css_value(&value)));
+                }
+            }
+        }
+        if let Some(shadow) = &self.shadow {
+            parts.push(format!("box-shadow:var(--wp--preset--shadow--{shadow})"));
+        }
+        parts.join(";")
     }
 
     fn merge_json(&self, name: &str, json: &mut Map<String, Value>) {
@@ -388,6 +460,33 @@ impl BlockAttrs {
         if self.drop_cap {
             json.insert("dropCap".to_string(), Value::Bool(true));
         }
+        let mut style = Map::new();
+        if let Some([top, right, bottom, left]) = self.padding.as_deref().and_then(expand_box) {
+            let padding: Map<String, Value> = [("top", top), ("right", right), ("bottom", bottom), ("left", left)].into_iter().map(|(k, v)| (k.to_string(), Value::String(v))).collect();
+            style.insert("spacing".to_string(), Value::Object([("padding".to_string(), Value::Object(padding))].into_iter().collect()));
+        }
+        let mut border = Map::new();
+        if let Some((width, line, color)) = self.border.as_deref().and_then(parse_border) {
+            for (key, value) in [("width", width), ("style", line), ("color", color)] {
+                if let Some(value) = value {
+                    border.insert(key.to_string(), Value::String(value.to_string()));
+                }
+            }
+        }
+        if let Some(radius) = &self.radius {
+            border.insert("radius".to_string(), Value::String(radius.clone()));
+        }
+        if !border.is_empty() {
+            style.insert("border".to_string(), Value::Object(border));
+        }
+        if let Some(shadow) = &self.shadow {
+            style.insert("shadow".to_string(), Value::String(format!("var:preset|shadow|{shadow}")));
+        }
+        if !style.is_empty() {
+            if let Value::Object(existing) = json.entry("style").or_insert_with(|| Value::Object(Map::new())) {
+                existing.extend(style);
+            }
+        }
         if name == "list" {
             if let Some(start) = self.start {
                 json.insert("start".to_string(), Value::from(start));
@@ -396,6 +495,102 @@ impl BlockAttrs {
                 json.insert("reversed".to_string(), Value::Bool(true));
             }
         }
+    }
+}
+
+const BORDER_STYLES: &[&str] = &["solid", "dashed", "dotted", "double", "groove", "ridge", "inset", "outset", "none"];
+
+/// `2px dashed #1d4ed8` -> (width, style, color), each optional. `None`
+/// for a token that is none of the three, or a part given twice.
+fn parse_border(value: &str) -> Option<(Option<&str>, Option<&str>, Option<&str>)> {
+    let (mut width, mut style, mut color) = (None, None, None);
+    for token in value.split_whitespace() {
+        let slot = if BORDER_STYLES.contains(&token) {
+            &mut style
+        } else if token.starts_with(|c: char| c.is_ascii_digit() || c == '.') {
+            &mut width
+        } else if token.starts_with('#') || token.starts_with("rgb") || token.starts_with("hsl") || token.starts_with("var(") || token.chars().all(|c| c.is_ascii_alphabetic()) {
+            &mut color
+        } else {
+            return None;
+        };
+        if slot.replace(token).is_some() {
+            return None;
+        }
+    }
+    (width.is_some() || style.is_some() || color.is_some()).then_some((width, style, color))
+}
+
+/// CSS shorthand (`0.5rem 1rem`) -> top, right, bottom, left.
+fn expand_box(value: &str) -> Option<[String; 4]> {
+    let v: Vec<String> = value.split_whitespace().map(str::to_string).collect();
+    Some(match v.len() {
+        1 => [v[0].clone(), v[0].clone(), v[0].clone(), v[0].clone()],
+        2 => [v[0].clone(), v[1].clone(), v[0].clone(), v[1].clone()],
+        3 => [v[0].clone(), v[1].clone(), v[2].clone(), v[1].clone()],
+        4 => [v[0].clone(), v[1].clone(), v[2].clone(), v[3].clone()],
+        _ => return None,
+    })
+}
+
+/// The shortest CSS shorthand for four sides.
+fn compress_box(top: &str, right: &str, bottom: &str, left: &str) -> String {
+    if right != left {
+        format!("{top} {right} {bottom} {left}")
+    } else if top != bottom {
+        format!("{top} {right} {bottom}")
+    } else if top != right {
+        format!("{top} {right}")
+    } else {
+        top.to_string()
+    }
+}
+
+/// A block-comment value as CSS: theme presets (`var:preset|spacing|50`)
+/// become their custom property.
+fn css_value(value: &str) -> String {
+    match value.strip_prefix("var:") {
+        Some(preset) => format!("var(--wp--{})", preset.replace('|', "--")),
+        None => value.to_string(),
+    }
+}
+
+/// Moves padding (all four sides), border (width/style/color/radius as
+/// plain values) and a preset shadow out of `json.style` - anything more
+/// specific (one side's border, a border color preset) stays and keeps
+/// the block raw.
+fn take_box_styles(json: &mut Map<String, Value>, attrs: &mut BlockAttrs) {
+    let Some(Value::Object(style)) = json.get_mut("style") else { return };
+    let padding = style.get("spacing").and_then(|s| s.get("padding")).and_then(Value::as_object).and_then(|p| {
+        let side = |k: &str| p.get(k).and_then(Value::as_str).filter(|v| !v.contains(char::is_whitespace));
+        (p.len() == 4).then(|| Some(compress_box(side("top")?, side("right")?, side("bottom")?, side("left")?))).flatten()
+    });
+    if let Some(padding) = padding {
+        attrs.padding = Some(padding);
+        if let Some(Value::Object(spacing)) = style.get_mut("spacing") {
+            spacing.remove("padding");
+            if spacing.is_empty() {
+                style.remove("spacing");
+            }
+        }
+    }
+    let border = style.get("border").and_then(Value::as_object).filter(|b| b.iter().all(|(k, v)| matches!(k.as_str(), "width" | "style" | "color" | "radius") && v.as_str().is_some_and(|v| !v.contains(char::is_whitespace))));
+    if let Some(border) = border {
+        let get = |k: &str| border.get(k).and_then(Value::as_str);
+        let line: Vec<&str> = [get("width"), get("style"), get("color")].into_iter().flatten().collect();
+        let line = line.join(" ");
+        if line.is_empty() || parse_border(&line).is_some() {
+            attrs.border = (!line.is_empty()).then_some(line);
+            attrs.radius = get("radius").map(str::to_string);
+            style.remove("border");
+        }
+    }
+    if let Some(shadow) = style.get("shadow").and_then(Value::as_str).and_then(|s| s.strip_prefix("var:preset|shadow|")).map(str::to_string) {
+        attrs.shadow = Some(shadow);
+        style.remove("shadow");
+    }
+    if style.is_empty() {
+        json.remove("style");
     }
 }
 

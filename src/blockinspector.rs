@@ -34,7 +34,7 @@ fn supports(name: &str) -> Supports {
         "table" => Supports { color: true, background: true, gradient: true, block_align: true, ..Default::default() },
         "image" | "video" | "audio" | "embed" | "gallery" | "cover" => Supports { block_align: true, ..Default::default() },
         "separator" => Supports { background: true, ..Default::default() },
-        "group" | "columns" | "pullquote" => Supports { color: true, background: true, gradient: true, block_align: true, ..Default::default() },
+        "group" | "columns" | "pullquote" | "media-text" => Supports { color: true, background: true, gradient: true, block_align: true, ..Default::default() },
         "column" | "item" | "tab" | "accordion" | "tabs" | "details" => Supports { color: true, background: true, gradient: true, ..Default::default() },
         _ => Supports::default(),
     }
@@ -74,6 +74,7 @@ fn block_label(name: &str) -> String {
         "tabs" => tr("Reiter"),
         "tab" => tr("Reiter-Inhalt"),
         "cover" => tr("Cover"),
+        "media-text" => tr("Medien & Text"),
         other => other.to_string(),
     }
 }

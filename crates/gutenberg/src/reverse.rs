@@ -209,9 +209,19 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
             let items = parse_list_items(&strip_wrapper_tag(inner, list_tag));
             Block::List { ordered, items }
         }
-        "quote" => Block::BlockQuote {
-            blocks: parse_gutenberg_blocks(&strip_wrapper_tag(inner, "blockquote")),
-        },
+        "quote" => {
+            let quote = strip_wrapper_tag(inner, "blockquote");
+            let trimmed = quote.trim_end();
+            // WordPress puts the citation after the inner blocks.
+            let (body, citation) = match trimmed.rfind("<cite") {
+                Some(idx) if trimmed.ends_with("</cite>") => {
+                    let citation = extract_between(&trimmed[idx..], ">", "</cite>").map(|c| inline_html_to_markdown(c.trim())).filter(|c| !c.is_empty());
+                    (trimmed[..idx].to_string(), citation)
+                }
+                _ => (quote.clone(), None),
+            };
+            Block::BlockQuote { blocks: parse_gutenberg_blocks(&body), citation }
+        }
         "code" => {
             let code = strip_wrapper_tag(&strip_wrapper_tag(inner, "pre"), "code");
             Block::CodeBlock {
@@ -238,12 +248,25 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
                 media_id: None,
                 width: 0,
                 height: 0,
+                // `<a href>` right around the `<img>`.
+                link: inner.find("<a ").filter(|a| inner[*a..].split('>').nth(1).is_some_and(|rest| rest.trim_start().starts_with("<img"))).and_then(|a| extract_attr(&inner[a..], "href")).map(|href| unescape_entities(&href)),
             }
         }
         "separator" => Block::ThematicBreak,
-        "video" => Block::Video { url: extract_attr(inner, "src").unwrap_or_default() },
-        "audio" => Block::Audio { url: extract_attr(inner, "src").unwrap_or_default() },
-        "embed" => Block::Embed { url: extract_json_string(attrs, "url").unwrap_or_default() },
+        "video" | "audio" | "embed" => {
+            // Captions go into the Markdown image's brackets or a quoted
+            // attribute value - plain text only.
+            let caption = inner.find("<figcaption").and_then(|idx| extract_between(&inner[idx..], ">", "</figcaption>")).map(str::trim).unwrap_or("");
+            if caption.contains(['<', '"', '[', ']']) {
+                return verbatim();
+            }
+            let caption = Some(unescape_entities(caption)).filter(|c| !c.is_empty());
+            match name {
+                "video" => Block::Video { url: extract_attr(inner, "src").unwrap_or_default(), caption },
+                "audio" => Block::Audio { url: extract_attr(inner, "src").unwrap_or_default(), caption },
+                _ => Block::Embed { url: extract_json_string(attrs, "url").unwrap_or_default(), caption },
+            }
+        }
         "table" => match parse_table_block(inner) {
             // The caption goes into a quoted attribute value - plain text only.
             Block::Table { caption: Some(caption), .. } if caption.contains(['<', '"']) => return verbatim(),
@@ -253,7 +276,14 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
             buttons: parse_buttons(&strip_wrapper_tag(inner, "div")),
         },
         "gallery" => {
-            let (images, size_slug) = parse_gallery(&strip_wrapper_tag(inner, "figure"));
+            let gallery_inner = strip_wrapper_tag(inner, "figure");
+            let (images, size_slug) = parse_gallery(&gallery_inner);
+            // The gallery's own caption follows its last image block.
+            let after_images = gallery_inner.rfind("<!-- /wp:image -->").map(|i| &gallery_inner[i..]).unwrap_or("");
+            let caption = after_images.find("<figcaption").and_then(|idx| extract_between(&after_images[idx..], ">", "</figcaption>")).map(str::trim).unwrap_or("");
+            if caption.contains(['<', '"']) {
+                return verbatim();
+            }
             Block::Gallery {
                 images,
                 settings: GallerySettings {
@@ -261,6 +291,7 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
                     cropped: !attr_is_false(attrs, "imageCrop"),
                     link_to: extract_json_string(attrs, "linkTo").unwrap_or_else(|| "none".to_string()),
                     size_slug: size_slug.unwrap_or_else(|| "large".to_string()),
+                    caption: Some(unescape_entities(caption)).filter(|c| !c.is_empty()),
                 },
             }
         }
@@ -315,7 +346,7 @@ fn finish(name: &str, candidate: Block, mut json: serde_json::Map<String, serde_
     }
 }
 
-const CONTAINER_BLOCKS: &[&str] = &["group", "columns", "accordion", "tabs", "cover", "details"];
+const CONTAINER_BLOCKS: &[&str] = &["group", "columns", "accordion", "tabs", "cover", "details", "media-text"];
 
 /// Direct child blocks of a container's inner HTML: name, attrs JSON,
 /// inner HTML.
@@ -540,6 +571,59 @@ fn parse_container(name: &str, json: &mut serde_json::Map<String, serde_json::Va
                 None => (String::new(), content),
             };
             container("details", Some(summary), params, parse_blocks_in(body, true))
+        }
+        "media-text" => {
+            let right = take_json_string(json, "mediaPosition").as_deref() == Some("right");
+            let media_type = take_json_string(json, "mediaType");
+            let marker = "wp-block-media-text__content\">";
+            let start = content.find(marker)? + marker.len();
+            let figure_start = content.find("<figure class=\"wp-block-media-text__media\"")?;
+            let figure_end = content[figure_start..].find("</figure>")? + figure_start;
+            let figure = &content[figure_start..figure_end];
+            // The content div runs to the figure (media on the right) or
+            // to the end.
+            let body_end = if figure_start > start { figure_start } else { content.len() };
+            let body = content[start..body_end].trim_end().strip_suffix("</div>")?;
+            match media_type.as_deref() {
+                Some("video") => {
+                    params.set("image", Some(unescape_entities(&extract_attr(figure, "src")?)));
+                    params.set("type", Some("video".to_string()));
+                }
+                Some(_) => {
+                    let img = &figure[figure.find("<img")?..];
+                    params.set("image", Some(unescape_entities(&extract_attr(img, "src")?)));
+                    let alt = unescape_entities(&extract_attr(img, "alt").unwrap_or_default());
+                    if !alt.is_empty() {
+                        params.set("alt", Some(alt));
+                    }
+                }
+                None => {}
+            }
+            if right {
+                params.set("position", Some("right".to_string()));
+            }
+            if let Some(id) = json.get("mediaId").and_then(|i| i.as_u64()) {
+                json.remove("mediaId");
+                params.set("id", Some(id.to_string()));
+            }
+            if let Some(size) = take_json_string(json, "mediaSizeSlug") {
+                params.set("size", Some(size));
+            }
+            if let Some(width) = json.get("mediaWidth").and_then(|w| w.as_u64()) {
+                json.remove("mediaWidth");
+                params.set("width", Some(width.to_string()));
+            }
+            if json.get("isStackedOnMobile") == Some(&serde_json::Value::Bool(false)) {
+                json.remove("isStackedOnMobile");
+                params.set("nostack", None);
+            }
+            if let Some(valign) = take_json_string(json, "verticalAlignment") {
+                params.set("valign", Some(valign));
+            }
+            if take_json_true(json, "imageFill") {
+                params.set("fill", None);
+            }
+            container("media-text", None, params, parse_blocks_in(body, true))
         }
         _ => return None,
     };
@@ -1003,25 +1087,31 @@ fn render_block_markdown(block: &Block) -> String {
         Block::Paragraph { html } => html.clone(),
         Block::Heading { level, html } => format!("{} {html}", "#".repeat(*level as usize)),
         Block::List { ordered, items } => render_list_markdown(*ordered, items, 0, 1),
-        Block::BlockQuote { blocks } => render_markdown(blocks)
-            .lines()
-            .map(|line| if line.is_empty() { ">".to_string() } else { format!("> {line}") })
-            .collect::<Vec<_>>()
-            .join("\n"),
+        Block::BlockQuote { blocks, citation } => {
+            let mut text = render_markdown(blocks);
+            if let Some(citation) = citation {
+                text.push_str(&format!("\n\n{}{citation}", crate::CITATION_DASH));
+            }
+            text.lines().map(|line| if line.is_empty() { ">".to_string() } else { format!("> {line}") }).collect::<Vec<_>>().join("\n")
+        }
         Block::CodeBlock { lang, text } => format!("```{}\n{text}\n```", lang.clone().unwrap_or_default()),
-        Block::Image { url, alt, title, .. } => {
+        Block::Image { url, alt, title, link, .. } => {
             // Bracket = caption, title = alt text - see `as_lone_media`.
             let destination = markdown_destination(url);
             let caption = title.as_deref().unwrap_or("").replace('[', "\\[").replace(']', "\\]");
-            if alt.is_empty() {
+            let image = if alt.is_empty() {
                 format!("![{caption}]({destination})")
             } else {
                 format!("![{caption}]({destination} \"{}\")", alt.replace('"', "\\\""))
+            };
+            match link {
+                Some(link) => format!("[{image}]({})", markdown_destination(link)),
+                None => image,
             }
         }
-        Block::Video { url } => format!("![]({})", markdown_destination(url)),
-        Block::Audio { url } => format!("![]({})", markdown_destination(url)),
-        Block::Embed { url } => url.clone(),
+        Block::Video { url, caption } | Block::Audio { url, caption } => format!("![{}]({})", caption.as_deref().unwrap_or(""), markdown_destination(url)),
+        Block::Embed { url, caption: None } => url.clone(),
+        Block::Embed { url, caption: Some(caption) } => format!("{url}\n{}", BlockAttrs { caption: Some(caption.clone()), ..Default::default() }.to_markdown()),
         Block::ThematicBreak => "---".to_string(),
         Block::Table { alignments, header, rows, footer, caption } => {
             let table = render_table_markdown(alignments, header, rows, footer);
@@ -1041,11 +1131,14 @@ fn render_block_markdown(block: &Block) -> String {
         Block::Container { kind, title, params, blocks } => render_container_markdown(kind, title.as_deref(), params, &BlockAttrs::default(), blocks),
         Block::Styled { attrs, block } => match block.as_ref() {
             Block::Container { kind, title, params, blocks } => render_container_markdown(kind, title.as_deref(), params, attrs, blocks),
+            // pulldown-cmark's heading attributes split at every space, so
+            // a quoted value (`padding="0.5rem 1rem"`) needs its own line.
+            Block::Heading { .. } if attrs.to_markdown().contains('"') => format!("{}\n{}", render_block_markdown(block), attrs.to_markdown()),
             Block::Heading { .. } => format!("{} {}", render_block_markdown(block), attrs.to_markdown()),
             // An ordered list's first number is plain Markdown.
             Block::List { ordered: true, items } if attrs.start.is_some() => {
                 let list = render_list_markdown(true, items, 0, attrs.start.unwrap_or(1));
-                let rest = BlockAttrs { start: None, ..attrs.clone() };
+                let rest = BlockAttrs { start: None, ..(**attrs).clone() };
                 if rest.is_empty() {
                     list
                 } else {
@@ -1054,8 +1147,13 @@ fn render_block_markdown(block: &Block) -> String {
             }
             Block::Table { alignments, header, rows, footer, caption } => {
                 let table_attrs = BlockAttrs { caption: caption.clone(), footer_rows: footer.len() as u32, ..Default::default() };
-                format!("{}\n{}", render_table_markdown(alignments, header, rows, footer), table_attrs.merged(attrs.clone()).to_markdown())
+                format!("{}\n{}", render_table_markdown(alignments, header, rows, footer), table_attrs.merged((**attrs).clone()).to_markdown())
             }
+            Block::Gallery { images, settings } if settings.caption.is_some() => {
+                let plain = GallerySettings { caption: None, ..settings.clone() };
+                format!("{}\n{}", render_gallery_fence(images, &plain), BlockAttrs { caption: settings.caption.clone(), ..Default::default() }.merged((**attrs).clone()).to_markdown())
+            }
+            Block::Embed { url, caption } => format!("{url}\n{}", BlockAttrs { caption: caption.clone(), ..Default::default() }.merged((**attrs).clone()).to_markdown()),
             _ => format!("{}\n{}", render_block_markdown(block), attrs.to_markdown()),
         },
     }
@@ -1154,9 +1252,13 @@ pub fn render_gallery_fence(images: &[GalleryImage], settings: &GallerySettings)
         })
         .collect::<Vec<_>>()
         .join("\n");
-    match format_gallery_settings_line(settings) {
+    let fence = match format_gallery_settings_line(settings) {
         Some(line) => format!("```gallery\n{line}\n+++\n{body}\n```"),
         None => format!("```gallery\n{body}\n```"),
+    };
+    match &settings.caption {
+        Some(caption) => format!("{fence}\n{}", BlockAttrs { caption: Some(caption.clone()), ..Default::default() }.to_markdown()),
+        None => fence,
     }
 }
 
@@ -1164,7 +1266,7 @@ pub fn render_gallery_fence(images: &[GalleryImage], settings: &GallerySettings)
 /// entirely at its default, so a plain gallery still round-trips to the
 /// exact same clean, options-line-free Markdown it always has.
 fn format_gallery_settings_line(settings: &GallerySettings) -> Option<String> {
-    if *settings == GallerySettings::default() {
+    if *settings == (GallerySettings { caption: settings.caption.clone(), ..GallerySettings::default() }) {
         return None;
     }
     let mut parts = Vec::new();
@@ -1275,7 +1377,7 @@ mod tests {
 
     #[test]
     fn image_with_space_in_url_is_wrapped_in_angle_brackets() {
-        let block = Block::Image { url: "my cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: None, width: 0, height: 0 };
+        let block = Block::Image { url: "my cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: None, width: 0, height: 0, link: None };
         assert_eq!(render_block_markdown(&block), "![](<my cat.png> \"a cat\")");
     }
 
@@ -1584,5 +1686,64 @@ mod tests {
     fn container_markdown_reads_back() {
         let md = ":::: accordion\n::: item \"Frage \\\"eins\\\"\" {open}\nAntwort mit **Fett**.\n\n```\n:::\n```\n:::\n\n::: item \"Frage zwei\"\nZweite Antwort.\n:::\n::::";
         assert_eq!(round_trip(md), md);
+    }
+
+    #[test]
+    fn quote_with_citation_round_trips() {
+        let md = assert_lossless("<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p>Ut sollicitudin enim.</p>\n<!-- /wp:paragraph --><cite>Marcus Tullius Cicero, <em>De finibus</em></cite></blockquote>\n<!-- /wp:quote -->");
+        assert_eq!(md, "> Ut sollicitudin enim.\n>\n> — Marcus Tullius Cicero, *De finibus*");
+    }
+
+    #[test]
+    fn plain_style_quote_with_citation_round_trips() {
+        let md = assert_lossless("<!-- wp:quote {\"className\":\"is-style-plain\"} -->\n<blockquote class=\"wp-block-quote is-style-plain\"><!-- wp:paragraph -->\n<p>Eins.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Zwei.</p>\n<!-- /wp:paragraph --><cite>Lorem Ipsum</cite></blockquote>\n<!-- /wp:quote -->");
+        assert!(md.contains("> — Lorem Ipsum"), "{md}");
+    }
+
+    #[test]
+    fn media_text_becomes_a_container_and_round_trips() {
+        let md = assert_lossless("<!-- wp:media-text {\"mediaId\":45656,\"mediaType\":\"image\"} -->\n<div class=\"wp-block-media-text is-stacked-on-mobile\"><figure class=\"wp-block-media-text__media\"><img src=\"https://example.org/a.webp\" alt=\"\" class=\"wp-image-45656 size-full\"/></figure><div class=\"wp-block-media-text__content\"><!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">Medien links</h3>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Text.</p>\n<!-- /wp:paragraph --></div></div>\n<!-- /wp:media-text -->");
+        assert!(md.starts_with("::: media-text {image=https://example.org/a.webp id=45656}"), "{md}");
+    }
+
+    #[test]
+    fn media_text_on_the_right_with_fill_round_trips() {
+        let md = assert_lossless("<!-- wp:media-text {\"align\":\"wide\",\"mediaPosition\":\"right\",\"mediaId\":45657,\"mediaType\":\"image\",\"mediaWidth\":40,\"verticalAlignment\":\"center\",\"imageFill\":true,\"backgroundColor\":\"base-2\"} -->\n<div class=\"wp-block-media-text alignwide has-media-on-the-right is-stacked-on-mobile is-vertically-aligned-center is-image-fill-element has-base-2-background-color has-background\" style=\"grid-template-columns:auto 40%\"><div class=\"wp-block-media-text__content\"><!-- wp:paragraph -->\n<p>Rechts.</p>\n<!-- /wp:paragraph --></div><figure class=\"wp-block-media-text__media\"><img src=\"https://example.org/b.webp\" alt=\"Ein Bild\" class=\"wp-image-45657 size-full\" style=\"object-position:50% 50%\"/></figure></div>\n<!-- /wp:media-text -->");
+        assert!(md.contains("position=right") && md.contains("fill") && md.contains("width=40") && md.contains("alt=\"Ein Bild\""), "{md}");
+    }
+
+    #[test]
+    fn padding_border_and_shadow_round_trip() {
+        let md = assert_lossless("<!-- wp:paragraph {\"backgroundColor\":\"base-2\",\"style\":{\"spacing\":{\"padding\":{\"top\":\"0.5rem\",\"right\":\"1rem\",\"bottom\":\"0.5rem\",\"left\":\"1rem\"}},\"border\":{\"width\":\"2px\",\"style\":\"dashed\",\"color\":\"#1d4ed8\",\"radius\":\"8px\"}}} -->\n<p class=\"has-border-color has-base-2-background-color has-background\" style=\"border-color:#1d4ed8;border-style:dashed;border-width:2px;border-radius:8px;padding-top:0.5rem;padding-right:1rem;padding-bottom:0.5rem;padding-left:1rem\">Kasten</p>\n<!-- /wp:paragraph -->");
+        assert_eq!(md, "Kasten\n{bg=base-2 padding=\"0.5rem 1rem\" border=\"2px dashed #1d4ed8\" radius=8px}");
+        let md = assert_lossless("<!-- wp:image {\"id\":45657,\"sizeSlug\":\"full\",\"linkDestination\":\"none\",\"style\":{\"border\":{\"width\":\"4px\",\"color\":\"#cccccc\",\"radius\":\"6px\"},\"shadow\":\"var:preset|shadow|natural\"}} -->\n<figure class=\"wp-block-image size-full has-custom-border\"><img src=\"https://example.org/a.webp\" alt=\"Alt\" class=\"has-border-color wp-image-45657\" style=\"border-color:#cccccc;border-width:4px;border-radius:6px;box-shadow:var(--wp--preset--shadow--natural)\"/></figure>\n<!-- /wp:image -->");
+        assert!(md.ends_with("{border=\"4px #cccccc\" radius=6px shadow=natural}"), "{md}");
+    }
+
+    #[test]
+    fn a_padding_preset_round_trips() {
+        assert_lossless("<!-- wp:group {\"style\":{\"spacing\":{\"padding\":{\"top\":\"var:preset|spacing|50\",\"right\":\"var:preset|spacing|50\",\"bottom\":\"var:preset|spacing|50\",\"left\":\"var:preset|spacing|50\"}}},\"layout\":{\"type\":\"constrained\"}} -->\n<div class=\"wp-block-group\" style=\"padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--50);padding-left:var(--wp--preset--spacing--50)\"><!-- wp:paragraph -->\n<p>Text</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:group -->");
+    }
+
+    #[test]
+    fn media_captions_round_trip() {
+        let md = assert_lossless("<!-- wp:video {\"id\":44586} -->\n<figure class=\"wp-block-video\"><video controls src=\"https://example.org/film.mp4\"></video><figcaption class=\"wp-element-caption\">Ein Film</figcaption></figure>\n<!-- /wp:video -->");
+        assert_eq!(md, "![Ein Film](https://example.org/film.mp4)");
+        let md = assert_lossless("<!-- wp:embed {\"url\":\"https://www.youtube.com/watch?v=aqz-KE-bpKQ\",\"type\":\"video\",\"providerNameSlug\":\"youtube\",\"responsive\":true} -->\n<figure class=\"wp-block-embed is-type-video is-provider-youtube wp-block-embed-youtube\"><div class=\"wp-block-embed__wrapper\">\nhttps://www.youtube.com/watch?v=aqz-KE-bpKQ\n</div><figcaption class=\"wp-element-caption\">YouTube-Einbettung</figcaption></figure>\n<!-- /wp:embed -->");
+        assert_eq!(md, "https://www.youtube.com/watch?v=aqz-KE-bpKQ\n{caption=\"YouTube-Einbettung\"}");
+    }
+
+    #[test]
+    fn linked_image_round_trips() {
+        let md = assert_lossless("<!-- wp:image {\"id\":45655,\"width\":\"240px\",\"sizeSlug\":\"full\",\"linkDestination\":\"media\",\"align\":\"left\"} -->\n<figure class=\"wp-block-image alignleft size-full is-resized\"><a href=\"https://example.org/a.webp\"><img src=\"https://example.org/a.webp\" alt=\"Alt\" class=\"wp-image-45655\" style=\"width:240px;height:auto\"/></a></figure>\n<!-- /wp:image -->");
+        assert!(md.starts_with("[![](https://example.org/a.webp \"Alt\")](https://example.org/a.webp)"), "{md}");
+        let md = assert_lossless("<!-- wp:image {\"linkDestination\":\"custom\"} -->\n<figure class=\"wp-block-image\"><a href=\"https://linuxundich.de/\"><img src=\"https://example.org/a.webp\" alt=\"\"/></a><figcaption class=\"wp-element-caption\">BU</figcaption></figure>\n<!-- /wp:image -->");
+        assert_eq!(md, "[![BU](https://example.org/a.webp)](https://linuxundich.de/)");
+    }
+
+    #[test]
+    fn gallery_caption_round_trips() {
+        let md = assert_lossless("<!-- wp:gallery {\"linkTo\":\"none\"} -->\n<figure class=\"wp-block-gallery has-nested-images columns-default is-cropped\"><!-- wp:image {\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"https://example.org/a.webp\" alt=\"\"/></figure>\n<!-- /wp:image --><figcaption class=\"blocks-gallery-caption wp-element-caption\">Galerie</figcaption></figure>\n<!-- /wp:gallery -->");
+        assert!(md.ends_with("```\n{caption=\"Galerie\"}"), "{md}");
     }
 }

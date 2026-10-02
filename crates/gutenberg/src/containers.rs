@@ -22,7 +22,7 @@ use crate::{escape_html, render_blocks, wrap, Block, BlockAttrs};
 
 /// The container kinds this crate knows - anything else after `:::` is
 /// just text.
-pub const KINDS: &[&str] = &["group", "columns", "column", "accordion", "item", "tabs", "tab", "cover", "details"];
+pub const KINDS: &[&str] = &["group", "columns", "column", "accordion", "item", "tabs", "tab", "cover", "details", "media-text"];
 
 /// A container's own settings (`open`, `image=...`, `layout=flex`) -
 /// whatever isn't a general block attribute.
@@ -93,9 +93,14 @@ pub fn parse_header(line: &str) -> Option<Header> {
     }
     // Settings that look like general attributes but belong to the
     // container itself.
-    if kind == "column" {
+    if kind == "column" || kind == "media-text" {
         if let Some(width) = attrs.width.take() {
             params.set("width", Some(width));
+        }
+    }
+    if kind == "media-text" {
+        if let Some(size) = attrs.font_size.take() {
+            params.set("size", Some(size));
         }
     }
     if kind == "cover" {
@@ -107,6 +112,27 @@ pub fn parse_header(line: &str) -> Option<Header> {
         }
     }
     Some(Header { colons, kind: kind.to_string(), title, params, attrs })
+}
+
+/// The kinds whose `image=` is an image file (and `alt=` its alt text).
+pub const IMAGE_KINDS: &[&str] = &["cover", "media-text"];
+
+/// Every container image in `md`, nested ones included: `(image, alt)`.
+/// They aren't Markdown images, so the media list and the upload need
+/// them pointed out.
+pub fn images(md: &str) -> Vec<(String, Option<String>)> {
+    let mut out = Vec::new();
+    for segment in crate::split_segments(md) {
+        if let crate::Segment::Container { header, inner, .. } = segment {
+            if IMAGE_KINDS.contains(&header.kind.as_str()) && header.params.get("type") != Some("video") {
+                if let Some(image) = header.params.get("image") {
+                    out.push((image.to_string(), header.params.get("alt").map(str::to_string)));
+                }
+            }
+            out.extend(images(&md[inner]));
+        }
+    }
+    out
 }
 
 /// A line of nothing but three or more colons.
@@ -241,6 +267,7 @@ pub fn render(kind: &str, title: Option<&str>, params: &Params, blocks: &[Block]
         "tabs" => render_tabs(blocks),
         "tab" => render_tab_panel(title.unwrap_or(""), params, blocks),
         "cover" => render_cover(params, blocks),
+        "media-text" => render_media_text(params, blocks),
         "details" => {
             let mut json = Map::new();
             let open = if params.flag("open") {
@@ -422,6 +449,75 @@ fn render_cover(params: &Params, blocks: &[Block]) -> String {
     )
 }
 
+/// `wp:media-text`: an image (or video) beside the content.
+/// `image=` and `id=` like a cover, `alt=`, `position=right`, `valign=`,
+/// `fill` (crop the image to fill its half), `width=` (the media column in
+/// percent), `nostack`, `size=` (the image size, default full),
+/// `type=video`.
+fn render_media_text(params: &Params, blocks: &[Block]) -> String {
+    let mut json = Map::new();
+    let right = params.get("position") == Some("right");
+    if right {
+        json.insert("mediaPosition".into(), "right".into());
+    }
+    let id = params.get("id").and_then(|id| id.parse::<u64>().ok());
+    if let Some(id) = id {
+        json.insert("mediaId".into(), id.into());
+    }
+    let video = params.get("type") == Some("video");
+    if params.get("image").is_some() {
+        json.insert("mediaType".into(), if video { "video" } else { "image" }.into());
+    }
+    let size = params.get("size").unwrap_or("full");
+    if size != "full" {
+        json.insert("mediaSizeSlug".into(), size.into());
+    }
+    let width = params.get("width").and_then(|w| w.trim_end_matches('%').parse::<u64>().ok()).filter(|w| *w != 50);
+    if let Some(width) = width {
+        json.insert("mediaWidth".into(), width.into());
+    }
+    let nostack = params.flag("nostack");
+    if nostack {
+        json.insert("isStackedOnMobile".into(), false.into());
+    }
+    let valign = params.get("valign");
+    if let Some(valign) = valign {
+        json.insert("verticalAlignment".into(), valign.into());
+    }
+    let fill = params.flag("fill");
+    if fill {
+        json.insert("imageFill".into(), true.into());
+    }
+
+    let mut classes = String::from("wp-block-media-text");
+    if right {
+        classes.push_str(" has-media-on-the-right");
+    }
+    if !nostack {
+        classes.push_str(" is-stacked-on-mobile");
+    }
+    if let Some(valign) = valign {
+        classes.push_str(&format!(" is-vertically-aligned-{valign}"));
+    }
+    if fill {
+        classes.push_str(" is-image-fill-element");
+    }
+    let style = width.map(|w| if right { format!(" style=\"grid-template-columns:auto {w}%\"") } else { format!(" style=\"grid-template-columns:{w}% auto\"") }).unwrap_or_default();
+    let media = match params.get("image") {
+        Some(url) if video => format!("<video controls src=\"{}\"></video>", escape_html(url)),
+        Some(url) => {
+            let id_class = id.map(|id| format!("wp-image-{id} ")).unwrap_or_default();
+            let position = if fill { " style=\"object-position:50% 50%\"" } else { "" };
+            format!("<img src=\"{}\" alt=\"{}\" class=\"{id_class}size-{size}\"{position}/>", escape_html(url), escape_html(params.get("alt").unwrap_or("")))
+        }
+        None => String::new(),
+    };
+    let figure = format!("<figure class=\"wp-block-media-text__media\">{media}</figure>");
+    let content = format!("<div class=\"wp-block-media-text__content\">{}</div>", render_children(blocks));
+    let inner = if right { format!("{content}{figure}") } else { format!("{figure}{content}") };
+    wrap("media-text", json_comment(json), &format!("<div class=\"{classes}\"{style}>{inner}</div>"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -458,6 +554,12 @@ mod tests {
         let header = parse_header("::: tab \"Reiter 1\" {anchor=eins .extra}").unwrap();
         let line = header_markdown(3, &header.kind, header.title.as_deref(), &header.params, &header.attrs);
         assert_eq!(parse_header(&line), Some(header));
+    }
+
+    #[test]
+    fn finds_container_images_also_nested() {
+        let md = "::: cover {image=titel.png}\n# Titel\n:::\n\n:::: group\n::: media-text {image=\"mein bild.png\" alt=\"Ein Bild\"}\nText\n:::\n::::\n\n::: media-text {image=film.mp4 type=video}\n:::";
+        assert_eq!(images(md), vec![("titel.png".to_string(), None), ("mein bild.png".to_string(), Some("Ein Bild".to_string()))]);
     }
 
     #[test]

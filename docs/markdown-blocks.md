@@ -279,3 +279,15 @@ Schritt 1 sollte unabhängig vom Rest sofort kommen.
   Werkzeugleiste mit Containern und dynamischen Core-Blöcken. Die echte
   Ausgabe über `block-renderer` ist bewusst nicht eingebaut (eine Anfrage
   pro Tastendruck, Hoster-Sperren).
+- **Schritt 8 (nach 0.65.0)**: Zitat mit Quelle (letzter Absatz mit
+  Gedankenstrich, `> — Quelle`), `::: media-text` (`image`, `id`, `alt`,
+  `position=right`, `valign`, `fill`, `width`, `nostack`, `size`,
+  `type=video`), Box-Attribute `padding` (1–4 Werte, auch
+  `var:preset|spacing|50`), `border` (Breite/Stil/Farbe), `radius`,
+  `shadow`; Unterschriften bei Audio/Video (Klammertext), Embed und
+  Galerie (`{caption="…"}`); verlinkte Bilder `[![…](bild)](ziel)`
+  (`linkDestination` `media`/`custom`). Lokale Bilder in `cover` und
+  `media-text` landen in der Medienliste und werden hochgeladen.
+  Testbeitrag: 84 → 64 rohe Blöcke; erkannt, aber roh bleiben noch
+  eigene Farbwerte, Typografie, `type=upper-roman`, Zellausrichtung,
+  Seitenverhältnis von Bildern, Button-Breite/-Ausrichtung.

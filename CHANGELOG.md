@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **More blocks as Markdown** (`docs/markdown-blocks.md`, step 8) - these
+  no longer stay WordPress markup when a post is opened, and can be
+  written by hand:
+  - a **quote with its source**: a last paragraph starting with an em
+    dash, `> — Cicero, *De finibus*`, becomes the `<cite>`;
+  - **Media & Text** as a container,
+    `::: media-text {image=bild.png position=right valign=center fill width=40}`
+    (also in "Einfügen" and the block inspector);
+  - **boxes**: `padding=` (CSS shorthand or a theme preset), `border="2px
+    dashed #1d4ed8"`, `radius=`, `shadow=natural` on paragraphs,
+    headings, groups, images and the other blocks;
+  - **captions** on audio and video (`![Unterschrift](film.mp4)`), on
+    embeds and on whole galleries (`{caption="..."}` below, like tables);
+  - **linked images** as plain Markdown, `[![BU](bild.png)](ziel)` -
+    a link to the image itself becomes "Mediendatei", any other address a
+    custom link.
+  In the test post the blocks kept as markup drop from 84 to 64; what
+  remains is dynamic blocks and rare settings (custom color values,
+  typography, roman list numbering).
+
+### Changed
+
+- **Cover and Media & Text images can be local files**: an `image=` path
+  is listed in Medienverwaltung and uploaded on export like any other
+  image, with its attachment id.
+
 ## [0.65.0] - 2026-10-02
 
 ### Added

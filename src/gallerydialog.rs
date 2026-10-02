@@ -282,6 +282,7 @@ pub fn open(parent: &adw::ApplicationWindow, on_insert: OnInsertGallery) {
                     _ => "large",
                 }
                 .to_string(),
+                caption: None,
             };
             let images: Vec<gutenberg::GalleryImage> = selected
                 .iter()

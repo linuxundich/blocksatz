@@ -818,6 +818,7 @@ object.wp-block-file__embed {{ display: none; }}
 .wp-block-pullquote {{ text-align: center; margin: 2rem 0; padding: 1.5rem 0; border-top: 3px solid currentColor; border-bottom: 3px solid currentColor; }}
 .wp-block-pullquote blockquote {{ margin: 0; font-size: 1.5rem; font-style: italic; }}
 .wp-block-pullquote cite {{ display: block; margin-top: .75rem; font-size: 1rem; font-style: normal; }}
+.wp-block-quote cite {{ display: block; margin-top: .5rem; font-size: .875em; font-style: normal; opacity: .8; }}
 .wp-block-details summary {{ cursor: pointer; font-weight: 600; }}
 /* Browsers indent a bare `<figure>` by 40px; WordPress's own CSS resets
    that for every block (audio, video, embed, file, ...). */

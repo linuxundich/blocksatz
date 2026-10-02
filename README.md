@@ -177,25 +177,32 @@ blocks. Implemented so far:
   **attribute line** in curly braces below the block (Pandoc/kramdown
   style), using the blog theme's preset slugs: `{bg=accent color=base}`,
   `{gradient=accent-fade}`, `{size=large align=center}`,
-  `{style=stripes}`, `{width=100%}`, `{dropcap}`, `{reversed}`; a heading
-  carries it at its end (`## Titel {#anker color=accent}`). Tables take
-  `{footer}` (last row is the footer) and `{caption="..."}`; an ordered
-  list starting at `5.` keeps its start number. Images follow this app's
-  convention `![Bildunterschrift](bild.png "Alternativtext")`.
+  `{style=stripes}`, `{width=100%}`, `{dropcap}`, `{reversed}`, and boxes
+  with `{padding=1.5rem border="1px solid #ddd" radius=10px shadow=natural}`;
+  a heading carries it at its end (`## Titel {#anker color=accent}`).
+  Tables, galleries and embeds take `{caption="..."}`, tables also
+  `{footer}` (last row is the footer); an ordered list starting at `5.`
+  keeps its start number. Images follow this app's convention
+  `![Bildunterschrift](bild.png "Alternativtext")` - the same brackets
+  caption audio and video - and a linked image is plain Markdown,
+  `[![BU](bild.png)](ziel)`. A quote's last paragraph starting with an em
+  dash becomes its citation: `> — Cicero, *De finibus*`.
   Blocks that hold other blocks are **fenced containers** (Pandoc/MyST
   style), their content ordinary Markdown, nestable:
   `::: group {bg=base-2 style=lui-card layout=grid columns=3}`,
   `:::: columns` with `::: column {width=25%}`, `:::: accordion` with
   `::: item "Frage" {open}`, `:::: tabs` with `::: tab "Reiter 1"`,
-  `::: cover {image=URL overlay=contrast dim=60 height=420px}`,
-  `::: details "Zusammenfassung" {open}`. A line of colons closes the
+  `::: cover {image=titel.png overlay=contrast dim=60 height=420px}`,
+  `::: media-text {image=bild.png position=right valign=center fill}`,
+  `::: details "Zusammenfassung" {open}`. A cover's or media-text's local
+  image is uploaded with the other images. A line of colons closes the
   innermost container. The older ` ```columns `/` ```details ` fences are
   still read.
 - **Lossless import** — opening a post from the blog turns a block into
   Markdown only if that Markdown renders back to the same block structure
   (attributes, classes, styles, captions, table footers); anything
-  Markdown can't carry (custom padding or borders, a linked image, a
-  quote's citation, dynamic blocks) stays as its original block markup and
+  Markdown can't carry (custom color values, typography settings, a
+  border on one side only, dynamic blocks) stays as its original block markup and
   goes back unchanged. Inline markup without Markdown syntax (`<mark>`,
   `<sub>`, a link with `target`) is kept as inline HTML.
 - **Block inspector** — the "Beitrag" view has a "Block" section for the

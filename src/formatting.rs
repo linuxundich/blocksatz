@@ -317,6 +317,7 @@ const BLOCK_SNIPPETS: &[(&str, &str, &str)] = &[
     ("accordion", "Akkordeon", ":::: accordion\n::: item \"Frage\"\nAntwort\n:::\n\n::: item \"Zweite Frage\"\nAntwort\n:::\n::::"),
     ("tabs", "Reiter", ":::: tabs\n::: tab \"Reiter 1\"\nInhalt\n:::\n\n::: tab \"Reiter 2\"\nInhalt\n:::\n::::"),
     ("cover", "Cover", "::: cover {overlay=contrast dim=60 height=400px}\n## Titel\n:::"),
+    ("media-text", "Medien & Text", "::: media-text {image=bild.png}\nText neben dem Bild\n:::"),
     ("details", "Details", "::: details \"Zusammenfassung\"\nInhalt\n:::"),
     ("latest-posts", "Neueste Beiträge", "<!-- wp:latest-posts {\"postsToShow\":5} /-->"),
     ("archives", "Archive", "<!-- wp:archives /-->"),

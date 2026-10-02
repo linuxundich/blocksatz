@@ -1,5 +1,7 @@
 # Roadmap
 
+*Abgeglichen mit dem Stand von 0.65.0 (2026-10-02). Offene Punkte zur Blockgestaltung stehen in `docs/markdown-blocks.md`.*
+
 A living backlog of candidate next features for Blocksatz, analyzed
 2026-09-04 against the app's actual current state (not a re-statement of
 old plans - every item below was checked against the code before being
@@ -9,28 +11,11 @@ what's already shipped.
 
 ## Quick wins (small scope, low risk)
 
-- **Write the attachment id into exported `wp:image` blocks.** Found on
-  2026-09-27 while auditing linuxundich.de: published articles carry image
-  blocks with no attributes at all and an `<img>` with no
-  `class="wp-image-<id>"` - just `<!-- wp:image -->` plus a bare `src`.
-  Without that link WordPress cannot tell which attachment the image is,
-  so it adds **neither `srcset` nor `width`/`height`**. Two consequences on
-  the live site: phone visitors downloaded the full-size original (measured
-  on one article image: 98,390 bytes instead of the 640px variant's 22,078 -
-  78% wasted), and the page shifts while images load because the browser
-  does not know their aspect ratio until they arrive.
-
-  Everything needed is already there: `MediaItem::wordpress` keeps the
-  uploaded attachment's `media_id`, and `upload_media()` already returns a
-  `source -> URL` map that the exporter uses to rewrite these very blocks.
-  The rewrite just needs to carry the id too - emit
-  `<!-- wp:image {"id":123,"sizeSlug":"large"} -->` and add
-  `class="wp-image-123"` plus `width`/`height` to the `<img>`.
-
-  Scope check on the blog: 29 of 1,156 illustrated posts were affected, four
-  of them from 2026 - i.e. the current publishing path keeps producing them.
-  The existing posts have since been repaired server-side, so this is about
-  stopping it from recurring, not about fixing history.
+- ~~**Write the attachment id into exported `wp:image` blocks.**~~ Done
+  (0.65.0, see CHANGELOG.md) - uploaded images go out like the block
+  editor's: the "large" size's URL and dimensions, `"id"`, `"sizeSlug"`,
+  `wp-image-<id>`, `size-large`, so WordPress adds `srcset`; images of a
+  post opened from the blog keep their ids on re-upload.
 
 - ~~**Paste an image from the clipboard.**~~ Done (see CHANGELOG.md) -
   `Ctrl+V` now saves a clipboard image into the article folder and
@@ -69,10 +54,9 @@ what's already shipped.
   valid date, rather than let WordPress silently publish immediately).
 - ~~**oEmbed / embed block support.**~~ Done (see CHANGELOG.md) - a bare
   URL alone on its own line exports as a real `wp:embed` block.
-- **Multiple WordPress site profiles.** `wpsite.rs` holds exactly one
-  site's URL/username - switching projects between two different
-  self-hosted WordPress installs currently means re-entering the
-  connection by hand each time.
+- ~~**Multiple WordPress site profiles.**~~ Done (0.65.0, see
+  CHANGELOG.md) - a list of blogs in Einstellungen → WordPress and a
+  switcher in the sidebar footer; working copies remember their blog.
 - ~~**Video/audio media support.**~~ Done (see CHANGELOG.md) - local
   video/audio files are inserted the same way as images and export as
   real `wp:video`/`wp:audio` blocks.
@@ -274,15 +258,9 @@ context-sensitive menus) surfaced a couple of these directly.
 
 ### Moderate scope, higher value
 
-- **Categories are flat - no parent/child hierarchy.**
-  `Client::resolve_or_create_term` always creates a new category as
-  top-level (`{"name": name}`, no `parent`), and the "Kategorien"
-  field is a plain comma-separated text entry with no way to express
-  "this one's a child of that one" - even though WordPress categories
-  (unlike tags) are genuinely hierarchical, and a site that already
-  organizes them that way (e.g. this project's own linuxundich.de, per
-  its "Netz-/Politik" category) can't have a new sub-category created
-  from inside the app at all.
+- ~~**Categories are flat - no parent/child hierarchy.**~~ Done (see
+  CHANGELOG.md) - "Kategorien & Tags verwalten" has an "Übergeordnete
+  Kategorie" picker and creates sub-categories (`taxonomy.rs`).
 - ~~**No way to set the post author.**~~ Done (see CHANGELOG.md) - a new
   "Autor" dropdown in Artikel-Eigenschaften, populated from the site's
   real WordPress users, defaulting to "Nicht ändern" so an unset author
@@ -294,10 +272,9 @@ context-sensitive menus) surfaced a couple of these directly.
   toolbar and the Aufmacherbild row in Medienverwaltung, lets an
   already-uploaded image be referenced directly instead of re-uploaded as
   a duplicate attachment.
-- **No control over comment status.** `Frontmatter` has no
-  `comment_status` field - there's no way to publish a post with
-  comments closed (or reopen them) from inside the app; wp-admin is the
-  only way today.
+- ~~**No control over comment status.**~~ Done (see CHANGELOG.md) - a
+  "Kommentare" row in the "Beitrag" view (`comment_status`, "Nicht
+  ändern" by default).
 - ~~**No VG Wort length check / counting-pixel toggle.**~~ Done (see
   CHANGELOG.md) - researched against the real "Worthy" WordPress plugin's
   published source (wordpress.org/plugins/wp-worthy/) rather than guessed
@@ -346,13 +323,13 @@ feature set against Blocksatz's surfaced these gaps:
 Still open from that comparison, roughly by value:
 
 - **Footnotes** (`core/footnotes`, stored in the `footnotes` post meta
-  since WordPress 6.3) - Markdown's `[^1]` syntax maps onto it naturally,
-  but the block needs the meta field written alongside the content.
-- **Accordion / tabs blocks** - Quill supports both as extra container
-  blocks; they'd fit the existing fenced-block pattern (` ```details `
-  already covers a single disclosure).
+  since WordPress 6.3) - *partly done (0.65.0)*: an opened post keeps its
+  footnotes (`wp_footnotes` in the frontmatter, sent back on upload) and
+  the preview shows them. Still open: writing new ones as Markdown `[^1]`.
+- ~~**Accordion / tabs blocks**~~ Done (0.65.0) - `:::: accordion` /
+  `::: item`, `:::: tabs` / `::: tab` containers (`docs/markdown-blocks.md`).
 - **An update check on launch** (Quill shows a "new version available"
   link) - only relevant for non-Flathub installs.
-- **Inline image resizing** (drag handles/width field) - would need a
-  width attribute on `wp:image`, which the Markdown syntax can't carry
-  today.
+- **Inline image resizing** (drag handles/width field) - the width
+  itself can now be written as an attribute line (`{width=240px}`,
+  0.65.0); drag handles in the preview are still open.

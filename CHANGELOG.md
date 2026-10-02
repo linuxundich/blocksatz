@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     dash, `> — Cicero, *De finibus*`, becomes the `<cite>`;
   - **Media & Text** as a container,
     `::: media-text {image=bild.png position=right valign=center fill width=40}`
-    (also in "Einfügen" and the block inspector);
+    (also in "Einfügen" and the block inspector); an `alt=` in the header
+    wins over the media list's alt text;
   - **boxes**: `padding=` (CSS shorthand or a theme preset), `border="2px
     dashed #1d4ed8"`, `radius=`, `shadow=natural` on paragraphs,
     headings, groups, images and the other blocks;

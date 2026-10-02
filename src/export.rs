@@ -678,7 +678,9 @@ fn apply_container_image_metadata(kind: &str, params: &mut gutenberg::ContainerP
             }
         }
     }
-    if kind == "media-text" {
+    // An `alt=` written in the header wins - the same file can appear
+    // elsewhere with another alt text, the media list keeps only one.
+    if kind == "media-text" && params.get("alt").is_none() {
         if let Some(alt) = item.alt.as_wordpress_value() {
             params.set("alt", Some(alt.to_string()));
         }
@@ -861,13 +863,17 @@ mod tests {
                 crate::wpclient::ImageSize { slug: "large".into(), url: format!("https://example.org/{name}-1280x800.png"), width: 1280, height: 800 },
             ]
         };
-        let md = "::: cover {image=titel.png dim=50}\n# Titel\n:::\n\n::: media-text {image=seite.png alt=\"Ein Bild\"}\nText\n:::\n";
+        let md = "::: cover {image=titel.png dim=50}\n# Titel\n:::\n\n::: media-text {image=seite.png alt=\"Ein Bild\"}\nText\n:::\n\n![](seite.png \"Anderer Alt\")\n";
         let mut media = media::reconcile(&[], md);
-        let sources: Vec<&str> = media.iter().map(|item| item.source.as_str()).collect();
-        assert_eq!(sources, ["titel.png", "seite.png"]);
-        assert_eq!(media[1].alt.as_wordpress_value(), Some("Ein Bild"));
-        media[0].wordpress = media::WordPressMediaRef::for_article(42, &sizes("titel"), "hash".into());
-        media[1].wordpress = media::WordPressMediaRef::for_article(43, &sizes("seite"), "hash".into());
+        let mut sources: Vec<&str> = media.iter().map(|item| item.source.as_str()).collect();
+        sources.sort_unstable();
+        assert_eq!(sources, ["seite.png", "titel.png"]);
+        for item in media.iter_mut() {
+            item.wordpress = match item.source.as_str() {
+                "titel.png" => media::WordPressMediaRef::for_article(42, &sizes("titel"), "hash".into()),
+                _ => media::WordPressMediaRef::for_article(43, &sizes("seite"), "hash".into()),
+            };
+        }
         let mut blocks = gutenberg::parse_markdown(md);
         apply_media_metadata(&mut blocks, &media);
         let urls: std::collections::HashMap<String, String> = media.iter().map(|item| (item.source.clone(), item.wordpress.as_ref().unwrap().url.clone())).collect();

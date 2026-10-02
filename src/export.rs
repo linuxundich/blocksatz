@@ -377,7 +377,8 @@ fn run_export(
     frontmatter.media = media::reconcile(&frontmatter.media, body);
     let uploaded_urls = media::sync_uploads(&client, &mut frontmatter.media, doc_dir)?;
 
-    let mut blocks = gutenberg::parse_markdown(body);
+    let (body, footnotes) = with_footnotes(body);
+    let mut blocks = gutenberg::parse_markdown(&body);
     apply_media_metadata(&mut blocks, &frontmatter.media);
     rewrite_image_urls(&mut blocks, &uploaded_urls);
     let content = gutenberg::render_blocks(&blocks);
@@ -443,8 +444,10 @@ fn run_export(
     if let Some(keyword) = &frontmatter.rank_math_focus_keyword {
         meta.insert("rank_math_focus_keyword".to_string(), serde_json::Value::String(keyword.clone()));
     }
-    if let Some(footnotes) = &frontmatter.wp_footnotes {
-        meta.insert("footnotes".to_string(), serde_json::Value::String(footnotes.clone()));
+    // Footnotes written in Markdown, or the ones an opened post brought
+    // along unconverted.
+    if let Some(footnotes) = footnotes_meta(&footnotes, frontmatter.wp_footnotes.as_deref()) {
+        meta.insert("footnotes".to_string(), serde_json::Value::String(footnotes));
     }
     if !meta.is_empty() {
         payload["meta"] = serde_json::Value::Object(meta);
@@ -539,9 +542,30 @@ fn run_export(
 /// only exists once an upload has actually happened, so showing the local
 /// path here is the correct preview before that point.
 pub(crate) fn gutenberg_preview_html(markdown: &str, media: &[media::MediaItem]) -> String {
-    let mut blocks = gutenberg::parse_markdown(markdown);
+    let mut blocks = gutenberg::parse_markdown(&with_footnotes(markdown).0);
     apply_media_metadata(&mut blocks, media);
     gutenberg::render_blocks(&blocks)
+}
+
+/// Markdown footnotes (`gutenberg::footnotes`): the body with WordPress's
+/// references in place of `[^1]`, and the notes. The list block is added
+/// at the end when the body has none.
+pub(crate) fn with_footnotes(markdown: &str) -> (String, Vec<gutenberg::footnotes::Footnote>) {
+    let (mut body, notes) = gutenberg::footnotes::extract(markdown);
+    if !notes.is_empty() && !body.contains("<!-- wp:footnotes") {
+        body = format!("{}\n\n{}\n", body.trim_end(), gutenberg::footnotes::LIST_BLOCK);
+    }
+    (body, notes)
+}
+
+/// The `footnotes` meta to send: the Markdown notes, else what an opened
+/// post brought along unconverted.
+pub(crate) fn footnotes_meta(notes: &[gutenberg::footnotes::Footnote], kept: Option<&str>) -> Option<String> {
+    if notes.is_empty() {
+        kept.map(str::to_string)
+    } else {
+        Some(gutenberg::footnotes::meta_json(notes))
+    }
 }
 
 /// Overlays each image block's alt text/caption with the corresponding
@@ -852,6 +876,23 @@ mod tests {
         assert!(out.contains("<img class=\"wp-block-cover__image-background wp-image-42\" alt=\"\" src=\"https://example.org/titel-1280x800.png\""), "{out}");
         assert!(out.contains("\"mediaId\":43") && out.contains("\"mediaSizeSlug\":\"large\""), "{out}");
         assert!(out.contains("<img src=\"https://example.org/seite-1280x800.png\" alt=\"Ein Bild\" class=\"wp-image-43 size-large\"/>"), "{out}");
+    }
+
+    /// `[^1]` footnotes go out as WordPress's: references in the text,
+    /// the list block at the end, the notes as `footnotes` meta.
+    #[test]
+    fn markdown_footnotes_become_wordpress_footnotes() {
+        let md = "Ein Satz.[^1]\n\n[^1]: Die *Quelle*.\n";
+        let html = gutenberg_preview_html(md, &[]);
+        let id = gutenberg::footnotes::footnote_id("1");
+        assert!(html.contains(&format!("<p>Ein Satz.<sup data-fn=\"{id}\" class=\"fn\"><a href=\"#{id}\" id=\"{id}-link\">1</a></sup></p>")), "{html}");
+        assert!(html.trim_end().ends_with("<!-- wp:footnotes /-->"), "{html}");
+        assert!(!html.contains("Quelle"), "{html}");
+        let meta = footnotes_meta(&with_footnotes(md).1, Some("[{\"id\":\"alt\",\"content\":\"x\"}]")).unwrap();
+        assert_eq!(meta, format!("[{{\"content\":\"Die <em>Quelle</em>.\",\"id\":\"{id}\"}}]"));
+        // Without Markdown footnotes, an opened post's meta goes back.
+        assert_eq!(footnotes_meta(&with_footnotes("Text").1, Some("[]")).as_deref(), Some("[]"));
+        assert_eq!(footnotes_meta(&[], None), None);
     }
 
     #[test]

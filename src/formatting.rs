@@ -127,6 +127,7 @@ fn insert_menu() -> gio::Menu {
     let elements = gio::Menu::new();
     elements.append(Some(&tr("Trenner")), Some("fmt.insert-separator"));
     elements.append(Some(&tr("„Weiterlesen“-Marker")), Some("fmt.insert-more"));
+    elements.append(Some(&tr("Fußnote")), Some("fmt.insert-footnote"));
     let containers = gio::Menu::new();
     let dynamic = gio::Menu::new();
     for (id, label, snippet) in BLOCK_SNIPPETS {
@@ -179,6 +180,56 @@ fn install_actions(actions: &gio::SimpleActionGroup, buffer: &sourceview5::Buffe
         more.connect_activate(move |_, _| insert_block(&buffer, "<!--more-->"));
     }
     actions.add_action(&more);
+    let footnote = gio::SimpleAction::new("insert-footnote", None);
+    {
+        let buffer = buffer.clone();
+        footnote.connect_activate(move |_, _| insert_footnote(&buffer));
+    }
+    actions.add_action(&footnote);
+}
+
+/// The next free numeric footnote label in `text`.
+fn next_footnote_label(text: &str) -> u32 {
+    text.match_indices("[^")
+        .filter_map(|(i, _)| {
+            let rest = &text[i + 2..];
+            rest[..rest.find(']')?].parse::<u32>().ok()
+        })
+        .max()
+        .unwrap_or(0)
+        + 1
+}
+
+/// The definition line appended for a new footnote: after a blank line,
+/// or right below the previous definition.
+fn footnote_definition(text: &str, label: u32) -> String {
+    let last_line = text.trim_end_matches('\n').rsplit('\n').next().unwrap_or("");
+    let separator = if text.trim().is_empty() {
+        ""
+    } else if last_line.starts_with("[^") && last_line.contains("]:") {
+        "\n"
+    } else {
+        "\n\n"
+    };
+    format!("{separator}[^{label}]: ")
+}
+
+/// `[^n]` at the cursor and its definition at the end of the text, the
+/// cursor there to type the note.
+fn insert_footnote(buffer: &sourceview5::Buffer) {
+    let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
+    let label = next_footnote_label(&text);
+    buffer.begin_user_action();
+    buffer.delete_selection(true, true);
+    let mut cursor = buffer.iter_at_mark(&buffer.get_insert());
+    buffer.insert(&mut cursor, &format!("[^{label}]"));
+    let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
+    let trimmed_len = text.trim_end_matches('\n').chars().count() as i32;
+    let mut end = buffer.iter_at_offset(trimmed_len);
+    let definition = footnote_definition(&text, label);
+    buffer.insert(&mut end, &definition);
+    buffer.end_user_action();
+    buffer.place_cursor(&buffer.iter_at_offset(trimmed_len + definition.chars().count() as i32));
 }
 
 /// What a line is: the prefix the line-style buttons set.
@@ -531,6 +582,14 @@ fn select(buffer: &sourceview5::Buffer, start_offset: i32, end_offset: i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn footnotes_get_the_next_number_and_a_definition_line() {
+        assert_eq!(next_footnote_label("Kein Verweis"), 1);
+        assert_eq!(next_footnote_label("A[^1] B[^quelle] C[^3]\n\n[^1]: x"), 4);
+        assert_eq!(footnote_definition("Text[^1]\n", 1), "\n\n[^1]: ");
+        assert_eq!(footnote_definition("Text[^2]\n\n[^1]: Eins\n", 2), "\n[^2]: ");
+    }
 
     #[test]
     fn markdown_destination_wraps_a_path_containing_a_space_in_angle_brackets() {

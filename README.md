@@ -186,7 +186,11 @@ blocks. Implemented so far:
   `![Bildunterschrift](bild.png "Alternativtext")` - the same brackets
   caption audio and video - and a linked image is plain Markdown,
   `[![BU](bild.png)](ziel)`. A quote's last paragraph starting with an em
-  dash becomes its citation: `> — Cicero, *De finibus*`.
+  dash becomes its citation: `> — Cicero, *De finibus*`. **Footnotes**
+  are written as on GitHub, `Satz.[^1]` with `[^1]: Quelle` anywhere
+  (Einfügen → Fußnote numbers and places them), and go out as WordPress
+  footnotes - the references, the footnote list and the `footnotes`
+  meta; a post opened from the blog gets its footnotes back as `[^1]`.
   Blocks that hold other blocks are **fenced containers** (Pandoc/MyST
   style), their content ordinary Markdown, nestable:
   `::: group {bg=base-2 style=lui-card layout=grid columns=3}`,

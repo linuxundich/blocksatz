@@ -82,7 +82,14 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
     // its id is kept below regardless, just without a cached title.
     let parent_name = (detail.parent != 0).then(|| client.get_item(post_type.rest_base(), detail.parent).ok().map(|d| d.title)).flatten();
 
-    let body = gutenberg::gutenberg_to_markdown(&detail.content);
+    let mut body = gutenberg::gutenberg_to_markdown(&detail.content);
+    // Footnotes become `[^1]` with their definitions at the end - unless
+    // they don't add up, then the meta travels on as it is.
+    let mut kept_footnotes = (!detail.footnotes.is_empty() && detail.footnotes != "[]").then_some(detail.footnotes);
+    if let Some(converted) = kept_footnotes.as_deref().and_then(|meta| gutenberg::footnotes::to_markdown(&body, meta)) {
+        body = converted;
+        kept_footnotes = None;
+    }
     let detail_content_ids = gutenberg::image_media_ids(&detail.content);
     let is_future = detail.status == "future";
     let frontmatter = Frontmatter {
@@ -97,7 +104,7 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
         rank_math_title: (!detail.rank_math_title.is_empty()).then_some(detail.rank_math_title),
         rank_math_description: (!detail.rank_math_description.is_empty()).then_some(detail.rank_math_description),
         rank_math_focus_keyword: (!detail.rank_math_focus_keyword.is_empty()).then_some(detail.rank_math_focus_keyword),
-        wp_footnotes: (!detail.footnotes.is_empty() && detail.footnotes != "[]").then_some(detail.footnotes),
+        wp_footnotes: kept_footnotes,
         markdown_hint: false,
         featured_image: None,
         featured_image_alt: None,

@@ -720,7 +720,12 @@ impl ScrollRestore {
 #[allow(clippy::too_many_arguments)]
 pub fn render_html(markdown: &str, style: PreviewStyle, dark: bool, media: &[MediaItem], restore: ScrollRestore, frontmatter: &Frontmatter, show_header: bool, code_colors: Option<(String, String)>) -> String {
     let restore_js = restore.script();
-    let body = render_body(markdown, media, frontmatter.wp_footnotes.as_deref());
+    // Footnotes written in Markdown show like the blog's (references and
+    // the list block); an opened post's unconverted ones come from the
+    // frontmatter.
+    let (markdown, notes) = crate::export::with_footnotes(markdown);
+    let footnotes = crate::export::footnotes_meta(&notes, frontmatter.wp_footnotes.as_deref());
+    let body = render_body(&markdown, media, footnotes.as_deref());
     let header = if show_header { render_header(frontmatter) } else { String::new() };
     let css = style_css(style, dark);
     let code_css = code_block_css(code_colors.as_ref().map(|(background, foreground)| (background.as_str(), foreground.as_str())));

@@ -11,6 +11,7 @@ mod attrs;
 mod containers;
 mod editing;
 mod fidelity;
+pub mod footnotes;
 mod reverse;
 pub use assess::{assess, Assessment, Closeness};
 pub use attrs::BlockAttrs;

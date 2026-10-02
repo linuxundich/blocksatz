@@ -22,8 +22,8 @@ sizes, connection check.
   custom color values, typography settings, roman list numbering, table
   cell alignment, image aspect ratio, button width/justification.
 - ~~**Cover image from a local file**~~ Done - also Media & Text.
-- **Write footnotes in Markdown** (`[^1]`): opened posts keep theirs
-  already (`wp_footnotes`), new ones can't be written yet.
+- ~~**Write footnotes in Markdown**~~ Done (see CHANGELOG.md, Unreleased) -
+  `[^1]` both ways, Einfügen → Fußnote.
 - **Flathub**: narrow the Flatpak sandbox (see "Flatpak sandbox is wider
   than the app needs" below) and submit; the domain verification via
   linuxundich.de is prepared (`docs/flathub-verification.md`).

@@ -291,3 +291,10 @@ Schritt 1 sollte unabhängig vom Rest sofort kommen.
   Testbeitrag: 84 → 64 rohe Blöcke; erkannt, aber roh bleiben noch
   eigene Farbwerte, Typografie, `type=upper-roman`, Zellausrichtung,
   Seitenverhältnis von Bildern, Button-Breite/-Ausrichtung.
+- **Fußnoten**: `crates/gutenberg/src/footnotes.rs` – `extract` nimmt
+  `[^label]: …`-Definitionen heraus (Leerzeilen bleiben, damit die
+  Vorschau-Zeilen stimmen) und ersetzt Verweise durch WordPress'
+  `<sup data-fn>`; IDs aus dem Label (stabil bei jedem Upload), Meta
+  `footnotes` als JSON. `to_markdown` macht beim Import daraus wieder
+  `[^n]` plus Definitionen – nur wenn jede Fußnote einen Verweis hat,
+  sonst bleibt `wp_footnotes` wie bisher.

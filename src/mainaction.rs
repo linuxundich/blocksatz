@@ -410,11 +410,14 @@ impl MainAction {
             Some((title, rest)) if fm.title.trim().is_empty() => (title, rest.to_string()),
             _ => (fm.title.clone(), doc.body.clone()),
         };
-        let payload = serde_json::json!({
+        let mut payload = serde_json::json!({
             "title": title,
             "content": export::gutenberg_preview_html(&body, &fm.media),
             "excerpt": fm.excerpt.clone().unwrap_or_default(),
         });
+        if let Some(footnotes) = export::footnotes_meta(&export::with_footnotes(&body).1, fm.wp_footnotes.as_deref()) {
+            payload["meta"] = serde_json::json!({ "footnotes": footnotes });
+        }
         let base = site.url.trim_end_matches('/');
         let failed = serde_json::to_string(&tr("Vorschau fehlgeschlagen. Bist du im Browser-Tab bei WordPress angemeldet?")).unwrap_or_default();
         let script = format!(

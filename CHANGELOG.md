@@ -29,6 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   remains is dynamic blocks and rare settings (custom color values,
   typography, roman list numbering).
 
+- **Footnotes in Markdown**: `Ein Satz.[^1]` with `[^1]: Die Quelle`
+  (anywhere, indented lines continue it) goes out as WordPress footnotes -
+  numbered references, the footnote list block (added at the end when
+  missing) and the `footnotes` meta, also in the preview and the autosave
+  preview. Einfügen → "Fußnote" adds the next number at the cursor and its
+  definition line at the end. Opening a post from the blog turns its
+  footnotes into `[^1]` and definitions; only when they don't add up does
+  the meta travel along unconverted as before.
+
 ### Changed
 
 - **Cover and Media & Text images can be local files**: an `image=` path

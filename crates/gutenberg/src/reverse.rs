@@ -965,7 +965,7 @@ fn extract_attr(html: &str, attr: &str) -> Option<String> {
 /// element - `<mark>` with a color, `<sub>`, `<kbd>`, a link with `target`
 /// or `rel`, a line break - is kept as inline HTML, which Markdown passes
 /// through unchanged, instead of being dropped.
-fn inline_html_to_markdown(html: &str) -> String {
+pub(crate) fn inline_html_to_markdown(html: &str) -> String {
     let mut out = String::new();
     // Per open `<a>`: its href when written as Markdown, `None` when kept
     // as HTML (so the matching `</a>` stays HTML too).

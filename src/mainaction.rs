@@ -34,6 +34,8 @@ enum BannerKind {
     RemoteChanged,
     Conflict,
     Gone,
+    /// Opened from the blog with more than plain Markdown in it.
+    MarkdownHint,
 }
 
 pub struct MainAction {
@@ -195,6 +197,11 @@ impl MainAction {
                 BannerKind::PublishedChanges,
                 tr("Veröffentlichter Beitrag: Deine Änderungen gehen erst mit „Änderungen veröffentlichen“ online."),
                 String::new(),
+            ),
+            _ if fm.markdown_hint && crate::markdowncheck::assess(&doc.body).closeness != gutenberg::Closeness::Plain => (
+                BannerKind::MarkdownHint,
+                tr("Teile dieses Beitrags sind WordPress-Markup und nur als Text bearbeitbar."),
+                tr("Details"),
             ),
             _ => (BannerKind::None, String::new(), String::new()),
         };
@@ -437,8 +444,25 @@ impl MainAction {
             BannerKind::RemoteChanged => self.load_from_blog(),
             BannerKind::Conflict => self.resolve_conflict(),
             BannerKind::Gone => self.unlink(),
+            BannerKind::MarkdownHint => self.show_markdown_details(),
             BannerKind::PublishedChanges | BannerKind::None => {}
         }
+    }
+
+    /// What makes the open article more than plain Markdown; "Hinweis
+    /// ausblenden" stops the banner for it.
+    fn show_markdown_details(&self) {
+        let body = self.ctx.buffer.text(&self.ctx.buffer.start_iter(), &self.ctx.buffer.end_iter(), false).to_string();
+        let assessment = crate::markdowncheck::assess(&body);
+        let weak = self.weak.clone();
+        let on_hide: Rc<dyn Fn()> = Rc::new(move || {
+            let Some(this) = weak.upgrade() else { return };
+            this.ctx.frontmatter.borrow_mut().markdown_hint = false;
+            worksave::flush(&this.ctx, false);
+            this.refresh();
+        });
+        let parent = self.window.upgrade().map(|window| window.upcast::<gtk4::Widget>());
+        crate::markdowncheck::show_details(parent.as_ref(), &assessment, Some(on_hide));
     }
 
     /// Replaces the working copy with the post as it is on the blog.

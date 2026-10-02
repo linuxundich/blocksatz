@@ -41,6 +41,7 @@ mod linkcheck;
 mod linkpicker;
 mod llm;
 mod mainaction;
+mod markdowncheck;
 mod mdpango;
 mod media;
 mod mediabrowser;

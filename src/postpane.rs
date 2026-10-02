@@ -25,6 +25,10 @@ pub struct PostPane {
     pub widget: gtk4::Widget,
     state_label: gtk4::Label,
     detail_label: gtk4::Label,
+    /// "Markdown-Nähe: mittel/gering" - only for articles with more than
+    /// plain Markdown (`markdowncheck.rs`).
+    closeness_row: gtk4::Box,
+    closeness_label: gtk4::Label,
     preview_button: gtk4::Button,
     admin_button: gtk4::Button,
     properties_slot: gtk4::Box,
@@ -49,12 +53,20 @@ impl PostPane {
         detail_label.add_css_class("dim-label");
         let preview_button = gtk4::Button::builder().label(tr("Blog-Vorschau öffnen")).action_name("main.open-preview").build();
         let admin_button = gtk4::Button::builder().label(tr("In wp-admin bearbeiten")).build();
+        let closeness_label = gtk4::Label::builder().xalign(0.0).wrap(true).hexpand(true).build();
+        closeness_label.add_css_class("dim-label");
+        let closeness_button = gtk4::Button::builder().label(tr("Details")).valign(gtk4::Align::Center).build();
+        closeness_button.add_css_class("flat");
+        let closeness_row = gtk4::Box::builder().spacing(6).visible(false).build();
+        closeness_row.append(&closeness_label);
+        closeness_row.append(&closeness_button);
         let buttons = gtk4::Box::builder().spacing(6).margin_top(6).build();
         buttons.append(&preview_button);
         buttons.append(&admin_button);
         let card_content = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(4).margin_top(12).margin_bottom(12).margin_start(12).margin_end(12).build();
         card_content.append(&state_label);
         card_content.append(&detail_label);
+        card_content.append(&closeness_row);
         card_content.append(&buttons);
         let card = gtk4::Frame::builder().child(&card_content).build();
         card.add_css_class("card");
@@ -87,6 +99,8 @@ impl PostPane {
             widget: scrolled.upcast(),
             state_label,
             detail_label,
+            closeness_row,
+            closeness_label,
             preview_button,
             admin_button: admin_button.clone(),
             properties_slot,
@@ -100,6 +114,14 @@ impl PostPane {
             _inspector: inspector,
             weak: weak.clone(),
         });
+        {
+            let weak = this.weak.clone();
+            closeness_button.connect_clicked(move |button| {
+                let Some(this) = weak.upgrade() else { return };
+                let assessment = crate::markdowncheck::assess(&this.ctx.current_document().body);
+                crate::markdowncheck::show_details(Some(button.upcast_ref()), &assessment, None);
+            });
+        }
         {
             let weak = this.weak.clone();
             admin_button.connect_clicked(move |_| {
@@ -135,6 +157,12 @@ impl PostPane {
             _ => tr("Noch nicht im Blog."),
         };
         self.detail_label.set_label(&detail);
+        let assessment = crate::markdowncheck::assess(&doc.body);
+        let designed = assessment.closeness != gutenberg::Closeness::Plain;
+        self.closeness_row.set_visible(designed);
+        if designed {
+            self.closeness_label.set_label(&tr("Markdown-Nähe: {level}").replace("{level}", &crate::markdowncheck::closeness_label(assessment.closeness)));
+        }
         let linked = doc.frontmatter.wp_post_id.is_some() && !matches!(remote, Remote::Gone);
         let published = matches!(state.status, Some(PostStatus::Publish | PostStatus::Private));
         self.preview_button.set_label(&if published { tr("Im Blog ansehen") } else { tr("Blog-Vorschau öffnen") });

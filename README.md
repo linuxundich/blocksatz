@@ -204,6 +204,10 @@ blocks. Implemented so far:
   alignment and the block styles the theme registers - only what the
   block supports. Every change rewrites the attribute line (or a
   heading's braces, or a container's opening line) as one undoable edit.
+- **Markdown closeness check** — opening a post from the blog rates how
+  much of it is beyond plain Markdown; a heavily designed post suggests
+  editing it in wp-admin instead, a moderately designed one gets a banner
+  with details (`docs/markdown-naehe.md`).
 - **Theme presets in the preview** — the active blog's color palette,
   gradients, font sizes and block styles are fetched over the REST API
   (`src/themestyle.rs`, cached per blog) and turned into the same preset

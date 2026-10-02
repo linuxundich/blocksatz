@@ -37,9 +37,23 @@ pub fn build_page(on_sites_changed: Rc<dyn Fn()>) -> adw::PreferencesPage {
     let status_group = adw::PreferencesGroup::new();
     status_group.add(&status_label);
 
+    let warn_row = adw::SwitchRow::builder()
+        .title(tr("Vor stark gestalteten Beiträgen warnen"))
+        .subtitle(tr("Fragt beim Öffnen aus dem Blog nach, wenn ein Beitrag sich hier großteils nur als WordPress-Markup bearbeiten ließe."))
+        .active(crate::markdowncheck::warn_enabled())
+        .build();
+    warn_row.connect_active_notify(|row| crate::markdowncheck::set_warn_enabled(row.is_active()));
+    let building_row = adw::EntryRow::builder().title(tr("Blog-Bausteine (zählen nicht als Markup)")).text(crate::markdowncheck::building_blocks_text().as_str()).build();
+    building_row.connect_changed(|row| crate::markdowncheck::set_building_blocks_text(&row.text()));
+    let import_group = adw::PreferencesGroup::builder().title(tr("Beiträge aus dem Blog")).build();
+    import_group.set_description(Some(&tr("Blocksatz ist für Artikel gedacht, die in Markdown geschrieben sind. Blöcke wie Inhaltsverzeichnis oder Werbeplatz, die zu deinen Artikeln gehören, trägst du als Blog-Bausteine ein (Blocknamen, durch Kommas getrennt).")));
+    import_group.add(&warn_row);
+    import_group.add(&building_row);
+
     let page = adw::PreferencesPage::builder().title("WordPress").icon_name("network-server-symbolic").build();
     page.add(&sites_group);
     page.add(&form_group);
+    page.add(&import_group);
     page.add(&status_group);
 
     let ui = Rc::new(Ui { sites_group, url_row, username_row, password_row, status_label, rows: RefCell::new(Vec::new()), on_sites_changed });

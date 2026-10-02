@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Warning for heavily designed posts** (`docs/markdown-naehe.md`):
+  opening a post from the blog rates how close it is to plain Markdown.
+  A post with three or more blocks that stay WordPress markup (or more
+  than 10 % of its text, classic content, or mostly containers) asks
+  first - "In wp-admin bearbeiten" (suggested), "Trotzdem öffnen" or
+  cancel. A moderately designed one opens with a banner whose "Details"
+  list what is beyond Markdown ("Hinweis ausblenden" per article), and
+  the "Beitrag" view shows "Markdown-Nähe: mittel/gering". Blocks that
+  belong to your articles (table of contents, ad slot, "Weiterlesen",
+  page break, footnotes) don't count; the list and the warning are in
+  Einstellungen → WordPress.
 - **Block attributes in Markdown**: an attribute line in curly braces
   below a block sets what Markdown has no syntax for - text and
   background color, gradient, font size, alignment, block style, anchor,

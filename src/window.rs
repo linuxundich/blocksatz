@@ -10,7 +10,7 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    blogposts, blogsync, importer, library, librarysidebar, mainaction, postpane, releasecheck, syncstate, worksave,
+    blogposts, blogsync, importer, library, librarysidebar, mainaction, markdowncheck, postpane, releasecheck, syncstate, worksave,
     about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
     mediabrowser, medialibrary, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, themestyle, windowstate,
 };
@@ -590,7 +590,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_ai_writer_action(&window, &doc_ctx);
     wire_open_path_action(&window, &doc_ctx);
     wire_save_action(&window, &doc_ctx);
-    wire_library(&window, &doc_ctx, &split_view, &nav_view, &primary_menu);
+    wire_library(&window, &doc_ctx, &split_view, &nav_view, &primary_menu, &open_in_browser);
     // Blog previews: "Vorschau → Im Blog".
     let open_preview_url: Rc<dyn Fn(String)> = {
         let blog_view = blog_view.clone();
@@ -955,13 +955,14 @@ fn wire_new_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
 
 /// Wires the library sidebar, the blog archive page and the actions that
 /// navigate between them and the editor.
-fn wire_library(window: &adw::ApplicationWindow, ctx: &DocContext, split_view: &adw::OverlaySplitView, nav_view: &adw::NavigationView, primary_menu: &gio::Menu) {
+fn wire_library(window: &adw::ApplicationWindow, ctx: &DocContext, split_view: &adw::OverlaySplitView, nav_view: &adw::NavigationView, primary_menu: &gio::Menu, open_url: &Rc<dyn Fn(String)>) {
     let posts_page = blogposts::BlogPostsPage::new(
         {
             let ctx = ctx.clone();
             let nav_view = nav_view.clone();
+            let open_url = open_url.clone();
             Rc::new(move |imported| {
-                open_imported_post(&ctx, imported);
+                open_imported_post(&ctx, imported, &open_url);
                 nav_view.pop_to_tag("editor");
             })
         },
@@ -1061,7 +1062,7 @@ fn wire_library(window: &adw::ApplicationWindow, ctx: &DocContext, split_view: &
 /// library: an existing one for the same post is reopened as it is (it may
 /// hold local changes - those must not be overwritten by the server copy),
 /// otherwise a new library folder is created from `imported`.
-pub(crate) fn open_imported_post(ctx: &DocContext, imported: importer::ImportedPost) {
+pub(crate) fn open_imported_post(ctx: &DocContext, imported: importer::ImportedPost, open_url: &Rc<dyn Fn(String)>) {
     let root = library::root();
     let site_id = imported.frontmatter.wp_site.clone().unwrap_or_else(|| crate::wpsite::load().site_id());
     if let Some(existing) = imported.frontmatter.wp_post_id.and_then(|id| library::find_by_post_id(&root, &site_id, id)) {
@@ -1069,6 +1070,42 @@ pub(crate) fn open_imported_post(ctx: &DocContext, imported: importer::ImportedP
         show_toast(&ctx.toast_overlay, &tr("Vorhandene Arbeitskopie geöffnet."));
         return;
     }
+    // More than plain Markdown: the editor points it out, and a heavily
+    // designed post asks first whether wp-admin isn't the better place
+    // (`docs/markdown-naehe.md`).
+    let assessment = markdowncheck::assess(&imported.body);
+    let mut imported = imported;
+    imported.frontmatter.markdown_hint = assessment.closeness != gutenberg::Closeness::Plain;
+    if assessment.closeness == gutenberg::Closeness::Heavy && markdowncheck::warn_enabled() {
+        let admin_url = imported.frontmatter.wp_post_id.map(|id| format!("{}/wp-admin/post.php?post={id}&action=edit", crate::wpsite::for_site_id(Some(&site_id)).url.trim_end_matches('/')));
+        let imported = Rc::new(RefCell::new(Some(imported)));
+        let on_open: Rc<dyn Fn()> = {
+            let ctx = ctx.clone();
+            let imported = imported.clone();
+            Rc::new(move || {
+                if let Some(imported) = imported.borrow_mut().take() {
+                    create_working_copy(&ctx, imported);
+                }
+            })
+        };
+        let on_admin: Rc<dyn Fn()> = {
+            let open_url = open_url.clone();
+            Rc::new(move || {
+                if let Some(url) = &admin_url {
+                    open_url(url.clone());
+                }
+            })
+        };
+        let parent = ctx.toast_overlay.root().map(|root| root.upcast::<gtk4::Widget>());
+        markdowncheck::confirm_heavy_open(parent.as_ref(), &assessment, on_open, on_admin);
+        return;
+    }
+    create_working_copy(ctx, imported);
+}
+
+/// A new library folder for a post fetched from the blog, opened.
+fn create_working_copy(ctx: &DocContext, imported: importer::ImportedPost) {
+    let root = library::root();
     let doc = Document { frontmatter: imported.frontmatter, body: imported.body };
     let title = (!doc.frontmatter.title.is_empty()).then_some(doc.frontmatter.title.as_str());
     let written = library::create_entry(&root, title, &library::untitled_name()).and_then(|path| document::write(&path, &doc).map(|()| path));

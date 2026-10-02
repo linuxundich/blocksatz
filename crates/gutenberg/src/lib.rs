@@ -6,11 +6,13 @@
 
 use pulldown_cmark::{Alignment, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
+mod assess;
 mod attrs;
 mod containers;
 mod editing;
 mod fidelity;
 mod reverse;
+pub use assess::{assess, Assessment, Closeness};
 pub use attrs::BlockAttrs;
 pub use containers::Params as ContainerParams;
 pub use editing::{attrs_edit, block_at, BlockAtCursor};

@@ -161,6 +161,9 @@ pub struct Frontmatter {
     /// `<sup data-fn>` markers and the `wp:footnotes` block. Carried along
     /// so a copy or a re-upload still has them.
     pub wp_footnotes: Option<String>,
+    /// Opened from the blog with more than plain Markdown in it - the
+    /// editor points that out (`markdowncheck.rs`) until dismissed.
+    pub markdown_hint: bool,
     pub featured_image: Option<String>,
     /// Alt text for `featured_image` - sent as the resulting WordPress
     /// media attachment's `alt_text` on upload (`mediapanel.rs`), the same
@@ -343,6 +346,7 @@ pub fn parse(input: &str) -> Document {
             "rank_math_description" => {
                 frontmatter.rank_math_description = (!value.is_empty()).then(|| unquote(value));
             }
+            "markdown_hint" => frontmatter.markdown_hint = value.trim() == "true",
             "wp_footnotes" => {
                 frontmatter.wp_footnotes = (!value.is_empty()).then(|| unquote(value));
             }
@@ -424,6 +428,9 @@ pub fn serialize(doc: &Document) -> String {
     }
     if let Some(description) = &fm.rank_math_description {
         out.push_str(&format!("rank_math_description: \"{}\"\n", escape(description)));
+    }
+    if fm.markdown_hint {
+        out.push_str("markdown_hint: true\n");
     }
     if let Some(footnotes) = &fm.wp_footnotes {
         out.push_str(&format!("wp_footnotes: \"{}\"\n", escape(footnotes)));
@@ -686,6 +693,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn markdown_hint_round_trips_and_is_omitted_when_off() {
+        let mut doc = Document::default();
+        assert!(!serialize(&doc).contains("markdown_hint"));
+        doc.frontmatter.markdown_hint = true;
+        assert!(parse(&serialize(&doc)).frontmatter.markdown_hint);
+    }
+
+    #[test]
     fn footnotes_meta_round_trips_through_the_frontmatter() {
         let mut doc = Document::default();
         doc.frontmatter.wp_footnotes = Some(r#"[{"id":"9ce9","content":"Ein \"Zitat\" und <a href=\"x\">Link</a>"}]"#.to_string());
@@ -937,6 +952,7 @@ mod tests {
                 rank_math_description: Some("An SEO description.".to_string()),
                 rank_math_focus_keyword: Some("gtk markdown editor".to_string()),
                 wp_footnotes: None,
+                markdown_hint: false,
                 featured_image: None,
                 featured_image_alt: Some("a sleeping cat".to_string()),
                 wp_post_id: Some(7),

@@ -30,6 +30,7 @@ src/linkcheck.rs
 src/linkpicker.rs
 src/llm.rs
 src/mainaction.rs
+src/markdowncheck.rs
 src/mdpango.rs
 src/mediabrowser.rs
 src/medialibrary.rs

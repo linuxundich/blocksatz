@@ -333,6 +333,7 @@ mod tests {
             featured_image_alt: Some("Ein Bild".into()),
             rank_math_focus_keyword: Some("gnome".into()),
             wp_footnotes: None,
+            markdown_hint: false,
             ..Frontmatter::default()
         };
         let doc = Document { frontmatter: fm, body: "Text\n".into() };

@@ -1,6 +1,6 @@
 # Markdown-Nähe: Warnung bei stark gestalteten Beiträgen
 
-Stand: 2026-10-02 · Status: **Konzept, nicht umgesetzt**
+Stand: 2026-10-02 · Status: **umgesetzt** (Abschnitt 8)
 
 ## Ziel
 
@@ -86,8 +86,9 @@ und nur als Text bearbeitbar.“ Der Knopf „Details“ öffnet die Aufstellung
 nach Stufen und Blocktypen. Ein Sync-Banner hat Vorrang, weil er dringender
 ist.
 
-**Immer:** Die Statuskarte der Ansicht „Beitrag“ zeigt „Markdown-Nähe:
-hoch / mittel / gering“ mit denselben Details, auch später noch.
+**Statuszeile:** Die Statuskarte der Ansicht „Beitrag“ zeigt bei
+gestalteten Beiträgen „Markdown-Nähe: mittel / gering“ mit einem Knopf
+„Details“ (bei unauffälligen Beiträgen nichts).
 
 ## 4. Wann geprüft wird
 
@@ -103,7 +104,7 @@ hoch / mittel / gering“ mit denselben Details, auch später noch.
 
 ## 5. Einstellungen
 
-Unter Einstellungen → Editor:
+Unter Einstellungen → WordPress, Gruppe „Beiträge aus dem Blog“:
 
 - „Vor stark gestalteten Beiträgen warnen“ (an/aus, Standard an),
 - „Blog-Bausteine“: Blöcke, die nicht als Fremdkörper zählen.
@@ -126,3 +127,26 @@ Unter Einstellungen → Editor:
    neutral ohne Empfehlung?
 3. **Statuszeile in „Beitrag“:** immer anzeigen oder nur bei gestalteten
    Beiträgen?
+
+## 8. Umsetzung
+
+Entscheidungen vom 2026-10-02: Schwellen wie vorgeschlagen, „In wp-admin
+bearbeiten“ als hervorgehobene Antwort, Statuszeile nur bei gestalteten
+Beiträgen.
+
+- `crates/gutenberg/src/assess.rs`: `assess(markdown, building_blocks)` →
+  `Assessment` mit `Closeness::{Plain, Designed, Heavy}`. Als Gestaltung
+  zählen nur sichtbare Angaben (Farbe, Hintergrund, Verlauf, Größe,
+  Ausrichtung, Stil, Klassen, Initiale) und Inline-HTML; Anker,
+  Bildbreite, Listennummer, Tabellen-Fuß und -Beschriftung nicht.
+  Unterelemente (Spalte, Akkordeon-Eintrag, Reiter) zählen mit ihrem
+  Container.
+- Messung an echten Beiträgen: 11 von 12 unauffällig, einer gestaltet (ein
+  Bild mit `<br>` in der Unterschrift bleibt Markup); Demo 45437
+  gestaltet, Demo 45662 stark gestaltet.
+- `src/markdowncheck.rs`: Einstellungen, deutsche Bezeichnungen, Dialoge.
+- `window::open_imported_post`: Prüfung vor dem Anlegen der Arbeitskopie,
+  setzt `markdown_hint` im Frontmatter.
+- `mainaction.rs`: Banner `MarkdownHint` (nach den Sync-Bannern), Details
+  mit „Hinweis ausblenden“.
+- `postpane.rs`: Statuszeile „Markdown-Nähe“.

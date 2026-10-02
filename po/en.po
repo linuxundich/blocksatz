@@ -3253,6 +3253,126 @@ msgstr "Navigation"
 msgid "Shortcode [{name}]"
 msgstr "Shortcode [{name}]"
 
+#: src/markdowncheck.rs
+msgid "…"
+msgstr "…"
+
+#: src/markdowncheck.rs
+msgid "Abstandhalter"
+msgstr "Spacer"
+
+#: src/markdowncheck.rs
+msgid "Als WordPress-Markup im Text: {n} Blöcke ({share} %)"
+msgstr "Kept as WordPress markup: {n} blocks ({share} %)"
+
+#: src/markdowncheck.rs
+msgid "Beiträge aus dem Blog"
+msgstr "Posts from the blog"
+
+#: src/markdowncheck.rs
+msgid "Betroffene Blöcke: {kinds}"
+msgstr "Blocks involved: {kinds}"
+
+#: src/markdowncheck.rs
+msgid "Blocksatz ist für Artikel gedacht, die in Markdown geschrieben sind. Blöcke wie Inhaltsverzeichnis oder Werbeplatz, die zu deinen Artikeln gehören, trägst du als Blog-Bausteine ein (Blocknamen, durch Kommas getrennt)."
+msgstr "Blocksatz is meant for articles written in Markdown. Blocks that belong to your articles, like a table of contents or an ad slot, go here as blog building blocks (block names, separated by commas)."
+
+#: src/markdowncheck.rs
+msgid "Blocksatz ist für Artikel gedacht, die in Markdown geschrieben sind. Solche Beiträge bearbeitest du besser im Block-Editor von WordPress."
+msgstr "Blocksatz is meant for articles written in Markdown. Posts like this are better edited in the WordPress block editor."
+
+#: src/markdowncheck.rs
+msgid "Blog-Bausteine (zählen nicht als Markup)"
+msgstr "Blog building blocks (don't count as markup)"
+
+#: src/markdowncheck.rs
+msgid "Container und Sonderblöcke: {n}"
+msgstr "Containers and special blocks: {n}"
+
+#: src/markdowncheck.rs
+msgid "Darunter: {kinds}."
+msgstr "Among them: {kinds}."
+
+#: src/markdowncheck.rs
+msgid "Datei"
+msgstr "File"
+
+#: src/markdowncheck.rs
+msgid "Der Beitrag besteht zum großen Teil aus verschachtelten Containern."
+msgstr "Most of the post consists of nested containers."
+
+#: src/markdowncheck.rs
+msgid "Dieser Beitrag nutzt viele Gutenberg-Funktionen"
+msgstr "This post uses many Gutenberg features"
+
+#: src/markdowncheck.rs
+msgid "Enthält klassischen Inhalt aus der Zeit vor dem Block-Editor."
+msgstr "Contains classic content from before the block editor."
+
+#: src/markdowncheck.rs
+msgid "Fragt beim Öffnen aus dem Blog nach, wenn ein Beitrag sich hier großteils nur als WordPress-Markup bearbeiten ließe."
+msgstr "Asks before opening a post from the blog that could mostly only be edited as WordPress markup here."
+
+#: src/markdowncheck.rs
+msgid "gering"
+msgstr "low"
+
+#: src/markdowncheck.rs
+msgid "Gestaltungsangaben (Farben, Größen, Ausrichtung, Stile): {n}"
+msgstr "Design settings (colors, sizes, alignment, styles): {n}"
+
+#: src/markdowncheck.rs
+msgid "Gutenberg-Funktionen in diesem Beitrag"
+msgstr "Gutenberg features in this post"
+
+#: src/markdowncheck.rs
+msgid "Hinweis ausblenden"
+msgstr "Hide notice"
+
+#: src/markdowncheck.rs
+msgid "hoch"
+msgstr "high"
+
+#: src/markdowncheck.rs
+msgid "HTML"
+msgstr "HTML"
+
+#: src/markdowncheck.rs
+msgid "Klassischer Inhalt"
+msgstr "Classic content"
+
+#: src/markdowncheck.rs
+msgid "Markdown-Nähe: {level}"
+msgstr "Closeness to Markdown: {level}"
+
+#: src/markdowncheck.rs
+msgid "Medien & Text"
+msgstr "Media & text"
+
+#: src/markdowncheck.rs
+msgid "mittel"
+msgstr "medium"
+
+#: src/markdowncheck.rs
+msgid "{n} Blöcke lassen sich hier nur als WordPress-Markup bearbeiten."
+msgstr "{n} blocks can only be edited as WordPress markup here."
+
+#: src/markdowncheck.rs
+msgid "Shortcode"
+msgstr "Shortcode"
+
+#: src/markdowncheck.rs
+msgid "Teile dieses Beitrags sind WordPress-Markup und nur als Text bearbeitbar."
+msgstr "Parts of this post are WordPress markup and can only be edited as text."
+
+#: src/markdowncheck.rs
+msgid "Trotzdem öffnen"
+msgstr "Open anyway"
+
+#: src/markdowncheck.rs
+msgid "Vor stark gestalteten Beiträgen warnen"
+msgstr "Warn about heavily designed posts"
+
 #~ msgid "Blog nicht erreichbar"
 #~ msgstr "Blog unreachable"
 

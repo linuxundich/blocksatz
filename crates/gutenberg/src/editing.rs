@@ -104,7 +104,7 @@ fn block_at_in(md: &str, start: usize, end: usize, offset: usize) -> Option<Bloc
 
 /// Byte ranges (relative to `text`) of the top-level blocks of one plain
 /// Markdown stretch.
-fn top_level_blocks(text: &str, range: Range<usize>) -> Vec<Range<usize>> {
+pub(crate) fn top_level_blocks(text: &str, range: Range<usize>) -> Vec<Range<usize>> {
     let offset = range.start;
     let mut blocks = Vec::new();
     let mut depth = 0usize;

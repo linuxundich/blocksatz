@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Flathub submission files**: `build-aux/flathub/prepare.sh <tag>`
+  writes the manifest (from the Git tag) and `cargo-sources.json`
+  (`build-aux/flathub/cargo-sources.py`); `flatpak-builder-lint` passes
+  for manifest and metainfo.
 - **More blocks as Markdown** (`docs/markdown-blocks.md`, step 8) - these
   no longer stay WordPress markup when a post is opened, and can be
   written by hand:
@@ -40,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Narrower Flatpak sandbox**: instead of the whole file system the app
+  sees only the documents folder (the library lives there); everything
+  else goes through the portals. An image, video or featured image picked
+  or dropped from outside the article folder is now **copied into it**
+  (same name, numbered if a different file has it), so articles stay
+  self-contained.
+- Flatpak runtime **GNOME 51** (Rust SDK extension 26.08); libspelling
+  pinned to its commit.
 - **Cover and Media & Text images can be local files**: an `image=` path
   is listed in Medienverwaltung and uploaded on export like any other
   image, with its attachment id.

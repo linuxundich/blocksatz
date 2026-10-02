@@ -1385,7 +1385,7 @@ fn wire_insert_image_action(window: &adw::ApplicationWindow, buffer: &sourceview
         dialog.open(Some(&window), gio::Cancellable::NONE, move |result| {
             let Ok(file) = result else { return };
             let Some(path) = file.path() else { return };
-            let reference = document::image_reference(&path, doc_dir.as_deref());
+            let reference = document::adopt_file(&path, doc_dir.as_deref());
             formatting::insert_image(&buffer, &reference);
         });
     });
@@ -1420,7 +1420,7 @@ fn wire_insert_media_action(window: &adw::ApplicationWindow, buffer: &sourceview
         dialog.open(Some(&window), gio::Cancellable::NONE, move |result| {
             let Ok(file) = result else { return };
             let Some(path) = file.path() else { return };
-            let reference = document::image_reference(&path, doc_dir.as_deref());
+            let reference = document::adopt_file(&path, doc_dir.as_deref());
             formatting::insert_image(&buffer, &reference);
         });
     });
@@ -1714,7 +1714,7 @@ fn wire_drop_target(view: &sourceview5::View, buffer: &sourceview5::Buffer, curr
                 let mut iter = buffer.iter_at_mark(&buffer.get_insert());
                 buffer.insert(&mut iter, "\n");
             }
-            let reference = document::image_reference(&path, doc_dir.as_deref());
+            let reference = document::adopt_file(&path, doc_dir.as_deref());
             formatting::insert_image(&buffer, &reference);
         }
         true

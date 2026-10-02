@@ -33,9 +33,9 @@ for tool in flatpak flatpak-builder cargo; do
 done
 
 # Runtime/SDK/Rust extension - no-ops once installed. The rust-stable
-# branch must match the freedesktop base of the GNOME runtime (GNOME 50 → 25.08).
+# branch must match the freedesktop base of the GNOME runtime (GNOME 51 → 26.08).
 flatpak install --user --noninteractive --or-update flathub \
-  org.gnome.Platform//50 org.gnome.Sdk//50 org.freedesktop.Sdk.Extension.rust-stable//25.08
+  org.gnome.Platform//51 org.gnome.Sdk//51 org.freedesktop.Sdk.Extension.rust-stable//26.08
 
 mkdir -p "$cache"
 echo "Vendore Rust-Abhängigkeiten …"

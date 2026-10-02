@@ -828,7 +828,7 @@ pub fn build(
             file_dialog.open(Some(&parent), gio::Cancellable::NONE, move |result| {
                 let Ok(file) = result else { return };
                 let Some(path) = file.path() else { return };
-                let reference = document::image_reference(&path, doc_dir.as_deref());
+                let reference = document::adopt_file(&path, doc_dir.as_deref());
                 // Triggers the `connect_changed` handler above, which persists it.
                 featured_image_row.set_text(&reference);
             });

@@ -17,6 +17,13 @@ In der Datei steht ein Token pro Zeile, für jede verifizierte App einer. Erst n
 - **Skript zum Eintragen:** `build-aux/flathub/add-verification-token.sh`. Es hängt den Token per SSH an die Datei an, ohne vorhandene Tokens zu überschreiben, und prüft danach mit **einem** Abruf, ob er ausgeliefert wird. Es crawlt nicht und wärmt keinen Cache vor.
 - Nebenbei: Im selben Ordner liegt ein leerer Tippfehler-Ordner `.well-know/` vom April 2025. Er stört nicht und kann weg.
 
+## Einreichung vorbereiten (Blocksatz)
+
+- Sandbox: nur `--filesystem=xdg-documents`, Netzwerk, Wayland/X11, GPU. Kein `host`-Zugriff mehr.
+- Runtime GNOME 51, Rust-Erweiterung 26.08, libspelling mit Tag und Commit.
+- `build-aux/flathub/prepare.sh v<version>` schreibt nach dem Taggen und Pushen das Manifest (Git-Quelle mit Tag und Commit) und `cargo-sources.json` nach `build-aux/flathub/out/`. Diese beiden Dateien kommen in den Pull Request bei flathub/flathub.
+- `flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/flathub/out/de.linuxundich.Blocksatz.json` muss ohne Fehler durchlaufen. Mit `--local` meldet er erwartbar `source-git-url-not-http`.
+
 ## Ablauf, sobald eine App auf Flathub eingereicht ist
 
 1. Die App wird über einen Pull Request bei [flathub/flathub](https://github.com/flathub/flathub) eingereicht (Branch `new-pr`) und nach dem Review aufgenommen.

@@ -630,6 +630,48 @@ pub fn image_reference(path: &Path, doc_dir: Option<&Path>) -> String {
     path.to_string_lossy().to_string()
 }
 
+/// A file picked or dropped from outside the article folder is copied
+/// into it first, so the article stays self-contained - and readable
+/// inside the Flatpak sandbox, which only sees the documents folder (a
+/// file from elsewhere arrives as a portal path that means nothing in the
+/// Markdown). A file of the same name and content already there is
+/// reused, a different one gets a numbered name. Without an article
+/// folder, or when copying fails, the file is referenced where it is.
+pub fn adopt_file(path: &Path, doc_dir: Option<&Path>) -> String {
+    let Some(dir) = doc_dir else { return image_reference(path, None) };
+    if path.starts_with(dir) {
+        return image_reference(path, doc_dir);
+    }
+    let Some(name) = path.file_name() else { return image_reference(path, doc_dir) };
+    let same_file = |candidate: &Path| match (std::fs::metadata(candidate), std::fs::metadata(path)) {
+        (Ok(a), Ok(b)) if a.len() == b.len() => std::fs::read(candidate).ok() == std::fs::read(path).ok(),
+        _ => false,
+    };
+    let target = unique_file_path(dir, Path::new(name), |candidate| candidate.exists() && !same_file(candidate));
+    if !target.exists() && std::fs::copy(path, &target).is_err() {
+        return image_reference(path, doc_dir);
+    }
+    image_reference(&target, doc_dir)
+}
+
+/// `dir/name`, or `dir/stem-2.ext`, `dir/stem-3.ext`, … while `taken`.
+fn unique_file_path(dir: &Path, name: &Path, taken: impl Fn(&Path) -> bool) -> PathBuf {
+    let candidate = dir.join(name);
+    if !taken(&candidate) {
+        return candidate;
+    }
+    let stem = name.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+    let extension = name.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
+    let mut n = 2;
+    loop {
+        let candidate = dir.join(format!("{stem}-{n}{extension}"));
+        if !taken(&candidate) {
+            return candidate;
+        }
+        n += 1;
+    }
+}
+
 /// Picks a filename for an image pasted from the clipboard (which, unlike a
 /// file picked via a dialog, has no name of its own) - `eingefuegtes-bild.png`,
 /// falling back to a numbered suffix if that (or an earlier numbered variant)
@@ -637,18 +679,7 @@ pub fn image_reference(path: &Path, doc_dir: Option<&Path>) -> String {
 /// overwrites the previous one. `exists` is injected rather than calling
 /// `Path::exists` directly so this stays a pure, filesystem-free unit test.
 pub fn unique_pasted_image_path(dir: &Path, exists: impl Fn(&Path) -> bool) -> PathBuf {
-    let candidate = dir.join("eingefuegtes-bild.png");
-    if !exists(&candidate) {
-        return candidate;
-    }
-    let mut n = 2;
-    loop {
-        let candidate = dir.join(format!("eingefuegtes-bild-{n}.png"));
-        if !exists(&candidate) {
-            return candidate;
-        }
-        n += 1;
-    }
+    unique_file_path(dir, Path::new("eingefuegtes-bild.png"), exists)
 }
 
 /// Whether a clipboard offering these mime types has an image on it - used
@@ -818,6 +849,29 @@ mod tests {
     fn image_reference_falls_back_to_absolute_when_the_document_has_no_directory_yet() {
         let reference = image_reference(Path::new("/home/toff/artikel/foto.png"), None);
         assert_eq!(reference, "/home/toff/artikel/foto.png");
+    }
+
+    #[test]
+    fn files_from_elsewhere_are_copied_into_the_article_folder() {
+        let root = std::env::temp_dir().join(format!("blocksatz-adopt-{}", std::process::id()));
+        let article = root.join("artikel");
+        let elsewhere = root.join("bilder");
+        std::fs::create_dir_all(&article).unwrap();
+        std::fs::create_dir_all(&elsewhere).unwrap();
+        std::fs::write(elsewhere.join("foto.png"), b"eins").unwrap();
+        std::fs::write(article.join("drin.png"), b"drin").unwrap();
+
+        assert_eq!(adopt_file(&article.join("drin.png"), Some(&article)), "drin.png");
+        assert_eq!(adopt_file(&elsewhere.join("foto.png"), Some(&article)), "foto.png");
+        assert_eq!(std::fs::read(article.join("foto.png")).unwrap(), b"eins");
+        // The same file again is reused, a different one of that name numbered.
+        assert_eq!(adopt_file(&elsewhere.join("foto.png"), Some(&article)), "foto.png");
+        std::fs::write(elsewhere.join("foto.png"), b"zwei").unwrap();
+        assert_eq!(adopt_file(&elsewhere.join("foto.png"), Some(&article)), "foto-2.png");
+        assert_eq!(std::fs::read(article.join("foto-2.png")).unwrap(), b"zwei");
+        // No article folder: referenced where it is.
+        assert_eq!(adopt_file(&elsewhere.join("foto.png"), None), elsewhere.join("foto.png").to_string_lossy());
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

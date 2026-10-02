@@ -7,3 +7,4 @@
 /build-aux/flatpak/repo/
 /build-aux/flatpak/.cache/
 /blocksatz.flatpak
+/build-aux/flathub/out/

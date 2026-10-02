@@ -1,7 +1,7 @@
 {
     "id": "de.linuxundich.Blocksatz",
     "runtime": "org.gnome.Platform",
-    "runtime-version": "50",
+    "runtime-version": "51",
     "sdk": "org.gnome.Sdk",
     "sdk-extensions": [
         "org.freedesktop.Sdk.Extension.rust-stable"
@@ -13,7 +13,7 @@
         "--share=ipc",
         "--device=dri",
         "--share=network",
-        "--filesystem=host:rw"
+        "--filesystem=xdg-documents"
     ],
     "build-options": {
         "append-path": "/usr/lib/sdk/rust-stable/bin",
@@ -40,7 +40,8 @@
                 {
                     "type": "git",
                     "url": "https://gitlab.gnome.org/GNOME/libspelling.git",
-                    "tag": "0.4.10"
+                    "tag": "0.4.10",
+                    "commit": "1facdde8e1c0fd72bed806f9a9be2fbec83af5f2"
                 }
             ]
         },

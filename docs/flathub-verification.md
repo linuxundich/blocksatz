@@ -22,6 +22,7 @@ In der Datei steht ein Token pro Zeile, für jede verifizierte App einer. Erst n
 - Sandbox: nur `--filesystem=xdg-documents`, Netzwerk, Wayland/X11, GPU. Kein `host`-Zugriff mehr.
 - Runtime GNOME 51, Rust-Erweiterung 26.08, libspelling mit Tag und Commit.
 - `build-aux/flathub/prepare.sh v<version>` schreibt nach dem Taggen und Pushen das Manifest (Git-Quelle mit Tag und Commit) und `cargo-sources.json` nach `build-aux/flathub/out/`. Diese beiden Dateien kommen in den Pull Request bei flathub/flathub.
+- Offen: Screenshots. `flatpak-builder-lint repo` verlangt `<screenshots>` in der Metainfo (Bild-URLs, z. B. raw-GitHub-Dateien unter `data/screenshots/`). Die Meldung `appstream-screenshots-not-mirrored-in-ostree` tritt nur beim lokalen Bau auf.
 - `flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest build-aux/flathub/out/de.linuxundich.Blocksatz.json` muss ohne Fehler durchlaufen. Mit `--local` meldet er erwartbar `source-git-url-not-http`.
 
 ## Ablauf, sobald eine App auf Flathub eingereicht ist

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Connection check** in Einstellungen → WordPress: saving a blog checks
+  right away (or "Prüfen" any time) whether the URL answers, the
+  Application Password is accepted and the user may publish and upload,
+  and says which of these failed ("Verbunden als …", "Anmeldung
+  abgelehnt …", "Blog nicht erreichbar …", "stimmt die Website-URL?").
 - **Warning for heavily designed posts** (`docs/markdown-naehe.md`):
   opening a post from the blog rates how close it is to plain Markdown.
   A post with three or more blocks that stay WordPress markup (or more

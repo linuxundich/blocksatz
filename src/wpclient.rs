@@ -48,6 +48,14 @@ pub struct PostResult {
     pub modified_gmt: String,
 }
 
+/// The user an Application Password belongs to (`Client::current_user`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct CurrentUser {
+    pub name: String,
+    pub can_publish: bool,
+    pub can_upload: bool,
+}
+
 /// One size WordPress generated for an uploaded image (`media_details.
 /// sizes`), plus the original as `full`.
 #[derive(Debug, Clone, PartialEq)]
@@ -654,6 +662,14 @@ impl Client {
     /// (`importer.rs`) so its author's name shows immediately in "Artikel-
     /// Eigenschaften" without waiting on that dialog's own `list_users()`
     /// fetch.
+    /// Who the credentials belong to, and whether that user may publish -
+    /// the connection check in the settings (`connection.rs`).
+    pub fn current_user(&self) -> Result<CurrentUser> {
+        let value = self.get_json(&format!("{}?context=edit&_fields=name,capabilities", self.endpoint("users/me")))?;
+        let can = |cap: &str| value.get("capabilities").and_then(|c| c.get(cap)).and_then(Value::as_bool).unwrap_or(false);
+        Ok(CurrentUser { name: value.get("name").and_then(Value::as_str).unwrap_or_default().to_string(), can_publish: can("publish_posts"), can_upload: can("upload_files") })
+    }
+
     pub fn get_user_name(&self, id: u64) -> Result<String> {
         let url = format!("{}?_fields=name", self.endpoint(&format!("users/{id}")));
         let value = self.get_json(&url)?;

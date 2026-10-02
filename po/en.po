@@ -3397,6 +3397,50 @@ msgstr "Design settings"
 msgid "Betroffene Blöcke"
 msgstr "Blocks involved"
 
+#: src/connection.rs
+msgid "Verbindung"
+msgstr "Connection"
+
+#: src/connection.rs
+msgid "Website-URL, Benutzername und Application Password eintragen."
+msgstr "Enter the website URL, username and Application Password."
+
+#: src/connection.rs
+msgid "Verbunden als {name}"
+msgstr "Connected as {name}"
+
+#: src/connection.rs
+msgid "{who} – darf veröffentlichen und Medien hochladen"
+msgstr "{who} – may publish and upload media"
+
+#: src/connection.rs
+msgid "{who}, darf aber nicht veröffentlichen – nur Entwürfe zur Prüfung"
+msgstr "{who}, but may not publish – only submit drafts for review"
+
+#: src/connection.rs
+msgid "{who}, darf aber keine Medien hochladen"
+msgstr "{who}, but may not upload media"
+
+#: src/connection.rs
+msgid "Blog nicht erreichbar: {err}"
+msgstr "Blog not reachable: {err}"
+
+#: src/connection.rs
+msgid "Anmeldung abgelehnt – Benutzername oder Application Password stimmen nicht."
+msgstr "Sign-in refused – the username or Application Password is wrong."
+
+#: src/connection.rs
+msgid "Unter dieser Adresse gibt es keine WordPress-REST-API – stimmt die Website-URL?"
+msgstr "There is no WordPress REST API at this address – is the website URL right?"
+
+#: src/connection.rs
+msgid "Unter dieser Adresse antwortet kein WordPress – stimmt die Website-URL?"
+msgstr "No WordPress answers at this address – is the website URL right?"
+
+#: src/connection.rs
+msgid "Fehler {status}: {err}"
+msgstr "Error {status}: {err}"
+
 #~ msgid "Blog nicht erreichbar"
 #~ msgstr "Blog unreachable"
 

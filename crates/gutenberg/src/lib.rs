@@ -195,6 +195,9 @@ impl Block {
 pub struct ButtonItem {
     pub text: String,
     pub url: String,
+    /// `[Text](url){style=outline bg=accent radius=0px width=50%}` - the
+    /// button's own style, colors, corner radius and width.
+    pub attrs: BlockAttrs,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -670,9 +673,15 @@ pub fn parse_fenced_buttons(text: &str) -> Block {
     while i < events.len() {
         if let Event::Start(Tag::Link { dest_url, .. }) = &events[i] {
             let end = find_matching_end(&events, i, &TagEnd::Link);
+            // `{...}` right after the link: the button's own settings.
+            let attrs = match events.get(end + 1) {
+                Some(Event::Text(text)) => text.trim_start().strip_prefix('{').and_then(|rest| rest.split_once('}')).and_then(|(inner, _)| BlockAttrs::parse_tokens(inner)),
+                _ => None,
+            };
             buttons.push(ButtonItem {
                 text: collect_text(&events[i + 1..end]),
                 url: dest_url.to_string(),
+                attrs: attrs.unwrap_or_default(),
             });
             i = end + 1;
         } else {
@@ -1135,22 +1144,60 @@ fn render_columns(columns: &[Vec<Block>]) -> String {
 }
 
 fn render_buttons(buttons: &[ButtonItem]) -> String {
-    let inner = buttons
-        .iter()
-        .map(|b| {
-            wrap(
-                "button",
-                None,
-                &format!(
-                    "<div class=\"wp-block-button\"><a class=\"wp-block-button__link wp-element-button\" href=\"{}\">{}</a></div>",
-                    escape_html(&b.url),
-                    escape_html(&b.text)
-                ),
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n\n");
+    let inner = buttons.iter().map(render_button).collect::<Vec<_>>().join("\n\n");
     wrap("buttons", None, &format!("<div class=\"wp-block-buttons\">\n{inner}\n</div>"))
+}
+
+/// One `wp:button`: the block style on the wrapper, colors and radius on
+/// the link, the width only in the comment (WordPress adds it when it
+/// renders the page).
+fn render_button(button: &ButtonItem) -> String {
+    let attrs = &button.attrs;
+    let mut json = serde_json::Map::new();
+    let mut wrapper = String::from("wp-block-button");
+    let mut link = String::from("wp-block-button__link");
+    let mut style = String::new();
+    if let Some(color) = &attrs.text_color {
+        json.insert("textColor".into(), color.clone().into());
+        link.push_str(&format!(" has-{color}-color has-text-color"));
+    }
+    if let Some(bg) = &attrs.background {
+        json.insert("backgroundColor".into(), bg.clone().into());
+        link.push_str(&format!(" has-{bg}-background-color"));
+    }
+    if let Some(gradient) = &attrs.gradient {
+        json.insert("gradient".into(), gradient.clone().into());
+        link.push_str(&format!(" has-{gradient}-gradient-background"));
+    }
+    if attrs.background.is_some() || attrs.gradient.is_some() {
+        link.push_str(" has-background");
+    }
+    let mut style_json = serde_json::Map::new();
+    if let Some(radius) = &attrs.radius {
+        style_json.insert("border".into(), serde_json::json!({ "radius": radius }));
+        style = format!(" style=\"border-radius:{radius}\"");
+    }
+    if let Some(width) = &attrs.width {
+        style_json.insert("dimensions".into(), serde_json::json!({ "width": width }));
+    }
+    if !style_json.is_empty() {
+        json.insert("style".into(), serde_json::Value::Object(style_json));
+    }
+    let mut class_name: Vec<String> = attrs.style.iter().map(|s| format!("is-style-{s}")).collect();
+    class_name.extend(attrs.classes.iter().cloned());
+    if !class_name.is_empty() {
+        wrapper.push_str(&format!(" {}", class_name.join(" ")));
+        json.insert("className".into(), class_name.join(" ").into());
+    }
+    link.push_str(" wp-element-button");
+    if attrs.new_tab {
+        style.push_str(" target=\"_blank\" rel=\"noreferrer noopener\"");
+    }
+    wrap(
+        "button",
+        (!json.is_empty()).then(|| serde_json::Value::Object(json).to_string()),
+        &format!("<div class=\"{wrapper}\"><a class=\"{link}\" href=\"{}\"{style}>{}</a></div>", escape_html(&button.url), escape_html(&button.text)),
+    )
 }
 
 fn render_gallery(images: &[GalleryImage], settings: &GallerySettings) -> String {

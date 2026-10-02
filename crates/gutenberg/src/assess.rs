@@ -201,7 +201,7 @@ fn tally_block(block: &Block, tally: &mut Tally, nested: bool, source_len: usize
 /// list numbering or a table's caption and footer are part of ordinary
 /// writing and don't count.
 fn is_visual(attrs: &crate::BlockAttrs) -> bool {
-    attrs.text_color.is_some() || attrs.background.is_some() || attrs.gradient.is_some() || attrs.font_size.is_some() || attrs.align.is_some() || attrs.style.is_some() || !attrs.classes.is_empty() || attrs.drop_cap || attrs.padding.is_some() || attrs.border.is_some() || attrs.radius.is_some() || attrs.shadow.is_some()
+    attrs.text_color.is_some() || attrs.background.is_some() || attrs.gradient.is_some() || attrs.font_size.is_some() || attrs.align.is_some() || attrs.style.is_some() || !attrs.classes.is_empty() || attrs.drop_cap || attrs.padding.is_some() || attrs.border.is_some() || attrs.radius.is_some() || attrs.shadow.is_some() || !attrs.typography.is_empty() || attrs.link_color.is_some() || attrs.marker.is_some() || attrs.aspect.is_some() || attrs.justify.is_some()
 }
 
 /// Inline HTML beyond what Markdown renders itself (`<mark>`, `<sub>`, a

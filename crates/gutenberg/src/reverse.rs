@@ -236,6 +236,14 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
             if caption.contains('<') {
                 return verbatim();
             }
+            // A link around the image keeps only its address in Markdown
+            // (`[![…](bild)](ziel)`) - a new-tab target or rel stays raw.
+            if let Some(a) = inner.find("<a ") {
+                let tag = &inner[a + 3..a + inner[a..].find('>').unwrap_or(inner.len() - a)];
+                if crate::attrs::parse_tag_attrs(tag).iter().any(|(key, _)| key != "href") {
+                    return verbatim();
+                }
+            }
             Block::Image {
                 url: extract_attr(inner, "src").unwrap_or_default(),
                 alt: unescape_entities(&extract_attr(inner, "alt").unwrap_or_default()),
@@ -272,9 +280,15 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
             Block::Table { caption: Some(caption), .. } if caption.contains(['<', '"']) => return verbatim(),
             table => table,
         },
-        "buttons" => Block::Buttons {
-            buttons: parse_buttons(&strip_wrapper_tag(inner, "div")),
-        },
+        "buttons" => {
+            let buttons = parse_buttons(&strip_wrapper_tag(inner, "div"));
+            // The structure check skips inline tags like the button's `<a>`,
+            // so link attributes Markdown can't carry are checked here.
+            if !button_links_supported(inner) {
+                return verbatim();
+            }
+            Block::Buttons { buttons }
+        }
         "gallery" => {
             let gallery_inner = strip_wrapper_tag(inner, "figure");
             let (images, size_slug) = parse_gallery(&gallery_inner);
@@ -763,13 +777,14 @@ fn parse_buttons(buttons_inner: &str) -> Vec<ButtonItem> {
             pos = cend;
             continue;
         }
+        let attrs = button_attrs(parsed.attrs);
         match find_block_end(buttons_inner, cend, "button") {
             Some((inner_end, after)) => {
-                buttons.push(button_from_html(&buttons_inner[cend..inner_end]));
+                buttons.push(with_button_attrs(button_from_html(&buttons_inner[cend..inner_end]), &attrs));
                 pos = after;
             }
             None => {
-                buttons.push(button_from_html(&buttons_inner[cend..]));
+                buttons.push(with_button_attrs(button_from_html(&buttons_inner[cend..]), &attrs));
                 pos = buttons_inner.len();
             }
         }
@@ -785,7 +800,41 @@ fn button_from_html(html: &str) -> ButtonItem {
         .and_then(|text_start| html[text_start..].find("</a>").map(|rel_end| &html[text_start..text_start + rel_end]))
         .map(|t| unescape_entities(t.trim()))
         .unwrap_or_default();
-    ButtonItem { text, url }
+    let new_tab = html.find("<a").and_then(|a| extract_attr(&html[a..], "target")).as_deref() == Some("_blank");
+    ButtonItem { text, url, attrs: BlockAttrs { new_tab, ..BlockAttrs::default() } }
+}
+
+fn with_button_attrs(button: ButtonItem, attrs: &BlockAttrs) -> ButtonItem {
+    let attrs = button.attrs.clone().merged(attrs.clone());
+    ButtonItem { attrs, ..button }
+}
+
+/// Whether every button link's attributes are ones the Markdown form
+/// keeps: class, href, style, and the new-tab pair.
+fn button_links_supported(html: &str) -> bool {
+    html.match_indices("<a ").all(|(start, _)| {
+        let tag = &html[start + 3..start + html[start..].find('>').unwrap_or(html.len() - start)];
+        crate::attrs::parse_tag_attrs(tag).iter().all(|(key, value)| match key.as_str() {
+            "class" | "href" | "style" => true,
+            "target" => value == "_blank",
+            "rel" => value == "noreferrer noopener",
+            _ => false,
+        })
+    })
+}
+
+/// A button's settings from its block comment - whatever is left over
+/// shows up in the structure check and keeps the buttons raw.
+fn button_attrs(json: Option<&str>) -> BlockAttrs {
+    let Some(mut json) = json_map(json) else { return BlockAttrs::default() };
+    let mut attrs = BlockAttrs::take_from_json("button", &mut json);
+    if let Some(serde_json::Value::Object(style)) = json.get_mut("style") {
+        if let Some(width) = style.get("dimensions").and_then(|d| d.get("width")).and_then(|w| w.as_str()).map(str::to_string) {
+            attrs.width = Some(width);
+            style.remove("dimensions");
+        }
+    }
+    attrs
 }
 
 /// Scans a `wp:gallery` block's stripped `<figure>` content for its
@@ -1230,7 +1279,18 @@ fn render_columns_markdown(columns: &[Vec<Block>]) -> String {
 }
 
 fn render_buttons_markdown(buttons: &[ButtonItem]) -> String {
-    let body = buttons.iter().map(|b| format!("[{}]({})", b.text, markdown_destination(&b.url))).collect::<Vec<_>>().join("\n");
+    let body = buttons
+        .iter()
+        .map(|b| {
+            let link = format!("[{}]({})", b.text, markdown_destination(&b.url));
+            if b.attrs.is_empty() {
+                link
+            } else {
+                format!("{link}{}", b.attrs.to_markdown())
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
     format!("```buttons\n{body}\n```")
 }
 
@@ -1745,5 +1805,35 @@ mod tests {
     fn gallery_caption_round_trips() {
         let md = assert_lossless("<!-- wp:gallery {\"linkTo\":\"none\"} -->\n<figure class=\"wp-block-gallery has-nested-images columns-default is-cropped\"><!-- wp:image {\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"https://example.org/a.webp\" alt=\"\"/></figure>\n<!-- /wp:image --><figcaption class=\"blocks-gallery-caption wp-element-caption\">Galerie</figcaption></figure>\n<!-- /wp:gallery -->");
         assert!(md.ends_with("```\n{caption=\"Galerie\"}"), "{md}");
+    }
+
+    #[test]
+    fn custom_colors_typography_and_link_color_round_trip() {
+        let md = assert_lossless("<!-- wp:paragraph {\"style\":{\"color\":{\"text\":\"#1d4ed8\",\"background\":\"#eef4ff\"},\"typography\":{\"lineHeight\":\"2\",\"letterSpacing\":\"0.05em\",\"textTransform\":\"uppercase\",\"fontStyle\":\"italic\",\"fontWeight\":\"300\"}}} -->\n<p class=\"has-text-color has-background\" style=\"color:#1d4ed8;background-color:#eef4ff;letter-spacing:0.05em;line-height:2;font-style:italic;font-weight:300;text-transform:uppercase\">Text</p>\n<!-- /wp:paragraph -->");
+        assert_eq!(md, "Text\n{color=#1d4ed8 bg=#eef4ff line-height=2 letter-spacing=0.05em weight=300 font-style=italic transform=uppercase}");
+        let md = assert_lossless("<!-- wp:paragraph {\"fontSize\":\"medium\",\"style\":{\"elements\":{\"link\":{\"color\":{\"text\":\"var:preset|color|warning\"}}}}} -->\n<p class=\"has-link-color has-medium-font-size\">Mit <a href=\"https://linuxundich.de/\">Link</a>.</p>\n<!-- /wp:paragraph -->");
+        assert!(md.ends_with("{size=medium link-color=warning}"), "{md}");
+    }
+
+    #[test]
+    fn list_marker_and_image_aspect_round_trip() {
+        let md = assert_lossless("<!-- wp:list {\"ordered\":true,\"type\":\"upper-roman\",\"start\":5} -->\n<ol start=\"5\" style=\"list-style-type:upper-roman\" class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Eins</li>\n<!-- /wp:list-item --></ol>\n<!-- /wp:list -->");
+        assert!(md.ends_with("{marker=upper-roman}"), "{md}");
+        let md = assert_lossless("<!-- wp:image {\"width\":\"200px\",\"aspectRatio\":\"1\",\"scale\":\"cover\",\"sizeSlug\":\"full\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-full is-resized\"><img src=\"https://example.org/a.webp\" alt=\"Alt\" style=\"aspect-ratio:1;object-fit:cover;width:200px;height:auto\"/></figure>\n<!-- /wp:image -->");
+        assert!(md.ends_with("{width=200px aspect=1 scale=cover}"), "{md}");
+    }
+
+    #[test]
+    fn button_settings_and_alignment_round_trip() {
+        let md = assert_lossless("<!-- wp:buttons {\"layout\":{\"type\":\"flex\",\"justifyContent\":\"center\"}} -->\n<div class=\"wp-block-buttons\"><!-- wp:button {\"className\":\"is-style-outline\"} -->\n<div class=\"wp-block-button is-style-outline\"><a class=\"wp-block-button__link wp-element-button\" href=\"https://linuxundich.de/\">Umriss</a></div>\n<!-- /wp:button -->\n\n<!-- wp:button {\"gradient\":\"accent-fade\",\"style\":{\"border\":{\"radius\":\"0px\"},\"dimensions\":{\"width\":\"50%\"}}} -->\n<div class=\"wp-block-button\"><a class=\"wp-block-button__link has-accent-fade-gradient-background has-background wp-element-button\" href=\"https://linuxundich.de/\" style=\"border-radius:0px\" target=\"_blank\" rel=\"noreferrer noopener\">Neuer Tab</a></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->");
+        assert_eq!(md, "```buttons\n[Umriss](https://linuxundich.de/){style=outline}\n[Neuer Tab](https://linuxundich.de/){gradient=accent-fade width=50% radius=0px newtab}\n```\n{justify=center}");
+    }
+
+    #[test]
+    fn link_attributes_markdown_cannot_carry_stay_raw() {
+        let button = "<!-- wp:buttons -->\n<div class=\"wp-block-buttons\"><!-- wp:button -->\n<div class=\"wp-block-button\"><a class=\"wp-block-button__link wp-element-button\" href=\"https://linuxundich.de/\" download>Datei</a></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->";
+        assert!(gutenberg_to_markdown(button).starts_with("<!-- wp:buttons"));
+        let image = "<!-- wp:image {\"linkDestination\":\"custom\"} -->\n<figure class=\"wp-block-image\"><a href=\"https://linuxundich.de/\" target=\"_blank\" rel=\"noreferrer noopener\"><img src=\"https://example.org/a.webp\" alt=\"\"/></a></figure>\n<!-- /wp:image -->";
+        assert!(gutenberg_to_markdown(image).starts_with("<!-- wp:image"));
     }
 }

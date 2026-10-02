@@ -98,6 +98,10 @@ pub fn parse_header(line: &str) -> Option<Header> {
             params.set("width", Some(width));
         }
     }
+    // `justify=` is the container's own layout setting.
+    if let Some(justify) = attrs.justify.take() {
+        params.set("justify", Some(justify));
+    }
     if kind == "media-text" {
         if let Some(size) = attrs.font_size.take() {
             params.set("size", Some(size));

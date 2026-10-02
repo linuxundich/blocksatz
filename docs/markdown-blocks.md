@@ -298,3 +298,13 @@ Schritt 1 sollte unabhängig vom Rest sofort kommen.
   `footnotes` als JSON. `to_markdown` macht beim Import daraus wieder
   `[^n]` plus Definitionen – nur wenn jede Fußnote einen Verweis hat,
   sonst bleibt `wp_footnotes` wie bisher.
+- **Schritt 9**: Restliche Attribute – eigene Farbwerte in `color`/`bg`
+  (`style.color`), Typografie `line-height`, `letter-spacing`, `weight`,
+  `font-style`, `transform`, `decoration` (`style.typography`),
+  `link-color` (`style.elements.link`), `marker` (Liste `type`), `aspect`/
+  `scale` (Bild), bei Buttons `justify` (Attributzeile unter dem Fence) und
+  pro Button `{style bg color gradient radius width newtab}` hinter dem
+  Link. Da der Strukturvergleich Inline-Tags überspringt, prüft der Import
+  Link-Attribute von Buttons und Bildern selbst. Testbeitrag: 64 → 52 rohe
+  Blöcke; roh bleibt eine Tabelle, deren Kopfzeile anders ausgerichtet ist
+  als die Zellen, und eine Bildunterschrift mit Link.

@@ -14,6 +14,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Nautilus offers it; a deleted template isn't recreated. The desktop
   entry now passes files (`%F`), so double-clicking a Markdown file opens
   it in Blocksatz. The Flatpak may write the templates folder.
+- **The rest of the block design as Markdown** - in the test post only a
+  table whose header and body cells are aligned differently stays raw
+  now (64 → 52 raw blocks, almost all dynamic):
+  - custom colors `{color=#1d4ed8 bg=#eef4ff}` next to the theme slugs;
+  - typography `line-height=2 letter-spacing=0.05em weight=300
+    font-style=italic transform=uppercase decoration=underline`;
+  - link color `{link-color=warning}`;
+  - list numbering `{marker=upper-roman}`;
+  - image aspect ratio `{aspect=1 scale=cover}`;
+  - buttons: `{justify=center}` below the fence, and per button
+    `[Text](url){style=outline bg=accent gradient=… radius=0px width=50% newtab}`.
+
+### Fixed
+
+- **Opening a post no longer drops a button's "open in new tab"**: it is
+  kept as `newtab`, and a button or linked image whose link has other
+  attributes Markdown can't carry stays WordPress markup.
 
 ## [0.66.0] - 2026-10-02
 

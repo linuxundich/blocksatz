@@ -18,9 +18,11 @@ sizes, connection check.
 
 - ~~**Block design gaps**~~ Done (0.66.0) - quote
   with citation, Media & Text, padding/border/radius/shadow, captions on
-  audio/video/embeds/galleries, linked images. Still raw, rarely used:
-  custom color values, typography settings, roman list numbering, table
-  cell alignment, image aspect ratio, button width/justification.
+  audio/video/embeds/galleries, linked images; after 0.66.0 also custom
+  colors, typography, link color, list numbering, image aspect ratio and
+  button settings. Still raw: a table whose header is aligned differently
+  from its cells, an image caption with a link (captions are plain text in
+  Medienverwaltung), preformatted and verse blocks.
 - ~~**Cover image from a local file**~~ Done - also Media & Text.
 - ~~**Write footnotes in Markdown**~~ Done (0.66.0) -
   `[^1]` both ways, Einfügen → Fußnote.

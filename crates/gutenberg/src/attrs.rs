@@ -73,6 +73,38 @@ pub struct BlockAttrs {
     pub radius: Option<String>,
     /// `shadow=natural` - a theme shadow preset.
     pub shadow: Option<String>,
+    /// `line-height=2`, `weight=300`, `transform=uppercase`, … - see
+    /// [`TYPOGRAPHY`]; in that table's order.
+    pub typography: Vec<(String, String)>,
+    /// `link-color=warning` - the color of links in the block (a preset
+    /// slug or a CSS color).
+    pub link_color: Option<String>,
+    /// `marker=upper-roman` - an ordered list's numbering style.
+    pub marker: Option<String>,
+    /// `aspect=1` / `aspect=16/9` - an image's aspect ratio.
+    pub aspect: Option<String>,
+    /// `scale=cover` - how an image fills that aspect ratio.
+    pub scale: Option<String>,
+    /// `justify=center` - how a row of buttons is aligned.
+    pub justify: Option<String>,
+    /// `newtab` - a button's link opens in a new tab.
+    pub new_tab: bool,
+}
+
+/// Typography settings: the attribute name, the key under
+/// `style.typography` and the CSS property.
+pub const TYPOGRAPHY: &[(&str, &str, &str)] = &[
+    ("line-height", "lineHeight", "line-height"),
+    ("letter-spacing", "letterSpacing", "letter-spacing"),
+    ("weight", "fontWeight", "font-weight"),
+    ("font-style", "fontStyle", "font-style"),
+    ("transform", "textTransform", "text-transform"),
+    ("decoration", "textDecoration", "text-decoration"),
+];
+
+/// A color written as a CSS value (`#1d4ed8`) rather than a theme slug.
+fn is_custom_color(value: &str) -> bool {
+    value.starts_with('#') || value.starts_with("rgb") || value.starts_with("hsl")
 }
 
 /// Blocks whose `align=` means text alignment rather than block alignment.
@@ -114,7 +146,24 @@ impl BlockAttrs {
         self.border = or(self.border, other.border);
         self.radius = or(self.radius, other.radius);
         self.shadow = or(self.shadow, other.shadow);
+        for (key, value) in other.typography {
+            self.set_typography(&key, value);
+        }
+        self.link_color = or(self.link_color, other.link_color);
+        self.marker = or(self.marker, other.marker);
+        self.aspect = or(self.aspect, other.aspect);
+        self.scale = or(self.scale, other.scale);
+        self.justify = or(self.justify, other.justify);
+        self.new_tab |= other.new_tab;
         self
+    }
+
+    /// Sets one typography value, keeping [`TYPOGRAPHY`]'s order.
+    fn set_typography(&mut self, key: &str, value: String) {
+        self.typography.retain(|(k, _)| k != key);
+        self.typography.push((key.to_string(), value));
+        let rank = |k: &str| TYPOGRAPHY.iter().position(|(name, _, _)| *name == k).unwrap_or(usize::MAX);
+        self.typography.sort_by_key(|(k, _)| rank(k));
     }
 
     /// Parses a whole attribute line (`{bg=accent .klasse}`), surrounding
@@ -161,6 +210,12 @@ impl BlockAttrs {
                     "border" if parse_border(&value).is_some() => attrs.border = Some(value),
                     "radius" => attrs.radius = Some(value),
                     "shadow" => attrs.shadow = Some(value),
+                    "link-color" => attrs.link_color = Some(value),
+                    "marker" => attrs.marker = Some(value),
+                    "aspect" => attrs.aspect = Some(value),
+                    "scale" => attrs.scale = Some(value),
+                    "justify" => attrs.justify = Some(value),
+                    key if TYPOGRAPHY.iter().any(|(name, _, _)| *name == key) => attrs.set_typography(key, value),
                     _ => return None,
                 }
             } else {
@@ -168,6 +223,7 @@ impl BlockAttrs {
                     "dropcap" => attrs.drop_cap = true,
                     "reversed" => attrs.reversed = true,
                     "fixed" => attrs.fixed_layout = true,
+                    "newtab" => attrs.new_tab = true,
                     "footer" => attrs.footer_rows = 1,
                     _ => return None,
                 }
@@ -199,6 +255,22 @@ impl BlockAttrs {
         push("border", &self.border);
         push("radius", &self.radius);
         push("shadow", &self.shadow);
+        for (key, value) in &self.typography {
+            tokens.push(format!("{key}={}", quote_value(value)));
+        }
+        let mut push = |key: &str, value: &Option<String>| {
+            if let Some(value) = value {
+                tokens.push(format!("{key}={}", quote_value(value)));
+            }
+        };
+        push("link-color", &self.link_color);
+        push("marker", &self.marker);
+        push("aspect", &self.aspect);
+        push("scale", &self.scale);
+        push("justify", &self.justify);
+        if self.new_tab {
+            tokens.push("newtab".to_string());
+        }
         if let Some(start) = self.start {
             tokens.push(format!("start={start}"));
         }
@@ -273,6 +345,20 @@ impl BlockAttrs {
                 attrs.reversed = true;
             }
         }
+        if block == "list" && json.get("ordered") == Some(&Value::Bool(true)) {
+            attrs.marker = take_plain(json, "type");
+        }
+        if block == "buttons" {
+            let justify = json.get("layout").and_then(Value::as_object).filter(|l| l.len() == 2 && l.get("type").and_then(Value::as_str) == Some("flex")).and_then(|l| l.get("justifyContent")).and_then(Value::as_str).map(str::to_string);
+            if justify.is_some() {
+                json.remove("layout");
+                attrs.justify = justify;
+            }
+        }
+        if block == "image" {
+            attrs.aspect = take_plain(json, "aspectRatio");
+            attrs.scale = take_plain(json, "scale");
+        }
         attrs
     }
 
@@ -300,10 +386,10 @@ impl BlockAttrs {
         if let Some(align) = &self.align {
             classes.push(if aligns_text(&name) { format!("has-text-align-{align}") } else { format!("align{align}") });
         }
-        if let Some(color) = &self.text_color {
+        if let Some(color) = self.text_color.as_ref().filter(|c| !is_custom_color(c)) {
             classes.push(format!("has-{color}-color"));
         }
-        if let Some(bg) = &self.background {
+        if let Some(bg) = self.background.as_ref().filter(|c| !is_custom_color(c)) {
             if name == "separator" {
                 // A separator's "color" is its background, mirrored into
                 // the text color so the dotted style picks it up too.
@@ -323,6 +409,9 @@ impl BlockAttrs {
         }
         if let Some(size) = &self.font_size {
             classes.push(format!("has-{size}-font-size"));
+        }
+        if self.link_color.is_some() {
+            classes.push("has-link-color".to_string());
         }
         if self.drop_cap {
             classes.push("has-drop-cap".to_string());
@@ -364,9 +453,24 @@ impl BlockAttrs {
         }
 
         if name == "image" {
+            let mut fit = Vec::new();
+            if let Some(aspect) = &self.aspect {
+                fit.push(format!("aspect-ratio:{aspect}"));
+            }
+            if let Some(scale) = &self.scale {
+                fit.push(format!("object-fit:{scale}"));
+            }
+            if !fit.is_empty() {
+                body = edit_first_tag(&body, Some("img"), &[], &[], Some(&fit.join(";")));
+            }
             if let Some(width) = &self.width {
                 let style = if width == "100%" { format!("width:{width}") } else { format!("width:{width};height:auto") };
                 body = edit_first_tag(&body, Some("img"), &[], &[], Some(&style));
+            }
+        }
+        if name == "list" {
+            if let Some(marker) = &self.marker {
+                body = edit_first_tag(&body, Some("ol"), &[], &[], Some(&format!("list-style-type:{marker}")));
             }
         }
         if name == "list" && (self.start.is_some() || self.reversed) {
@@ -410,6 +514,19 @@ impl BlockAttrs {
                 }
             }
         }
+        if !image {
+            if let Some(color) = self.text_color.as_ref().filter(|c| is_custom_color(c)) {
+                parts.push(format!("color:{color}"));
+            }
+            if let Some(bg) = self.background.as_ref().filter(|c| is_custom_color(c)) {
+                parts.push(format!("background-color:{bg}"));
+            }
+            for (key, value) in &self.typography {
+                if let Some((_, _, css)) = TYPOGRAPHY.iter().find(|(name, _, _)| name == key) {
+                    parts.push(format!("{css}:{value}"));
+                }
+            }
+        }
         if let Some(shadow) = &self.shadow {
             parts.push(format!("box-shadow:var(--wp--preset--shadow--{shadow})"));
         }
@@ -422,8 +539,8 @@ impl BlockAttrs {
                 json.insert(key.to_string(), Value::String(value.clone()));
             }
         };
-        set("textColor", &self.text_color);
-        set("backgroundColor", &self.background);
+        set("textColor", &self.text_color.clone().filter(|c| !is_custom_color(c)));
+        set("backgroundColor", &self.background.clone().filter(|c| !is_custom_color(c)));
         set("gradient", &self.gradient);
         set("fontSize", &self.font_size);
         set("anchor", &self.anchor);
@@ -482,10 +599,46 @@ impl BlockAttrs {
         if let Some(shadow) = &self.shadow {
             style.insert("shadow".to_string(), Value::String(format!("var:preset|shadow|{shadow}")));
         }
+        let mut color = Map::new();
+        if let Some(text) = self.text_color.as_ref().filter(|c| is_custom_color(c)) {
+            color.insert("text".to_string(), Value::String(text.clone()));
+        }
+        if let Some(bg) = self.background.as_ref().filter(|c| is_custom_color(c)) {
+            color.insert("background".to_string(), Value::String(bg.clone()));
+        }
+        if !color.is_empty() {
+            style.insert("color".to_string(), Value::Object(color));
+        }
+        let typography: Map<String, Value> = self
+            .typography
+            .iter()
+            .filter_map(|(key, value)| TYPOGRAPHY.iter().find(|(name, _, _)| name == key).map(|(_, json_key, _)| (json_key.to_string(), Value::String(value.clone()))))
+            .collect();
+        if !typography.is_empty() {
+            style.insert("typography".to_string(), Value::Object(typography));
+        }
+        if let Some(link) = &self.link_color {
+            let value = if is_custom_color(link) { link.clone() } else { format!("var:preset|color|{link}") };
+            style.insert("elements".to_string(), serde_json::json!({"link": {"color": {"text": value}}}));
+        }
         if !style.is_empty() {
             if let Value::Object(existing) = json.entry("style").or_insert_with(|| Value::Object(Map::new())) {
-                existing.extend(style);
+                merge_deep(existing, style);
             }
+        }
+        if name == "list" {
+            if let Some(marker) = &self.marker {
+                json.insert("type".to_string(), Value::String(marker.clone()));
+            }
+        }
+        if name == "buttons" {
+            if let Some(justify) = &self.justify {
+                json.insert("layout".to_string(), serde_json::json!({"type": "flex", "justifyContent": justify}));
+            }
+        }
+        if name == "image" {
+            set_str(json, "aspectRatio", &self.aspect);
+            set_str(json, "scale", &self.scale);
         }
         if name == "list" {
             if let Some(start) = self.start {
@@ -589,8 +742,71 @@ fn take_box_styles(json: &mut Map<String, Value>, attrs: &mut BlockAttrs) {
         attrs.shadow = Some(shadow);
         style.remove("shadow");
     }
+    // Custom colors (presets are `textColor`/`backgroundColor`).
+    if let Some(Value::Object(color)) = style.get_mut("color") {
+        let custom = |v: Option<&Value>| v.and_then(Value::as_str).filter(|c| is_custom_color(c)).map(str::to_string);
+        if attrs.text_color.is_none() {
+            if let Some(text) = custom(color.get("text")) {
+                attrs.text_color = Some(text);
+                color.remove("text");
+            }
+        }
+        if attrs.background.is_none() {
+            if let Some(bg) = custom(color.get("background")) {
+                attrs.background = Some(bg);
+                color.remove("background");
+            }
+        }
+        if color.is_empty() {
+            style.remove("color");
+        }
+    }
+    if let Some(Value::Object(typography)) = style.get_mut("typography") {
+        for (name, json_key, _) in TYPOGRAPHY {
+            if let Some(value) = typography.get(*json_key).and_then(Value::as_str).filter(|v| !v.contains(char::is_whitespace)).map(str::to_string) {
+                typography.remove(*json_key);
+                attrs.set_typography(name, value);
+            }
+        }
+        if typography.is_empty() {
+            style.remove("typography");
+        }
+    }
+    let link = style.get("elements").and_then(|e| e.pointer("/link/color/text")).and_then(Value::as_str).map(|v| v.strip_prefix("var:preset|color|").unwrap_or(v).to_string());
+    if let Some(link) = link.filter(|l| !l.contains(char::is_whitespace)) {
+        let only_link_color = style.get("elements").and_then(Value::as_object).is_some_and(|e| e.len() == 1 && e["link"].as_object().is_some_and(|l| l.len() == 1 && l["color"].as_object().is_some_and(|c| c.len() == 1)));
+        if only_link_color {
+            attrs.link_color = Some(link);
+            style.remove("elements");
+        }
+    }
     if style.is_empty() {
         json.remove("style");
+    }
+}
+
+/// Removes a string value without spaces from `json`.
+fn take_plain(json: &mut Map<String, Value>, key: &str) -> Option<String> {
+    let value = json.get(key)?.as_str().filter(|v| !v.contains(char::is_whitespace))?.to_string();
+    json.remove(key);
+    Some(value)
+}
+
+fn set_str(json: &mut Map<String, Value>, key: &str, value: &Option<String>) {
+    if let Some(value) = value {
+        json.insert(key.to_string(), Value::String(value.clone()));
+    }
+}
+
+/// Merges `other` into `target`, objects key by key.
+fn merge_deep(target: &mut Map<String, Value>, other: Map<String, Value>) {
+    for (key, value) in other {
+        match (target.get_mut(&key), value) {
+            (Some(Value::Object(existing)), Value::Object(more)) => merge_deep(existing, more),
+            (_, value) => {
+                target.insert(key, value);
+            }
+        }
     }
 }
 

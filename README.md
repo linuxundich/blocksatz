@@ -177,8 +177,13 @@ blocks. Implemented so far:
   **attribute line** in curly braces below the block (Pandoc/kramdown
   style), using the blog theme's preset slugs: `{bg=accent color=base}`,
   `{gradient=accent-fade}`, `{size=large align=center}`,
-  `{style=stripes}`, `{width=100%}`, `{dropcap}`, `{reversed}`, and boxes
-  with `{padding=1.5rem border="1px solid #ddd" radius=10px shadow=natural}`;
+  `{style=stripes}`, `{width=100%}`, `{dropcap}`, `{reversed}`, boxes
+  with `{padding=1.5rem border="1px solid #ddd" radius=10px shadow=natural}`,
+  custom colors (`{color=#1d4ed8}`), typography (`{line-height=2 weight=300
+  transform=uppercase}`), `{link-color=warning}`, `{marker=upper-roman}`
+  for list numbering and `{aspect=1 scale=cover}` for images; buttons take
+  `{justify=center}` below the fence and `[Text](url){style=outline
+  radius=0px width=50% newtab}` per button;
   a heading carries it at its end (`## Titel {#anker color=accent}`).
   Tables, galleries and embeds take `{caption="..."}`, tables also
   `{footer}` (last row is the footer); an ordered list starting at `5.`
@@ -205,8 +210,8 @@ blocks. Implemented so far:
 - **Lossless import** — opening a post from the blog turns a block into
   Markdown only if that Markdown renders back to the same block structure
   (attributes, classes, styles, captions, table footers); anything
-  Markdown can't carry (custom color values, typography settings, a
-  border on one side only, dynamic blocks) stays as its original block markup and
+  Markdown can't carry (a border on one side only, a link with
+  attributes beyond its address, dynamic blocks) stays as its original block markup and
   goes back unchanged. Inline markup without Markdown syntax (`<mark>`,
   `<sub>`, a link with `target`) is kept as inline HTML.
 - **Block inspector** — the "Beitrag" view has a "Block" section for the

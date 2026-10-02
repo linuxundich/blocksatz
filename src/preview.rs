@@ -1409,6 +1409,7 @@ fn dynamic_block_placeholder(raw: &str, footnotes: Option<&str>) -> Option<Strin
         "more" => return Some(format!("<div class=\"marker-line\"><span>{}</span></div>", glib::markup_escape_text(&more_label(raw)))),
         "nextpage" => return Some(format!("<div class=\"marker-line\"><span>{}</span></div>", glib::markup_escape_text(&tr("Seitenumbruch")))),
         "footnotes" => return Some(render_footnotes(footnotes)),
+        "shortcode" => return Some(render_shortcode(raw)),
         "html" | "spacer" | "separator" => return None,
         _ => {}
     }
@@ -1431,8 +1432,10 @@ fn dynamic_block_placeholder(raw: &str, footnotes: Option<&str>) -> Option<Strin
     // An element without text (a spacer, an empty group) is layout, not
     // a block the blog fills in - except for these, whose content is
     // nested blocks the server renders.
+    // Their visible text in the saved markup is only a fallback (a query
+    // loop's "Keine Beiträge gefunden.") - the blog shows other content.
     let server_filled = matches!(name.as_str(), "query" | "social-links" | "navigation" | "comments" | "post-template");
-    if !visible.trim().is_empty() || (has_element && !server_filled) {
+    if !server_filled && (!visible.trim().is_empty() || has_element) {
         return None;
     }
     let label = match name.as_str() {
@@ -1470,6 +1473,40 @@ fn dynamic_block_placeholder(raw: &str, footnotes: Option<&str>) -> Option<Strin
         glib::markup_escape_text(&label),
         glib::markup_escape_text(&detail)
     ))
+}
+
+/// A `wp:shortcode` block: `[audio]`/`[video]` with a `src` play like the
+/// player WordPress puts there, `[embed]` gets the embed card; anything
+/// else is a placeholder naming the shortcode.
+fn render_shortcode(raw: &str) -> String {
+    let code = raw.lines().filter(|line| !line.trim_start().starts_with("<!--")).collect::<Vec<_>>().join("\n");
+    let code = code.trim();
+    let name: String = code.trim_start_matches('[').chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-').collect();
+    let attr = |key: &str| -> Option<String> {
+        let start = code.find(&format!("{key}=\""))? + key.len() + 2;
+        Some(code[start..start + code[start..].find('"')?].to_string())
+    };
+    match name.as_str() {
+        "audio" | "video" => {
+            let src = attr("src").or_else(|| ["mp3", "ogg", "m4a", "wav", "mp4", "webm", "ogv"].iter().find_map(|ext| attr(ext)));
+            if let Some(src) = src {
+                let tag = name.as_str();
+                return format!("<figure class=\"wp-block-{tag}\"><{tag} controls src=\"{}\"></{tag}></figure>", glib::markup_escape_text(&src));
+            }
+        }
+        "embed" => {
+            let url = code.split(']').nth(1).and_then(|rest| rest.split("[/embed").next()).map(str::trim).unwrap_or("");
+            if url.starts_with("http") {
+                return render_embed_placeholder(url);
+            }
+        }
+        _ => {}
+    }
+    format!(
+        "<div class=\"embed-placeholder dynamic-placeholder\"><span class=\"embed-label\">{}</span><span class=\"embed-url\">{}</span></div>",
+        glib::markup_escape_text(&tr("Shortcode [{name}]").replace("{name}", &name)),
+        glib::markup_escape_text(&tr("{name} – wird vom Blog erzeugt").replace("{name}", "shortcode"))
+    )
 }
 
 /// "Weiterlesen" or the custom text of a `wp:more` block.
@@ -1882,6 +1919,15 @@ mod tests {
         assert!(out.contains("wp-block-spacer"), "{out}");
         assert!(out.contains("<li id=\"a1\">Erste <em>Fußnote</em>"), "{out}");
         assert!(!out.contains("dynamic-placeholder"), "{out}");
+    }
+
+    #[test]
+    fn shortcodes_and_query_loops_render_like_the_blog() {
+        let markdown = "<!-- wp:shortcode -->\n[audio src=\"https://example.org/a.mp3\"]\n<!-- /wp:shortcode -->\n\n<!-- wp:shortcode -->\n[contact-form id=\"3\"]\n<!-- /wp:shortcode -->\n\n<!-- wp:query -->\n<div class=\"wp-block-query\"><!-- wp:query-no-results -->\n<p>Keine Beiträge gefunden.</p>\n<!-- /wp:query-no-results --></div>\n<!-- /wp:query -->\n";
+        let out = render_body(markdown, &[], None);
+        assert!(out.contains("<audio controls src=\"https://example.org/a.mp3\">"), "{out}");
+        assert!(out.contains("Shortcode [contact-form]"), "{out}");
+        assert!(!out.contains("Keine Beiträge gefunden"), "{out}");
     }
 
     #[test]

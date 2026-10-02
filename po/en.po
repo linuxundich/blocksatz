@@ -3249,6 +3249,10 @@ msgstr "Breadcrumbs"
 msgid "Navigation"
 msgstr "Navigation"
 
+#: src/preview.rs
+msgid "Shortcode [{name}]"
+msgstr "Shortcode [{name}]"
+
 #~ msgid "Blog nicht erreichbar"
 #~ msgstr "Blog unreachable"
 

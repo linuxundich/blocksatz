@@ -197,7 +197,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   groups use the theme's block gap; "Weiterlesen" and page breaks show
   as marker lines, spacers stay empty space, footnotes list their texts,
   social links name their services, and every placeholder is labeled in
-  German.
+  German. `[audio]`/`[video]` shortcodes play, `[embed]` shows the embed
+  card, other shortcodes and query loops get a placeholder (a query
+  loop's "Keine Beiträge gefunden." fallback no longer shows).
 
 - **Footnotes survive**: WordPress keeps footnote texts in the `footnotes`
   post meta, not in the content. Opening a post now keeps them

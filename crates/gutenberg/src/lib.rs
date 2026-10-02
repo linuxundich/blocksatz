@@ -8,10 +8,12 @@ use pulldown_cmark::{Alignment, CodeBlockKind, Event, HeadingLevel, Options, Par
 
 mod attrs;
 mod containers;
+mod editing;
 mod fidelity;
 mod reverse;
 pub use attrs::BlockAttrs;
 pub use containers::Params as ContainerParams;
+pub use editing::{attrs_edit, block_at, BlockAtCursor};
 pub use fidelity::{first_difference, same_structure};
 pub use reverse::{gutenberg_to_markdown, render_gallery_fence};
 

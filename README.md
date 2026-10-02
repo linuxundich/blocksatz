@@ -194,6 +194,12 @@ blocks. Implemented so far:
   quote's citation, dynamic blocks) stays as its original block markup and
   goes back unchanged. Inline markup without Markdown syntax (`<mark>`,
   `<sub>`, a link with `target`) is kept as inline HTML.
+- **Block inspector** — the "Beitrag" view has a "Block" section for the
+  block the cursor is in: text color and background (colors and
+  gradients as swatches from the blog theme's palette), font size,
+  alignment and the block styles the theme registers - only what the
+  block supports. Every change rewrites the attribute line (or a
+  heading's braces, or a container's opening line) as one undoable edit.
 - **Theme presets in the preview** — the active blog's color palette,
   gradients, font sizes and block styles are fetched over the REST API
   (`src/themestyle.rs`, cached per blog) and turned into the same preset

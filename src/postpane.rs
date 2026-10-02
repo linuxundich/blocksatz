@@ -19,7 +19,7 @@ use crate::document::PostStatus;
 use crate::i18n::tr;
 use crate::syncstate::{self, Remote};
 use crate::window::DocContext;
-use crate::{mainaction, properties, termcache, wpsite};
+use crate::{blockinspector, mainaction, properties, termcache, wpsite};
 
 pub struct PostPane {
     pub widget: gtk4::Widget,
@@ -37,6 +37,7 @@ pub struct PostPane {
     ctx: DocContext,
     term_caches: termcache::TermCacheHandles,
     open_url: Rc<dyn Fn(String)>,
+    _inspector: Rc<blockinspector::BlockInspector>,
     weak: Weak<PostPane>,
 }
 
@@ -68,8 +69,11 @@ impl PostPane {
         let stats_group = adw::PreferencesGroup::builder().title(tr("Statistik")).build();
         stats_group.add(stats);
 
+        let inspector = blockinspector::BlockInspector::new(&ctx.buffer);
+
         let column = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(24).margin_top(12).margin_bottom(24).margin_start(12).margin_end(12).build();
         column.append(&card);
+        column.append(&inspector.widget);
         column.append(&properties_slot);
         column.append(&media_group);
         column.append(&stats_group);
@@ -93,6 +97,7 @@ impl PostPane {
             ctx: ctx.clone(),
             term_caches: term_caches.clone(),
             open_url,
+            _inspector: inspector,
             weak: weak.clone(),
         });
         {

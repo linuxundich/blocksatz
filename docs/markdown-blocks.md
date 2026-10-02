@@ -1,6 +1,6 @@
 # Blockgestaltung in Markdown: Bestandsaufnahme und Optionen
 
-Stand: 2026-10-02 · Status: **Schritte 1–5 umgesetzt** (siehe Abschnitt 5)
+Stand: 2026-10-02 · Status: **Schritte 1–6 umgesetzt** (siehe Abschnitt 5)
 
 Anlass: Farben, Farbverläufe, Tabellenvarianten, Akkordeons und weitere
 Elemente aus dem Testbeitrag „Lorem Ipsum: Sämtliche Gutenberg-Blöcke“
@@ -268,3 +268,9 @@ Schritt 1 sollte unabhängig vom Rest sofort kommen.
   Quelle, Bild-/Medien-Unterschriften bei Audio/Video/Embed).
   Einschränkung: Ein Cover-Bild muss eine URL sein, lokale Dateien lädt
   der Export dort (noch) nicht hoch.
+- **Schritt 6 (F)**: `crates/gutenberg/src/editing.rs` (`block_at`,
+  `attrs_edit`: Block am Cursor finden, Attribute als eine Ersetzung
+  schreiben – Attributzeile, Klammern einer Überschrift oder Kopfzeile
+  eines Containers) und `src/blockinspector.rs` (Abschnitt „Block“ in der
+  Ansicht „Beitrag“: Farbfelder für Text und Hintergrund inkl. Verläufe,
+  Schriftgröße, Ausrichtung, Stil; Zeilen je nach Block-Unterstützung).

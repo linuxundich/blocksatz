@@ -8,6 +8,7 @@ src/aiprompts.rs
 src/aitasks.rs
 src/aiwriter.rs
 src/appearance.rs
+src/blockinspector.rs
 src/blogposts.rs
 src/browser.rs
 src/browsersettings.rs

@@ -2953,6 +2953,146 @@ msgstr "No post ID in the response"
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr "No term ID received for \"{name}\""
 
+#: src/blockinspector.rs
+msgid "Absatz"
+msgstr "Paragraph"
+
+#: src/blockinspector.rs
+msgid "Akkordeon"
+msgstr "Accordion"
+
+#: src/blockinspector.rs
+msgid "Akkordeon-Eintrag"
+msgstr "Accordion item"
+
+#: src/blockinspector.rs
+msgid "Ausrichtung"
+msgstr "Alignment"
+
+#: src/blockinspector.rs
+msgid "Bild"
+msgstr "Image"
+
+#: src/blockinspector.rs
+msgid "Block"
+msgstr "Block"
+
+#: src/blockinspector.rs
+msgid "Buttons"
+msgstr "Buttons"
+
+#: src/blockinspector.rs
+msgid "Cover"
+msgstr "Cover"
+
+#: src/blockinspector.rs
+msgid "Den Cursor in einen Absatz, eine Überschrift, Tabelle oder einen Container setzen."
+msgstr "Put the cursor in a paragraph, heading, table or container."
+
+#: src/blockinspector.rs
+msgid "Details"
+msgstr "Details"
+
+#: src/blockinspector.rs
+msgid "Einbettung"
+msgstr "Embed"
+
+#: src/blockinspector.rs
+msgid "Farben"
+msgstr "Colors"
+
+#: src/blockinspector.rs
+msgid "Für diesen Block bietet das Theme keine Einstellungen an."
+msgstr "The theme offers no settings for this block."
+
+#: src/blockinspector.rs
+msgid "Galerie"
+msgstr "Gallery"
+
+#: src/blockinspector.rs
+msgid "Gruppe"
+msgstr "Group"
+
+#: src/blockinspector.rs
+msgid "Hervorgehobenes Zitat"
+msgstr "Pullquote"
+
+#: src/blockinspector.rs
+msgid "Hintergrund"
+msgstr "Background"
+
+#: src/blockinspector.rs
+msgid "Kein Block ausgewählt"
+msgstr "No block selected"
+
+#: src/blockinspector.rs
+msgid "Keine"
+msgstr "None"
+
+#: src/blockinspector.rs
+msgid "Keine Gestaltung"
+msgstr "No design options"
+
+#: src/blockinspector.rs
+msgid "„{name}“ ist im Text als WordPress-Markup enthalten und lässt sich hier nicht gestalten."
+msgstr "“{name}” is kept as WordPress markup in the text and can't be styled here."
+
+#: src/blockinspector.rs
+msgid "Rechts"
+msgstr "Right"
+
+#: src/blockinspector.rs
+msgid "Reiter"
+msgstr "Tabs"
+
+#: src/blockinspector.rs
+msgid "Reiter-Inhalt"
+msgstr "Tab"
+
+#: src/blockinspector.rs
+msgid "Schriftgröße"
+msgstr "Font size"
+
+#: src/blockinspector.rs
+msgid "Spalte"
+msgstr "Column"
+
+#: src/blockinspector.rs
+msgid "Standard"
+msgstr "Default"
+
+#: src/blockinspector.rs
+msgid "Tabelle"
+msgstr "Table"
+
+#: src/blockinspector.rs
+msgid "Textfarbe"
+msgstr "Text color"
+
+#: src/blockinspector.rs
+msgid "Trenner"
+msgstr "Separator"
+
+#: src/blockinspector.rs
+msgid "Unverändert übernommener Block"
+msgstr "Block kept unchanged"
+
+#: src/blockinspector.rs
+msgid "Verläufe"
+msgstr "Gradients"
+
+#: src/blockinspector.rs
+msgid "Volle Breite"
+msgstr "Full width"
+
+#: src/blockinspector.rs
+msgid "Weite Breite"
+msgstr "Wide width"
+
+#: src/blockinspector.rs
+msgid "Zentriert"
+msgstr "Centered"
+
 #~ msgid "Blog nicht erreichbar"
 #~ msgstr "Blog unreachable"
 

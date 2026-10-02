@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   block markup wherever nothing is lost; columns and details are now
   written this way too (the old fences still work). The preview renders
   them like the blog, accordions and tabs clickable.
+- **Block inspector** in the "Beitrag" view: design the block at the
+  cursor with the theme's colors, gradients, font sizes, alignment and
+  block styles; writes the attribute line for you, undoable in one step.
 - **Theme presets**: the active blog's palette, gradients, font sizes and
   block styles are fetched over the REST API and cached per blog; the
   preview renders attribute lines, table styles, captions, accordions and

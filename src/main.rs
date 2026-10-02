@@ -10,6 +10,7 @@ mod aitasks;
 mod aiwriter;
 mod appearance;
 mod autocomplete;
+mod blockinspector;
 mod blogposts;
 mod blogsync;
 mod browser;

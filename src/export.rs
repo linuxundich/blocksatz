@@ -762,6 +762,36 @@ pub(crate) fn mime_from_extension(filename: &str) -> &'static str {
 mod tests {
     use super::*;
 
+    /// The standard workflow: `![BU](bild.png "Alt")`, uploaded - goes to
+    /// WordPress in the "large" size, like an image added in the block
+    /// editor.
+    #[test]
+    fn an_uploaded_markdown_image_goes_out_in_the_large_size() {
+        let sizes = vec![
+            crate::wpclient::ImageSize { slug: "full".into(), url: "https://example.org/bild.png".into(), width: 2560, height: 1600 },
+            crate::wpclient::ImageSize { slug: "large".into(), url: "https://example.org/bild-1280x800.png".into(), width: 1280, height: 800 },
+            crate::wpclient::ImageSize { slug: "medium".into(), url: "https://example.org/bild-300x188.png".into(), width: 300, height: 188 },
+        ];
+        let mut media = media::reconcile(&[], "![Bildunterschrift](bild.png \"Alternativtext\")\n");
+        media[0].wordpress = media::WordPressMediaRef::for_article(42, &sizes, "hash".into());
+        let mut blocks = gutenberg::parse_markdown("![Bildunterschrift](bild.png \"Alternativtext\")\n");
+        apply_media_metadata(&mut blocks, &media);
+        let urls: std::collections::HashMap<String, String> = [("bild.png".to_string(), media[0].wordpress.as_ref().unwrap().url.clone())].into();
+        rewrite_image_urls(&mut blocks, &urls);
+        let out = gutenberg::render_blocks(&blocks);
+        assert!(out.contains("\"id\":42") && out.contains("\"sizeSlug\":\"large\""), "{out}");
+        assert!(out.contains("<figure class=\"wp-block-image size-large\">"), "{out}");
+        assert!(out.contains("src=\"https://example.org/bild-1280x800.png\" alt=\"Alternativtext\" class=\"wp-image-42\" width=\"1280\" height=\"800\""), "{out}");
+        assert!(out.contains("<figcaption class=\"wp-element-caption\">Bildunterschrift</figcaption>"), "{out}");
+    }
+
+    #[test]
+    fn a_small_image_without_a_large_size_keeps_the_original() {
+        let sizes = vec![crate::wpclient::ImageSize { slug: "full".into(), url: "https://example.org/klein.png".into(), width: 600, height: 400 }];
+        let reference = media::WordPressMediaRef::for_article(7, &sizes, String::new()).unwrap();
+        assert_eq!((reference.url.as_str(), reference.size_slug.as_deref()), ("https://example.org/klein.png", Some("full")));
+    }
+
     #[test]
     fn an_image_used_twice_keeps_its_own_caption_at_each_place() {
         let item = media::MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: media::AltText::Text("Alt aus der Galerie".into()), caption: Some("Bild 1".into()), wordpress: None, last_markdown_caption: None };

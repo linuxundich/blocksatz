@@ -1448,7 +1448,7 @@ fn wire_insert_media_library_action(window: &adw::ApplicationWindow, buffer: &so
         let buffer = buffer.clone();
         let frontmatter = frontmatter.clone();
         medialibrary::open(window.upcast_ref::<gtk4::Window>(), move |item| {
-            insert_wordpress_image(&buffer, &frontmatter, item.id, &item.source_url, &item.alt_text, 0, 0);
+            insert_wordpress_image(&buffer, &frontmatter, item.id, &item.sizes, &item.source_url, &item.alt_text);
         });
     });
     window.add_action(&action);
@@ -1458,13 +1458,15 @@ fn wire_insert_media_library_action(window: &adw::ApplicationWindow, buffer: &so
 /// shared by "Aus Mediathek wählen…" and the "WordPress-Mediathek"
 /// browser's "In Artikel einfügen" (see `wire_insert_media_library_action`
 /// for why the `MediaItem` gets patched right away).
-fn insert_wordpress_image(buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>, media_id: u64, source_url: &str, alt_text: &str, width: u64, height: u64) {
-    formatting::insert_image(buffer, source_url);
+fn insert_wordpress_image(buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>, media_id: u64, sizes: &[crate::wpclient::ImageSize], source_url: &str, alt_text: &str) {
+    // The "large" size, like WordPress's block editor (`for_article`).
+    let reference = media::WordPressMediaRef::for_article(media_id, sizes, String::new()).unwrap_or(media::WordPressMediaRef { media_id, url: source_url.to_string(), content_hash: String::new(), width: 0, height: 0, size_slug: None });
+    formatting::insert_image(buffer, &reference.url);
     let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
     let mut fm = frontmatter.borrow_mut();
     fm.media = media::reconcile(&fm.media, &text);
-    if let Some(media_item) = fm.media.iter_mut().find(|m| m.source == source_url) {
-        media_item.wordpress = Some(media::WordPressMediaRef { media_id, url: source_url.to_string(), content_hash: String::new(), width, height, size_slug: None });
+    if let Some(media_item) = fm.media.iter_mut().find(|m| m.source == reference.url) {
+        media_item.wordpress = Some(reference.clone());
         if !alt_text.trim().is_empty() {
             media_item.alt = media::AltText::Text(alt_text.to_string());
         }
@@ -1521,7 +1523,7 @@ fn wire_media_library_browser_action(window: &adw::ApplicationWindow, buffer: &s
         let buffer = buffer.clone();
         let frontmatter = frontmatter.clone();
         let on_insert: Rc<dyn Fn(crate::wpclient::WpMediaEntry)> = Rc::new(move |entry| {
-            insert_wordpress_image(&buffer, &frontmatter, entry.id, &entry.source_url, &entry.alt_text, entry.width, entry.height);
+            insert_wordpress_image(&buffer, &frontmatter, entry.id, &entry.sizes, &entry.source_url, &entry.alt_text);
         });
         mediabrowser::open(&window, Some(on_insert));
     });

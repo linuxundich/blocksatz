@@ -48,10 +48,49 @@ pub struct PostResult {
     pub modified_gmt: String,
 }
 
+/// One size WordPress generated for an uploaded image (`media_details.
+/// sizes`), plus the original as `full`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImageSize {
+    pub slug: String,
+    pub url: String,
+    pub width: u64,
+    pub height: u64,
+}
+
+/// The sizes of an attachment from its REST `media_details`, `full` (the
+/// original) always first.
+fn image_sizes(source_url: &str, details: Option<&Value>) -> Vec<ImageSize> {
+    let dim = |v: Option<&Value>, key: &str| v.and_then(|d| d.get(key)).and_then(Value::as_u64).unwrap_or(0);
+    let mut sizes = vec![ImageSize { slug: "full".to_string(), url: source_url.to_string(), width: dim(details, "width"), height: dim(details, "height") }];
+    if let Some(map) = details.and_then(|d| d.get("sizes")).and_then(Value::as_object) {
+        for (slug, size) in map {
+            if slug == "full" {
+                continue;
+            }
+            let Some(url) = size.get("source_url").and_then(Value::as_str) else { continue };
+            sizes.push(ImageSize { slug: slug.clone(), url: url.to_string(), width: dim(Some(size), "width"), height: dim(Some(size), "height") });
+        }
+    }
+    sizes
+}
+
+/// The size an image goes into an article with - `preferred` (`large`, as
+/// WordPress's block editor does), else the original.
+pub fn pick_size(sizes: &[ImageSize], preferred: &str) -> Option<ImageSize> {
+    sizes.iter().find(|s| s.slug == preferred).or_else(|| sizes.iter().find(|s| s.slug == "full")).or(sizes.first()).cloned()
+}
+
+/// The size an image in an article uses unless chosen otherwise - the
+/// block editor's default.
+pub const ARTICLE_IMAGE_SIZE: &str = "large";
+
 #[derive(Debug, Clone)]
 pub struct MediaResult {
     pub id: u64,
     pub source_url: String,
+    /// Every size WordPress made, `full` first.
+    pub sizes: Vec<ImageSize>,
     /// The uploaded file's real pixel dimensions, straight from
     /// WordPress's own upload response - `0` when WordPress didn't record
     /// them (same sentinel as `WpMediaEntry`'s own width/height), never
@@ -131,6 +170,8 @@ pub struct WpMediaItem {
     pub source_url: String,
     pub title: String,
     pub alt_text: String,
+    /// Every size WordPress made, `full` first.
+    pub sizes: Vec<ImageSize>,
 }
 
 /// A media library item with everything the "WordPress-Mediathek" browser
@@ -160,6 +201,8 @@ pub struct WpMediaEntry {
     /// A small, server-generated thumbnail for the grid, when WordPress
     /// made one (images only) - `None` means "show a type icon instead".
     pub thumbnail_url: Option<String>,
+    /// Every size WordPress made, `full` first.
+    pub sizes: Vec<ImageSize>,
 }
 
 /// Filter for `Client::list_media_library` - `Documents` is WordPress's
@@ -223,6 +266,7 @@ fn media_entry_from_json(item: &Value) -> Option<WpMediaEntry> {
         height: detail_u64("height"),
         filesize: detail_u64("filesize"),
         thumbnail_url,
+        sizes: image_sizes(item.get("source_url").and_then(Value::as_str).unwrap_or_default(), details),
     })
 }
 
@@ -423,7 +467,8 @@ impl Client {
         let source_url = value.get("source_url").and_then(Value::as_str).unwrap_or_default().to_string();
         let width = value.get("media_details").and_then(|d| d.get("width")).and_then(Value::as_u64).unwrap_or(0);
         let height = value.get("media_details").and_then(|d| d.get("height")).and_then(Value::as_u64).unwrap_or(0);
-        Ok(MediaResult { id, source_url, width, height })
+        let sizes = image_sizes(&source_url, value.get("media_details"));
+        Ok(MediaResult { id, source_url, sizes, width, height })
     }
 
     /// Sets alt text and/or caption on an already-uploaded media item -
@@ -896,7 +941,7 @@ impl Client {
     /// slow and mostly pointless for this picker's actual use.
     pub fn list_media(&self, search: Option<&str>) -> Result<Vec<WpMediaItem>> {
         let mut url = format!(
-            "{}?per_page=60&orderby=date&order=desc&media_type=image&_fields=id,source_url,title,alt_text",
+            "{}?per_page=60&orderby=date&order=desc&media_type=image&_fields=id,source_url,title,alt_text,media_details",
             self.endpoint("media")
         );
         if let Some(search) = search.filter(|s| !s.trim().is_empty()) {
@@ -909,9 +954,11 @@ impl Client {
                 items
                     .iter()
                     .filter_map(|item| {
+                        let source_url = item.get("source_url").and_then(Value::as_str)?.to_string();
                         Some(WpMediaItem {
                             id: item.get("id")?.as_u64()?,
-                            source_url: item.get("source_url").and_then(Value::as_str)?.to_string(),
+                            sizes: image_sizes(&source_url, item.get("media_details")),
+                            source_url,
                             title: post_title(item),
                             alt_text: item.get("alt_text").and_then(Value::as_str).unwrap_or_default().to_string(),
                         })

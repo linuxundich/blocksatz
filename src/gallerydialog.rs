@@ -285,9 +285,17 @@ pub fn open(parent: &adw::ApplicationWindow, on_insert: OnInsertGallery) {
             };
             let images: Vec<gutenberg::GalleryImage> = selected
                 .iter()
-                .map(|sel| gutenberg::GalleryImage { url: sel.entry.source_url.clone(), alt: sel.alt.clone(), caption: (!sel.caption.trim().is_empty()).then(|| sel.caption.clone()), media_id: Some(sel.entry.id) })
+                .map(|sel| gutenberg::GalleryImage { url: gallery_size(&sel.entry, &settings.size_slug).url, alt: sel.alt.clone(), caption: (!sel.caption.trim().is_empty()).then(|| sel.caption.clone()), media_id: Some(sel.entry.id) })
                 .collect();
-            let media_refs: Vec<(u64, String, u64, u64)> = selected.iter().map(|sel| (sel.entry.id, sel.entry.source_url.clone(), sel.entry.width, sel.entry.height)).collect();
+            // Each image in the size the gallery is set to (its URL and
+            // dimensions), like the block editor.
+            let media_refs: Vec<(u64, String, u64, u64)> = selected
+                .iter()
+                .map(|sel| {
+                    let size = gallery_size(&sel.entry, &settings.size_slug);
+                    (sel.entry.id, size.url, size.width, size.height)
+                })
+                .collect();
             let fenced = gutenberg::render_gallery_fence(&images, &settings);
             (ctx.on_insert)(fenced, media_refs);
             if let Some(dialog) = ctx.dialog.upgrade() {
@@ -602,4 +610,10 @@ fn run_with_password<T: Send + 'static>(site: &wpsite::SiteConfig, job: impl FnO
             glib::ControlFlow::Break
         }
     });
+}
+
+/// The URL and dimensions of `entry` in the gallery's size (`large`, ...),
+/// the original when WordPress didn't make that size.
+fn gallery_size(entry: &crate::wpclient::WpMediaEntry, slug: &str) -> crate::wpclient::ImageSize {
+    crate::wpclient::pick_size(&entry.sizes, slug).unwrap_or(crate::wpclient::ImageSize { slug: "full".to_string(), url: entry.source_url.clone(), width: entry.width, height: entry.height })
 }

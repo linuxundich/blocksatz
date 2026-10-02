@@ -118,6 +118,16 @@ pub struct WordPressMediaRef {
     pub size_slug: Option<String>,
 }
 
+impl WordPressMediaRef {
+    /// The reference for an image placed in an article: WordPress's
+    /// "large" size, like the block editor uses (the original only when the
+    /// image is smaller than that) - URL, dimensions and `sizeSlug`.
+    pub fn for_article(media_id: u64, sizes: &[crate::wpclient::ImageSize], content_hash: String) -> Option<WordPressMediaRef> {
+        let size = crate::wpclient::pick_size(sizes, crate::wpclient::ARTICLE_IMAGE_SIZE)?;
+        Some(WordPressMediaRef { media_id, url: size.url, content_hash, width: size.width, height: size.height, size_slug: Some(size.slug) })
+    }
+}
+
 /// The transient state of an in-progress upload - unlike `WordPressMediaRef`,
 /// this is never persisted: `Uploading` only makes sense while the app is
 /// open, and a `Failed` attempt should just look like `NotUploaded` again
@@ -475,8 +485,12 @@ pub fn sync_uploads(
             let _ = client.delete_media(previous.media_id);
         }
 
-        urls.insert(item.source.clone(), media.source_url.clone());
-        item.wordpress = Some(WordPressMediaRef { media_id: media.id, url: media.source_url, content_hash: current_hash, width: media.width, height: media.height, size_slug: None });
+        // The article links the "large" size, like WordPress's block
+        // editor - not the original file (`WordPressMediaRef::for_article`).
+        let reference = WordPressMediaRef::for_article(media.id, &media.sizes, current_hash.clone())
+            .unwrap_or(WordPressMediaRef { media_id: media.id, url: media.source_url, content_hash: current_hash, width: media.width, height: media.height, size_slug: None });
+        urls.insert(item.source.clone(), reference.url.clone());
+        item.wordpress = Some(reference);
     }
 
     Ok(urls)

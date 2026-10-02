@@ -73,6 +73,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Images go to WordPress in the "large" size**, like an image added in
+  the block editor: an uploaded `![Bildunterschrift](bild.png
+  "Alternativtext")`, an image from the media library and gallery images
+  (in the gallery's chosen size) link that size's file (e.g.
+  `…-1280x800.webp`) with its dimensions, `"sizeSlug":"large"` and
+  `size-large`, instead of the original file. An image smaller than
+  "large" keeps the original (`full`). Images uploaded before keep their
+  previous link until they are uploaded again.
+
 - **Editor toolbar reworked**: symbolic icons instead of text glyphs,
   three groups (inline formatting · line/block · insert), flat buttons,
   fits a normal editor width. Headings are a menu (Überschrift 2–4,

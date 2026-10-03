@@ -66,6 +66,7 @@ mod stats;
 mod statusbar;
 mod statuscontrols;
 mod syncstate;
+mod translate;
 mod tagsuggest;
 mod taxonomy;
 mod termcache;

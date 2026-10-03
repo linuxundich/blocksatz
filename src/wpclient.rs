@@ -366,6 +366,28 @@ fn unreadable_response(status: u16, err: impl std::fmt::Display) -> ApiError {
     }
 }
 
+/// The file URL of a media item, read from the public REST endpoint - no
+/// credentials needed, so it also works for a blog whose password isn't in
+/// the keyring. Used to carry an original's featured image over to its
+/// translation (see `translatedialog`).
+pub fn public_media_url(base_url: &str, media_id: u64) -> std::result::Result<String, String> {
+    let config = ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(30))).build();
+    let url = format!("{}/wp-json/wp/v2/media/{media_id}", base_url.trim_end_matches('/'));
+    let value: Value = ureq::Agent::new_with_config(config)
+        .get(&url)
+        .call()
+        .map_err(|err| err.to_string())?
+        .body_mut()
+        .read_json()
+        .map_err(|err| err.to_string())?;
+    value
+        .get("source_url")
+        .and_then(Value::as_str)
+        .filter(|u| !u.is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| tr("Keine Medien-URL in der Antwort"))
+}
+
 impl Client {
     pub fn new(base_url: &str, username: &str, password: &str) -> Self {
         let config = ureq::Agent::config_builder()

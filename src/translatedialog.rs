@@ -21,7 +21,7 @@ use crate::i18n::tr;
 use crate::llm::{self, ChatMessage};
 use crate::translate::{self, Issue, Options, Outcome};
 use crate::window::{self, DocContext};
-use crate::{aiprompts, library, syncstate, worksave, wpsite};
+use crate::{aiprompts, library, syncstate, worksave, wpclient, wpsite};
 
 /// Target languages offered for a new translation: (code, display name).
 fn languages() -> Vec<(&'static str, String)> {
@@ -223,6 +223,7 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
             let (tx, rx) = mpsc::channel::<Msg>();
             let source_doc = (*source).clone();
             let previous_doc = previous.as_ref().as_ref().map(|(_, d)| d.clone());
+            let source_url = wpsite::load_all().sites.into_iter().find(|s| s.site_id() == source_site).map(|s| s.url);
             std::thread::spawn(move || {
                 let progress_tx = tx.clone();
                 let result = aitasks::run(AiTask::Translation, |client| {
@@ -239,6 +240,19 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
                     };
                     translate::translate(&source_doc, previous_doc.as_ref(), &opts, &system, &send, &report)
                         .map_err(|message| api_error.take().unwrap_or(llm::ApiError { message, status: llm::ModelStatus::Other }))
+                });
+                // An original imported from the blog has its featured image
+                // only as a media id of that blog. The translation gets the
+                // file URL instead, which the upload then copies into the
+                // target blog like any other featured image.
+                let result = result.map(|mut outcome| {
+                    let fm = &mut outcome.value.document.frontmatter;
+                    if previous_doc.is_none() && fm.featured_image.is_none() {
+                        if let (Some(id), Some(url)) = (source_doc.frontmatter.featured_media_id, source_url.as_deref()) {
+                            fm.featured_image = wpclient::public_media_url(url, id).ok();
+                        }
+                    }
+                    outcome
                 });
                 let _ = tx.send(Msg::Done(Box::new(result)));
             });

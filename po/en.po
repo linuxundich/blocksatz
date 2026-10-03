@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-03 14:28+0200\n"
+"POT-Creation-Date: 2026-10-03 16:14+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -237,7 +237,7 @@ msgid "Texterstellung"
 msgstr "Text generation"
 
 #: src/aitasks.rs:57 src/promptsettings.rs:70 src/releasecheck.rs:110
-#: src/releasecheck.rs:112 src/releasecheck.rs:384 src/translatedialog.rs:399
+#: src/releasecheck.rs:112 src/releasecheck.rs:384 src/translatedialog.rs:413
 msgid "Übersetzung"
 msgstr "Translation"
 
@@ -1925,7 +1925,7 @@ msgid ""
 msgstr ""
 "Parts of this post are WordPress markup and can only be edited as text."
 
-#: src/mainaction.rs:283 src/translatedialog.rs:87 src/translatedialog.rs:358
+#: src/mainaction.rs:283 src/translatedialog.rs:87 src/translatedialog.rs:372
 msgid ""
 "Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort "
 "zuerst aus dem Blog."
@@ -3481,39 +3481,39 @@ msgstr "Translate"
 msgid "Wird übersetzt …"
 msgstr "Translating …"
 
-#: src/translatedialog.rs:260
+#: src/translatedialog.rs:274
 msgid "{done} von {total}"
 msgstr "{done} of {total}"
 
-#: src/translatedialog.rs:277 src/worksave.rs:99
+#: src/translatedialog.rs:291 src/worksave.rs:99
 msgid "Speichern fehlgeschlagen: {err}"
 msgstr "Failed to save: {err}"
 
-#: src/translatedialog.rs:294
+#: src/translatedialog.rs:308
 msgid "Interner Fehler: Übersetzung hat kein Ergebnis geliefert."
 msgstr "Internal error: the translation returned no result."
 
-#: src/translatedialog.rs:336
+#: src/translatedialog.rs:350
 msgid "{n} Abschnitte übersetzt, {k} übernommen. Jetzt gegenlesen."
 msgstr "{n} sections translated, {k} kept. Review it now."
 
-#: src/translatedialog.rs:338
+#: src/translatedialog.rs:352
 msgid "{n} Abschnitte übersetzt. Jetzt gegenlesen."
 msgstr "{n} sections translated. Review it now."
 
-#: src/translatedialog.rs:354
+#: src/translatedialog.rs:368
 msgid "Das ist keine Übersetzung."
 msgstr "This isn’t a translation."
 
-#: src/translatedialog.rs:371
+#: src/translatedialog.rs:385
 msgid "Prüfungen"
 msgstr "Checks"
 
-#: src/translatedialog.rs:373
+#: src/translatedialog.rs:387
 msgid "Original geändert"
 msgstr "Original changed"
 
-#: src/translatedialog.rs:373
+#: src/translatedialog.rs:387
 msgid ""
 "Das Original wurde seit der Übersetzung bearbeitet – „Übersetzen …“ "
 "übernimmt die Änderungen."
@@ -3521,100 +3521,100 @@ msgstr ""
 "The original was edited since the translation – “Translate …” takes over the "
 "changes."
 
-#: src/translatedialog.rs:378
+#: src/translatedialog.rs:392
 msgid "Keine Auffälligkeiten"
 msgstr "Nothing found"
 
-#: src/translatedialog.rs:378
+#: src/translatedialog.rs:392
 msgid ""
 "Code, Links, Auszeichnungen und Überschriften stimmen mit dem Original "
 "überein."
 msgstr "Code, links, markup and headings match the original."
 
-#: src/translatedialog.rs:384 src/translatedialog.rs:426
+#: src/translatedialog.rs:398 src/translatedialog.rs:440
 msgid "Abschnitt {n}"
 msgstr "Section {n}"
 
-#: src/translatedialog.rs:385
+#: src/translatedialog.rs:399
 msgid "Ganzer Artikel"
 msgstr "Whole article"
 
-#: src/translatedialog.rs:398
+#: src/translatedialog.rs:412
 msgid "Original"
 msgstr "Original"
 
-#: src/translatedialog.rs:424
+#: src/translatedialog.rs:438
 msgid "Abschnitt {n} · Original geändert"
 msgstr "Section {n} · original changed"
 
-#: src/translatedialog.rs:442
+#: src/translatedialog.rs:456
 msgid "Abschnitte"
 msgstr "Sections"
 
-#: src/translatedialog.rs:444
+#: src/translatedialog.rs:458
 msgid ""
 "Korrekturen machst du im Editor; dieser Dialog zeigt den gespeicherten Stand."
 msgstr "Make corrections in the editor; this dialog shows the saved state."
 
-#: src/translatedialog.rs:452
+#: src/translatedialog.rs:466
 msgid "Markierung entfernen"
 msgstr "Remove mark"
 
-#: src/translatedialog.rs:452
+#: src/translatedialog.rs:466
 msgid "Als gegengelesen markieren"
 msgstr "Mark as reviewed"
 
-#: src/translatedialog.rs:461
+#: src/translatedialog.rs:475
 msgid "Gegenlesen"
 msgstr "Review"
 
-#: src/translatedialog.rs:471
+#: src/translatedialog.rs:485
 msgid "Markierung „gegengelesen“ entfernt."
 msgstr "“Reviewed” mark removed."
 
-#: src/translatedialog.rs:471
+#: src/translatedialog.rs:485
 msgid ""
 "Als gegengelesen markiert. Beim nächsten Hochladen wird die Übersetzung im "
 "Blog verknüpft."
 msgstr "Marked as reviewed. The next upload links the translation on the blog."
 
-#: src/translate.rs:340
+#: src/translate.rs:383
 msgid "Unbekannter Platzhalter „{p}“"
 msgstr "Unknown placeholder “{p}”"
 
-#: src/translate.rs:350
+#: src/translate.rs:393
 msgid "{p} fehlt ({o})"
 msgstr "{p} is missing ({o})"
 
-#: src/translate.rs:352
+#: src/translate.rs:395
 msgid "{p} kommt {n}-mal vor"
 msgstr "{p} appears {n} times"
 
-#: src/translate.rs:426
+#: src/translate.rs:469
 msgid "Code, Links oder Auszeichnungen weichen vom Original ab."
 msgstr "Code, links or markup differ from the original."
 
-#: src/translate.rs:429
+#: src/translate.rs:472
 msgid "Fehlt: {list}"
 msgstr "Missing: {list}"
 
-#: src/translate.rs:433
+#: src/translate.rs:476
 msgid "Zusätzlich: {list}"
 msgstr "Extra: {list}"
 
-#: src/translate.rs:441
+#: src/translate.rs:484
 msgid "Überschriften: {a} im Original, {b} in der Übersetzung."
 msgstr "Headings: {a} in the original, {b} in the translation."
 
-#: src/translate.rs:447
+#: src/translate.rs:490
 msgid "Abschnitt enthält noch {n} Wörter, die nach Original-Sprache aussehen."
 msgstr "Section still contains {n} words that look like the original language."
 
-#: src/translate.rs:622
+#: src/translate.rs:665
 msgid "Die Antwort für Titel und Auszug war kein gültiges JSON."
 msgstr "The reply for title and excerpt wasn’t valid JSON."
 
-#: src/translate.rs:693
+#: src/translate.rs:736
 msgid "Hinweis des Modells: {note}"
 msgstr "Model note: {note}"
 
@@ -3718,23 +3718,27 @@ msgstr "Formatted text from the clipboard is in an unknown format."
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr "Couldn't convert the formatted text: {err}"
 
-#: src/wpclient.rs:474
+#: src/wpclient.rs:388
+msgid "Keine Medien-URL in der Antwort"
+msgstr "No media URL in the response"
+
+#: src/wpclient.rs:496
 msgid "Keine Medien-ID in der Antwort"
 msgstr "No media ID in the response"
 
-#: src/wpclient.rs:613
+#: src/wpclient.rs:635
 msgid "Kein aktives Theme gefunden."
 msgstr "No active theme found."
 
-#: src/wpclient.rs:736
+#: src/wpclient.rs:758
 msgid "Keine Term-ID in der Antwort"
 msgstr "No term ID in the response"
 
-#: src/wpclient.rs:1025
+#: src/wpclient.rs:1047
 msgid "Keine Post-ID in der Antwort"
 msgstr "No post ID in the response"
 
-#: src/wpclient.rs:1071
+#: src/wpclient.rs:1093
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr "No term ID received for \"{name}\""
 

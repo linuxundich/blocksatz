@@ -64,7 +64,10 @@ translation_reviewed: true
 Images already uploaded with the original point at their WordPress URLs,
 so the second blog doesn't get the same files again. Images not uploaded
 yet and the featured image are copied into the translation's folder and
-uploaded to the target blog like any local image.
+uploaded to the target blog like any local image. If the original only
+knows its featured image as a media id of its blog (because it was opened
+from the blog), the translation gets that image's URL from the blog's public
+REST API, and the upload copies the file into the target blog.
 
 On upload the link goes along as post meta:
 

@@ -158,7 +158,10 @@ pub fn build_page() -> adw::PreferencesPage {
         load_api_key_into_row(provider, api_key_row);
     }
 
-    apply_provider_to_fields(state.borrow().active, &state.borrow(), &api_key_row, &base_url_row, &model_row);
+    // A copy, not a borrow: filling the model picker fires its
+    // selection handler, which writes to `state`.
+    let initial = state.borrow().clone();
+    apply_provider_to_fields(initial.active, &initial, &api_key_row, &base_url_row, &model_row);
 
     {
         let state = state.clone();
@@ -182,7 +185,10 @@ pub fn build_page() -> adw::PreferencesPage {
                 connection_status.set_label(&tr("Fehler beim Speichern: {err}").replace("{err}", &err.to_string()));
                 connection_status.set_visible(true);
             }
-            apply_provider_to_fields(provider, &state.borrow(), &api_key_row, &base_url_row, &model_row);
+            // Refilling the model picker fires `model_row`'s handler below,
+            // which borrows `state` mutably - so no borrow may be held here.
+            let config = state.borrow().clone();
+            apply_provider_to_fields(provider, &config, &api_key_row, &base_url_row, &model_row);
         });
     }
 

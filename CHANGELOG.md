@@ -59,6 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Switching the AI provider in Einstellungen → KI-Chat crashed the app**
+  ("RefCell already borrowed"): refilling the model list fired its own
+  save handler while the settings were still borrowed.
 - **Opening a post no longer drops a button's "open in new tab"**: it is
   kept as `newtab`, and a button or linked image whose link has other
   attributes Markdown can't carry stays WordPress markup.

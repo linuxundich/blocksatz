@@ -273,6 +273,32 @@ pub struct Frontmatter {
     /// via `media::reconcile`, so this only needs to persist what a plain
     /// `![alt](url)` can't represent on its own.
     pub media: Vec<MediaItem>,
+    /// Set on a working copy that is the translation of another post
+    /// (`translate.rs`) - which post, as of which state of it, and whether
+    /// someone has reviewed it. Sent as post meta on upload (`export.rs`).
+    pub translation: Option<TranslationLink>,
+}
+
+/// Where a translated working copy came from. Stored as plain
+/// `translation_*` frontmatter keys; see `docs/translations.md`.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct TranslationLink {
+    /// Language of this copy, e.g. `en`.
+    pub lang: String,
+    /// `wpsite::site_id` of the original's blog, e.g. `linuxundich.de`.
+    pub source_site: String,
+    /// The original's post id on that blog.
+    pub source_id: u64,
+    /// `syncstate::fingerprint` of the original when it was translated -
+    /// a different fingerprint now means the original changed since.
+    pub source_hash: String,
+    /// `translate::section_hash` of each section of the original, in
+    /// order - lets an update re-translate only the sections that changed.
+    pub source_sections: Vec<String>,
+    /// Date of the (last) translation, `YYYY-MM-DD`.
+    pub translated_at: String,
+    /// Reviewed by a person - only then may it be published and linked.
+    pub reviewed: bool,
 }
 
 impl Frontmatter {
@@ -320,6 +346,8 @@ pub fn parse(input: &str) -> Document {
     let end = end + 1; // index into `lines`, relative to the full slice
 
     let mut frontmatter = Frontmatter::default();
+    let mut translation = TranslationLink::default();
+    let mut translation_of: Option<(String, u64)> = None;
     for line in &lines[1..end] {
         let content = line.trim_end_matches(['\n', '\r']);
         let Some((key, value)) = content.split_once(':') else {
@@ -386,8 +414,21 @@ pub fn parse(input: &str) -> Document {
                 }
             }
             "media_json" => frontmatter.media = crate::media::from_json_str(value),
+            "translation_of" => {
+                translation_of = unquote(value).rsplit_once('#').and_then(|(site, id)| Some((site.to_string(), id.parse::<u64>().ok()?)));
+            }
+            "translation_lang" => translation.lang = unquote(value),
+            "translation_source_hash" => translation.source_hash = unquote(value),
+            "translation_sections" => translation.source_sections = parse_list(value),
+            "translated_at" => translation.translated_at = unquote(value),
+            "translation_reviewed" => translation.reviewed = value.trim() == "true",
             _ => {}
         }
+    }
+    if let Some((site, id)) = translation_of {
+        translation.source_site = site;
+        translation.source_id = id;
+        frontmatter.translation = Some(translation);
     }
 
     let mut body_lines = &lines[(end + 1).min(lines.len())..];
@@ -484,6 +525,16 @@ pub fn serialize(doc: &Document) -> String {
     }
     if !fm.media.is_empty() {
         out.push_str(&format!("media_json: {}\n", crate::media::to_json_string(&fm.media)));
+    }
+    if let Some(t) = &fm.translation {
+        out.push_str(&format!("translation_of: \"{}#{}\"\n", escape(&t.source_site), t.source_id));
+        out.push_str(&format!("translation_lang: \"{}\"\n", escape(&t.lang)));
+        out.push_str(&format!("translation_source_hash: \"{}\"\n", escape(&t.source_hash)));
+        out.push_str(&format!("translation_sections: {}\n", render_list(&t.source_sections)));
+        out.push_str(&format!("translated_at: \"{}\"\n", escape(&t.translated_at)));
+        if t.reviewed {
+            out.push_str("translation_reviewed: true\n");
+        }
     }
     out.push_str("---\n\n");
     out.push_str(&doc.body);
@@ -983,6 +1034,36 @@ mod tests {
     }
 
     #[test]
+    fn translation_link_round_trips() {
+        let doc = Document {
+            frontmatter: Frontmatter {
+                title: "Shotwell 0.33".to_string(),
+                translation: Some(TranslationLink {
+                    lang: "en".to_string(),
+                    source_site: "linuxundich.de".to_string(),
+                    source_id: 45505,
+                    source_hash: "abc123".to_string(),
+                    source_sections: vec!["11111111".to_string(), "22222222".to_string()],
+                    translated_at: "2026-10-03".to_string(),
+                    reviewed: true,
+                }),
+                ..Frontmatter::default()
+            },
+            body: "Text.\n".to_string(),
+        };
+        let text = serialize(&doc);
+        assert!(text.contains("translation_of: \"linuxundich.de#45505\"\n"));
+        assert_eq!(parse(&text), doc);
+    }
+
+    #[test]
+    fn translation_of_with_a_path_in_the_site_id() {
+        let doc = parse("---\ntitle: \"x\"\ntranslation_of: \"linuxundich.de/en#7\"\n---\n\nBody\n");
+        let t = doc.frontmatter.translation.expect("translation link");
+        assert_eq!((t.source_site.as_str(), t.source_id, t.reviewed), ("linuxundich.de/en", 7, false));
+    }
+
+    #[test]
     fn serialize_without_metadata_stays_plain() {
         let doc = Document {
             frontmatter: Frontmatter::default(),
@@ -1017,6 +1098,7 @@ mod tests {
                 wp_synced_hash: Some("cafe".to_string()),
                 wp_synced_at: Some("2026-10-01T10:00:05Z".to_string()),
                 wp_pending_create: None,
+                translation: None,
                 featured_media_id: Some(99),
                 author_id: Some(3),
                 author_name: Some("Jane Editor".to_string()),

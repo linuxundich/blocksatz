@@ -180,6 +180,49 @@ pub fn mask(text: &str) -> Masked {
     out
 }
 
+/// Attributes whose values are prose for readers, not markup.
+const TEXT_ATTRS: &[&str] = &["alt", "title", "aria-label"];
+
+/// Pushes an HTML tag as placeholders, but leaves the values of
+/// `TEXT_ATTRS` translatable in between: `<img src="x" alt="Ein Bild">`
+/// becomes `⟦TAG-1⟧Ein Bild⟦TAG-2⟧`. Comments and tags without such an
+/// attribute stay one placeholder.
+fn push_tag(tag: &str, out: &mut Masked) {
+    let mut values: Vec<(usize, usize)> = Vec::new();
+    if !tag.starts_with("<!") {
+        let lower = tag.to_ascii_lowercase();
+        for name in TEXT_ATTRS {
+            let pattern = format!("{name}=\"");
+            let mut from = 0;
+            while let Some(pos) = lower[from..].find(&pattern) {
+                let at = from + pos;
+                let start = at + pattern.len();
+                from = start;
+                if !lower[..at].ends_with(char::is_whitespace) {
+                    continue;
+                }
+                if let Some(len) = tag[start..].find('"') {
+                    if tag[start..start + len].trim().is_empty() {
+                        continue;
+                    }
+                    values.push((start, start + len));
+                }
+            }
+        }
+    }
+    values.sort_unstable();
+    let mut last = 0;
+    for (start, end) in values {
+        if start < last {
+            continue;
+        }
+        out.push("TAG", &tag[last..start]);
+        out.text.push_str(&tag[start..end]);
+        last = end;
+    }
+    out.push("TAG", &tag[last..]);
+}
+
 fn is_attr_list(inner: &str) -> bool {
     let t = inner.trim();
     !t.is_empty() && (t.starts_with('#') || t.starts_with('.') || t.starts_with(':') || t.contains('='))
@@ -243,7 +286,7 @@ fn mask_inline(line: &str, out: &mut Masked) {
             if let Some(off) = rest[i..].find('>') {
                 let end = i + off + 1;
                 flush(out, plain_start, i);
-                out.push("TAG", &rest[i..end]);
+                push_tag(&rest[i..end], out);
                 i = end;
                 plain_start = i;
                 continue;
@@ -777,6 +820,19 @@ mod tests {
         let (back, problems) = unmask(&m.text, &m.originals);
         assert_eq!(back, text);
         assert!(problems.is_empty());
+    }
+
+    #[test]
+    fn mask_leaves_alt_and_title_values_translatable() {
+        let text = "<figure><img src=\"https://example.org/a.webp\" alt=\"Die Karte\" class=\"x\" title=\"Titel\"/></figure>\n<img src=\"b\" alt=\"\">\n<!-- wp:image {\"alt\":\"bleibt\"} -->\n";
+        let m = mask(text);
+        assert!(m.text.contains("Die Karte"));
+        assert!(m.text.contains("Titel"));
+        assert!(!m.text.contains("example.org"));
+        assert!(!m.text.contains("bleibt"));
+        assert_eq!(unmask(&m.text, &m.originals).0, text);
+        let translated = text.replace("Die Karte", "The map").replace("\"Titel\"", "\"Title\"");
+        assert!(check(text, &translated, "de").is_empty());
     }
 
     #[test]

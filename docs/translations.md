@@ -19,7 +19,10 @@ linuxundich.de/en/, but nothing in it is specific to that blog.
   lists (`{#anchor .class key=value}`), container markers (`::: details`)
   and footnote markers (`[^1]`) are replaced by numbered placeholders
   (`⟦CODE-3⟧`, `⟦URL-1⟧`, …) and put back afterwards. Image captions, alt
-  texts, link texts, container titles and verse fences stay translatable.
+  texts, link texts, container titles and verse fences stay translatable,
+  and so do the values of `alt`, `title` and `aria-label` inside HTML tags.
+  Attributes in block comments (`<!-- wp:… {…} -->`) stay as they are; the
+  rendered HTML of the block is what readers see.
 - A person reviews before anything goes live. Only a reviewed translation
   can be published, and only a reviewed one is linked on the blog.
 

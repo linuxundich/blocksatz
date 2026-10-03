@@ -62,7 +62,7 @@ fn fence_marker(line: &str) -> Option<String> {
 
 fn closes_fence(line: &str, marker: &str) -> bool {
     let t = line.trim();
-    t.starts_with(marker) && t.chars().all(|c| Some(c) == marker.chars().next())
+    t.starts_with(marker) && t.chars().all(|c| marker.starts_with(c))
 }
 
 /// Splits `body` at every `## ` heading outside fenced code. The pieces
@@ -815,7 +815,7 @@ mod tests {
                 return Ok("{\"title\": \"Title\", \"excerpt\": \"\", \"featured_image_alt\": \"\", \"tags\": []}".into());
             }
             let masked = last.split_once("\n\n").unwrap().1;
-            Ok(masked.replace("Intro mit", "Intro with").replace("Teil", "Part").replace("Text.", "Text."))
+            Ok(masked.replace("Intro mit", "Intro with").replace("Teil", "Part"))
         }
     }
 

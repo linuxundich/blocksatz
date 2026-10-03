@@ -68,7 +68,7 @@ fn word_count(text: &str) -> usize {
 
 enum Msg {
     Progress(usize, usize),
-    Done(Result<aitasks::Routed<Outcome>, String>),
+    Done(Box<Result<aitasks::Routed<Outcome>, String>>),
 }
 
 /// "Übersetzen …" for the open article: creates its translation or, if
@@ -238,7 +238,7 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
                     translate::translate(&source_doc, previous_doc.as_ref(), &opts, &system, &send, &report)
                         .map_err(|message| api_error.take().unwrap_or(llm::ApiError { message, status: llm::ModelStatus::Other }))
                 });
-                let _ = tx.send(Msg::Done(result));
+                let _ = tx.send(Msg::Done(Box::new(result)));
             });
 
             let dialog = dialog.clone();
@@ -259,7 +259,7 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
                         }
                     }
                     Ok(Msg::Done(result)) => {
-                        match aitasks::deliver(result) {
+                        match aitasks::deliver(*result) {
                             Ok(outcome) => {
                                 let target = previous.as_ref().as_ref().map(|(p, _)| p.clone());
                                 match save(outcome, target, source_path.as_deref(), &target_site) {

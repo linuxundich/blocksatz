@@ -11,7 +11,7 @@ Internationalization is set up and working end-to-end (locale detection,
 catalog lookup, a real translation), and applied throughout essentially the
 whole UI - every file in `POTFILES.in` (all dialogs, menus, toolbars,
 tooltips, toasts, and status/error messages). `po/en.po` is a complete,
-real English translation of all 861 extracted strings - no untranslated,
+real English translation of all 862 extracted strings - no untranslated,
 fuzzy or obsolete entries left.
 
 The catalogs drift as soon as source strings are added or reworded, and

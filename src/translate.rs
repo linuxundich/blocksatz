@@ -531,22 +531,52 @@ fn strip_wrapper(reply: &str) -> String {
     t.to_string()
 }
 
+fn is_notes_heading(line: &str) -> bool {
+    let t = line.trim().trim_matches('*').trim_matches('#').trim().trim_end_matches(':').trim().to_lowercase();
+    matches!(t.as_str(), "notes" | "note" | "hinweise" | "anmerkungen" | "translator notes" | "translation notes")
+}
+
+/// Splits a trailing "---" + "Notes" block off a reply. A blog's own
+/// prompt may ask for such notes after the article (the request for a
+/// section says not to, but models don't always listen); they belong into
+/// the review, not into the text.
+fn split_notes(reply: &str) -> (String, Vec<String>) {
+    let lines: Vec<&str> = reply.lines().collect();
+    for (i, line) in lines.iter().enumerate() {
+        if line.trim() != "---" {
+            continue;
+        }
+        let Some(next) = lines[i + 1..].iter().position(|l| !l.trim().is_empty()).map(|p| i + 1 + p) else { continue };
+        if !is_notes_heading(lines[next]) {
+            continue;
+        }
+        let notes = lines[next + 1..]
+            .iter()
+            .map(|l| l.trim().trim_start_matches(['-', '*', '•']).trim())
+            .filter(|l| !l.is_empty())
+            .map(str::to_string)
+            .collect();
+        return (lines[..i].join("\n").trim_end().to_string(), notes);
+    }
+    (reply.to_string(), Vec::new())
+}
+
 fn section_request(masked: &str, opts: &Options) -> String {
     format!(
-        "Translate this section of a blog article from {} into {}. Return only the translated Markdown of this section: no title, no excerpt, no notes, no explanations, no code fence around it. Keep every placeholder of the form ⟦KIND-n⟧ exactly once and unchanged.\n\n{}",
+        "Translate this section of a blog article from {} into {}. Return only the translated Markdown of this section: no title, no excerpt, no notes, no explanations, no code fence around it - this overrides any output format in your instructions. Keep every placeholder of the form ⟦KIND-n⟧ exactly once and unchanged.\n\n{}",
         language_name(&opts.source_lang),
         language_name(&opts.target_lang),
         masked
     )
 }
 
-fn translate_section(section: &str, system: &str, opts: &Options, send: Send) -> Result<(String, Vec<String>), String> {
+fn translate_section(section: &str, system: &str, opts: &Options, send: Send) -> Result<(String, Vec<String>, Vec<String>), String> {
     if section.trim().is_empty() {
-        return Ok((section.to_string(), Vec::new()));
+        return Ok((section.to_string(), Vec::new(), Vec::new()));
     }
     let masked = mask(section);
     let mut history = vec![ChatMessage { role: Role::User, text: section_request(&masked.text, opts) }];
-    let mut reply = strip_wrapper(&send(system, &history)?);
+    let (mut reply, mut notes) = split_notes(&strip_wrapper(&send(system, &history)?));
     let (mut text, mut problems) = unmask(&reply, &masked.originals);
     if !problems.is_empty() {
         // One retry with the problems spelled out.
@@ -558,12 +588,12 @@ fn translate_section(section: &str, system: &str, opts: &Options, send: Send) ->
                 problems.join("; ")
             ),
         });
-        reply = strip_wrapper(&send(system, &history)?);
+        (reply, notes) = split_notes(&strip_wrapper(&send(system, &history)?));
         (text, problems) = unmask(&reply, &masked.originals);
     }
     // Keep the original's trailing whitespace so sections join as before.
     let trailing = &section[section.trim_end().len()..];
-    Ok((format!("{}{trailing}", text.trim_end()), problems))
+    Ok((format!("{}{trailing}", text.trim_end()), problems, notes))
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -650,7 +680,7 @@ pub fn translate(source: &Document, previous: Option<&Document>, opts: &Options,
             reused += 1;
             continue;
         }
-        let (text, problems) = translate_section(section, system, opts, send)?;
+        let (text, problems, notes) = translate_section(section, system, opts, send)?;
         if !section.trim().is_empty() {
             translated += 1;
             done += 1;
@@ -658,6 +688,9 @@ pub fn translate(source: &Document, previous: Option<&Document>, opts: &Options,
         }
         for problem in problems {
             issues.push(Issue { section: Some(index), message: problem });
+        }
+        for note in notes {
+            issues.push(Issue { section: Some(index), message: tr("Hinweis des Modells: {note}").replace("{note}", &note) });
         }
         body.push_str(&text);
     }
@@ -780,6 +813,15 @@ mod tests {
         assert!(!check(src, "## A\nUse `ls -l`.\n", "de").is_empty());
         let german = "## A\nDas ist nicht der Fall und auch für die Sache gilt das.\n";
         assert!(check(src.replace("`ls`", "x").as_str(), german, "de").iter().any(|i| i.section == Some(1)));
+    }
+
+    #[test]
+    fn trailing_notes_are_split_off() {
+        let (text, notes) = split_notes("## Part\nText.\n\n---\n**Notes**\n- [CHECK: menu label]\n- Pun not carried over\n");
+        assert_eq!(text, "## Part\nText.");
+        assert_eq!(notes, vec!["[CHECK: menu label]", "Pun not carried over"]);
+        let (text, notes) = split_notes("A\n\n---\n\nB\n");
+        assert_eq!((text.as_str(), notes.len()), ("A\n\n---\n\nB\n", 0));
     }
 
     #[test]

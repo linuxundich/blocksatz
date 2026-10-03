@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.66.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-03 10:17+0200\n"
+"POT-Creation-Date: 2026-10-03 11:38+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -232,7 +232,7 @@ msgid "Texterstellung"
 msgstr ""
 
 #: src/aitasks.rs:57 src/promptsettings.rs:70 src/releasecheck.rs:110
-#: src/releasecheck.rs:112 src/releasecheck.rs:384 src/translatedialog.rs:397
+#: src/releasecheck.rs:112 src/releasecheck.rs:384 src/translatedialog.rs:399
 msgid "Übersetzung"
 msgstr ""
 
@@ -863,34 +863,34 @@ msgstr ""
 msgid "✓ Verbindung erfolgreich - {n} Modelle gefunden."
 msgstr ""
 
-#: src/chatsettings.rs:115 src/chatsettings.rs:333 src/promptsettings.rs:159
+#: src/chatsettings.rs:115 src/chatsettings.rs:339 src/promptsettings.rs:159
 msgid "Gespeichert."
 msgstr ""
 
-#: src/chatsettings.rs:116 src/chatsettings.rs:182 src/chatsettings.rs:200
-#: src/chatsettings.rs:256 src/chatsettings.rs:334 src/connection.rs:123
+#: src/chatsettings.rs:116 src/chatsettings.rs:185 src/chatsettings.rs:206
+#: src/chatsettings.rs:262 src/chatsettings.rs:340 src/connection.rs:123
 #: src/connection.rs:195 src/connection.rs:220 src/firstrun.rs:190
 #: src/promptsettings.rs:160
 msgid "Fehler beim Speichern: {err}"
 msgstr ""
 
-#: src/chatsettings.rs:301 src/promptsettings.rs:125
+#: src/chatsettings.rs:307 src/promptsettings.rs:125
 msgid "Auf Standard zurücksetzen"
 msgstr ""
 
-#: src/chatsettings.rs:351 src/promptsettings.rs:181
+#: src/chatsettings.rs:357 src/promptsettings.rs:181
 msgid "Fehler beim Zurücksetzen: {err}"
 msgstr ""
 
-#: src/chatsettings.rs:357 src/promptsettings.rs:187
+#: src/chatsettings.rs:363 src/promptsettings.rs:187
 msgid "Auf Standard zurückgesetzt."
 msgstr ""
 
-#: src/chatsettings.rs:363
+#: src/chatsettings.rs:369
 msgid "Systemprompt"
 msgstr ""
 
-#: src/chatsettings.rs:378
+#: src/chatsettings.rs:384
 msgid "KI-Chat"
 msgstr ""
 
@@ -1870,7 +1870,7 @@ msgid ""
 "Teile dieses Beitrags sind WordPress-Markup und nur als Text bearbeitbar."
 msgstr ""
 
-#: src/mainaction.rs:283 src/translatedialog.rs:87 src/translatedialog.rs:356
+#: src/mainaction.rs:283 src/translatedialog.rs:87 src/translatedialog.rs:358
 msgid ""
 "Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort "
 "zuerst aus dem Blog."
@@ -3378,100 +3378,100 @@ msgstr ""
 msgid "Übersetzen"
 msgstr ""
 
-#: src/translatedialog.rs:218
+#: src/translatedialog.rs:220
 msgid "Wird übersetzt …"
 msgstr ""
 
-#: src/translatedialog.rs:258
+#: src/translatedialog.rs:260
 msgid "{done} von {total}"
 msgstr ""
 
-#: src/translatedialog.rs:275 src/worksave.rs:99
+#: src/translatedialog.rs:277 src/worksave.rs:99
 msgid "Speichern fehlgeschlagen: {err}"
 msgstr ""
 
-#: src/translatedialog.rs:292
+#: src/translatedialog.rs:294
 msgid "Interner Fehler: Übersetzung hat kein Ergebnis geliefert."
 msgstr ""
 
-#: src/translatedialog.rs:334
+#: src/translatedialog.rs:336
 msgid "{n} Abschnitte übersetzt, {k} übernommen. Jetzt gegenlesen."
 msgstr ""
 
-#: src/translatedialog.rs:336
+#: src/translatedialog.rs:338
 msgid "{n} Abschnitte übersetzt. Jetzt gegenlesen."
 msgstr ""
 
-#: src/translatedialog.rs:352
+#: src/translatedialog.rs:354
 msgid "Das ist keine Übersetzung."
 msgstr ""
 
-#: src/translatedialog.rs:369
+#: src/translatedialog.rs:371
 msgid "Prüfungen"
 msgstr ""
 
-#: src/translatedialog.rs:371
+#: src/translatedialog.rs:373
 msgid "Original geändert"
 msgstr ""
 
-#: src/translatedialog.rs:371
+#: src/translatedialog.rs:373
 msgid ""
 "Das Original wurde seit der Übersetzung bearbeitet – „Übersetzen …“ "
 "übernimmt die Änderungen."
 msgstr ""
 
-#: src/translatedialog.rs:376
+#: src/translatedialog.rs:378
 msgid "Keine Auffälligkeiten"
 msgstr ""
 
-#: src/translatedialog.rs:376
+#: src/translatedialog.rs:378
 msgid ""
 "Code, Links, Auszeichnungen und Überschriften stimmen mit dem Original "
 "überein."
 msgstr ""
 
-#: src/translatedialog.rs:382 src/translatedialog.rs:412
+#: src/translatedialog.rs:384 src/translatedialog.rs:426
 msgid "Abschnitt {n}"
 msgstr ""
 
-#: src/translatedialog.rs:383
+#: src/translatedialog.rs:385
 msgid "Ganzer Artikel"
 msgstr ""
 
-#: src/translatedialog.rs:396
+#: src/translatedialog.rs:398
 msgid "Original"
 msgstr ""
 
-#: src/translatedialog.rs:410
+#: src/translatedialog.rs:424
 msgid "Abschnitt {n} · Original geändert"
 msgstr ""
 
-#: src/translatedialog.rs:425
+#: src/translatedialog.rs:442
 msgid "Abschnitte"
 msgstr ""
 
-#: src/translatedialog.rs:425
+#: src/translatedialog.rs:444
 msgid ""
 "Korrekturen machst du im Editor; dieser Dialog zeigt den gespeicherten Stand."
 msgstr ""
 
-#: src/translatedialog.rs:430
+#: src/translatedialog.rs:452
 msgid "Markierung entfernen"
 msgstr ""
 
-#: src/translatedialog.rs:430
+#: src/translatedialog.rs:452
 msgid "Als gegengelesen markieren"
 msgstr ""
 
-#: src/translatedialog.rs:439
+#: src/translatedialog.rs:461
 msgid "Gegenlesen"
 msgstr ""
 
-#: src/translatedialog.rs:449
+#: src/translatedialog.rs:471
 msgid "Markierung „gegengelesen“ entfernt."
 msgstr ""
 
-#: src/translatedialog.rs:449
+#: src/translatedialog.rs:471
 msgid ""
 "Als gegengelesen markiert. Beim nächsten Hochladen wird die Übersetzung im "
 "Blog verknüpft."
@@ -3509,8 +3509,12 @@ msgstr ""
 msgid "Abschnitt enthält noch {n} Wörter, die nach Original-Sprache aussehen."
 msgstr ""
 
-#: src/translate.rs:592
+#: src/translate.rs:622
 msgid "Die Antwort für Titel und Auszug war kein gültiges JSON."
+msgstr ""
+
+#: src/translate.rs:693
+msgid "Hinweis des Modells: {note}"
 msgstr ""
 
 #: src/window.rs:113

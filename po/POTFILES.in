@@ -51,6 +51,8 @@ src/statusbar.rs
 src/statuscontrols.rs
 src/tagsuggest.rs
 src/taxonomy.rs
+src/translatedialog.rs
+src/translate.rs
 src/window.rs
 src/worksave.rs
 src/wpclient.rs

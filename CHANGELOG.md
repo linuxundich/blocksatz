@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Translations for a linked blog** (`docs/translations.md`):
+  - "Übersetzen …" in the main action's menu (for a post that is on the
+    blog) creates a translation as a working copy of its own, tied to a
+    second blog. The model comes from a new task "Übersetzung" under
+    Einstellungen → KI-Modelle, the prompt and a category mapping from a
+    new group under Einstellungen → KI-Prompts.
+  - The article is translated section by section; code, URLs, HTML tags,
+    attribute lists, container and footnote markers are replaced by
+    placeholders the model never sees and checked afterwards. Uploaded
+    images keep pointing at the original's uploads.
+  - "Gegenlesen …" shows original and translation side by side with the
+    checks (code and links identical, as many headings, no leftover source
+    language) and marks the translation as reviewed. The release check
+    blocks publishing an unreviewed translation; banners point at an
+    unreviewed translation and at an original that changed since.
+  - "Übersetzung aktualisieren …" re-translates only the sections whose
+    original changed and keeps the rest, including your corrections.
+  - On upload the link to the original goes along as `lui_source_*` post
+    meta, which the WordPress plugin lui-translations turns into hreflang
+    links and a language switcher.
+
 - **New article from Nautilus**: Blocksatz puts a "Blocksatz-Artikel.md"
   into the templates folder (`~/Vorlagen`) once, so "Neues Dokument" in
   Nautilus offers it; a deleted template isn't recreated. The desktop

@@ -54,6 +54,14 @@ blocks. Implemented so far:
     them. "In Arbeit" shows the active blog's working copies and the
     local-only ones; uploads, previews and the sync check of a working
     copy always go to the blog it belongs to.
+  - **Translations for a second blog** (see
+    [`docs/translations.md`](docs/translations.md)): "Übersetzen …" turns
+    a post into a working copy for a linked blog in another language,
+    section by section through the AI model chosen for translations. Code,
+    links and markup stay untouched; "Gegenlesen …" shows original and
+    translation side by side with the checks, and only a reviewed
+    translation can be published. When the original changes, an update
+    re-translates just the changed sections and keeps your corrections.
   - The **right-hand pane** (F9) has four views: Vorschau (rendered /
     Gutenberg code / "Im Blog" - the open article as the blog itself shows
     it, draft preview or live post), Beitrag (state, all post properties,

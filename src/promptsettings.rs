@@ -68,7 +68,7 @@ fn build_builtin_prompts_group() -> adw::PreferencesGroup {
 /// context-menu actions, so a group of their own.
 fn build_translation_group() -> adw::PreferencesGroup {
     let group = adw::PreferencesGroup::builder().title(tr("Übersetzung")).build();
-    group.set_description(Some(&tr("Für „Übersetzung erstellen“ im Menü der Hauptaktion. Stimme, Konventionen und ein Glossar des eigenen Blogs gehören in den Prompt.")));
+    group.set_description(Some(&tr("Für „Übersetzen …“ im Menü der Hauptaktion. Stimme, Konventionen und ein Glossar des eigenen Blogs gehören in den Prompt.")));
 
     let entries: [(String, &'static str, &'static str); 2] = [
         (tr("Übersetzungs-Prompt"), crate::translate::PROMPT_ID, crate::translate::DEFAULT_PROMPT),

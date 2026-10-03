@@ -453,3 +453,34 @@ fn open_review_with(window: &adw::ApplicationWindow, ctx: &DocContext, extra_iss
     }
     dialog.present(Some(window));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// One real translation through the configured model (costs a few
+    /// cents, needs an API key in the keyring), written nowhere but to
+    /// `BLOCKSATZ_LIVE_OUT`:
+    /// `BLOCKSATZ_LIVE_ARTICLE=…/artikel.md BLOCKSATZ_PROMPT_FILE=… BLOCKSATZ_LIVE_OUT=… cargo test live_translation -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn live_translation() {
+        let article = std::env::var("BLOCKSATZ_LIVE_ARTICLE").expect("BLOCKSATZ_LIVE_ARTICLE");
+        let source = document::read(Path::new(&article)).expect("article");
+        let system = std::env::var("BLOCKSATZ_PROMPT_FILE").ok().and_then(|p| std::fs::read_to_string(p).ok()).unwrap_or_else(|| translate::DEFAULT_PROMPT.to_string());
+        let opts = Options { source_lang: "de".into(), target_lang: "en".into(), source_site: source_site_of(&source), today: "2026-10-03".into(), translate_tags: true, category_map: "Allgemein = General".into() };
+        let routed = aitasks::run(AiTask::Translation, |client| {
+            let send = |system: &str, history: &[ChatMessage]| client.send(system, history).map_err(|e| e.message);
+            translate::translate(&source, None, &opts, &system, &send, &|d, t| eprintln!("{d}/{t}")).map_err(|message| llm::ApiError { message, status: llm::ModelStatus::Other })
+        })
+        .expect("translation");
+        if let Some(notice) = &routed.notice {
+            eprintln!("Hinweis: {notice}");
+        }
+        let out = routed.value;
+        for issue in &out.issues {
+            eprintln!("Befund {:?}: {}", issue.section, issue.message);
+        }
+        std::fs::write(std::env::var("BLOCKSATZ_LIVE_OUT").expect("BLOCKSATZ_LIVE_OUT"), document::serialize(&out.document)).unwrap();
+    }
+}

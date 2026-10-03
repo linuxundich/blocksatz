@@ -449,6 +449,16 @@ fn run_export(
     if let Some(footnotes) = footnotes_meta(&footnotes, frontmatter.wp_footnotes.as_deref()) {
         meta.insert("footnotes".to_string(), serde_json::Value::String(footnotes));
     }
+    // A translation's link to its original, as the post meta the
+    // companion plugin lui-translations registers (hreflang, language
+    // switcher). Like the RankMath keys: dropped silently by a site
+    // without that plugin.
+    if let Some(link) = &frontmatter.translation {
+        meta.insert("lui_source_id".to_string(), serde_json::json!(link.source_id));
+        meta.insert("lui_source_hash".to_string(), serde_json::json!(link.source_hash));
+        meta.insert("lui_source_translated".to_string(), serde_json::json!(link.translated_at));
+        meta.insert("lui_source_reviewed".to_string(), serde_json::json!(link.reviewed));
+    }
     if !meta.is_empty() {
         payload["meta"] = serde_json::Value::Object(meta);
     }

@@ -36,6 +36,10 @@ enum BannerKind {
     Gone,
     /// Opened from the blog with more than plain Markdown in it.
     MarkdownHint,
+    /// A translation whose original changed since (`translatedialog.rs`).
+    TranslationChanged,
+    /// A translation nobody has reviewed yet.
+    TranslationUnreviewed,
 }
 
 pub struct MainAction {
@@ -52,6 +56,10 @@ pub struct MainAction {
     busy: Cell<bool>,
     /// Open the blog preview once the running upload is done.
     preview_after_upload: Cell<bool>,
+    /// Whether the open translation's original changed since - looked up
+    /// in the library once per opened document (`doc_generation`), not on
+    /// every keystroke.
+    original_changed: Cell<(u64, Option<bool>)>,
     weak: Weak<MainAction>,
 }
 
@@ -73,6 +81,7 @@ impl MainAction {
             banner_kind: Cell::new(BannerKind::None),
             busy: Cell::new(false),
             preview_after_upload: Cell::new(false),
+            original_changed: Cell::new((u64::MAX, None)),
             weak: weak.clone(),
         });
         this.install_actions(window);
@@ -170,6 +179,20 @@ impl MainAction {
         for (entry, entry_action) in menu {
             menu_model.append(Some(&entry), Some(entry_action));
         }
+        // Translations (`translatedialog.rs`): for a translation its review
+        // and original, for anything already on the blog the way to one.
+        let translation_menu = gio::Menu::new();
+        if fm.translation.is_some() {
+            translation_menu.append(Some(&tr("Gegenlesen …")), Some("main.review"));
+            translation_menu.append(Some(&tr("Original öffnen")), Some("main.open-original"));
+            translation_menu.append(Some(&tr("Übersetzung aktualisieren …")), Some("main.translate"));
+        } else if fm.wp_post_id.is_some() {
+            translation_menu.append(Some(&tr("Übersetzen …")), Some("main.translate"));
+            translation_menu.append(Some(&tr("Übersetzung öffnen")), Some("main.open-translation"));
+        }
+        if translation_menu.n_items() > 0 {
+            menu_model.append_section(None, &translation_menu);
+        }
         self.button.set_label(&label);
         self.button.set_action_name(Some(action));
         self.button.set_menu_model(Some(&menu_model));
@@ -189,6 +212,20 @@ impl MainAction {
         self.ctx.title.set_title(&title);
         self.ctx.title.set_subtitle(&state_text(&doc, state));
 
+        let original_changed = if fm.translation.is_some() {
+            let generation = self.ctx.doc_generation.get();
+            match self.original_changed.get() {
+                (cached, value) if cached == generation => value,
+                _ => {
+                    let value = crate::translatedialog::original_changed(&doc);
+                    self.original_changed.set((generation, value));
+                    value
+                }
+            }
+        } else {
+            None
+        };
+
         let (kind, message, button) = match (state.status, state.sync) {
             (_, SyncState::RemoteGone) => (BannerKind::Gone, tr("Dieser Beitrag wurde im Blog gelöscht oder in den Papierkorb verschoben."), tr("Verknüpfung lösen")),
             (_, SyncState::Conflict) => (BannerKind::Conflict, tr("Dieser Beitrag wurde im Blog geändert, während du hier weitergeschrieben hast."), tr("Auflösen …")),
@@ -197,6 +234,12 @@ impl MainAction {
                 BannerKind::PublishedChanges,
                 tr("Veröffentlichter Beitrag: Deine Änderungen gehen erst mit „Änderungen veröffentlichen“ online."),
                 String::new(),
+            ),
+            _ if original_changed == Some(true) => (BannerKind::TranslationChanged, tr("Das Original wurde seit der Übersetzung geändert."), tr("Übersetzung aktualisieren …")),
+            _ if fm.translation.as_ref().is_some_and(|t| !t.reviewed) => (
+                BannerKind::TranslationUnreviewed,
+                tr("Diese Übersetzung ist noch nicht gegengelesen. Erst danach lässt sie sich veröffentlichen und wird im Blog verknüpft."),
+                tr("Gegenlesen …"),
             ),
             _ if fm.markdown_hint && crate::markdowncheck::assess(&doc.body).closeness != gutenberg::Closeness::Plain => (
                 BannerKind::MarkdownHint,
@@ -231,6 +274,22 @@ impl MainAction {
         add("autosave-preview", MainAction::autosave_preview);
         add("blog-preview", MainAction::blog_preview);
         add("compare", MainAction::compare);
+        add("translate", MainAction::translate);
+        add("review", MainAction::review);
+        add("open-original", |this| {
+            let doc = this.ctx.current_document();
+            match crate::translatedialog::find_original(&doc) {
+                Some((path, _)) => window::open_document_at_path(path, &this.ctx),
+                None => window::show_toast(&this.ctx.toast_overlay, &tr("Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort zuerst aus dem Blog.")),
+            }
+        });
+        add("open-translation", |this| {
+            let doc = this.ctx.current_document();
+            match crate::translatedialog::find_translation(&doc) {
+                Some((path, _)) => window::open_document_at_path(path, &this.ctx),
+                None => window::show_toast(&this.ctx.toast_overlay, &tr("Zu diesem Beitrag gibt es noch keine Übersetzung.")),
+            }
+        });
         add("publish", |this| this.release_check(Mode::Publish { scheduled: false }));
         add("schedule", |this| this.release_check(Mode::Publish { scheduled: true }));
         add("publish-changes", |this| this.release_check(Mode::PublishChanges));
@@ -262,6 +321,18 @@ impl MainAction {
             }
         });
         window.add_action(&check);
+    }
+
+    fn translate(&self) {
+        if let Some(window) = self.window.upgrade() {
+            crate::translatedialog::open(&window, &self.ctx);
+        }
+    }
+
+    fn review(&self) {
+        if let Some(window) = self.window.upgrade() {
+            crate::translatedialog::open_review(&window, &self.ctx);
+        }
     }
 
     /// Opens the release check and uploads with the decision taken there.
@@ -448,6 +519,8 @@ impl MainAction {
             BannerKind::Conflict => self.resolve_conflict(),
             BannerKind::Gone => self.unlink(),
             BannerKind::MarkdownHint => self.show_markdown_details(),
+            BannerKind::TranslationChanged => self.translate(),
+            BannerKind::TranslationUnreviewed => self.review(),
             BannerKind::PublishedChanges | BannerKind::None => {}
         }
     }

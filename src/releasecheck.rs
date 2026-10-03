@@ -105,6 +105,14 @@ pub fn checks(doc: &Document) -> Vec<Check> {
         out.push(check(tr("Links"), detail, Severity::Hint, Fix::Links));
     }
 
+    if let Some(link) = &fm.translation {
+        out.push(if link.reviewed {
+            check(tr("Übersetzung"), tr("Gegengelesen"), Severity::Ok, Fix::Properties)
+        } else {
+            check(tr("Übersetzung"), tr("Noch nicht gegengelesen – im Menü „Gegenlesen …“ bestätigen."), Severity::Error, Fix::Properties)
+        });
+    }
+
     out.push(match fm.rank_math_focus_keyword.as_deref().map(str::trim).filter(|k| !k.is_empty()) {
         Some(keyword) => check(tr("Fokus-Keyword"), keyword.to_string(), Severity::Ok, Fix::Properties),
         None => check(tr("Fokus-Keyword"), tr("Optional, für RankMath."), Severity::Hint, Fix::Properties),
@@ -369,4 +377,16 @@ mod tests {
         assert_eq!(severity_of(&all, "Kategorie"), None);
         assert_eq!(severity_of(&all, "Tags"), None);
     }
+    #[test]
+    fn unreviewed_translation_blocks_publishing() {
+        let mut fm = Frontmatter { title: "Title".into(), translation: Some(crate::document::TranslationLink { source_site: "example.org".into(), source_id: 1, ..Default::default() }), ..Frontmatter::default() };
+        let doc = |fm: &Frontmatter| Document { frontmatter: fm.clone(), body: "Body.\n".into() };
+        let severity = |fm: &Frontmatter| checks(&doc(fm)).into_iter().find(|c| c.title == tr("Übersetzung")).map(|c| c.severity);
+        assert_eq!(severity(&fm), Some(Severity::Error));
+        fm.translation.as_mut().unwrap().reviewed = true;
+        assert_eq!(severity(&fm), Some(Severity::Ok));
+        fm.translation = None;
+        assert_eq!(severity(&fm), None);
+    }
+
 }

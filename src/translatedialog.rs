@@ -228,7 +228,7 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
                 let result = aitasks::run(AiTask::Translation, |client| {
                     let api_error: RefCell<Option<llm::ApiError>> = RefCell::new(None);
                     let send = |system: &str, history: &[ChatMessage]| {
-                        client.send(system, history).map_err(|err| {
+                        client.send_with(system, history, &llm::SendOptions::bulk_text()).map_err(|err| {
                             let message = err.message.clone();
                             *api_error.borrow_mut() = Some(err);
                             message
@@ -492,7 +492,7 @@ mod tests {
         let system = std::env::var("BLOCKSATZ_PROMPT_FILE").ok().and_then(|p| std::fs::read_to_string(p).ok()).unwrap_or_else(|| translate::DEFAULT_PROMPT.to_string());
         let opts = Options { source_lang: "de".into(), target_lang: "en".into(), source_site: source_site_of(&source), today: "2026-10-03".into(), translate_tags: true, category_map: "Allgemein = General".into() };
         let routed = aitasks::run(AiTask::Translation, |client| {
-            let send = |system: &str, history: &[ChatMessage]| client.send(system, history).map_err(|e| e.message);
+            let send = |system: &str, history: &[ChatMessage]| client.send_with(system, history, &llm::SendOptions::bulk_text()).map_err(|e| e.message);
             translate::translate(&source, None, &opts, &system, &send, &|d, t| eprintln!("{d}/{t}")).map_err(|message| llm::ApiError { message, status: llm::ModelStatus::Other })
         })
         .expect("translation");

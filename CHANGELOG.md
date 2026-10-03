@@ -29,6 +29,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - On upload the link to the original goes along as `lui_source_*` post
     meta, which the WordPress plugin lui-translations turns into hreflang
     links and a language switcher.
+  - Translation requests to Claude are cheap on purpose: the system prompt
+    (voice, glossary) is marked for prompt caching, so from the second
+    section on it is read from the cache; effort is `low`; and a reply cut
+    off at the length limit is reported instead of saved half.
+- **Claude: replies from current models came back empty.** Claude Sonnet
+  5.5 and other current models think first, so the reply's first block is
+  a thinking block without text; Blocksatz only read that block ("Keine
+  Antwort erhalten"). Now every text block is read, and a reply cut off at
+  the length limit or declined is reported as such. The default Claude
+  model is `claude-sonnet-5-5`.
 
 - **New article from Nautilus**: Blocksatz puts a "Blocksatz-Artikel.md"
   into the templates folder (`~/Vorlagen`) once, so "Neues Dokument" in

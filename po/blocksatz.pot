@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.66.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-03 11:38+0200\n"
+"POT-Creation-Date: 2026-10-03 14:28+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1722,17 +1722,25 @@ msgstr ""
 msgid "Fehler"
 msgstr ""
 
-#: src/llm.rs:291 src/llm.rs:435
+#: src/llm.rs:296 src/llm.rs:431
 msgid ""
 "Keine Antwort erhalten (möglicherweise durch einen Sicherheitsfilter "
 "blockiert)."
 msgstr ""
 
-#: src/llm.rs:317 src/llm.rs:348 src/llm.rs:450 src/llm.rs:468
+#: src/llm.rs:322 src/llm.rs:446 src/llm.rs:626
 msgid "Keine Antwort erhalten."
 msgstr ""
 
-#: src/llm.rs:705 src/wpclient.rs:365
+#: src/llm.rs:613
+msgid "Die Antwort wurde abgeschnitten (Längenlimit erreicht)."
+msgstr ""
+
+#: src/llm.rs:616
+msgid "Das Modell hat die Anfrage abgelehnt (Kategorie: {category})."
+msgstr ""
+
+#: src/llm.rs:769 src/wpclient.rs:365
 msgid "Antwort nicht lesbar: {err}"
 msgstr ""
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-03 11:38+0200\n"
+"POT-Creation-Date: 2026-10-03 14:28+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -1766,17 +1766,25 @@ msgstr "Provider currently unreachable"
 msgid "Fehler"
 msgstr "Error"
 
-#: src/llm.rs:291 src/llm.rs:435
+#: src/llm.rs:296 src/llm.rs:431
 msgid ""
 "Keine Antwort erhalten (möglicherweise durch einen Sicherheitsfilter "
 "blockiert)."
 msgstr "No response received (possibly blocked by a safety filter)."
 
-#: src/llm.rs:317 src/llm.rs:348 src/llm.rs:450 src/llm.rs:468
+#: src/llm.rs:322 src/llm.rs:446 src/llm.rs:626
 msgid "Keine Antwort erhalten."
 msgstr "No response received."
 
-#: src/llm.rs:705 src/wpclient.rs:365
+#: src/llm.rs:613
+msgid "Die Antwort wurde abgeschnitten (Längenlimit erreicht)."
+msgstr "The reply was cut off (length limit reached)."
+
+#: src/llm.rs:616
+msgid "Das Modell hat die Anfrage abgelehnt (Kategorie: {category})."
+msgstr "The model declined the request (category: {category})."
+
+#: src/llm.rs:769 src/wpclient.rs:365
 msgid "Antwort nicht lesbar: {err}"
 msgstr "Couldn't read the response: {err}"
 

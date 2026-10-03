@@ -61,7 +61,7 @@ impl Provider {
         match self {
             Provider::Gemini => "gemini-2.5-flash",
             Provider::OpenAi => "gpt-4o-mini",
-            Provider::Claude => "claude-sonnet-5",
+            Provider::Claude => "claude-sonnet-5-5",
             Provider::Groq => "llama-3.3-70b-versatile",
             Provider::Ollama => "llama3.2",
         }
@@ -255,10 +255,15 @@ impl Client {
     /// Sends the full conversation history (the last element being the new
     /// user message) plus a system prompt, returning the model's reply text.
     pub fn send(&self, system_prompt: &str, history: &[ChatMessage]) -> Result<String> {
+        self.send_with(system_prompt, history, &SendOptions::default())
+    }
+
+    /// `send` with per-call tuning - only Claude uses the options so far.
+    pub fn send_with(&self, system_prompt: &str, history: &[ChatMessage], options: &SendOptions) -> Result<String> {
         match self.provider {
             Provider::Gemini => self.send_gemini(system_prompt, history),
             Provider::OpenAi | Provider::Groq => self.send_openai(system_prompt, history),
-            Provider::Claude => self.send_claude(system_prompt, history),
+            Provider::Claude => self.send_claude(system_prompt, history, options),
             Provider::Ollama => self.send_ollama(system_prompt, history),
         }
     }
@@ -317,7 +322,7 @@ impl Client {
             .ok_or_else(|| ApiError::other(tr("Keine Antwort erhalten.")))
     }
 
-    fn send_claude(&self, system_prompt: &str, history: &[ChatMessage]) -> Result<String> {
+    fn send_claude(&self, system_prompt: &str, history: &[ChatMessage], options: &SendOptions) -> Result<String> {
         let messages: Vec<Value> = history
             .iter()
             .map(|m| {
@@ -327,11 +332,7 @@ impl Client {
                 })
             })
             .collect();
-        let mut body = serde_json::json!({ "model": self.model, "max_tokens": 4096, "messages": messages });
-        if !system_prompt.trim().is_empty() {
-            body["system"] = serde_json::Value::String(system_prompt.to_string());
-        }
-
+        let body = claude_body(&self.model, system_prompt, messages, options);
         let (status, body_text) = self.post_json(
             "https://api.anthropic.com/v1/messages",
             &[("x-api-key", &self.api_key), ("anthropic-version", "2023-06-01")],
@@ -340,12 +341,7 @@ impl Client {
         if !(200..300).contains(&status) {
             return Err(error_from_body(status, &body_text, &["error", "message"]));
         }
-        let value: Value = parse_json(&body_text)?;
-        value
-            .pointer("/content/0/text")
-            .and_then(Value::as_str)
-            .map(str::to_string)
-            .ok_or_else(|| ApiError::other(tr("Keine Antwort erhalten.")))
+        claude_reply_text(&parse_json(&body_text)?)
     }
 
     fn send_ollama(&self, system_prompt: &str, history: &[ChatMessage]) -> Result<String> {
@@ -460,12 +456,7 @@ impl Client {
         if !(200..300).contains(&status) {
             return Err(error_from_body(status, &body_text, &["error", "message"]));
         }
-        let value: Value = parse_json(&body_text)?;
-        value
-            .pointer("/content/0/text")
-            .and_then(Value::as_str)
-            .map(str::to_string)
-            .ok_or_else(|| ApiError::other(tr("Keine Antwort erhalten.")))
+        claude_reply_text(&parse_json(&body_text)?)
     }
 
     fn describe_image_ollama(&self, prompt: &str, data: &str) -> Result<String> {
@@ -564,6 +555,79 @@ impl Client {
 /// Request-body builders for `describe_image_*` - kept as pure functions
 /// (not inlined) so their JSON shape can be unit-tested the same way
 /// `extract_*_models` is, without needing a live network call.
+/// Per-call tuning for `Client::send_with`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SendOptions {
+    /// Mark the system prompt for prompt caching - worth it when the same
+    /// long prompt goes out several times in a row (a translation sends
+    /// one request per section).
+    pub cache_system: bool,
+    /// Claude's `output_config.effort`; `None` leaves the model's default.
+    pub effort: Option<&'static str>,
+    /// Output limit, including the model's thinking.
+    pub max_tokens: u32,
+}
+
+impl Default for SendOptions {
+    fn default() -> Self {
+        Self { cache_system: false, effort: None, max_tokens: 4096 }
+    }
+}
+
+impl SendOptions {
+    /// Long, mechanical text work (translation): little thinking needed,
+    /// the same system prompt for many requests, long replies.
+    pub fn bulk_text() -> Self {
+        Self { cache_system: true, effort: Some("low"), max_tokens: 16000 }
+    }
+}
+
+fn claude_body(model: &str, system_prompt: &str, messages: Vec<Value>, options: &SendOptions) -> Value {
+    let mut body = serde_json::json!({ "model": model, "max_tokens": options.max_tokens, "messages": messages });
+    if !system_prompt.trim().is_empty() {
+        body["system"] = if options.cache_system {
+            serde_json::json!([{ "type": "text", "text": system_prompt, "cache_control": { "type": "ephemeral" } }])
+        } else {
+            Value::String(system_prompt.to_string())
+        };
+    }
+    if let Some(effort) = options.effort.filter(|_| claude_supports_effort(model)) {
+        body["output_config"] = serde_json::json!({ "effort": effort });
+    }
+    body
+}
+
+/// `output_config.effort` exists from the 4.5 Opus / 4.6 generation on;
+/// Haiku 4.5, Sonnet 4.5 and older answer it with a 400.
+fn claude_supports_effort(model: &str) -> bool {
+    !(model.contains("haiku") || model.starts_with("claude-3") || model.contains("sonnet-4-5") || model.contains("-4-0") || model.contains("-4-1") || model == "claude-sonnet-4" || model == "claude-opus-4")
+}
+
+/// The reply text of a Messages API response: every `text` block, in
+/// order. Current models think first, so the first block is often a
+/// `thinking` block without text - reading only `content[0]` came back
+/// empty. A reply cut off at `max_tokens` or declined is an error, not a
+/// short answer.
+fn claude_reply_text(value: &Value) -> Result<String> {
+    match value.get("stop_reason").and_then(Value::as_str) {
+        Some("max_tokens") => return Err(ApiError::other(tr("Die Antwort wurde abgeschnitten (Längenlimit erreicht)."))),
+        Some("refusal") => {
+            let category = value.pointer("/stop_details/category").and_then(Value::as_str).unwrap_or("?");
+            return Err(ApiError::other(tr("Das Modell hat die Anfrage abgelehnt (Kategorie: {category}).").replace("{category}", category)));
+        }
+        _ => {}
+    }
+    let text: String = value
+        .get("content")
+        .and_then(Value::as_array)
+        .map(|blocks| blocks.iter().filter(|b| b.get("type").and_then(Value::as_str) == Some("text")).filter_map(|b| b.get("text").and_then(Value::as_str)).collect())
+        .unwrap_or_default();
+    if text.is_empty() {
+        return Err(ApiError::other(tr("Keine Antwort erhalten.")));
+    }
+    Ok(text)
+}
+
 fn gemini_image_body(prompt: &str, mime_type: &str, data: &str) -> Value {
     serde_json::json!({
         "contents": [{
@@ -996,4 +1060,38 @@ mod tests {
         assert_eq!(body.pointer("/messages/0/content").and_then(Value::as_str), Some("Beschreibe dieses Bild."));
         assert_eq!(body.pointer("/messages/0/images/0").and_then(Value::as_str), Some("QUJD"));
     }
+
+    #[test]
+    fn claude_reply_skips_thinking_blocks() {
+        let value = serde_json::json!({"stop_reason": "end_turn", "content": [{"type": "thinking", "thinking": ""}, {"type": "text", "text": "Hello"}, {"type": "text", "text": " world"}]});
+        assert_eq!(claude_reply_text(&value).unwrap(), "Hello world");
+    }
+
+    #[test]
+    fn claude_reply_cut_off_or_declined_is_an_error() {
+        let cut = serde_json::json!({"stop_reason": "max_tokens", "content": [{"type": "text", "text": "Hal"}]});
+        assert!(claude_reply_text(&cut).is_err());
+        let refused = serde_json::json!({"stop_reason": "refusal", "stop_details": {"category": "cyber"}, "content": []});
+        assert!(claude_reply_text(&refused).unwrap_err().message.contains("cyber"));
+    }
+
+    #[test]
+    fn claude_bulk_text_body_caches_the_system_prompt_and_sets_effort() {
+        let body = claude_body("claude-sonnet-5-5", "Stilprofil", Vec::new(), &SendOptions::bulk_text());
+        assert_eq!(body["system"][0]["cache_control"]["type"], "ephemeral");
+        assert_eq!(body["output_config"]["effort"], "low");
+        assert_eq!(body["max_tokens"], 16000);
+        let plain = claude_body("claude-sonnet-5-5", "Chat", Vec::new(), &SendOptions::default());
+        assert_eq!(plain["system"], "Chat");
+        assert!(plain.get("output_config").is_none());
+    }
+
+
+    #[test]
+    fn effort_is_only_sent_to_models_that_know_it() {
+        let haiku = claude_body("claude-haiku-4-5", "x", Vec::new(), &SendOptions::bulk_text());
+        assert!(haiku.get("output_config").is_none());
+        assert!(claude_supports_effort("claude-opus-5-5") && claude_supports_effort("claude-sonnet-4-6"));
+    }
+
 }

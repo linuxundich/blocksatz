@@ -184,7 +184,9 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
     let toolbar = adw::ToolbarView::new();
     toolbar.add_top_bar(&header);
     toolbar.set_content(Some(&page));
-    let dialog = adw::Dialog::builder().title(title).content_width(560).child(&toolbar).build();
+    // Fixed height: the progress bar and an error message appear below the
+    // rows later and must not end up behind the dialog's lower edge.
+    let dialog = adw::Dialog::builder().title(title).content_width(560).content_height(560).child(&toolbar).build();
 
     let window_weak = window.downgrade();
     let ctx = ctx.clone();
@@ -398,11 +400,23 @@ fn open_review_with(window: &adw::ApplicationWindow, ctx: &DocContext, extra_iss
     let left = translate::split_sections(&source_body);
     let right = translate::split_sections(&translation.body);
     let cell = |text: &str| {
-        let label = gtk4::Label::builder().label(text.trim()).xalign(0.0).yalign(0.0).wrap(true).wrap_mode(gtk4::pango::WrapMode::WordChar).selectable(true).build();
+        let label = gtk4::Label::builder()
+            .label(text.trim())
+            .xalign(0.0)
+            .yalign(0.0)
+            .wrap(true)
+            .wrap_mode(gtk4::pango::WrapMode::WordChar)
+            .selectable(true)
+            .margin_top(12)
+            .margin_bottom(12)
+            .margin_start(12)
+            .margin_end(12)
+            .build();
         label.add_css_class("monospace");
-        label.add_css_class("card");
-        label.set_margin_top(4);
-        label
+        let card = gtk4::Box::builder().margin_top(4).build();
+        card.add_css_class("card");
+        card.append(&label);
+        card
     };
     for i in 0..left.len().max(right.len()) {
         let changed = left.get(i).is_some_and(|s| !link.source_sections.contains(&translate::section_hash(s)));
@@ -420,11 +434,19 @@ fn open_review_with(window: &adw::ApplicationWindow, ctx: &DocContext, extra_iss
         grid.attach(&cell(right.get(i).map(String::as_str).unwrap_or("")), 1, row + 1, 1, 1);
     }
 
-    let page = adw::PreferencesPage::new();
-    page.add(&checks);
-    let sections = adw::PreferencesGroup::builder().title(tr("Abschnitte")).description(tr("Korrekturen machst du im Editor; dieser Dialog zeigt den gespeicherten Stand.")).build();
-    sections.add(&grid);
-    page.add(&sections);
+    // Not a PreferencesPage: its clamp would squeeze the two columns into
+    // half of a 600 px strip. The checks stay readable-width, the sections
+    // use the whole dialog.
+    let content = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(12).margin_top(18).margin_bottom(18).build();
+    content.append(&adw::Clamp::builder().maximum_size(900).child(&checks).build());
+    let sections_title = gtk4::Label::builder().label(tr("Abschnitte")).xalign(0.0).margin_start(12).margin_top(12).build();
+    sections_title.add_css_class("heading");
+    let sections_hint = gtk4::Label::builder().label(tr("Korrekturen machst du im Editor; dieser Dialog zeigt den gespeicherten Stand.")).xalign(0.0).wrap(true).margin_start(12).build();
+    sections_hint.add_css_class("dim-label");
+    content.append(&sections_title);
+    content.append(&sections_hint);
+    content.append(&grid);
+    let page = gtk4::ScrolledWindow::builder().child(&content).hscrollbar_policy(gtk4::PolicyType::Never).vexpand(true).build();
 
     let reviewed = link.reviewed;
     let toggle = gtk4::Button::with_label(&if reviewed { tr("Markierung entfernen") } else { tr("Als gegengelesen markieren") });

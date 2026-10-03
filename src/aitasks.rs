@@ -32,16 +32,20 @@ pub enum AiTask {
     TextEditing,
     /// The AI article draft - writing new text from a brief.
     TextGeneration,
+    /// Translating an article for a linked blog in another language
+    /// (`translate.rs`) - long input, long output, needs a strong model.
+    Translation,
 }
 
 impl AiTask {
-    pub const ALL: [AiTask; 3] = [AiTask::ImageCaptioning, AiTask::TextEditing, AiTask::TextGeneration];
+    pub const ALL: [AiTask; 4] = [AiTask::ImageCaptioning, AiTask::TextEditing, AiTask::TextGeneration, AiTask::Translation];
 
     pub fn id(&self) -> &'static str {
         match self {
             AiTask::ImageCaptioning => "image_captioning",
             AiTask::TextEditing => "text_editing",
             AiTask::TextGeneration => "text_generation",
+            AiTask::Translation => "translation",
         }
     }
 
@@ -50,6 +54,7 @@ impl AiTask {
             AiTask::ImageCaptioning => tr("Bildbeschreibungen"),
             AiTask::TextEditing => tr("Lektorat und Überarbeitung"),
             AiTask::TextGeneration => tr("Texterstellung"),
+            AiTask::Translation => tr("Übersetzung"),
         }
     }
 
@@ -58,6 +63,7 @@ impl AiTask {
             AiTask::ImageCaptioning => tr("KI-Alternativtext und KI-Bildunterschrift - braucht ein Modell, das Bilder versteht."),
             AiTask::TextEditing => tr("Umformulieren und Korrigieren im Editor, Artikelbewertung, Tag-Vorschläge."),
             AiTask::TextGeneration => tr("KI-Artikelentwurf aus Thema und Anweisungen."),
+            AiTask::Translation => tr("Artikel für ein verknüpftes Blog in einer anderen Sprache übersetzen."),
         }
     }
 }

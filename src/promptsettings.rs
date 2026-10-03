@@ -23,6 +23,7 @@ pub fn build_page(custom_prompts_menu: gio::Menu) -> adw::PreferencesPage {
     let page = adw::PreferencesPage::builder().title(tr("KI-Prompts")).icon_name("insert-text-symbolic").build();
 
     page.add(&build_builtin_prompts_group());
+    page.add(&build_translation_group());
     page.add(&build_custom_prompts_group(&custom_prompts_menu));
 
     page
@@ -60,6 +61,34 @@ fn build_builtin_prompts_group() -> adw::PreferencesGroup {
         group.add(&expander);
     }
 
+    group
+}
+
+/// The translation prompt and the category mapping (`translate.rs`) - not
+/// context-menu actions, so a group of their own.
+fn build_translation_group() -> adw::PreferencesGroup {
+    let group = adw::PreferencesGroup::builder().title(tr("Übersetzung")).build();
+    group.set_description(Some(&tr("Für „Übersetzung erstellen“ im Menü der Hauptaktion. Stimme, Konventionen und ein Glossar des eigenen Blogs gehören in den Prompt.")));
+
+    let entries: [(String, &'static str, &'static str); 2] = [
+        (tr("Übersetzungs-Prompt"), crate::translate::PROMPT_ID, crate::translate::DEFAULT_PROMPT),
+        (tr("Kategorien zuordnen"), crate::translate::CATEGORY_MAP_ID, ""),
+    ];
+    for (title, id, default) in entries {
+        let expander = adw::ExpanderRow::builder().title(title).use_markup(false).build();
+        if id == crate::translate::CATEGORY_MAP_ID {
+            expander.set_subtitle(&tr("Eine Zeile je Kategorie, z. B. „Allgemein = General“. Nicht aufgeführte Namen bleiben gleich."));
+        }
+        let (editor_row, _status) = build_prompt_editor(
+            id,
+            move || aiprompts::load_text_or(id, default),
+            move |text: &str| aiprompts::save_prompt_text(id, text),
+            Some(move || aiprompts::reset_prompt_text(id)),
+            move || aiprompts::is_prompt_customized(id),
+        );
+        expander.add_row(&editor_row);
+        group.add(&expander);
+    }
     group
 }
 

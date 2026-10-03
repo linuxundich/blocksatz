@@ -99,6 +99,18 @@ pub fn load_prompt_text(id: &str) -> String {
         .unwrap_or_else(|| default_template_for(id).to_string())
 }
 
+/// Like `load_prompt_text`, for a prompt that isn't one of the context-menu
+/// built-ins (the translation prompt, `translate.rs`) and so brings its own
+/// default.
+pub fn load_text_or(id: &str, default: &str) -> String {
+    load_root()
+        .get("builtin_overrides")
+        .and_then(|overrides| overrides.get(id))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .unwrap_or_else(|| default.to_string())
+}
+
 pub fn save_prompt_text(id: &str, text: &str) -> std::io::Result<()> {
     let mut root = load_root();
     root["builtin_overrides"][id] = serde_json::json!(text);

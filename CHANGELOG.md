@@ -22,7 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     so image descriptions in galleries and image blocks no longer keep the
     source language. An original imported from the blog brings its
     featured image along: the translation gets the image's URL and the
-    upload copies it into the target blog. Uploaded
+    upload copies it into the target blog. "Blog-Fassung laden" on a translation keeps its link to the
+    original. Uploaded
     images keep pointing at the original's uploads.
   - "Gegenlesen …" shows original and translation side by side with the
     checks (code and links identical, as many headings, no leftover source

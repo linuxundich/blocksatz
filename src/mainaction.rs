@@ -573,7 +573,14 @@ impl MainAction {
             remote.insert(post_id, Remote::Present { modified_gmt: fetched, status: imported.frontmatter.status, link });
         }
         self.ctx.buffer.set_text(&imported.body);
-        *self.ctx.frontmatter.borrow_mut() = imported.frontmatter;
+        // The blog doesn't know a translation's link to its original
+        // (section hashes, review state) - keep it from the working copy.
+        let translation = self.ctx.frontmatter.borrow().translation.clone();
+        let mut frontmatter = imported.frontmatter;
+        if frontmatter.translation.is_none() {
+            frontmatter.translation = translation;
+        }
+        *self.ctx.frontmatter.borrow_mut() = frontmatter;
         self.ctx.preview_pane.set_article_header(&self.ctx.frontmatter.borrow());
         worksave::flush(&self.ctx, true);
         self.ctx.bump_generation();

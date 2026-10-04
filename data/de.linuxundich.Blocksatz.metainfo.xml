@@ -25,6 +25,13 @@
   <url type="homepage">https://github.com/linuxundich/blocksatz</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksatz</url>
   <releases>
+    <release version="0.67.0" date="2026-10-04">
+      <description>
+        <p>Übersetzungen für ein zweites Blog: „Übersetzen …“ legt aus einem Beitrag eine Übersetzung als eigene Arbeitskopie an, abschnittsweise und mit geschützten Code-Blöcken, Links und Auszeichnungen. „Gegenlesen …“ zeigt Original und Übersetzung nebeneinander mit Prüfungen; erst gegengelesene Übersetzungen lassen sich veröffentlichen. „Übersetzung aktualisieren …“ übersetzt nur geänderte Abschnitte neu.</p>
+        <p>Neuer Artikel direkt aus Nautilus („Neues Dokument“), mehr Gestaltung als Markdown (eigene Farben, Typografie, Listen-Nummerierung, Bildformat, Buttons), vorformatierter Text und Gedichte als Codezäune, Bildunterschriften mit Links und Hervorhebungen.</p>
+        <p>Behoben: leere Antworten aktueller Claude-Modelle und ein Absturz beim Wechsel des KI-Anbieters.</p>
+      </description>
+    </release>
     <release version="0.66.0" date="2026-10-02">
       <description>
         <p>Mehr Gestaltung bleibt Markdown: Zitate mit Quelle („> — Quelle“), Medien &amp; Text, Kästen mit Innenabstand, Rahmen und Schatten, Bildunterschriften bei Audio, Video, Einbettungen und Galerien sowie verlinkte Bilder. Cover und Medien &amp; Text nehmen lokale Bilder, die beim Hochladen mitgehen.</p>

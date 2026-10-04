@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.67.0] - 2026-10-04
+
 ### Added
 
 - **Translations for a linked blog** (`docs/translations.md`):
@@ -22,9 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     so image descriptions in galleries and image blocks no longer keep the
     source language. An original imported from the blog brings its
     featured image along: the translation gets the image's URL and the
-    upload copies it into the target blog. "Blog-Fassung laden" on a translation keeps its link to the
-    original. Uploaded
-    images keep pointing at the original's uploads.
+    upload copies it into the target blog. Uploaded images keep pointing
+    at the original's uploads, and "Blog-Fassung laden" on a translation
+    keeps its link to the original.
   - "Gegenlesen …" shows original and translation side by side with the
     checks (code and links identical, as many headings, no leftover source
     language) and marks the translation as reviewed. The release check
@@ -39,13 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     (voice, glossary) is marked for prompt caching, so from the second
     section on it is read from the cache; effort is `low`; and a reply cut
     off at the length limit is reported instead of saved half.
-- **Claude: replies from current models came back empty.** Claude Sonnet
-  5.5 and other current models think first, so the reply's first block is
-  a thinking block without text; Blocksatz only read that block ("Keine
-  Antwort erhalten"). Now every text block is read, and a reply cut off at
-  the length limit or declined is reported as such. The default Claude
-  model is `claude-sonnet-5-5`.
-
 - **New article from Nautilus**: Blocksatz puts a "Blocksatz-Artikel.md"
   into the templates folder (`~/Vorlagen`) once, so "Neues Dokument" in
   Nautilus offers it; a deleted template isn't recreated. The desktop
@@ -74,6 +69,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   content, and a table whose header is aligned differently from its cells.
 
 ### Fixed
+
+- **Claude: replies from current models came back empty.** Claude Sonnet
+  5.5 and other current models think first, so the reply's first block is
+  a thinking block without text; Blocksatz only read that block ("Keine
+  Antwort erhalten"). Now every text block is read, and a reply cut off at
+  the length limit or declined is reported as such. The default Claude
+  model is `claude-sonnet-5-5`.
 
 - **Switching the AI provider in Einstellungen → KI-Chat crashed the app**
   ("RefCell already borrowed"): refilling the model list fired its own
@@ -2187,7 +2189,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.66.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.67.0...HEAD
+[0.67.0]: https://github.com/linuxundich/blocksatz/compare/v0.66.0...v0.67.0
 [0.66.0]: https://github.com/linuxundich/blocksatz/compare/v0.65.0...v0.66.0
 [0.65.0]: https://github.com/linuxundich/blocksatz/compare/v0.64.0...v0.65.0
 [0.7.0]: https://github.com/linuxundich/blocksmith/compare/v0.6.0...v0.7.0

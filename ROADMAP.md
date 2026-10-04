@@ -1,6 +1,6 @@
 # Roadmap
 
-*Abgeglichen mit dem Stand von 0.66.0 (2026-10-02). Offene Punkte zur Blockgestaltung stehen in `docs/markdown-blocks.md`.*
+*Abgeglichen mit dem Stand von 0.67.0 (2026-10-04). Offene Punkte zur Blockgestaltung stehen in `docs/markdown-blocks.md`.*
 
 A living backlog of candidate next features for Blocksatz, analyzed
 2026-09-04 against the app's actual current state (not a re-statement of

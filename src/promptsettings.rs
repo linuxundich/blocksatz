@@ -68,27 +68,19 @@ fn build_builtin_prompts_group() -> adw::PreferencesGroup {
 /// context-menu actions, so a group of their own.
 fn build_translation_group() -> adw::PreferencesGroup {
     let group = adw::PreferencesGroup::builder().title(tr("Übersetzung")).build();
-    group.set_description(Some(&tr("Für „Übersetzen …“ im Menü der Hauptaktion. Stimme, Konventionen und ein Glossar des eigenen Blogs gehören in den Prompt.")));
+    group.set_description(Some(&tr("Für „Per KI übersetzen …“. Stimme, Konventionen und ein Glossar des eigenen Blogs gehören in den Prompt. Übrige Einstellungen unter Übersetzung.")));
 
-    let entries: [(String, &'static str, &'static str); 2] = [
-        (tr("Übersetzungs-Prompt"), crate::translate::PROMPT_ID, crate::translate::DEFAULT_PROMPT),
-        (tr("Kategorien zuordnen"), crate::translate::CATEGORY_MAP_ID, ""),
-    ];
-    for (title, id, default) in entries {
-        let expander = adw::ExpanderRow::builder().title(title).use_markup(false).build();
-        if id == crate::translate::CATEGORY_MAP_ID {
-            expander.set_subtitle(&tr("Eine Zeile je Kategorie, z. B. „Allgemein = General“. Nicht aufgeführte Namen bleiben gleich."));
-        }
-        let (editor_row, _status) = build_prompt_editor(
-            id,
-            move || aiprompts::load_text_or(id, default),
-            move |text: &str| aiprompts::save_prompt_text(id, text),
-            Some(move || aiprompts::reset_prompt_text(id)),
-            move || aiprompts::is_prompt_customized(id),
-        );
-        expander.add_row(&editor_row);
-        group.add(&expander);
-    }
+    let id = crate::translate::PROMPT_ID;
+    let expander = adw::ExpanderRow::builder().title(tr("Übersetzungs-Prompt")).use_markup(false).build();
+    let (editor_row, _status) = build_prompt_editor(
+        id,
+        move || aiprompts::load_text_or(id, crate::translate::DEFAULT_PROMPT),
+        move |text: &str| aiprompts::save_prompt_text(id, text),
+        Some(move || aiprompts::reset_prompt_text(id)),
+        move || aiprompts::is_prompt_customized(id),
+    );
+    expander.add_row(&editor_row);
+    group.add(&expander);
     group
 }
 
@@ -97,7 +89,7 @@ fn build_translation_group() -> adw::PreferencesGroup {
 /// button next to it. Shared between the built-in prompts group (with a
 /// reset function) and the custom prompts group (`reset_fn: None`, since a
 /// user-authored prompt has no "default" to revert to).
-fn build_prompt_editor(
+pub(crate) fn build_prompt_editor(
     id: &str,
     load: impl Fn() -> String + 'static,
     save: impl Fn(&str) -> std::io::Result<()> + 'static,

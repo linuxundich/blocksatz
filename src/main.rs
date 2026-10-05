@@ -70,6 +70,7 @@ mod statuscontrols;
 mod syncstate;
 mod translate;
 mod translatedialog;
+mod translationsettings;
 mod tagsuggest;
 mod taxonomy;
 mod termcache;
@@ -119,6 +120,8 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("win.properties", &["<Alt>Return"]);
     app.set_accels_for_action("win.lang-original", &["<Alt>1"]);
     app.set_accels_for_action("win.lang-translation", &["<Alt>2"]);
+    app.set_accels_for_action("main.copy-original", &["<Ctrl><Shift>c"]);
+    app.set_accels_for_action("main.paste-translation", &["<Ctrl><Shift>v"]);
     app.set_accels_for_action("win.shortcuts", &["<Ctrl>question"]);
 
     app.connect_startup(|_| nautilustemplate::install_once());

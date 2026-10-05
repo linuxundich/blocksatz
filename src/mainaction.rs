@@ -180,20 +180,32 @@ impl MainAction {
         for (entry, entry_action) in menu {
             menu_model.append(Some(&entry), Some(entry_action));
         }
-        // Translations (`translatedialog.rs`): for a translation its review
-        // and original, for anything already on the blog the way to one.
+        // Language versions (`translatedialog.rs`): copying the original
+        // for DeepL or a chat and pasting the result come first; the AI
+        // translation is one more way, if offered at all.
         let translation_menu = gio::Menu::new();
+        let ai_menu = gio::Menu::new();
+        let ai = crate::translationsettings::ai_enabled();
         if fm.translation.is_some() {
-            translation_menu.append(Some(&tr("Gegenlesen …")), Some("main.review"));
-            translation_menu.append(Some(&tr("Original öffnen")), Some("main.open-original"));
-            translation_menu.append(Some(&tr("Übersetzung aktualisieren …")), Some("main.translate"));
+            translation_menu.append(Some(&tr("Original kopieren")), Some("main.copy-original"));
+            translation_menu.append(Some(&tr("Abschnitt des Originals kopieren")), Some("main.copy-original-section"));
+            translation_menu.append(Some(&tr("Übersetzung einfügen")), Some("main.paste-translation"));
+            translation_menu.append(Some(&tr("Prüfen …")), Some("main.review"));
             translation_menu.append(Some(&tr("Als aktuell markieren")), Some("main.mark-current"));
-        } else if fm.wp_post_id.is_some() {
-            translation_menu.append(Some(&tr("Übersetzen …")), Some("main.translate"));
-            translation_menu.append(Some(&tr("Übersetzung öffnen")), Some("main.open-translation"));
+            if ai {
+                ai_menu.append(Some(&tr("Per KI aktualisieren …")), Some("main.translate"));
+            }
+        } else if self.ctx.current_path.borrow().as_deref().is_some_and(|p| library::contains(&library::root(), p)) {
+            translation_menu.append(Some(&tr("Original kopieren")), Some("main.copy-original"));
+            if ai && fm.wp_post_id.is_some() {
+                ai_menu.append(Some(&tr("Per KI übersetzen …")), Some("main.translate"));
+            }
         }
         if translation_menu.n_items() > 0 {
             menu_model.append_section(None, &translation_menu);
+        }
+        if ai_menu.n_items() > 0 {
+            menu_model.append_section(None, &ai_menu);
         }
         self.button.set_label(&label);
         self.button.set_action_name(Some(action));
@@ -243,7 +255,7 @@ impl MainAction {
             _ if original_changed == Some(true) => (BannerKind::TranslationChanged, tr("Das Original wurde seit der Übersetzung geändert."), tr("Abgleichen …")),
             _ if fm.translation.as_ref().is_some_and(|t| !t.reviewed) => (
                 BannerKind::TranslationUnreviewed,
-                tr("Diese Übersetzung ist noch nicht gegengelesen. Erst danach lässt sie sich veröffentlichen und wird im Blog verknüpft."),
+                tr("Diese KI-Übersetzung ist noch nicht gegengelesen. Erst danach lässt sie sich veröffentlichen und wird im Blog verknüpft."),
                 tr("Gegenlesen …"),
             ),
             _ if fm.markdown_hint && crate::markdowncheck::assess(&doc.body).closeness != gutenberg::Closeness::Plain => (
@@ -287,6 +299,13 @@ impl MainAction {
             }
         });
         add("review", MainAction::review);
+        add("copy-original", |this| crate::translatedialog::copy_original(&this.ctx, false));
+        add("copy-original-section", |this| crate::translatedialog::copy_original(&this.ctx, true));
+        add("paste-translation", |this| {
+            if let Some(window) = this.window.upgrade() {
+                crate::translatedialog::paste_translation(&window, &this.ctx);
+            }
+        });
         add("open-original", |this| {
             let doc = this.ctx.current_document();
             let path = this.ctx.current_path.borrow().clone();

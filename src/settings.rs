@@ -32,6 +32,7 @@ pub fn open(
     dialog.add(&appearance::build_page(buffer, preview_pane.clone()));
     dialog.add(&browsersettings::build_page(browser_view, on_browser_tab_toggled));
     dialog.add(&connection::build_page(on_sites_changed));
+    dialog.add(&crate::translationsettings::build_page());
     dialog.add(&chatsettings::build_page());
     dialog.add(&modelsettings::build_page());
     dialog.add(&promptsettings::build_page(ai_menu_handles.custom_prompts_menu.clone()));

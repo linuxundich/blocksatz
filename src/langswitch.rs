@@ -26,7 +26,6 @@ pub struct LangSwitch {
     translation: adw::Toggle,
     ctx: DocContext,
     view: sourceview5::View,
-    window: glib::WeakRef<adw::ApplicationWindow>,
     /// Set while `refresh` moves the toggle, so that isn't a switch.
     updating: Cell<bool>,
     /// Editor and start page (`editor_area` in `window.rs`).
@@ -53,7 +52,6 @@ impl LangSwitch {
             translation,
             ctx: ctx.clone(),
             view: view.clone(),
-            window: window.downgrade(),
             updating: Cell::new(false),
             editor_area: editor_area.clone(),
             start: RefCell::new(None),
@@ -217,7 +215,7 @@ impl LangSwitch {
 impl LangSwitch {
     /// (Re)builds the start page for the open original and shows it.
     fn show_start(&self) {
-        let (Some(window), Some((path, _))) = (self.window.upgrade(), self.current()) else { return };
+        let Some((path, _)) = self.current() else { return };
         if let Some(old) = self.editor_area.child_by_name("start") {
             self.editor_area.remove(&old);
         }
@@ -225,7 +223,7 @@ impl LangSwitch {
             .and_then(|pair| pair.files.iter().find_map(|e| library::file_lang(&e.path).flatten()))
             .or_else(|| wpsite::load_all().sites.iter().find_map(wpsite::site_lang))
             .unwrap_or_else(|| "en".into());
-        let page = crate::translatedialog::start_page(&window, &self.ctx, &lang);
+        let page = crate::translatedialog::start_page(&self.ctx, &lang);
         self.editor_area.add_named(&page, Some("start"));
         self.editor_area.set_visible_child_name("start");
         *self.start.borrow_mut() = Some((path.parent().unwrap_or(&path).to_path_buf(), self.ctx.frontmatter.borrow().wp_post_id));

@@ -380,6 +380,12 @@ fn mask_inline(line: &str, out: &mut Masked) {
 /// (placeholders missing, duplicated or unknown); with problems the text is
 /// still as complete as possible.
 pub fn unmask(text: &str, originals: &[(&'static str, String)]) -> (String, Vec<String>) {
+    unmask_expecting(text, originals, |_| true)
+}
+
+/// `unmask`, where only the placeholders `expected` says yes to count as
+/// missing when absent.
+fn unmask_expecting(text: &str, originals: &[(&'static str, String)], expected: impl Fn(usize) -> bool) -> (String, Vec<String>) {
     let mut out = String::new();
     let mut seen = vec![0usize; originals.len()];
     let mut problems = Vec::new();
@@ -409,7 +415,7 @@ pub fn unmask(text: &str, originals: &[(&'static str, String)]) -> (String, Vec<
     out.push_str(rest);
     for (i, count) in seen.iter().enumerate() {
         let name = format!("⟦{}-{}⟧", originals[i].0, i + 1);
-        if *count == 0 {
+        if *count == 0 && expected(i + 1) {
             problems.push(tr("{p} fehlt ({o})").replace("{p}", &name).replace("{o}", &shorten(&originals[i].1)));
         } else if *count > 1 {
             problems.push(tr("{p} kommt {n}-mal vor").replace("{p}", &name).replace("{n}", &count.to_string()));
@@ -854,6 +860,167 @@ pub fn translate(source: &Document, previous: Option<&Document>, opts: &Options,
     Ok(Outcome { document, issues, translated_sections: translated, reused_sections: reused })
 }
 
+// ------------------------------------------------- translating elsewhere
+
+/// What "Original kopieren" puts on the clipboard for DeepL, a chat or any
+/// other tool: the body - or one of its sections - with code, link
+/// targets and markup as `⟦KIND-n⟧` placeholders (`protect`), optionally
+/// headed by title and excerpt. Placeholders are always numbered over the
+/// whole body, so `read_pasted` with the same source puts the originals
+/// back, whether a section came from a whole copy or a section copy.
+pub fn clipboard_text(body: &str, header: Option<(&str, Option<&str>)>, protect: bool, section: Option<usize>) -> String {
+    let mut out = String::new();
+    if let Some((title, excerpt)) = header {
+        out.push_str(&format!("# {}\n\n", title.trim()));
+        if let Some(excerpt) = excerpt.map(str::trim).filter(|e| !e.is_empty()) {
+            out.push_str(excerpt);
+            out.push_str("\n\n");
+        }
+        out.push_str("---\n\n");
+    }
+    let text = if protect { mask(body).text } else { body.to_string() };
+    let text = match section {
+        Some(i) => split_sections(&text).get(i).cloned().unwrap_or_default(),
+        None => text,
+    };
+    out.push_str(text.trim_start_matches('\n'));
+    out
+}
+
+/// Whether pasted text holds at most one section (one `## ` heading or
+/// none) - then it goes into the section at the cursor, not over all.
+pub fn is_single_section(text: &str) -> bool {
+    let text = unwrap_fence(text.trim());
+    split_header(text).is_none() && split_sections(text).iter().filter(|s| !s.trim().is_empty()).count() <= 1
+}
+
+/// A translation pasted back from another tool (`read_pasted`).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Pasted {
+    pub title: Option<String>,
+    pub excerpt: Option<String>,
+    pub body: String,
+    /// Placeholders lost, doubled or unknown.
+    pub problems: Vec<String>,
+}
+
+/// Reads text copied back from DeepL, a chat or elsewhere: drops a code
+/// fence a chat wraps around everything, takes title and excerpt from a
+/// header as `clipboard_text` writes it, straightens the curly quotes
+/// DeepL puts around image and link titles, and puts the placeholders of
+/// `source` back. With `section`, only that section's placeholders are
+/// expected.
+pub fn read_pasted(text: &str, source: &str, section: Option<usize>) -> Pasted {
+    let text = text.replace("\r\n", "\n");
+    let mut text = unwrap_fence(text.trim()).to_string();
+    let mut pasted = Pasted::default();
+    if let Some((title, excerpt, rest)) = split_header(&text) {
+        pasted.title = Some(title);
+        pasted.excerpt = excerpt;
+        text = rest;
+    }
+    let text = straighten_titles(&text);
+    if text.contains('⟦') {
+        let masked = mask(source);
+        // With a section, placeholders of the other sections aren't missing.
+        let expected = section.map(|i| split_sections(&masked.text).get(i).cloned().unwrap_or_default());
+        let (body, problems) = unmask_expecting(&text, &masked.originals, |n| expected.as_ref().is_none_or(|e| e.contains(&format!("-{n}⟧"))));
+        pasted.body = body;
+        pasted.problems = problems;
+    } else {
+        pasted.body = text;
+    }
+    if !pasted.body.ends_with('\n') {
+        pasted.body.push('\n');
+    }
+    pasted
+}
+
+/// The inside of a single fence around the whole text (```markdown … ```).
+fn unwrap_fence(text: &str) -> &str {
+    let Some(marker) = text.lines().next().and_then(fence_marker) else { return text };
+    let first_end = text.find('\n').unwrap_or(text.len());
+    let inner = &text[first_end..];
+    let Some(last_start) = inner.trim_end().rfind('\n') else { return text };
+    let last = inner[last_start..].trim();
+    if !closes_fence(last, &marker) {
+        return text;
+    }
+    let inner = &inner[..last_start];
+    // A fence as long inside means the outer one isn't a wrapper after all.
+    if inner.lines().any(|l| fence_marker(l).is_some_and(|m| m.len() >= marker.len())) {
+        return text;
+    }
+    inner.trim_matches('\n')
+}
+
+/// `# Title`, an optional excerpt and a `---` line at the very top.
+fn split_header(text: &str) -> Option<(String, Option<String>, String)> {
+    let title = text.lines().next()?.strip_prefix("# ")?.trim().to_string();
+    let mut offset = 0;
+    for (index, line) in text.split_inclusive('\n').enumerate() {
+        if index > 0 && index < 12 && matches!(line.trim(), "---" | "***" | "___") {
+            let between = &text[text.find('\n')? + 1..offset];
+            let excerpt = Some(between.trim().to_string()).filter(|e| !e.is_empty());
+            return Some((title, excerpt, text[offset + line.len()..].trim_start_matches('\n').to_string()));
+        }
+        offset += line.len();
+    }
+    None
+}
+
+/// `(target “Title”)` → `(target "Title")`: a Markdown link or image title
+/// needs straight quotes, which DeepL and others turn into curly ones.
+fn straighten_titles(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(pos) = rest.find("](") {
+        out.push_str(&rest[..pos + 2]);
+        rest = &rest[pos + 2..];
+        let Some(close) = rest.find(')') else { break };
+        let inside = &rest[..close];
+        match inside.find(' ') {
+            Some(space) if inside[space..].trim_start().starts_with(['“', '„', '”', '«', '»']) => {
+                out.push_str(&inside[..space]);
+                out.push_str(&inside[space..].replace(['“', '„', '”', '«', '»'], "\""));
+            }
+            _ => out.push_str(inside),
+        }
+        rest = &rest[close..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// `section` of `text` replaced by `replacement` - for pasting one
+/// section's translation (sections as `split_sections` cuts them).
+pub fn replace_section(text: &str, section: usize, replacement: &str) -> String {
+    let mut sections = split_sections(text);
+    if section >= sections.len() {
+        sections.resize(section + 1, String::new());
+    }
+    let mut new = replacement.trim_end_matches('\n').to_string();
+    new.push('\n');
+    // Keep the blank line before the next heading.
+    if section + 1 < sections.len() {
+        new.push('\n');
+    }
+    sections[section] = new;
+    sections.concat()
+}
+
+/// The section `split_sections` puts 0-based `line` of `text` in.
+pub fn section_at_line(text: &str, line: usize) -> usize {
+    let mut seen = 0;
+    for (index, section) in split_sections(text).iter().enumerate() {
+        seen += section.lines().count().max(usize::from(!section.is_empty()));
+        if line < seen {
+            return index;
+        }
+    }
+    split_sections(text).len().saturating_sub(1)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1101,5 +1268,65 @@ mod tests {
         }];
         assert_eq!(body_with_uploaded_images(&doc), "![Bild](https://example.org/foto.webp \"Alt\")\n");
         assert!(local_media(&doc).is_empty());
+    }
+    #[test]
+    fn pasted_from_deepl_gets_placeholders_and_straight_quotes_back() {
+        let source = "Lade von [GitHub](https://github.com/x) mit `unzip`:\n\n```bash\nunzip a.zip\n```\n\n![Das Menü.](bild.webp \"Pulsgeber-Menü\")\n";
+        let copied = clipboard_text(source, None, true, None);
+        assert!(copied.contains("⟦URL-1⟧") && !copied.contains("github.com"));
+        // What DeepL returned for it (curly quotes included).
+        let deepl = "Download from [GitHub](⟦URL-1⟧) using ⟦CODE-2⟧:\n\n⟦CODE-3⟧\n\n![The menu.](⟦URL-4⟧ “Pulsgeber Menu”)";
+        let pasted = read_pasted(deepl, source, None);
+        assert!(pasted.problems.is_empty(), "{:?}", pasted.problems);
+        assert_eq!(pasted.body, "Download from [GitHub](https://github.com/x) using `unzip`:\n\n```bash\nunzip a.zip\n```\n\n![The menu.](bild.webp \"Pulsgeber Menu\")\n");
+        assert!(check(source, &pasted.body, "de").is_empty());
+    }
+
+    #[test]
+    fn pasted_header_and_chat_fence() {
+        let source = "Text mit `code`.\n";
+        let copied = clipboard_text(source, Some(("Titel", Some("Auszug"))), true, None);
+        assert_eq!(copied, "# Titel\n\nAuszug\n\n---\n\nText mit ⟦CODE-1⟧.\n");
+        let chat = "```markdown\n# Title\n\nExcerpt\n\n---\n\nText with ⟦CODE-1⟧.\n```";
+        let pasted = read_pasted(chat, source, None);
+        assert_eq!(pasted.title.as_deref(), Some("Title"));
+        assert_eq!(pasted.excerpt.as_deref(), Some("Excerpt"));
+        assert_eq!(pasted.body, "Text with `code`.\n");
+    }
+
+    #[test]
+    fn pasted_plain_markdown_and_lost_placeholder() {
+        let source = "A [link](https://a.example) here.\n";
+        assert_eq!(read_pasted("Ein [Link](https://a.example) hier.", source, None).body, "Ein [Link](https://a.example) hier.\n");
+        let lost = read_pasted("Ein Link ⟦URL-1⟧ hier ⟦URL-1⟧.", source, None);
+        assert_eq!(lost.problems.len(), 1);
+        // A heading with a code block keeps its fences.
+        let fenced = "```bash\nls\n```\n\nText";
+        assert_eq!(read_pasted(fenced, "", None).body, "```bash\nls\n```\n\nText\n");
+        assert_eq!(read_pasted("````markdown\nA\n\n```sh\nls\n```\n````", "", None).body, "A\n\n```sh\nls\n```\n");
+    }
+
+    #[test]
+    fn section_copy_numbers_over_the_whole_body() {
+        let source = "Mit `a`.\n\n## Eins\n\nMit `b` und [x](https://x.example).\n\n## Zwei\n\nMit `c`.\n";
+        let copied = clipboard_text(source, None, true, Some(1));
+        assert_eq!(copied, "## Eins\n\nMit ⟦CODE-2⟧ und [x](⟦URL-3⟧).\n\n");
+        assert!(is_single_section(&copied));
+        assert!(!is_single_section(source));
+        let pasted = read_pasted("## One\n\nWith ⟦CODE-2⟧ and [x](⟦URL-3⟧).", source, Some(1));
+        assert!(pasted.problems.is_empty(), "{:?}", pasted.problems);
+        assert_eq!(pasted.body, "## One\n\nWith `b` and [x](https://x.example).\n");
+        let lost = read_pasted("## One\n\nWith ⟦CODE-2⟧.", source, Some(1));
+        assert_eq!(lost.problems.len(), 1, "{:?}", lost.problems);
+    }
+
+    #[test]
+    fn replaces_one_section() {
+        let text = "Intro\n\n## Eins\n\nAlt\n\n## Zwei\n\nZwei\n";
+        assert_eq!(section_at_line(text, 0), 0);
+        assert_eq!(section_at_line(text, 4), 1);
+        assert_eq!(section_at_line(text, 8), 2);
+        assert_eq!(replace_section(text, 1, "## One\n\nNew\n"), "Intro\n\n## One\n\nNew\n\n## Zwei\n\nZwei\n");
+        assert_eq!(replace_section(text, 2, "## Two\n\nTwo"), "Intro\n\n## Eins\n\nAlt\n\n## Two\n\nTwo\n");
     }
 }

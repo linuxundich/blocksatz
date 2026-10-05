@@ -1293,6 +1293,7 @@ pub(crate) fn open_document_at_path(path: PathBuf, ctx: &DocContext) {
             ctx.buffer.set_text(&doc.body);
             ctx.title.set_subtitle(&subtitle_for(Some(&path), &doc.frontmatter));
             *ctx.saved_text.borrow_mut() = doc.body.clone();
+            crate::editor::follow_language(doc.frontmatter.lang.as_deref().or(library::file_lang(&path).flatten().as_deref()));
             *ctx.frontmatter.borrow_mut() = doc.frontmatter;
             let doc_dir = path.parent().map(Path::to_path_buf);
             let _ = recentfiles::record(&path);

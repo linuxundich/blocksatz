@@ -175,16 +175,25 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
     dialog.present(Some(window));
 }
 
-/// "Selbst übersetzen": an empty translation next to the open original,
-/// already tied to it and to the blog of `lang` - categories, tags and the
-/// featured image taken over, the text left for you to write or paste.
-/// Counts as reviewed: you wrote it. Works before the original is on its
-/// blog too; the link gets its post id on upload (`fill_source_id`).
-pub fn create_manual(ctx: &DocContext, lang: &str) -> Result<PathBuf, String> {
+/// What a new language version starts with (`create_version`).
+pub enum Content {
+    /// The original's text, title and excerpt, to overwrite.
+    Template,
+    /// A translation from DeepL, a chat or elsewhere (`translate::read_pasted`).
+    Pasted(translate::Pasted),
+    Empty,
+}
+
+/// A new language version next to the open original, already tied to it
+/// and to the blog of `lang` - categories, tags and the featured image
+/// taken over, the text as `content` says. Counts as reviewed: you wrote
+/// it. Works before the original is on its blog too; the link gets its
+/// post id on upload (`fill_source_id`).
+pub fn create_version(ctx: &DocContext, lang: &str, content: Content) -> Result<PathBuf, String> {
     worksave::flush(ctx, false);
     let path = ctx.current_path.borrow().clone().ok_or_else(|| tr("Der Artikel hat noch keine Datei."))?;
     if library::file_lang(&path) != Some(None) || !library::contains(&library::root(), &path) {
-        return Err(tr("Selbst übersetzen geht vom Original in der Bibliothek aus."));
+        return Err(tr("Eine Sprachfassung geht vom Original in der Bibliothek aus."));
     }
     let target = library::sibling(&path, Some(lang)).ok_or_else(|| tr("Der Artikel hat noch keine Datei."))?;
     if target.exists() {
@@ -203,8 +212,15 @@ pub fn create_manual(ctx: &DocContext, lang: &str) -> Result<PathBuf, String> {
         translated_at: today(),
         reviewed: true,
     };
+    let (title, excerpt, body) = match content {
+        Content::Template => (src.title.clone(), src.excerpt.clone(), source_body.clone()),
+        Content::Pasted(pasted) => (pasted.title.unwrap_or_default(), pasted.excerpt, pasted.body),
+        Content::Empty => (String::new(), None, String::new()),
+    };
     let frontmatter = document::Frontmatter {
         lang: Some(lang.to_string()),
+        title,
+        excerpt,
         post_type: src.post_type,
         status: document::PostStatus::Draft,
         categories: translate::map_categories(&src.categories, &aiprompts::load_text_or(translate::CATEGORY_MAP_ID, "")),
@@ -215,8 +231,161 @@ pub fn create_manual(ctx: &DocContext, lang: &str) -> Result<PathBuf, String> {
         translation: Some(link),
         ..document::Frontmatter::default()
     };
-    document::write(&target, &Document { frontmatter, body: String::new() }).map_err(|err| err.to_string())?;
+    document::write(&target, &Document { frontmatter, body }).map_err(|err| err.to_string())?;
     Ok(target)
+}
+
+/// The original of the open article as the translation is made from it:
+/// the article itself, or the original of the open translation.
+fn original_body(ctx: &DocContext) -> Option<String> {
+    let doc = ctx.current_document();
+    if doc.frontmatter.translation.is_none() {
+        return Some(translate::body_with_uploaded_images(&doc));
+    }
+    let path = ctx.current_path.borrow().clone();
+    find_original(&doc, path.as_deref()).map(|(_, original)| translate::body_with_uploaded_images(&original))
+}
+
+/// The section the editor's cursor is in (`translate::split_sections`).
+fn cursor_section(ctx: &DocContext) -> usize {
+    let buffer = &ctx.buffer;
+    let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
+    let line = buffer.iter_at_mark(&buffer.get_insert()).line().max(0) as usize;
+    translate::section_at_line(&text, line)
+}
+
+fn section_name(body: &str, section: usize) -> String {
+    translate::split_sections(body)
+        .get(section)
+        .and_then(|s| s.lines().next().and_then(|l| l.strip_prefix("## ")).map(|h| format!("„{}“", h.trim())))
+        .unwrap_or_else(|| tr("Einleitung"))
+}
+
+/// "Original kopieren": the original's text (or, with `section`, the
+/// section at the cursor) for DeepL, a chat or any other tool - code,
+/// link targets and markup as placeholders unless switched off
+/// (`translationsettings::protect`). Pasting takes a `# Title` / excerpt /
+/// `---` header too, if you write one; the copy leaves it out.
+pub fn copy_original(ctx: &DocContext, section: bool) {
+    let Some(body) = original_body(ctx) else {
+        window::show_toast(&ctx.toast_overlay, &tr("Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort zuerst aus dem Blog."));
+        return;
+    };
+    let protect = crate::translationsettings::protect();
+    let index = section.then(|| cursor_section(ctx));
+    let text = translate::clipboard_text(&body, None, protect, index);
+    if let Some(display) = gtk4::gdk::Display::default() {
+        display.clipboard().set_text(&text);
+    }
+    let message = match index {
+        Some(i) => tr("Abschnitt {name} des Originals kopiert.").replace("{name}", &section_name(&body, i)),
+        None => tr("Original kopiert ({w} Wörter).").replace("{w}", &word_count(&body).to_string()),
+    };
+    window::show_toast(&ctx.toast_overlay, &message);
+}
+
+/// Reads the clipboard's text and hands it to `then`.
+fn with_clipboard_text(ctx: &DocContext, then: impl FnOnce(String) + 'static) {
+    let Some(display) = gtk4::gdk::Display::default() else { return };
+    let clipboard = display.clipboard();
+    let ctx = ctx.clone();
+    glib::spawn_future_local(async move {
+        match clipboard.read_text_future().await {
+            Ok(Some(text)) if !text.trim().is_empty() => then(text.to_string()),
+            _ => window::show_toast(&ctx.toast_overlay, &tr("Die Zwischenablage enthält keinen Text.")),
+        }
+    });
+}
+
+/// "Übersetzung einfügen" into the open translation: text with several
+/// sections (or a title on top) replaces the whole text, a single section
+/// the section at the cursor. Placeholders come back, title and excerpt go
+/// into their fields, and the checks report what doesn't match the
+/// original. Undo restores the text.
+pub fn paste_translation(window: &adw::ApplicationWindow, ctx: &DocContext) {
+    if ctx.frontmatter.borrow().translation.is_none() {
+        window::show_toast(&ctx.toast_overlay, &tr("Einfügen geht in eine Sprachfassung - wechsle mit Alt+2 dorthin."));
+        return;
+    }
+    let Some(source) = original_body(ctx) else {
+        window::show_toast(&ctx.toast_overlay, &tr("Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort zuerst aus dem Blog."));
+        return;
+    };
+    let ctx = ctx.clone();
+    let window = window.downgrade();
+    with_clipboard_text(&ctx.clone(), move |text| {
+        let source_sections = translate::split_sections(&source).iter().filter(|s| !s.trim().is_empty()).count();
+        let section = (translate::is_single_section(&text) && source_sections > 1).then(|| cursor_section(&ctx));
+        let pasted = translate::read_pasted(&text, &source, section);
+        let buffer = &ctx.buffer;
+        let current = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
+        let (new_text, checked_source) = match section {
+            Some(i) => (translate::replace_section(&current, i, &pasted.body), translate::split_sections(&source).get(i).cloned().unwrap_or_default()),
+            None => (pasted.body.clone(), source.clone()),
+        };
+        buffer.begin_user_action();
+        let (mut start, mut end) = buffer.bounds();
+        buffer.delete(&mut start, &mut end);
+        buffer.insert(&mut buffer.start_iter(), &new_text);
+        buffer.end_user_action();
+        // The cursor at the start of what was pasted.
+        let line = section.map_or(0, |i| translate::split_sections(&new_text).iter().take(i).map(|s| s.lines().count()).sum::<usize>());
+        if let Some(iter) = buffer.iter_at_line(line as i32) {
+            buffer.place_cursor(&iter);
+        }
+        let mut fields = Vec::new();
+        {
+            let mut fm = ctx.frontmatter.borrow_mut();
+            if let Some(title) = pasted.title.clone() {
+                fm.title = title;
+                fields.push(tr("Titel"));
+            }
+            if let Some(excerpt) = pasted.excerpt.clone() {
+                fm.excerpt = Some(excerpt);
+                fields.push(tr("Auszug"));
+            }
+        }
+        if !fields.is_empty() {
+            // The "Beitrag" view shows the new title and excerpt.
+            ctx.bump_generation();
+        }
+        worksave::flush(&ctx, false);
+        ctx.notify_library(false);
+        let body_for_check = match section {
+            Some(_) => pasted.body.clone(),
+            None => new_text.clone(),
+        };
+        let mut issues: Vec<Issue> = pasted.problems.iter().map(|p| Issue { section, message: p.clone() }).collect();
+        issues.extend(translate::check(&checked_source, &body_for_check, "de").into_iter().map(|mut issue| {
+            if section.is_some() {
+                issue.section = section;
+            }
+            issue
+        }));
+        let what = match section {
+            Some(i) => tr("Abschnitt {name} eingefügt").replace("{name}", &section_name(&source, i)),
+            None if fields.is_empty() => tr("Text eingefügt"),
+            None => tr("Text, {fields} eingefügt").replace("{fields}", &fields.join(", ")),
+        };
+        if issues.is_empty() {
+            window::show_toast(&ctx.toast_overlay, &tr("{what} - Code, Links und Überschriften stimmen.").replace("{what}", &what));
+            return;
+        }
+        let toast = adw::Toast::builder()
+            .title(tr("{what} · {n} Hinweise").replace("{what}", &what).replace("{n}", &issues.len().to_string()))
+            .button_label(tr("Zeigen"))
+            .timeout(8)
+            .build();
+        let ctx2 = ctx.clone();
+        let window = window.clone();
+        let issues = RefCell::new(Some(issues));
+        toast.connect_button_clicked(move |_| {
+            if let (Some(window), Some(issues)) = (window.upgrade(), issues.take()) {
+                open_review_with(&window, &ctx2, issues);
+            }
+        });
+        ctx.toast_overlay.add_toast(toast);
+    });
 }
 
 /// Marks the open translation as matching its original as it is now -
@@ -266,7 +435,9 @@ pub fn reconcile(window: &adw::ApplicationWindow, ctx: &DocContext) {
     };
     let alert = adw::AlertDialog::builder().heading(tr("Original geändert")).body(body).build();
     alert.add_response("cancel", &tr("Abbrechen"));
-    alert.add_response("ai", &tr("Per KI übersetzen …"));
+    if crate::translationsettings::ai_enabled() {
+        alert.add_response("ai", &tr("Per KI übersetzen …"));
+    }
     alert.add_response("manual", &tr("Von Hand erledigt"));
     alert.set_response_appearance("manual", adw::ResponseAppearance::Suggested);
     alert.set_default_response(Some("manual"));
@@ -306,63 +477,110 @@ pub fn fill_source_id(ctx: &DocContext) {
 }
 
 /// The start page shown in place of the editor when the language switch
-/// (`langswitch.rs`) goes to a language that has no file yet: what will be
-/// translated, and the button that does it - or why it can't happen yet.
-pub fn start_page(window: &adw::ApplicationWindow, ctx: &DocContext, lang: &str) -> gtk4::Widget {
+/// (`langswitch.rs`) goes to a language that has no file yet: how the new
+/// version starts - the original as a template, a translation from the
+/// clipboard, or nothing - and, as one more way, the AI translation.
+pub fn start_page(ctx: &DocContext, lang: &str) -> gtk4::Widget {
+    use crate::translationsettings::{self, Start};
     let name = languages().into_iter().find(|(c, _)| *c == lang).map_or(lang.to_uppercase(), |(_, n)| n);
     let page = adw::StatusPage::builder()
         .icon_name("preferences-desktop-locale-symbolic")
-        .title(tr("Noch keine Fassung auf {lang}").replace("{lang}", &name))
+        .title(tr("Fassung auf {lang} anlegen").replace("{lang}", &name))
         .build();
-    // Writing the translation yourself: an empty, linked file to paste into.
-    let manual = gtk4::Button::builder().label(tr("Selbst übersetzen")).halign(gtk4::Align::Center).margin_top(12).build();
-    manual.add_css_class("pill");
-    manual.set_tooltip_text(Some(&tr("Legt die Fassung leer an - Text selbst schreiben oder einfügen")));
+    let blog = wpsite::for_lang(Some(lang)).map(|s| s.site_id());
+    let file = format!("artikel.{lang}.md");
+    page.set_description(Some(&match &blog {
+        Some(blog) => tr("Die Fassung liegt als {file} neben dem Original und geht in den Blog {blog}.").replace("{file}", &file).replace("{blog}", blog),
+        None => tr("Die Fassung liegt als {file} neben dem Original. Ein Blog für diese Sprache legst du unter Einstellungen → WordPress an.").replace("{file}", &file),
+    }));
+
+    let column = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+    let choices = gtk4::ListBox::new();
+    choices.add_css_class("boxed-list");
+    choices.set_selection_mode(gtk4::SelectionMode::None);
+    let preset = translationsettings::start();
+    let mut first: Option<gtk4::CheckButton> = None;
+    let buttons: Vec<(Start, gtk4::CheckButton)> = Start::ALL
+        .into_iter()
+        .map(|start| {
+            let check = gtk4::CheckButton::new();
+            if let Some(first) = &first {
+                check.set_group(Some(first));
+            } else {
+                first = Some(check.clone());
+            }
+            check.set_active(start == preset);
+            let row = adw::ActionRow::builder().title(start.label()).subtitle(start.description()).subtitle_lines(2).activatable_widget(&check).build();
+            row.add_prefix(&check);
+            choices.append(&row);
+            (start, check)
+        })
+        .collect();
+    column.append(&choices);
+
+    let create = gtk4::Button::builder().label(tr("Fassung anlegen")).halign(gtk4::Align::Center).margin_top(24).build();
+    create.add_css_class("pill");
+    create.add_css_class("suggested-action");
     {
         let ctx = ctx.clone();
         let lang = lang.to_string();
-        manual.connect_clicked(move |_| match create_manual(&ctx, &lang) {
-            Ok(path) => {
-                window::open_document_at_path(path, &ctx);
-                window::show_toast(&ctx.toast_overlay, &tr("Leere Fassung angelegt - Titel unter „Beitrag“, Text hier einfügen."));
+        create.connect_clicked(move |_| {
+            let start = buttons.iter().find(|(_, b)| b.is_active()).map_or(Start::Template, |(s, _)| *s);
+            let finish = {
+                let ctx = ctx.clone();
+                move |result: Result<PathBuf, String>, message: String| match result {
+                    Ok(path) => {
+                        window::open_document_at_path(path, &ctx);
+                        window::show_toast(&ctx.toast_overlay, &message);
+                    }
+                    Err(err) => window::show_toast(&ctx.toast_overlay, &err),
+                }
+            };
+            match start {
+                Start::Template => finish(create_version(&ctx, &lang, Content::Template), tr("Fassung mit dem Original als Vorlage angelegt - Titel und Auszug unter „Beitrag“.")),
+                Start::Empty => finish(create_version(&ctx, &lang, Content::Empty), tr("Leere Fassung angelegt - Titel unter „Beitrag“, Text hier.")),
+                Start::Clipboard => {
+                    let source = translate::body_with_uploaded_images(&ctx.current_document());
+                    let ctx2 = ctx.clone();
+                    let lang = lang.clone();
+                    with_clipboard_text(&ctx, move |text| {
+                        let pasted = translate::read_pasted(&text, &source, None);
+                        let titled = pasted.title.is_some();
+                        let mut issues = pasted.problems.len();
+                        issues += translate::check(&source, &pasted.body, "de").len();
+                        let mut message = if titled { tr("Fassung aus der Zwischenablage angelegt.") } else { tr("Fassung aus der Zwischenablage angelegt - Titel unter „Beitrag“.") };
+                        if issues > 0 {
+                            message.push(' ');
+                            message.push_str(&tr("{n} Hinweise unter „Prüfen …“.").replace("{n}", &issues.to_string()));
+                        }
+                        finish(create_version(&ctx2, &lang, Content::Pasted(pasted)), message);
+                    });
+                }
             }
-            Err(err) => window::show_toast(&ctx.toast_overlay, &err),
         });
     }
-    let with_manual = |main: &gtk4::Widget| -> gtk4::Widget {
-        let column = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
-        column.append(main);
-        column.append(&manual);
-        column.upcast()
-    };
-    match prepare(ctx) {
-        Ok(prep) => {
-            page.set_description(Some(&tr("Blocksatz übersetzt den Artikel abschnittweise. Danach liest du gegen und lädst die Fassung als Entwurf hoch.")));
-            let form = build_form(prep, window, ctx, Rc::new(|| {}));
-            form.go.add_css_class("pill");
-            form.go.set_halign(gtk4::Align::Center);
-            form.go.set_margin_top(18);
-            let list = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
-            list.append(&form.widget);
-            list.append(&form.go);
-            list.append(&manual);
-            page.set_child(Some(&adw::Clamp::builder().maximum_size(560).child(&list).build()));
-        }
-        Err(Blocker::NotUploaded) => {
-            page.set_description(Some(&tr("Übersetzt wird, sobald das Original als Entwurf im Blog liegt - die Übersetzung wird mit diesem Beitrag verknüpft.")));
-            let upload = gtk4::Button::builder().label(tr("Original als Entwurf hochladen")).halign(gtk4::Align::Center).build();
-            upload.add_css_class("pill");
-            upload.add_css_class("suggested-action");
-            upload.set_action_name(Some("main.upload-draft"));
-            page.set_child(Some(&with_manual(upload.upcast_ref())));
-        }
-        Err(Blocker::NoSecondBlog) => {
-            page.set_description(Some(&tr("Eine Übersetzung landet in einem anderen Blog. Lege es unter Einstellungen → WordPress an.")));
-        }
-        Err(Blocker::OriginalMissing) => {
-            page.set_description(Some(&tr("Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort zuerst aus dem Blog.")));
+    column.append(&create);
+
+    // The AI translation as one more way, when it's offered at all.
+    if translationsettings::ai_enabled() {
+        let (text, ready) = match prepare(ctx) {
+            Ok(_) => (tr("Per KI übersetzen …"), true),
+            Err(Blocker::NotUploaded) => (tr("Per KI übersetzen geht, sobald das Original als Entwurf im Blog liegt."), false),
+            Err(_) => (String::new(), false),
+        };
+        if ready {
+            let ai = gtk4::Button::builder().label(text).halign(gtk4::Align::Center).margin_top(12).build();
+            ai.add_css_class("flat");
+            ai.set_action_name(Some("main.translate"));
+            column.append(&ai);
+        } else if !text.is_empty() {
+            let hint = gtk4::Label::builder().label(text).wrap(true).justify(gtk4::Justification::Center).margin_top(12).build();
+            hint.add_css_class("dim-label");
+            hint.add_css_class("caption");
+            column.append(&hint);
         }
     }
+    page.set_child(Some(&adw::Clamp::builder().maximum_size(560).child(&column).build()));
     page.upcast()
 }
 
@@ -688,7 +906,7 @@ fn open_review_with(window: &adw::ApplicationWindow, ctx: &DocContext, extra_iss
 
     let checks = adw::PreferencesGroup::builder().title(tr("Prüfungen")).build();
     if stale {
-        let row = adw::ActionRow::builder().title(tr("Original geändert")).subtitle(tr("Das Original wurde seit der Übersetzung bearbeitet – „Übersetzen …“ übernimmt die Änderungen.")).build();
+        let row = adw::ActionRow::builder().title(tr("Original geändert")).subtitle(tr("Das Original wurde seit der Übersetzung bearbeitet – „Abgleichen …“ im Banner zeigt, wo.")).build();
         row.add_prefix(&gtk4::Image::from_icon_name("dialog-warning-symbolic"));
         checks.add(&row);
     }
@@ -772,11 +990,14 @@ fn open_review_with(window: &adw::ApplicationWindow, ctx: &DocContext, extra_iss
         toggle.add_css_class("suggested-action");
     }
     let header = adw::HeaderBar::new();
-    header.pack_end(&toggle);
+    // Your own translation needs no review mark - only the AI's does.
+    if !reviewed {
+        header.pack_end(&toggle);
+    }
     let toolbar = adw::ToolbarView::new();
     toolbar.add_top_bar(&header);
     toolbar.set_content(Some(&page));
-    let dialog = adw::Dialog::builder().title(tr("Gegenlesen")).content_width(1100).content_height(820).child(&toolbar).build();
+    let dialog = adw::Dialog::builder().title(if reviewed { tr("Prüfen") } else { tr("Gegenlesen") }).content_width(1100).content_height(820).child(&toolbar).build();
     {
         let dialog = dialog.clone();
         let ctx = ctx.clone();

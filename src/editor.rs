@@ -54,6 +54,39 @@ pub fn build() -> (gtk4::ScrolledWindow, sourceview5::View, sourceview5::Buffer,
     (scroller, view, buffer, spelling_menu)
 }
 
+/// Points the spell checker at the language of the open file: the first
+/// installed dictionary for `lang` (`"en"` → en_US, en_GB …), or the
+/// system's own for an original (`None`). The editor uses the default
+/// checker, so this is all it takes.
+pub fn follow_language(lang: Option<&str>) {
+    let checker = spelling::Checker::default();
+    let provider = checker.provider();
+    let code = match lang {
+        Some(lang) => {
+            let codes: Vec<String> = provider
+                .list_languages()
+                .iter::<spelling::Language>()
+                .filter_map(Result::ok)
+                .filter_map(|l| l.code().map(|c| c.to_string()))
+                .collect();
+            let preferred = format!("{lang}_{}", lang.to_uppercase());
+            let us = (lang == "en").then(|| "en_US".to_string());
+            codes
+                .iter()
+                .find(|c| Some(*c) == us.as_ref())
+                .or_else(|| codes.iter().find(|c| **c == preferred))
+                .or_else(|| codes.iter().find(|c| c.split(['_', '-']).next() == Some(lang)))
+                .cloned()
+        }
+        None => provider.default_code().map(|c| c.to_string()),
+    };
+    if let Some(code) = code {
+        if checker.language().as_deref() != Some(code.as_str()) {
+            checker.set_language(&code);
+        }
+    }
+}
+
 /// The current selection if there is one, otherwise the whole document -
 /// the shared "what should this AI action apply to" rule used both by the
 /// editor context menu's prompts (`aimenu.rs`) and by a free-form message

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Every PNG or JPEG is uploaded as WebP (transparency kept, at most
+  2000px on the longer edge) instead of only oversized ones being
+  re-encoded as JPEG/PNG.
+
 ### Added
 
 - "Aus WordPress-Mediathek …" opens the full media browser, and "In
@@ -20,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   different capitalization ("TUXEDO" vs. "Tuxedo"): Blocksatz tried to
   create it and WordPress refused with `term_exists`. The existing term
   is now used.
+- Large media uploads failed after 30 seconds on a slow uplink (as a
+  timeout or a TLS "bad record mac" error); the timeout now grows with
+  the file size.
 - Scrolling the editor to the very top (or bottom) always takes the
   preview there too, even while a scroll report from the preview is
   still being settled.

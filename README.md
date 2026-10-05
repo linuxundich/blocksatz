@@ -430,13 +430,11 @@ blocks. Implemented so far:
   hash still matches what's already on the server is reused rather than
   re-uploaded, and a changed one is uploaded as a new attachment with the
   superseded one cleaned up automatically, since WordPress can't replace
-  an existing attachment's file in place. An oversized PNG/JPEG (above
-  ~300 KB) is downscaled to at most 2000px on its longer edge and
-  re-encoded before upload - an opaque PNG (no transparency) converts to
-  JPEG, since that's usually far smaller for a photo/screenshot saved as
-  PNG - via `gdk-pixbuf`, already part of the GTK stack this app links
-  against. An already-small image, or a result that somehow isn't smaller
-  than the original, is uploaded completely unchanged; only what's *sent*
+  an existing attachment's file in place. Every PNG/JPEG is uploaded as
+  WebP (transparency kept), downscaled to at most 2000px on its longer
+  edge; a 3.9 MB PNG screenshot ends up around 110 KB. Media uploads get
+  a timeout that grows with the file size, so a slow uplink doesn't cut
+  them off. Only what's *sent*
   is ever affected, never the local file. Posts are only ever moved to
   WordPress's (recoverable) trash, never deleted permanently.
 - **Primary menu** (in the sidebar's header bar) — "WordPress-Mediathek",

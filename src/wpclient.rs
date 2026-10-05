@@ -349,6 +349,13 @@ fn network_error(err: ureq::Error) -> ApiError {
     }
 }
 
+/// Time for a media upload of `len` bytes: the usual 30 seconds would cut
+/// off a few megabytes on a slow uplink (seen as a timeout or a TLS
+/// "bad record mac"), so allow for as little as 16 KB/s.
+fn upload_timeout(len: usize) -> Duration {
+    Duration::from_secs(60 + (len / 16_000) as u64)
+}
+
 fn error_from_body(status: u16, body_text: &str) -> ApiError {
     let message = serde_json::from_str::<Value>(body_text)
         .ok()
@@ -476,6 +483,9 @@ impl Client {
         let mut response = self
             .agent
             .post(self.endpoint("media"))
+            .config()
+            .timeout_global(Some(upload_timeout(bytes.len())))
+            .build()
             .header("Authorization", self.auth_header.as_str())
             .header("Content-Type", mime_type)
             .header("Content-Disposition", format!("attachment; filename=\"{filename}\"").as_str())
@@ -1436,3 +1446,4 @@ mod tests {
         assert!(result.is_err(), "expected updating a nonexistent media id to fail, not silently succeed");
     }
 }
+

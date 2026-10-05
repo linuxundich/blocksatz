@@ -161,14 +161,18 @@ fn encode(pixbuf: &gdk_pixbuf::Pixbuf, format: ImageFormat) -> Result<Vec<u8>, S
             let flattened = flatten_alpha_onto_white(pixbuf);
             flattened.save_to_bufferv("jpeg", &[("quality", JPEG_QUALITY)]).map_err(|err| err.to_string())
         }
-        ImageFormat::WebP => {
-            let (packed, has_alpha) = packed_pixels(pixbuf);
-            let width = pixbuf.width() as u32;
-            let height = pixbuf.height() as u32;
-            let encoder = if has_alpha { webp::Encoder::from_rgba(&packed, width, height) } else { webp::Encoder::from_rgb(&packed, width, height) };
-            Ok(encoder.encode(WEBP_QUALITY).to_vec())
-        }
+        ImageFormat::WebP => Ok(encode_webp(pixbuf)),
     }
+}
+
+/// `pixbuf` as WebP, keeping its alpha channel - also what every PNG/JPEG
+/// upload is converted to (`imagecompress.rs`).
+pub(crate) fn encode_webp(pixbuf: &gdk_pixbuf::Pixbuf) -> Vec<u8> {
+    let (packed, has_alpha) = packed_pixels(pixbuf);
+    let width = pixbuf.width() as u32;
+    let height = pixbuf.height() as u32;
+    let encoder = if has_alpha { webp::Encoder::from_rgba(&packed, width, height) } else { webp::Encoder::from_rgb(&packed, width, height) };
+    encoder.encode(WEBP_QUALITY).to_vec()
 }
 
 /// Decodes, optionally resizes, and re-encodes `bytes` as `format` -

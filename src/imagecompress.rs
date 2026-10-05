@@ -1,24 +1,17 @@
-//! Downscales/re-encodes a local image before it's *uploaded* to
-//! WordPress, if doing so is actually likely to help - an already-small,
-//! already-reasonably-sized image is uploaded completely unchanged. Only
-//! ever changes the bytes/filename/mime type *sent*; the local file and
-//! the article's own `![]()` reference are never touched.
+//! Re-encodes a local PNG or JPEG as WebP before it's *uploaded* to
+//! WordPress (the blog's images are WebP throughout), shrinking anything
+//! oversized on the way. Only ever changes the bytes/filename/mime type
+//! *sent*; the local file and the article's own `![]()` reference are never
+//! touched. Transparency survives - WebP has an alpha channel.
 //!
-//! Built on `gdk-pixbuf` (already part of the GTK stack this app links
-//! against - no new image-codec dependency) rather than a general-purpose
-//! Rust image crate.
+//! Decoded with `gdk-pixbuf`, encoded with the `webp` crate the image
+//! editor (`imageedit.rs`) already uses.
 
 use gdk_pixbuf::prelude::*;
 
-/// A screenshot saved straight from most tools easily runs several MB and
-/// several thousand pixels wide, well past anything a blog article needs,
-/// while a small icon or already-optimized photo is usually fine as-is.
-/// Below this size, nothing is even decoded.
-const SIZE_THRESHOLD_BYTES: usize = 300_000;
 /// No side is ever scaled *up* - this only ever shrinks an oversized image
 /// down to at most this many pixels on its longer edge.
 const MAX_DIMENSION: i32 = 2000;
-const JPEG_QUALITY: &str = "82";
 
 pub struct CompressedImage {
     pub bytes: Vec<u8>,
@@ -26,9 +19,9 @@ pub struct CompressedImage {
     pub mime_type: &'static str,
 }
 
-/// `bytes`/`filename` unchanged, for every case where compression doesn't
-/// apply or didn't help - the single fallback path so every early return
-/// below looks the same.
+/// `bytes`/`filename` unchanged, for every case where conversion doesn't
+/// apply or failed - the single fallback path so every early return below
+/// looks the same.
 fn unchanged(bytes: &[u8], filename: &str) -> CompressedImage {
     CompressedImage {
         bytes: bytes.to_vec(),
@@ -38,10 +31,10 @@ fn unchanged(bytes: &[u8], filename: &str) -> CompressedImage {
 }
 
 pub fn maybe_compress(bytes: &[u8], filename: &str) -> CompressedImage {
-    if !should_attempt(bytes, filename) {
+    let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
+    if !matches!(ext.as_str(), "png" | "jpg" | "jpeg") {
         return unchanged(bytes, filename);
     }
-
     let Some(pixbuf) = decode(bytes) else {
         return unchanged(bytes, filename);
     };
@@ -49,7 +42,6 @@ pub fn maybe_compress(bytes: &[u8], filename: &str) -> CompressedImage {
     if width <= 0 || height <= 0 {
         return unchanged(bytes, filename);
     }
-
     let (target_w, target_h) = scaled_dimensions(width, height, MAX_DIMENSION);
     let scaled = if (target_w, target_h) != (width, height) {
         let Some(scaled) = pixbuf.scale_simple(target_w, target_h, gdk_pixbuf::InterpType::Bilinear) else {
@@ -59,43 +51,10 @@ pub fn maybe_compress(bytes: &[u8], filename: &str) -> CompressedImage {
     } else {
         pixbuf
     };
-
-    let (type_, options, new_ext, mime_type) = output_format(filename, scaled.has_alpha());
-    let Ok(encoded) = scaled.save_to_bufferv(type_, options) else {
-        return unchanged(bytes, filename);
-    };
-    // A resize/re-encode is supposed to be a strict improvement - if it
-    // somehow isn't (a tiny image, an already near-optimal encode), sending
-    // the original is always at least as good.
-    if encoded.len() >= bytes.len() {
-        return unchanged(bytes, filename);
-    }
-
     CompressedImage {
-        bytes: encoded,
-        filename: replace_extension(filename, new_ext),
-        mime_type,
-    }
-}
-
-fn should_attempt(bytes: &[u8], filename: &str) -> bool {
-    let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
-    matches!(ext.as_str(), "png" | "jpg" | "jpeg") && bytes.len() > SIZE_THRESHOLD_BYTES
-}
-
-/// A JPEG stays a (re-encoded, usually smaller) JPEG. A PNG with no alpha
-/// channel - very often a screenshot or photo saved as PNG, much larger
-/// than it needs to be - converts to JPEG; one *with* alpha stays PNG,
-/// since JPEG can't represent transparency and silently flattening it
-/// would visibly break the image.
-fn output_format(filename: &str, has_alpha: bool) -> (&'static str, &'static [(&'static str, &'static str)], &'static str, &'static str) {
-    let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
-    if ext == "jpg" || ext == "jpeg" {
-        ("jpeg", &[("quality", JPEG_QUALITY)], "jpg", "image/jpeg")
-    } else if has_alpha {
-        ("png", &[("compression", "9")], "png", "image/png")
-    } else {
-        ("jpeg", &[("quality", JPEG_QUALITY)], "jpg", "image/jpeg")
+        bytes: crate::imageedit::encode_webp(&scaled),
+        filename: replace_extension(filename, "webp"),
+        mime_type: "image/webp",
     }
 }
 
@@ -132,6 +91,35 @@ fn replace_extension(filename: &str, new_ext: &str) -> String {
 mod tests {
     use super::*;
 
+    fn png(alpha: u8) -> Vec<u8> {
+        let pixbuf = gdk_pixbuf::Pixbuf::new(gdk_pixbuf::Colorspace::Rgb, true, 8, 64, 48).unwrap();
+        pixbuf.fill(0x3366_9900 | u32::from(alpha));
+        pixbuf.save_to_bufferv("png", &[]).unwrap()
+    }
+
+    #[test]
+    fn a_png_is_uploaded_as_webp() {
+        let out = maybe_compress(&png(255), "shot.png");
+        assert_eq!(out.mime_type, "image/webp");
+        assert_eq!(out.filename, "shot.webp");
+        assert_eq!(&out.bytes[8..12], b"WEBP");
+    }
+
+    #[test]
+    fn a_transparent_png_keeps_its_alpha_as_webp() {
+        let out = maybe_compress(&png(128), "logo.png");
+        let decoded = decode(&out.bytes).map(|p| p.has_alpha());
+        // Only checkable where gdk-pixbuf has a WebP loader.
+        assert!(decoded.is_none() || decoded == Some(true));
+        assert_eq!(out.mime_type, "image/webp");
+    }
+
+    #[test]
+    fn a_gif_is_left_alone() {
+        let out = maybe_compress(b"GIF89a", "anim.gif");
+        assert_eq!(out.filename, "anim.gif");
+    }
+
     #[test]
     fn scaled_dimensions_leaves_an_already_small_image_unchanged() {
         assert_eq!(scaled_dimensions(800, 600, 2000), (800, 600));
@@ -145,40 +133,6 @@ mod tests {
     #[test]
     fn scaled_dimensions_shrinks_a_tall_image_preserving_aspect_ratio() {
         assert_eq!(scaled_dimensions(2000, 4000, 2000), (1000, 2000));
-    }
-
-    #[test]
-    fn should_attempt_skips_small_files() {
-        assert!(!should_attempt(&[0u8; 100], "photo.png"));
-    }
-
-    #[test]
-    fn should_attempt_skips_unrecognized_extensions() {
-        assert!(!should_attempt(&[0u8; 1_000_000], "clip.mp4"));
-    }
-
-    #[test]
-    fn should_attempt_fires_for_a_large_png_or_jpeg() {
-        assert!(should_attempt(&[0u8; 1_000_000], "photo.png"));
-        assert!(should_attempt(&[0u8; 1_000_000], "photo.JPEG"));
-    }
-
-    #[test]
-    fn output_format_keeps_jpeg_as_jpeg() {
-        let (type_, _, ext, mime) = output_format("photo.jpg", false);
-        assert_eq!((type_, ext, mime), ("jpeg", "jpg", "image/jpeg"));
-    }
-
-    #[test]
-    fn output_format_converts_an_opaque_png_to_jpeg() {
-        let (type_, _, ext, mime) = output_format("screenshot.png", false);
-        assert_eq!((type_, ext, mime), ("jpeg", "jpg", "image/jpeg"));
-    }
-
-    #[test]
-    fn output_format_keeps_a_transparent_png_as_png() {
-        let (type_, _, ext, mime) = output_format("sticker.png", true);
-        assert_eq!((type_, ext, mime), ("png", "png", "image/png"));
     }
 
     #[test]

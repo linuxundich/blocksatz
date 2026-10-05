@@ -144,7 +144,7 @@ fn main() -> glib::ExitCode {
         }
     });
 
-    // Single-window app (see ROADMAP.md's "Deliberately not recommended" -
+    // Single-window app (see BACKLOG.md's "Deliberately not recommended" -
     // multi-window is a poor fit here), so a file opened while an instance
     // is already running loads into that same window via the `open-path`
     // action (`window.rs::wire_open_path_action`) rather than spawning a

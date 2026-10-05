@@ -1,5 +1,5 @@
 # Runs the same three checks every commit here is already expected to
-# pass locally (cargo build/test/clippy) - see ROADMAP.md's "A CI
+# pass locally (cargo build/test/clippy) - see BACKLOG.md's "A CI
 # pipeline" entry: before this, that protection only existed if someone
 # actually remembered to run them by hand before pushing.
 #

@@ -312,15 +312,14 @@ impl LibrarySidebar {
         let current = self.ctx.current_path.borrow().clone();
         let current_dir = current.as_deref().and_then(Path::parent).map(Path::to_path_buf);
         let now = glib::DateTime::now_utc().ok();
-        let active_site = wpsite::load().site_id();
         let mut pairs: Vec<(library::Pair, std::time::SystemTime)> = library::scan_pairs(&root)
             .into_iter()
             .filter(|pair| {
                 let open = Some(&pair.dir) == current_dir.as_ref();
-                // Retired once every language is; shown when one of its
-                // files belongs to the active blog (or is local only).
-                open || (!pair.files.iter().all(|e| now.as_ref().is_some_and(|now| library::is_retired(&e.document, now)))
-                    && pair.files.iter().any(|e| e.document.frontmatter.wp_site.as_deref().is_none_or(|site| site == active_site || pair.original().is_some_and(|o| o.document.frontmatter.wp_site.as_deref().is_none_or(|s| s == active_site)))))
+                // Retired once every language is. Every blog's articles:
+                // the language decides where one goes (`wpsite::for_document`),
+                // the active blog only what "Im Blog" lists.
+                open || !pair.files.iter().all(|e| now.as_ref().is_some_and(|now| library::is_retired(&e.document, now)))
             })
             .map(|pair| {
                 let modified = pair.files.iter().filter_map(|e| std::fs::metadata(&e.path).and_then(|m| m.modified()).ok()).max().unwrap_or(std::time::UNIX_EPOCH);

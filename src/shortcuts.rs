@@ -34,6 +34,8 @@ pub fn open(parent: &impl IsA<gtk4::Widget>) {
             (tr("Fokus-Schreibmodus"), "<Ctrl><Shift>F"),
             (tr("Medienverwaltung"), "<Ctrl><Shift>M"),
             (tr("WordPress-Mediathek"), "<Ctrl><Shift>L"),
+            (tr("Originalsprache"), "<Alt>1"),
+            (tr("Übersetzung"), "<Alt>2"),
         ],
     ));
     dialog.add(section(

@@ -15,7 +15,14 @@ linuxundich.de/en/, but nothing in it is specific to that blog.
   and carries `lang: "en"`. The sidebar shows one row per pair with the
   state of each language ("DE Veröffentlicht · EN Entwurf").
   Translations made before (in a folder of their own) are moved next to
-  their original on start. Autosave, upload, sync state and the release check work on it like
+  their original on start.
+- **DE · EN** in the header bar (Alt+1 / Alt+2) switches between the two
+  files of a pair at the same section and paragraph; a language without a
+  file yet starts the translation.
+- **The language decides the blog.** A file without `wp_site` uploads to
+  the blog of its language: `artikel.md` to the first blog without a
+  language path, `artikel.en.md` to the blog whose address ends in `/en`.
+  The active blog only decides what the archive ("Im Blog") lists. Autosave, upload, sync state and the release check work on it like
   on any other article.
 - The model translates **section by section** (split at `## `). Long
   articles never hit a model's output limit, and an update only sends the

@@ -10,7 +10,7 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    blogposts, blogsync, importer, library, librarysidebar, mainaction, markdowncheck, postpane, releasecheck, syncstate, worksave,
+    blogposts, blogsync, importer, langswitch, library, librarysidebar, mainaction, markdowncheck, postpane, releasecheck, syncstate, worksave,
     about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
     mediabrowser, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, themestyle, windowstate,
 };
@@ -398,10 +398,13 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     // Filled with the main action (`mainaction.rs`) once the document
     // context exists; packed first so it ends up outermost on the right.
     let main_action_slot = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
+    // The language switch of a language pair (`langswitch.rs`), likewise.
+    let lang_switch_slot = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
 
     let header_bar = adw::HeaderBar::new();
     header_bar.set_title_widget(Some(&title));
     header_bar.pack_start(&sidebar_toggle_button);
+    header_bar.pack_start(&lang_switch_slot);
     header_bar.pack_end(&main_action_slot);
     header_bar.pack_end(&preview_toggle_button);
     header_bar.pack_end(&focus_mode_toggle_button);
@@ -617,11 +620,13 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         releasecheck::LinkTarget { view_stack: view_stack.clone(), browser_view: browser_view.clone() },
     );
     main_action_slot.append(&main_action.button);
+    let lang_switch = langswitch::LangSwitch::new(&window, &doc_ctx, &view);
+    lang_switch_slot.append(&lang_switch.widget);
     toolbar_view.add_top_bar(&main_action.banner);
     // Everything else only holds weak references to it; the window keeps
     // it alive.
     window.connect_destroy(move |_| {
-        let _ = (&main_action, &post_pane);
+        let _ = (&main_action, &post_pane, &lang_switch);
     });
     blogsync::wire(&window, &doc_ctx);
     // Another blog became active: its categories/tags and sync state.

@@ -25,6 +25,7 @@ src/gallerydialog.rs
 src/imagealt.rs
 src/imageedit.rs
 src/importer.rs
+src/langswitch.rs
 src/librarysidebar.rs
 src/linkcheck.rs
 src/linkpicker.rs

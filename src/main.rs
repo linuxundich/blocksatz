@@ -35,6 +35,7 @@ mod imagealt;
 mod imagecompress;
 mod imageedit;
 mod importer;
+mod langswitch;
 mod library;
 mod librarysidebar;
 mod linkcheck;
@@ -115,6 +116,8 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("win.toggle-focus-mode", &["<Ctrl><Shift>f"]);
     app.set_accels_for_action("win.toggle-preview", &["F9"]);
     app.set_accels_for_action("win.properties", &["<Alt>Return"]);
+    app.set_accels_for_action("win.lang-original", &["<Alt>1"]);
+    app.set_accels_for_action("win.lang-translation", &["<Alt>2"]);
     app.set_accels_for_action("win.shortcuts", &["<Ctrl>question"]);
 
     app.connect_startup(|_| nautilustemplate::install_once());

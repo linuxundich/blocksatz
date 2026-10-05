@@ -202,7 +202,8 @@ impl PostPane {
 
     fn open_admin(&self) {
         let Some(id) = self.ctx.frontmatter.borrow().wp_post_id else { return };
-        let site = wpsite::for_site_id(self.ctx.frontmatter.borrow().wp_site.as_deref());
+        let path = self.ctx.current_path.borrow().clone();
+        let site = wpsite::for_document(path.as_deref(), self.ctx.frontmatter.borrow().wp_site.as_deref());
         (self.open_url)(format!("{}/wp-admin/post.php?post={id}&action=edit", site.url.trim_end_matches('/')));
     }
 }

@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   frontmatter (new key `lang`). "In Arbeit" shows one row per article
   with the state of each language. Translations from 0.67 are moved next
   to their original on start (`docs/translations.md`).
+- **Language switch** "DE · EN" in the header bar for a library article
+  (Alt+1 / Alt+2): saves, opens the other language and puts the cursor
+  into the same section and paragraph. Switching to a language without a
+  file yet starts "Übersetzen …".
+- **The language decides the blog**: a library article without `wp_site`
+  uploads to the blog of its language (`artikel.md` to the main blog,
+  `artikel.en.md` to the blog whose address ends in `/en`), no longer to
+  whichever blog is active. The window subtitle names the target blog
+  when several are configured, and "In Arbeit" lists every blog's
+  articles - the active blog only decides what "Im Blog" shows.
 - Every PNG or JPEG is uploaded as WebP (transparency kept, at most
   2000px on the longer edge) instead of only oversized ones being
   re-encoded as JPEG/PNG.

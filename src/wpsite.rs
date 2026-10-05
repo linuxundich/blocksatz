@@ -9,10 +9,14 @@
 //! `Frontmatter::wp_site` instead, so its `wp_post_id` always addresses
 //! the blog it came from.
 //!
+//! A library article without `wp_site` yet goes by its language instead
+//! (`for_document`): `artikel.md` to the main blog, `artikel.en.md` to the
+//! blog whose address ends in `/en` - never just to whichever is active.
+//!
 //! Stored in `sites.conf`; a `wordpress.conf` from before several blogs
 //! existed is taken over as the only blog on first read.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use gtk4::glib;
 
@@ -111,6 +115,35 @@ pub fn load() -> SiteConfig {
 pub fn for_site_id(site_id: Option<&str>) -> SiteConfig {
     let sites = load_all();
     site_id.and_then(|id| sites.sites.iter().find(|s| s.site_id() == id).cloned()).unwrap_or_else(|| sites.active_site())
+}
+
+/// The language a blog's address names (`https://example.org/en` →
+/// `en`); `None` for a blog without a language path - the main blog.
+pub fn site_lang(site: &SiteConfig) -> Option<String> {
+    let id = site.site_id();
+    let (_, path) = id.split_once('/')?;
+    let last = path.rsplit('/').next()?;
+    let is_lang = (2..=5).contains(&last.len()) && last.split('-').next().is_some_and(|p| p.len() == 2) && last.bytes().all(|b| b.is_ascii_lowercase() || b == b'-');
+    is_lang.then(|| last.to_string())
+}
+
+/// The blog for language `lang` - `None` meaning the original language,
+/// i.e. the first blog without a language path.
+pub fn for_lang(lang: Option<&str>) -> Option<SiteConfig> {
+    load_all().sites.into_iter().find(|s| site_lang(s).as_deref() == lang)
+}
+
+/// The blog a document belongs to: its `wp_site`, else - for a library
+/// article - the blog of its language, else the active blog.
+pub fn for_document(path: Option<&Path>, wp_site: Option<&str>) -> SiteConfig {
+    if wp_site.is_some() {
+        return for_site_id(wp_site);
+    }
+    let lang = path.filter(|p| crate::library::contains(&crate::library::root(), p)).and_then(crate::library::file_lang);
+    match lang {
+        Some(lang) => for_lang(lang.as_deref()).unwrap_or_else(load),
+        None => load(),
+    }
 }
 
 /// Saves `config` (adding it or updating the blog with the same id) and
@@ -219,5 +252,14 @@ mod tests {
         assert_eq!(sites.active, "b.de");
         sites.remove("b.de");
         assert_eq!(sites.active_site(), SiteConfig::default());
+    }
+
+    #[test]
+    fn a_blogs_language_comes_from_its_address() {
+        let site = |url: &str| SiteConfig { url: url.into(), username: String::new() };
+        assert_eq!(site_lang(&site("https://linuxundich.de/en")), Some("en".into()));
+        assert_eq!(site_lang(&site("https://example.org/blog/pt-br/")), Some("pt-br".into()));
+        assert_eq!(site_lang(&site("https://linuxundich.de")), None);
+        assert_eq!(site_lang(&site("https://example.org/blog")), None);
     }
 }

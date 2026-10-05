@@ -111,7 +111,8 @@ impl MainAction {
     /// The blog the open working copy belongs to (the active one for a
     /// local-only article).
     fn site(&self) -> wpsite::SiteConfig {
-        wpsite::for_site_id(self.ctx.frontmatter.borrow().wp_site.as_deref())
+        let path = self.ctx.current_path.borrow().clone();
+        wpsite::for_document(path.as_deref(), self.ctx.frontmatter.borrow().wp_site.as_deref())
     }
 
     fn state(&self) -> (Document, PostState, Remote) {
@@ -210,7 +211,9 @@ impl MainAction {
 
         let title = library::title_hint(&doc).unwrap_or_else(|| tr("Unbenannt"));
         self.ctx.title.set_title(&title);
-        self.ctx.title.set_subtitle(&state_text(&doc, state));
+        // With more than one blog, where an upload goes is part of the state.
+        let subtitle = if wpsite::load_all().sites.len() > 1 { format!("{} · {}", self.site().site_id(), state_text(&doc, state)) } else { state_text(&doc, state) };
+        self.ctx.title.set_subtitle(&subtitle);
 
         let original_changed = if fm.translation.is_some() {
             let generation = self.ctx.doc_generation.get();
@@ -373,6 +376,12 @@ impl MainAction {
         // The working copy needs a file before the upload can record its
         // post id in it.
         worksave::flush(&self.ctx, true);
+        // A new library article goes to the blog of its language, not to
+        // whichever blog is active (`wpsite::for_document`).
+        if self.ctx.frontmatter.borrow().wp_site.is_none() && self.ctx.current_path.borrow().as_deref().is_some_and(|p| library::contains(&library::root(), p)) {
+            let site = self.site().site_id();
+            self.ctx.frontmatter.borrow_mut().wp_site = Some(site);
+        }
         self.preview_after_upload.set(preview_after);
 
         let ctx = self.ctx.clone();

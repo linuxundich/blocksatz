@@ -60,7 +60,9 @@ blocks. Implemented so far:
     section by section through the AI model chosen for translations. The
     translation lives next to its original as `artikel.en.md` in the same
     library folder - one sidebar row per article, showing the state of
-    each language. Code,
+    each language. The **DE · EN** switch in the header bar (Alt+1 /
+    Alt+2) flips between the two at the same paragraph, and the language
+    decides the blog an upload goes to. Code,
     links and markup stay untouched; "Gegenlesen …" shows original and
     translation side by side with the checks, and only a reviewed
     translation can be published. When the original changes, an update

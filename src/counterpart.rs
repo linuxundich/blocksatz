@@ -32,6 +32,9 @@ pub struct Counterpart {
     ctx: DocContext,
     view: sourceview5::View,
     sync_pending: Cell<bool>,
+    /// The original's sections changed since the open translation was made
+    /// (line ranges) - marked in the view; empty when the original is open.
+    changed: RefCell<Vec<(usize, usize)>>,
     weak: Weak<Counterpart>,
 }
 
@@ -51,6 +54,7 @@ impl Counterpart {
             ctx: ctx.clone(),
             view: view.clone(),
             sync_pending: Cell::new(false),
+            changed: RefCell::new(Vec::new()),
             weak: weak.clone(),
         });
 
@@ -124,6 +128,17 @@ impl Counterpart {
         if !self.present.replace(true) {
             self.section_toggles.add(self.toggle.clone());
         }
+        // Showing the original next to its translation: what changed since.
+        let changed: Vec<(usize, usize)> = if self.ctx.frontmatter.borrow().translation.is_some() {
+            crate::translatedialog::changed_in_original(&self.ctx).into_iter().map(|(a, b, _)| (a, b)).collect()
+        } else {
+            Vec::new()
+        };
+        let marks_changed = *self.changed.borrow() != changed;
+        *self.changed.borrow_mut() = changed;
+        if marks_changed {
+            self.schedule_sync();
+        }
         let unchanged = self.shown.borrow().as_ref().is_some_and(|(p, text)| *p == path && *text == document::serialize(&doc));
         if unchanged {
             return;
@@ -179,5 +194,6 @@ impl Counterpart {
         // A little above the paragraph, so the heading before it shows too.
         self.pane.sync_to((other_line as f64 - 1.0).max(1.0), top_t, 0.0, total);
         self.pane.highlight_line(other_line as i32 + 1);
+        self.pane.mark_changed(&self.changed.borrow());
     }
 }

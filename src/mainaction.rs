@@ -187,6 +187,7 @@ impl MainAction {
             translation_menu.append(Some(&tr("Gegenlesen …")), Some("main.review"));
             translation_menu.append(Some(&tr("Original öffnen")), Some("main.open-original"));
             translation_menu.append(Some(&tr("Übersetzung aktualisieren …")), Some("main.translate"));
+            translation_menu.append(Some(&tr("Als aktuell markieren")), Some("main.mark-current"));
         } else if fm.wp_post_id.is_some() {
             translation_menu.append(Some(&tr("Übersetzen …")), Some("main.translate"));
             translation_menu.append(Some(&tr("Übersetzung öffnen")), Some("main.open-translation"));
@@ -239,7 +240,7 @@ impl MainAction {
                 tr("Veröffentlichter Beitrag: Deine Änderungen gehen erst mit „Änderungen veröffentlichen“ online."),
                 String::new(),
             ),
-            _ if original_changed == Some(true) => (BannerKind::TranslationChanged, tr("Das Original wurde seit der Übersetzung geändert."), tr("Übersetzung aktualisieren …")),
+            _ if original_changed == Some(true) => (BannerKind::TranslationChanged, tr("Das Original wurde seit der Übersetzung geändert."), tr("Abgleichen …")),
             _ if fm.translation.as_ref().is_some_and(|t| !t.reviewed) => (
                 BannerKind::TranslationUnreviewed,
                 tr("Diese Übersetzung ist noch nicht gegengelesen. Erst danach lässt sie sich veröffentlichen und wird im Blog verknüpft."),
@@ -279,6 +280,12 @@ impl MainAction {
         add("blog-preview", MainAction::blog_preview);
         add("compare", MainAction::compare);
         add("translate", MainAction::translate);
+        add("mark-current", |this| {
+            if crate::translatedialog::mark_current(&this.ctx) {
+                window::show_toast(&this.ctx.toast_overlay, &tr("Als aktuell markiert."));
+                this.refresh();
+            }
+        });
         add("review", MainAction::review);
         add("open-original", |this| {
             let doc = this.ctx.current_document();
@@ -579,7 +586,11 @@ impl MainAction {
             BannerKind::Conflict => self.resolve_conflict(),
             BannerKind::Gone => self.unlink(),
             BannerKind::MarkdownHint => self.show_markdown_details(),
-            BannerKind::TranslationChanged => self.translate(),
+            BannerKind::TranslationChanged => {
+                if let Some(window) = self.window.upgrade() {
+                    crate::translatedialog::reconcile(&window, &self.ctx);
+                }
+            }
             BannerKind::TranslationUnreviewed => self.review(),
             BannerKind::PublishedChanges | BannerKind::None => {}
         }

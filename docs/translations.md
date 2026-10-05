@@ -73,8 +73,13 @@ linuxundich.de/en/, but nothing in it is specific to that blog.
    then mark it as reviewed.
 5. Upload and publish the translation like any other article.
 
-When the original changes later, the translation shows a banner;
-**Übersetzung aktualisieren …** re-translates only the changed sections.
+When the original changes later, the translation shows a banner.
+**Abgleichen …** lists the changed sections, and the original's view
+next to the editor marks them with an orange edge. Small changes you
+carry over by hand right in the translation and confirm with **Von Hand
+erledigt** (or "Als aktuell markieren" in the main action's menu); for
+bigger ones, **Per KI übersetzen …** / **Übersetzung aktualisieren …**
+re-translates only the changed sections.
 Your corrections in the other sections stay. If anything was re-translated,
 the translation counts as unreviewed again.
 

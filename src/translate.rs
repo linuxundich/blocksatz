@@ -92,6 +92,26 @@ pub fn split_sections(body: &str) -> Vec<String> {
     sections
 }
 
+/// The sections of `original` that changed since a translation was made
+/// from it (`source_sections`): their 1-based first and last line in
+/// `original.body`, and their heading (empty for the intro).
+pub fn changed_sections(original: &Document, source_sections: &[String]) -> Vec<(usize, usize, String)> {
+    // Hashed like `translate` does, over the body with uploaded image URLs;
+    // that only swaps URLs, so the line numbers are those of `body`.
+    let hashed = split_sections(&body_with_uploaded_images(original));
+    let mut line = 1;
+    let mut out = Vec::new();
+    for section in hashed {
+        let lines = section.matches('\n').count().max(1);
+        if !section.trim().is_empty() && !source_sections.contains(&section_hash(&section)) {
+            let heading = section.lines().find(|l| l.starts_with("## ")).map(|l| l.trim_start_matches('#').trim().to_string()).unwrap_or_default();
+            out.push((line, line + lines - 1, heading));
+        }
+        line += lines;
+    }
+    out
+}
+
 /// Short, stable hash of a section, ignoring leading and trailing
 /// whitespace.
 pub fn section_hash(section: &str) -> String {
@@ -929,6 +949,20 @@ mod tests {
         assert_eq!(notes, vec!["[CHECK: menu label]", "Pun not carried over"]);
         let (text, notes) = split_notes("A\n\n---\n\nB\n");
         assert_eq!((text.as_str(), notes.len()), ("A\n\n---\n\nB\n", 0));
+    }
+
+    #[test]
+    fn changed_sections_of_the_original_are_found_with_their_lines() {
+        let before = document::parse("---\ntitle: \"x\"\n---\nIntro.\n\n## Eins\nText.\n\n## Zwei\nMehr.\n");
+        let hashes: Vec<String> = split_sections(&body_with_uploaded_images(&before)).iter().map(|s| section_hash(s)).collect();
+        assert!(changed_sections(&before, &hashes).is_empty());
+        let after = document::parse("---\ntitle: \"x\"\n---\nIntro.\n\n## Eins\nText.\n\n## Zwei\nMehr, und neu.\n");
+        let changed = changed_sections(&after, &hashes);
+        assert_eq!(changed.len(), 1);
+        let (first, last, heading) = &changed[0];
+        assert_eq!(heading, "Zwei");
+        assert_eq!(after.body.lines().nth(first - 1), Some("## Zwei"));
+        assert_eq!(after.body.lines().nth(last - 1), Some("Mehr, und neu."));
     }
 
     #[test]

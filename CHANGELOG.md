@@ -35,6 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   to write or paste the text into. Works before the original is uploaded;
   the translation can only be uploaded once the original has a post id,
   which is then filled into the link.
+- **Carry small changes over by hand**: when the original changed, the
+  translation's banner offers "Abgleichen …" - the changed sections are
+  listed and marked with an orange edge in the original's view next to
+  the editor; edit the translation directly, then "Von Hand erledigt"
+  (also "Als aktuell markieren" in the main action's menu) marks it as
+  matching the original again. "Per KI übersetzen …" remains for bigger
+  changes.
 - Translating always translates the tags and matches tags and categories
   against the target blog's existing ones (fetched before translating):
   the model is told the existing tags, and a name differing only in case

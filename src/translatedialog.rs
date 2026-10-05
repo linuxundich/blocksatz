@@ -219,6 +219,76 @@ pub fn create_manual(ctx: &DocContext, lang: &str) -> Result<PathBuf, String> {
     Ok(target)
 }
 
+/// Marks the open translation as matching its original as it is now -
+/// after the original's changes were carried over by hand. Returns
+/// whether it was a translation with its original at hand.
+pub fn mark_current(ctx: &DocContext) -> bool {
+    let path = ctx.current_path.borrow().clone();
+    let doc = ctx.current_document();
+    let Some((_, original)) = find_original(&doc, path.as_deref()) else { return false };
+    let sections = translate::split_sections(&translate::body_with_uploaded_images(&original)).iter().map(|s| translate::section_hash(s)).collect();
+    {
+        let mut fm = ctx.frontmatter.borrow_mut();
+        let Some(link) = fm.translation.as_mut() else { return false };
+        link.source_hash = syncstate::fingerprint(&original);
+        link.source_sections = sections;
+        link.translated_at = today();
+    }
+    worksave::flush(ctx, false);
+    ctx.bump_generation();
+    ctx.notify_library(false);
+    true
+}
+
+/// The sections of the open translation's original that changed since
+/// it was translated (lines in the original's body, heading).
+pub fn changed_in_original(ctx: &DocContext) -> Vec<(usize, usize, String)> {
+    let path = ctx.current_path.borrow().clone();
+    let doc = ctx.current_document();
+    let Some(link) = doc.frontmatter.translation.clone() else { return Vec::new() };
+    let Some((_, original)) = find_original(&doc, path.as_deref()) else { return Vec::new() };
+    translate::changed_sections(&original, &link.source_sections)
+}
+
+/// "Abgleichen …" when the original changed: which sections did, and the
+/// choice between having carried them over by hand and translating them.
+pub fn reconcile(window: &adw::ApplicationWindow, ctx: &DocContext) {
+    let changed = changed_in_original(ctx);
+    let list = changed
+        .iter()
+        .map(|(_, _, heading)| format!("• {}", if heading.is_empty() { tr("Einleitung") } else { heading.clone() }))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let body = if changed.is_empty() {
+        tr("Geändert haben sich nur Titel, Auszug oder andere Angaben des Originals.")
+    } else {
+        tr("Diese Abschnitte des Originals sind neu oder geändert - in der Ansicht des Originals im Seitenbereich markiert:\n\n{list}\n\nKleine Änderungen ziehst du direkt hier im Editor nach und bestätigst dann.").replace("{list}", &list)
+    };
+    let alert = adw::AlertDialog::builder().heading(tr("Original geändert")).body(body).build();
+    alert.add_response("cancel", &tr("Abbrechen"));
+    alert.add_response("ai", &tr("Per KI übersetzen …"));
+    alert.add_response("manual", &tr("Von Hand erledigt"));
+    alert.set_response_appearance("manual", adw::ResponseAppearance::Suggested);
+    alert.set_default_response(Some("manual"));
+    alert.set_close_response("cancel");
+    let ctx = ctx.clone();
+    let window_weak = window.downgrade();
+    alert.connect_response(None, move |_, response| match response {
+        "manual" => {
+            if mark_current(&ctx) {
+                window::show_toast(&ctx.toast_overlay, &tr("Als aktuell markiert."));
+            }
+        }
+        "ai" => {
+            if let Some(window) = window_weak.upgrade() {
+                open(&window, &ctx);
+            }
+        }
+        _ => {}
+    });
+    alert.present(Some(window));
+}
+
 /// A translation made before its original was uploaded knows no post id
 /// yet; once the original has one, it's filled in (before the upload that
 /// sends it along as `lui_source_id`).

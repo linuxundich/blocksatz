@@ -424,6 +424,21 @@ impl PreviewPane {
         self.web_view.evaluate_javascript(&script, None, None, gio::Cancellable::NONE, |_| {});
     }
 
+    /// Marks the top-level blocks within the given 1-based, inclusive
+    /// source line ranges with an orange edge - the original's sections
+    /// that changed since the translation (`counterpart.rs`).
+    pub fn mark_changed(&self, ranges: &[(usize, usize)]) {
+        let list = ranges.iter().map(|(a, b)| format!("[{a},{b}]")).collect::<Vec<_>>().join(",");
+        let script = format!(
+            "(function(){{\
+             if(!document.getElementById('changed-style')){{const s=document.createElement('style');s.id='changed-style';\
+             s.textContent='.changed-section{{box-shadow:inset 4px 0 0 rgba(229,165,10,.9);padding-left:12px;margin-left:-16px}}';document.head.appendChild(s);}}\
+             const r=[{list}];\
+             for(const b of document.querySelectorAll('div[data-line]')){{const a=parseInt(b.dataset.line,10);b.classList.toggle('changed-section',r.some(x=>a>=x[0]&&a<=x[1]));}}}})();"
+        );
+        self.web_view.evaluate_javascript(&script, None, None, gio::Cancellable::NONE, |_| {});
+    }
+
     pub fn sync_to(&self, line: f64, top_t: f64, bottom_t: f64, total_lines: i32) {
         let script = format!("window.syncTo && window.syncTo({line:.4}, {top_t:.4}, {bottom_t:.4}, {total_lines});");
         self.web_view.evaluate_javascript(&script, None, None, gio::Cancellable::NONE, |_| {});

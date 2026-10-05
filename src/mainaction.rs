@@ -252,7 +252,15 @@ impl MainAction {
                 tr("Veröffentlichter Beitrag: Deine Änderungen gehen erst mit „Änderungen veröffentlichen“ online."),
                 String::new(),
             ),
-            _ if original_changed == Some(true) => (BannerKind::TranslationChanged, tr("Das Original wurde seit der Übersetzung geändert."), tr("Abgleichen …")),
+            _ if original_changed == Some(true) => {
+                let open = crate::translatedialog::changed_in_original(&self.ctx).len();
+                let message = match open {
+                    0 => tr("Titel, Auszug oder andere Angaben des Originals wurden geändert."),
+                    1 => tr("Original geändert: 1 Abschnitt offen."),
+                    n => tr("Original geändert: {n} Abschnitte offen.").replace("{n}", &n.to_string()),
+                };
+                (BannerKind::TranslationChanged, message, if open == 0 { tr("Als aktuell markieren") } else { tr("Zeigen") })
+            }
             _ if fm.translation.as_ref().is_some_and(|t| !t.reviewed) => (
                 BannerKind::TranslationUnreviewed,
                 tr("Diese KI-Übersetzung ist noch nicht gegengelesen. Erst danach lässt sie sich veröffentlichen und wird im Blog verknüpft."),
@@ -353,6 +361,34 @@ impl MainAction {
             }
         });
         window.add_action(&check);
+    }
+
+    /// The banner's "Zeigen": the original next to the editor, the cursor
+    /// on the first section whose original changed. Each changed section
+    /// there says what changed and has "Erledigt". With only title or
+    /// excerpt changed, the translation is marked current right away.
+    fn show_original_changes(&self) {
+        let changed = crate::translatedialog::changed_section_indices(&self.ctx);
+        let Some(&first) = changed.first() else {
+            if crate::translatedialog::mark_current(&self.ctx) {
+                window::show_toast(&self.ctx.toast_overlay, &tr("Als aktuell markiert."));
+                self.refresh();
+            }
+            return;
+        };
+        if let Some(window) = self.window.upgrade() {
+            if window.lookup_action("toggle-preview").and_then(|a| a.state()).and_then(|s| s.get::<bool>()) == Some(false) {
+                let _ = WidgetExt::activate_action(&window, "win.toggle-preview", None);
+            }
+        }
+        self.links.view_stack.set_visible_child_name(crate::counterpart::PAGE);
+        let buffer = &self.ctx.buffer;
+        let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
+        let line = crate::translate::section_ranges(&text).get(first).map_or(0, |(start, _)| start - 1);
+        if let Some(iter) = buffer.iter_at_line(line as i32) {
+            buffer.place_cursor(&iter);
+        }
+        window::show_toast(&self.ctx.toast_overlay, &tr("Geänderte Abschnitte sind im Original orange markiert. „Erledigt“ hakt sie ab."));
     }
 
     fn translate(&self) {
@@ -605,11 +641,7 @@ impl MainAction {
             BannerKind::Conflict => self.resolve_conflict(),
             BannerKind::Gone => self.unlink(),
             BannerKind::MarkdownHint => self.show_markdown_details(),
-            BannerKind::TranslationChanged => {
-                if let Some(window) = self.window.upgrade() {
-                    crate::translatedialog::reconcile(&window, &self.ctx);
-                }
-            }
+            BannerKind::TranslationChanged => self.show_original_changes(),
             BannerKind::TranslationUnreviewed => self.review(),
             BannerKind::PublishedChanges | BannerKind::None => {}
         }

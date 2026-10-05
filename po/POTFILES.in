@@ -54,6 +54,7 @@ src/statuscontrols.rs
 src/tagsuggest.rs
 src/taxonomy.rs
 src/translatedialog.rs
+src/translationsettings.rs
 src/translate.rs
 src/window.rs
 src/worksave.rs

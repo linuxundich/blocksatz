@@ -112,6 +112,110 @@ pub fn changed_sections(original: &Document, source_sections: &[String]) -> Vec<
     out
 }
 
+/// 1-based first and last line in `body` of each section (`split_sections`).
+pub fn section_ranges(body: &str) -> Vec<(usize, usize)> {
+    let mut line = 1;
+    split_sections(body)
+        .iter()
+        .map(|section| {
+            let lines = section.matches('\n').count().max(1);
+            let range = (line, line + lines - 1);
+            line += lines;
+            range
+        })
+        .collect()
+}
+
+/// For each section of `original`: whether `translation` has a section at
+/// that place that is no longer the original's text - i.e. translated.
+/// A version started from the original as a template shows what's left.
+pub fn translated_sections(original: &str, translation: &str) -> Vec<bool> {
+    let theirs = split_sections(translation);
+    split_sections(original).iter().enumerate().map(|(i, s)| !s.trim().is_empty() && theirs.get(i).is_some_and(|t| !t.trim().is_empty() && t.trim() != s.trim())).collect()
+}
+
+/// The text a changed section had when the translation was last brought
+/// up to date: `basis` maps section hashes to texts (kept next to the
+/// translation), `source_sections` are the hashes in order then. Matched
+/// by heading first, then by position.
+pub fn old_section<'a>(basis: &'a std::collections::HashMap<String, String>, source_sections: &[String], index: usize, current: &str) -> Option<&'a String> {
+    let heading = current.lines().next().filter(|l| l.starts_with("## "));
+    if let Some(heading) = heading {
+        let hit = source_sections.iter().filter_map(|h| basis.get(h)).find(|text| text.lines().next() == Some(heading));
+        if hit.is_some() {
+            return hit;
+        }
+    }
+    source_sections.get(index).and_then(|h| basis.get(h))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Change {
+    Same,
+    Inserted,
+    Deleted,
+}
+
+/// Word by word what turned `old` into `new`; runs of the same kind are
+/// merged, whitespace stays with the word before it. Long texts (beyond a
+/// few thousand words each) come back as one deletion and one insertion.
+pub fn word_diff(old: &str, new: &str) -> Vec<(Change, String)> {
+    fn words(text: &str) -> Vec<&str> {
+        let mut out = Vec::new();
+        let mut start = 0;
+        let mut in_space = false;
+        for (i, c) in text.char_indices() {
+            if c.is_whitespace() {
+                in_space = true;
+            } else if in_space {
+                out.push(&text[start..i]);
+                start = i;
+                in_space = false;
+            }
+        }
+        if start < text.len() {
+            out.push(&text[start..]);
+        }
+        out
+    }
+    let (a, b) = (words(old), words(new));
+    let mut out: Vec<(Change, String)> = Vec::new();
+    let mut push = |kind: Change, word: &str| match out.last_mut() {
+        Some((k, text)) if *k == kind => text.push_str(word),
+        _ => out.push((kind, word.to_string())),
+    };
+    if a.len() * b.len() > 4_000_000 {
+        push(Change::Deleted, old);
+        push(Change::Inserted, new);
+        return out;
+    }
+    // Longest common subsequence over the words, compared without their
+    // trailing whitespace.
+    let key = |w: &str| w.trim_end().to_string();
+    let (ka, kb): (Vec<String>, Vec<String>) = (a.iter().map(|w| key(w)).collect(), b.iter().map(|w| key(w)).collect());
+    let mut table = vec![vec![0u32; b.len() + 1]; a.len() + 1];
+    for i in (0..a.len()).rev() {
+        for j in (0..b.len()).rev() {
+            table[i][j] = if ka[i] == kb[j] { table[i + 1][j + 1] + 1 } else { table[i + 1][j].max(table[i][j + 1]) };
+        }
+    }
+    let (mut i, mut j) = (0, 0);
+    while i < a.len() || j < b.len() {
+        if i < a.len() && j < b.len() && ka[i] == kb[j] {
+            push(Change::Same, b[j]);
+            i += 1;
+            j += 1;
+        } else if i < a.len() && (j == b.len() || table[i + 1][j] >= table[i][j + 1]) {
+            push(Change::Deleted, a[i]);
+            i += 1;
+        } else {
+            push(Change::Inserted, b[j]);
+            j += 1;
+        }
+    }
+    out
+}
+
 /// Short, stable hash of a section, ignoring leading and trailing
 /// whitespace.
 pub fn section_hash(section: &str) -> String {
@@ -505,6 +609,12 @@ fn leftover_score(masked: &str, source_lang: &str) -> usize {
         .filter(|w| !w.is_empty())
         .filter(|w| SOURCE_MARKERS_DE.contains(&w.to_lowercase().as_str()) || w.chars().any(|c| matches!(c, 'ä' | 'ö' | 'ü' | 'ß' | 'Ä' | 'Ö' | 'Ü')))
         .count()
+}
+
+/// Whether a section still reads like the source language - the same
+/// test `check` reports leftovers with.
+pub fn reads_like_source(section: &str, source_lang: &str) -> bool {
+    leftover_score(&mask(section).text, source_lang) >= 4
 }
 
 /// Compares a translated body with its original: code, links, markup,
@@ -1328,5 +1438,33 @@ mod tests {
         assert_eq!(section_at_line(text, 8), 2);
         assert_eq!(replace_section(text, 1, "## One\n\nNew\n"), "Intro\n\n## One\n\nNew\n\n## Zwei\n\nZwei\n");
         assert_eq!(replace_section(text, 2, "## Two\n\nTwo"), "Intro\n\n## Eins\n\nAlt\n\n## Two\n\nTwo\n");
+    }
+    #[test]
+    fn ranges_translated_and_old_sections() {
+        let original = "Intro\n\n## Eins\n\nText\n\n## Zwei\n\nMehr\n";
+        assert_eq!(section_ranges(original), vec![(1, 2), (3, 6), (7, 9)]);
+        let translation = "Intro EN\n\n## Eins\n\nText\n\n## Two\n\nMore\n";
+        assert_eq!(translated_sections(original, translation), vec![true, false, true]);
+        let mut basis = std::collections::HashMap::new();
+        let old = "## Zwei\n\nWeniger\n".to_string();
+        basis.insert(section_hash(&old), old.clone());
+        let sections = vec![section_hash("Intro"), section_hash(&old)];
+        assert_eq!(old_section(&basis, &sections, 2, "## Zwei\n\nMehr\n"), Some(&old));
+        assert_eq!(old_section(&basis, &sections, 1, "## Drei\n\nNeu\n"), Some(&old));
+        assert_eq!(old_section(&basis, &sections, 5, "## Drei\n"), None);
+    }
+
+    #[test]
+    fn diffs_words() {
+        let diff = word_diff("Pulsgeber ist klein, aber nützlich.", "Pulsgeber ist klein, aber unverzichtbar für mich.");
+        assert_eq!(
+            diff,
+            vec![
+                (Change::Same, "Pulsgeber ist klein, aber ".into()),
+                (Change::Deleted, "nützlich.".into()),
+                (Change::Inserted, "unverzichtbar für mich.".into()),
+            ]
+        );
+        assert_eq!(word_diff("a b", "a b"), vec![(Change::Same, "a b".into())]);
     }
 }

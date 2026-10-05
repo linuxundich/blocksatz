@@ -55,19 +55,20 @@ blocks. Implemented so far:
     local-only ones; uploads, previews and the sync check of a working
     copy always go to the blog it belongs to.
   - **Translations for a second blog** (see
-    [`docs/translations.md`](docs/translations.md)): "Übersetzen …" turns
-    a post into a working copy for a linked blog in another language,
-    section by section through the AI model chosen for translations. The
-    translation lives next to its original as `artikel.en.md` in the same
+    [`docs/translations.md`](docs/translations.md)): the English version
+    of a post lives next to its original as `artikel.en.md` in the same
     library folder - one sidebar row per article, showing the state of
     each language. The **DE · EN** switch in the header bar (Alt+1 /
     Alt+2) flips between the two at the same paragraph, the right-hand
     pane shows the other language following along, and the language
-    decides the blog an upload goes to. Code,
-    links and markup stay untouched; "Gegenlesen …" shows original and
-    translation side by side with the checks, and only a reviewed
-    translation can be published. When the original changes, an update
-    re-translates just the changed sections and keeps your corrections.
+    decides the blog an upload goes to. Translate by hand from the
+    original as a template, or copy the original into DeepL or a chat
+    with code and links protected and paste the result back - the
+    placeholders come back and the checks say what doesn't match. When
+    the original changes, its view marks the changed sections with a word
+    diff and an "Erledigt" button each. The AI translation is there as an
+    option: section by section, code and markup untouched, and only
+    published once you've reviewed it.
   - The **right-hand pane** (F9) has four views: Vorschau (rendered /
     Gutenberg code / "Im Blog" - the open article as the blog itself shows
     it, draft preview or live post), Beitrag (state, all post properties,

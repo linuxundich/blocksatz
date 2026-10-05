@@ -35,6 +35,8 @@ pub enum Fix {
     Properties,
     Media,
     Links,
+    /// "Prüfen …" for a language version (`translatedialog::open_review`).
+    Translation,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -105,12 +107,9 @@ pub fn checks(doc: &Document) -> Vec<Check> {
         out.push(check(tr("Links"), detail, Severity::Hint, Fix::Links));
     }
 
-    if let Some(link) = &fm.translation {
-        out.push(if link.reviewed {
-            check(tr("Übersetzung"), tr("Gegengelesen"), Severity::Ok, Fix::Properties)
-        } else {
-            check(tr("Übersetzung"), tr("Noch nicht gegengelesen – im Menü „Gegenlesen …“ bestätigen."), Severity::Error, Fix::Properties)
-        });
+    // Only the AI's translation needs the review mark; your own doesn't.
+    if fm.translation.as_ref().is_some_and(|link| !link.reviewed) {
+        out.push(check(tr("Übersetzung"), tr("KI-Übersetzung noch nicht gegengelesen – im Menü „Gegenlesen …“ bestätigen."), Severity::Error, Fix::Translation));
     }
 
     out.push(match fm.rank_math_focus_keyword.as_deref().map(str::trim).filter(|k| !k.is_empty()) {
@@ -118,6 +117,38 @@ pub fn checks(doc: &Document) -> Vec<Check> {
         None => check(tr("Fokus-Keyword"), tr("Optional, für RankMath."), Severity::Hint, Fix::Properties),
     });
 
+    out
+}
+
+/// For a language version: does it match its original - code, links,
+/// markup and headings as there, no section left in the source language,
+/// no change of the original still open? Pure like `checks`.
+pub fn translation_checks(doc: &Document, original: &Document) -> Vec<Check> {
+    let Some(link) = &doc.frontmatter.translation else { return Vec::new() };
+    let mut out = Vec::new();
+    let issues = crate::translate::check(&crate::translate::body_with_uploaded_images(original), &doc.body, "de");
+    out.push(match issues.len() {
+        0 => check(tr("Abgleich mit dem Original"), tr("Code, Links, Auszeichnungen und Überschriften wie im Original"), Severity::Ok, Fix::Translation),
+        1 => check(tr("Abgleich mit dem Original"), issues[0].message.clone(), Severity::Warning, Fix::Translation),
+        n => check(tr("Abgleich mit dem Original"), tr("{n} Auffälligkeiten, z. B.: {first}").replace("{n}", &n.to_string()).replace("{first}", &issues[0].message), Severity::Warning, Fix::Translation),
+    });
+    // Started from the original as a template: title or excerpt left as they were.
+    let (fm, of) = (&doc.frontmatter, &original.frontmatter);
+    let same_title = !fm.title.trim().is_empty() && fm.title.trim() == of.title.trim();
+    let same_excerpt = fm.excerpt.as_deref().map(str::trim).is_some_and(|e| !e.is_empty() && Some(e) == of.excerpt.as_deref().map(str::trim));
+    if same_title || same_excerpt {
+        let detail = match (same_title, same_excerpt) {
+            (true, true) => tr("Titel und Auszug sind noch die des Originals."),
+            (true, false) => tr("Der Titel ist noch der des Originals."),
+            _ => tr("Der Auszug ist noch der des Originals."),
+        };
+        out.push(check(tr("Titel und Auszug"), detail, Severity::Warning, Fix::Properties));
+    }
+    let open = crate::translate::changed_sections(original, &link.source_sections).len();
+    if open > 0 {
+        let detail = if open == 1 { tr("1 Abschnitt des Originals seit der Übersetzung geändert") } else { tr("{n} Abschnitte des Originals seit der Übersetzung geändert").replace("{n}", &open.to_string()) };
+        out.push(check(tr("Original geändert"), detail, Severity::Warning, Fix::Translation));
+    }
     out
 }
 
@@ -152,7 +183,13 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext, mode: Mode, links
     let dialog = adw::Dialog::builder().title(tr("Veröffentlichen")).content_width(560).content_height(820).child(&nav).build();
 
     let checks_group = adw::PreferencesGroup::builder().title(tr("Prüfung")).build();
-    let all_checks = checks(&doc);
+    let mut all_checks = checks(&doc);
+    if doc.frontmatter.translation.is_some() {
+        let path = ctx.current_path.borrow().clone();
+        if let Some((_, original)) = crate::translatedialog::find_original(&doc, path.as_deref()) {
+            all_checks.extend(translation_checks(&doc, &original));
+        }
+    }
     let blocked = all_checks.iter().any(|c| c.severity == Severity::Error);
     for c in &all_checks {
         checks_group.add(&check_row(c, &dialog, &nav, ctx, &doc, links));
@@ -273,6 +310,18 @@ fn check_row(c: &Check, dialog: &adw::Dialog, nav: &adw::NavigationView, ctx: &D
             row.add_suffix(&button);
         }
         Fix::Properties => {}
+        Fix::Translation => {
+            let button = flat_button(&tr("Prüfen …"));
+            let dialog = dialog.clone();
+            let window = ctx.toast_overlay.root().and_downcast::<adw::ApplicationWindow>();
+            button.connect_clicked(move |_| {
+                dialog.close();
+                if let Some(window) = &window {
+                    let _ = WidgetExt::activate_action(window, "main.review", None);
+                }
+            });
+            row.add_suffix(&button);
+        }
         Fix::Media => {
             let doc_dir = ctx.current_path.borrow().as_deref().and_then(std::path::Path::parent).map(std::path::Path::to_path_buf);
             let content = mediapanel::build_content(ctx.frontmatter.clone(), &doc.body, doc_dir, ctx.preview_pane.clone());
@@ -319,6 +368,26 @@ mod tests {
 
     fn severity_of(checks: &[Check], title: &str) -> Option<Severity> {
         checks.iter().find(|c| c.title == tr(title)).map(|c| c.severity)
+    }
+
+    #[test]
+    fn a_translation_is_checked_against_its_original() {
+        use crate::document::TranslationLink;
+        let original = Document { frontmatter: Frontmatter::default(), body: "Text mit [Link](https://a.example).\n".into() };
+        let mut fm = Frontmatter::default();
+        fm.translation = Some(TranslationLink { reviewed: true, source_sections: vec![crate::translate::section_hash(&original.body)], ..TranslationLink::default() });
+        let good = Document { frontmatter: fm.clone(), body: "Text with a [link](https://a.example).\n".into() };
+        assert_eq!(severity_of(&translation_checks(&good, &original), "Abgleich mit dem Original"), Some(Severity::Ok));
+        assert_eq!(severity_of(&translation_checks(&good, &original), "Original geändert"), None);
+        assert_eq!(severity_of(&translation_checks(&good, &original), "Titel und Auszug"), None);
+        let mut same = good.clone();
+        let mut titled = original.clone();
+        titled.frontmatter.title = "Titel".into();
+        same.frontmatter.title = "Titel".into();
+        assert_eq!(severity_of(&translation_checks(&same, &titled), "Titel und Auszug"), Some(Severity::Warning));
+        assert_eq!(severity_of(&checks(&good), "Übersetzung"), None);
+        let broken = Document { frontmatter: fm, body: "Text with a link.\n".into() };
+        assert_eq!(severity_of(&translation_checks(&broken, &original), "Abgleich mit dem Original"), Some(Severity::Warning));
     }
 
     #[test]
@@ -383,8 +452,9 @@ mod tests {
         let doc = |fm: &Frontmatter| Document { frontmatter: fm.clone(), body: "Body.\n".into() };
         let severity = |fm: &Frontmatter| checks(&doc(fm)).into_iter().find(|c| c.title == tr("Übersetzung")).map(|c| c.severity);
         assert_eq!(severity(&fm), Some(Severity::Error));
+        // Reviewed (or your own): nothing to confirm.
         fm.translation.as_mut().unwrap().reviewed = true;
-        assert_eq!(severity(&fm), Some(Severity::Ok));
+        assert_eq!(severity(&fm), None);
         fm.translation = None;
         assert_eq!(severity(&fm), None);
     }

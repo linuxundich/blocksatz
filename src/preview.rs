@@ -425,16 +425,44 @@ impl PreviewPane {
     }
 
     /// Marks the top-level blocks within the given 1-based, inclusive
-    /// source line ranges with an orange edge - the original's sections
-    /// that changed since the translation (`counterpart.rs`).
-    pub fn mark_changed(&self, ranges: &[(usize, usize)]) {
-        let list = ranges.iter().map(|(a, b)| format!("[{a},{b}]")).collect::<Vec<_>>().join(",");
+    /// source line ranges: `changed` with an orange edge (the original's
+    /// sections that changed since the translation), `done` with a green
+    /// one (sections already translated) - see `counterpart.rs`.
+    pub fn mark_sections(&self, changed: &[(usize, usize)], done: &[(usize, usize)]) {
+        let list = |ranges: &[(usize, usize)]| ranges.iter().map(|(a, b)| format!("[{a},{b}]")).collect::<Vec<_>>().join(",");
         let script = format!(
             "(function(){{\
              if(!document.getElementById('changed-style')){{const s=document.createElement('style');s.id='changed-style';\
-             s.textContent='.changed-section{{box-shadow:inset 4px 0 0 rgba(229,165,10,.9);padding-left:12px;margin-left:-16px}}';document.head.appendChild(s);}}\
-             const r=[{list}];\
-             for(const b of document.querySelectorAll('div[data-line]')){{const a=parseInt(b.dataset.line,10);b.classList.toggle('changed-section',r.some(x=>a>=x[0]&&a<=x[1]));}}}})();"
+             s.textContent='.changed-section,.done-section{{padding-left:12px;margin-left:-16px}}.changed-section{{box-shadow:inset 4px 0 0 rgba(229,165,10,.9)}}.done-section{{box-shadow:inset 4px 0 0 rgba(46,194,126,.75)}}';document.head.appendChild(s);}}\
+             const c=[{changed}],d=[{done}];\
+             for(const b of document.querySelectorAll('div[data-line]')){{const a=parseInt(b.dataset.line,10);const ch=c.some(x=>a>=x[0]&&a<=x[1]);b.classList.toggle('changed-section',ch);b.classList.toggle('done-section',!ch&&d.some(x=>a>=x[0]&&a<=x[1]));}}}})();",
+            changed = list(changed),
+            done = list(done)
+        );
+        self.web_view.evaluate_javascript(&script, None, None, gio::Cancellable::NONE, |_| {});
+    }
+
+    /// Puts a box above the top-level block that starts at (or after) each
+    /// given 1-based source line, holding `html` - what changed in a section
+    /// of the original and its buttons (`counterpart.rs`). `key` names the
+    /// set: the same key again leaves the boxes as they are.
+    pub fn show_section_notes(&self, key: &str, notes: &[(usize, String)]) {
+        let notes_json = serde_json::to_string(&notes.iter().map(|(line, html)| serde_json::json!([line, html])).collect::<Vec<_>>()).unwrap_or_else(|_| "[]".into());
+        let key_json = serde_json::to_string(key).unwrap_or_else(|_| "\"\"".into());
+        let script = format!(
+            "(function(){{\
+             if(document.body.dataset.notesKey==={key_json})return;\
+             document.body.dataset.notesKey={key_json};\
+             for(const n of document.querySelectorAll('.section-note'))n.remove();\
+             if(!document.getElementById('section-note-style')){{const s=document.createElement('style');s.id='section-note-style';\
+             s.textContent='.section-note{{font:13px/1.5 system-ui,sans-serif;border:1px solid rgba(229,165,10,.55);background:rgba(229,165,10,.08);border-radius:8px;padding:8px 12px;margin:14px 0 8px}}\
+             .section-note .bar{{display:flex;gap:8px;align-items:center;flex-wrap:wrap}}.section-note .bar b{{flex:1}}\
+             .section-note a{{text-decoration:none;font-weight:600;border-radius:6px;padding:3px 10px;background:rgba(127,127,140,.18);color:inherit}}\
+             .section-note .diff{{margin-top:6px;white-space:pre-wrap;font-family:monospace;font-size:12px}}\
+             .section-note ins{{background:rgba(46,194,126,.25);text-decoration:none}}.section-note del{{background:rgba(224,27,36,.18)}}';document.head.appendChild(s);}}\
+             const blocks=[...document.querySelectorAll('div[data-line]')];\
+             for(const [line,html] of {notes_json}){{const b=blocks.find(x=>parseInt(x.dataset.line,10)>=line);if(!b)continue;\
+             const d=document.createElement('div');d.className='section-note';d.innerHTML=html;b.parentNode.insertBefore(d,b);}}}})();"
         );
         self.web_view.evaluate_javascript(&script, None, None, gio::Cancellable::NONE, |_| {});
     }

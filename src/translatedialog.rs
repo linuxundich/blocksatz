@@ -232,6 +232,7 @@ pub fn create_version(ctx: &DocContext, lang: &str, content: Content) -> Result<
         ..document::Frontmatter::default()
     };
     document::write(&target, &Document { frontmatter, body }).map_err(|err| err.to_string())?;
+    remember_basis(&target, &source);
     Ok(target)
 }
 
@@ -267,12 +268,16 @@ fn section_name(body: &str, section: usize) -> String {
 /// (`translationsettings::protect`). Pasting takes a `# Title` / excerpt /
 /// `---` header too, if you write one; the copy leaves it out.
 pub fn copy_original(ctx: &DocContext, section: bool) {
+    copy_original_section(ctx, section.then(|| cursor_section(ctx)));
+}
+
+/// "Original kopieren" for section `index` of the original (or all of it).
+pub fn copy_original_section(ctx: &DocContext, index: Option<usize>) {
     let Some(body) = original_body(ctx) else {
         window::show_toast(&ctx.toast_overlay, &tr("Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort zuerst aus dem Blog."));
         return;
     };
     let protect = crate::translationsettings::protect();
-    let index = section.then(|| cursor_section(ctx));
     let text = translate::clipboard_text(&body, None, protect, index);
     if let Some(display) = gtk4::gdk::Display::default() {
         display.clipboard().set_text(&text);
@@ -403,10 +408,73 @@ pub fn mark_current(ctx: &DocContext) -> bool {
         link.source_sections = sections;
         link.translated_at = today();
     }
+    if let Some(path) = &path {
+        remember_basis(path, &original);
+    }
     worksave::flush(ctx, false);
     ctx.bump_generation();
     ctx.notify_library(false);
     true
+}
+
+/// Next to a translation, as `.artikel.en.basis.json`: the original's
+/// sections as they were whenever the translation was brought up to date,
+/// keyed by `translate::section_hash`. Shows what changed in a section
+/// since (`translate::old_section`, `word_diff`).
+fn basis_path(translation: &Path) -> Option<PathBuf> {
+    let stem = translation.file_stem()?.to_string_lossy().to_string();
+    Some(translation.with_file_name(format!(".{stem}.basis.json")))
+}
+
+pub fn load_basis(translation: &Path) -> std::collections::HashMap<String, String> {
+    basis_path(translation).and_then(|p| std::fs::read_to_string(p).ok()).and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+}
+
+/// Adds the original's current sections to the translation's basis.
+fn remember_basis(translation: &Path, original: &Document) {
+    let Some(path) = basis_path(translation) else { return };
+    let mut basis = load_basis(translation);
+    for section in translate::split_sections(&translate::body_with_uploaded_images(original)) {
+        if !section.trim().is_empty() {
+            basis.insert(translate::section_hash(&section), section);
+        }
+    }
+    if let Ok(text) = serde_json::to_string_pretty(&basis) {
+        let _ = std::fs::write(path, text);
+    }
+}
+
+/// "Erledigt" on one changed section of the original (index as
+/// `translate::split_sections` counts): its change is carried over. Once
+/// none is left, the whole translation counts as current (`mark_current`).
+pub fn section_done(ctx: &DocContext, index: usize) {
+    let path = ctx.current_path.borrow().clone();
+    let doc = ctx.current_document();
+    let Some((_, original)) = find_original(&doc, path.as_deref()) else { return };
+    let sections = translate::split_sections(&translate::body_with_uploaded_images(&original));
+    let Some(section) = sections.get(index) else { return };
+    let hash = translate::section_hash(section);
+    let remaining = {
+        let mut fm = ctx.frontmatter.borrow_mut();
+        let Some(link) = fm.translation.as_mut() else { return };
+        if link.source_sections.len() == sections.len() {
+            link.source_sections[index] = hash;
+        } else {
+            link.source_sections.push(hash);
+        }
+        translate::changed_sections(&original, &link.source_sections).len()
+    };
+    if remaining == 0 {
+        mark_current(ctx);
+        window::show_toast(&ctx.toast_overlay, &tr("Alle Änderungen des Originals sind übernommen."));
+        return;
+    }
+    if let Some(path) = &path {
+        remember_basis(path, &original);
+    }
+    worksave::flush(ctx, false);
+    ctx.bump_generation();
+    ctx.notify_library(false);
 }
 
 /// The sections of the open translation's original that changed since
@@ -419,45 +487,19 @@ pub fn changed_in_original(ctx: &DocContext) -> Vec<(usize, usize, String)> {
     translate::changed_sections(&original, &link.source_sections)
 }
 
-/// "Abgleichen …" when the original changed: which sections did, and the
-/// choice between having carried them over by hand and translating them.
-pub fn reconcile(window: &adw::ApplicationWindow, ctx: &DocContext) {
-    let changed = changed_in_original(ctx);
-    let list = changed
+/// Which sections of the open translation's original changed since it was
+/// translated (indexes as `translate::split_sections` counts).
+pub fn changed_section_indices(ctx: &DocContext) -> Vec<usize> {
+    let path = ctx.current_path.borrow().clone();
+    let doc = ctx.current_document();
+    let Some(link) = doc.frontmatter.translation.clone() else { return Vec::new() };
+    let Some((_, original)) = find_original(&doc, path.as_deref()) else { return Vec::new() };
+    translate::split_sections(&translate::body_with_uploaded_images(&original))
         .iter()
-        .map(|(_, _, heading)| format!("• {}", if heading.is_empty() { tr("Einleitung") } else { heading.clone() }))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let body = if changed.is_empty() {
-        tr("Geändert haben sich nur Titel, Auszug oder andere Angaben des Originals.")
-    } else {
-        tr("Diese Abschnitte des Originals sind neu oder geändert - in der Ansicht des Originals im Seitenbereich markiert:\n\n{list}\n\nKleine Änderungen ziehst du direkt hier im Editor nach und bestätigst dann.").replace("{list}", &list)
-    };
-    let alert = adw::AlertDialog::builder().heading(tr("Original geändert")).body(body).build();
-    alert.add_response("cancel", &tr("Abbrechen"));
-    if crate::translationsettings::ai_enabled() {
-        alert.add_response("ai", &tr("Per KI übersetzen …"));
-    }
-    alert.add_response("manual", &tr("Von Hand erledigt"));
-    alert.set_response_appearance("manual", adw::ResponseAppearance::Suggested);
-    alert.set_default_response(Some("manual"));
-    alert.set_close_response("cancel");
-    let ctx = ctx.clone();
-    let window_weak = window.downgrade();
-    alert.connect_response(None, move |_, response| match response {
-        "manual" => {
-            if mark_current(&ctx) {
-                window::show_toast(&ctx.toast_overlay, &tr("Als aktuell markiert."));
-            }
-        }
-        "ai" => {
-            if let Some(window) = window_weak.upgrade() {
-                open(&window, &ctx);
-            }
-        }
-        _ => {}
-    });
-    alert.present(Some(window));
+        .enumerate()
+        .filter(|(_, s)| !s.trim().is_empty() && !link.source_sections.contains(&translate::section_hash(s)))
+        .map(|(i, _)| i)
+        .collect()
 }
 
 /// A translation made before its original was uploaded knows no post id
@@ -772,6 +814,7 @@ fn build_form(prep: Prep, window: &adw::ApplicationWindow, ctx: &DocContext, on_
         let previous = previous.clone();
         let source_path = source_path.clone();
         let on_saved = on_saved.clone();
+        let source_for_basis = (*source).clone();
         glib::timeout_add_local(Duration::from_millis(150), move || loop {
             match rx.try_recv() {
                 Ok(Msg::Progress(done, total)) => {
@@ -786,6 +829,7 @@ fn build_form(prep: Prep, window: &adw::ApplicationWindow, ctx: &DocContext, on_
                             let target = previous.as_ref().as_ref().map(|(p, _)| p.clone());
                             match save(outcome, target, source_path.as_deref(), &target_site) {
                                 Ok((path, issues, summary)) => {
+                                    remember_basis(&path, &source_for_basis);
                                     on_saved();
                                     window::open_document_at_path(path, &ctx);
                                     window::show_toast(&ctx.toast_overlay, &summary);
@@ -906,7 +950,7 @@ fn open_review_with(window: &adw::ApplicationWindow, ctx: &DocContext, extra_iss
 
     let checks = adw::PreferencesGroup::builder().title(tr("Prüfungen")).build();
     if stale {
-        let row = adw::ActionRow::builder().title(tr("Original geändert")).subtitle(tr("Das Original wurde seit der Übersetzung bearbeitet – „Abgleichen …“ im Banner zeigt, wo.")).build();
+        let row = adw::ActionRow::builder().title(tr("Original geändert")).subtitle(tr("Das Original wurde seit der Übersetzung bearbeitet – „Zeigen“ im Banner zeigt, wo.")).build();
         row.add_prefix(&gtk4::Image::from_icon_name("dialog-warning-symbolic"));
         checks.add(&row);
     }

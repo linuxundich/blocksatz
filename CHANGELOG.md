@@ -17,11 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Language switch** "DE · EN" in the header bar for a library article
   (Alt+1 / Alt+2): saves, opens the other language and puts the cursor
   into the same section and paragraph. Switching to a language without a
-  file yet shows a **start page** in place of the editor: target blog and
-  language (preselected from the blog whose address names the language),
-  scope, title/slug/excerpt, categories, tags and model, and the button
-  that translates - or, while the original isn't on its blog yet, the
-  button that uploads it as a draft first.
+  file yet shows a **start page** in place of the editor: how the new
+  version starts - the original as a template to overwrite (default), a
+  translation from the clipboard, or empty - with the AI translation as
+  one more link below.
 - **The other language next to the editor**: while one file of a pair
   is open, the right-hand pane gets a view named after the other language
   ("EN" / "DE") that renders it and follows the editor's cursor section by
@@ -29,19 +28,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Language check before every upload**: when the text reads like
   another language than the target blog's (German going to the blog at
   `/en`, or English to the main blog), Blocksatz asks before uploading.
-- **Translate yourself**: the start page's "Selbst übersetzen" creates an
-  empty translation, already linked to its original and its blog
-  (categories, tags and featured image taken over, marked as reviewed),
-  to write or paste the text into. Works before the original is uploaded;
-  the translation can only be uploaded once the original has a post id,
-  which is then filled into the link.
-- **Carry small changes over by hand**: when the original changed, the
-  translation's banner offers "Abgleichen …" - the changed sections are
-  listed and marked with an orange edge in the original's view next to
-  the editor; edit the translation directly, then "Von Hand erledigt"
-  (also "Als aktuell markieren" in the main action's menu) marks it as
-  matching the original again. "Per KI übersetzen …" remains for bigger
-  changes.
+- **Translating by hand comes first**: every new language version is
+  linked to its original and its blog (categories, tags and featured
+  image taken over) and counts as reviewed - only a translation the AI
+  made needs "Gegenlesen". Works before the original is uploaded; the
+  translation can only be uploaded once the original has a post id,
+  which is then filled into the link. The AI translation can be switched
+  off entirely under Einstellungen → Übersetzung, a new page that also
+  holds the default start and the category mapping.
+- **Copy and paste for DeepL, ChatGPT & Co.**: "Original kopieren"
+  (Ctrl+Shift+C) puts the original's text on the clipboard with code,
+  link targets, markup and footnote markers as placeholders like
+  `⟦CODE-3⟧`, which DeepL and chats leave alone; "Übersetzung einfügen"
+  (Ctrl+Shift+V) puts them back, straightens the curly quotes DeepL puts
+  around image titles, drops a chat's code fence, takes title and excerpt
+  from a `# Title` / excerpt / `---` header if there is one, and reports
+  what doesn't match the original. Pasting a single section replaces the
+  section at the cursor; "Abschnitt des Originals kopieren" copies one.
+  Undo restores the text.
+- **Carry changes of the original over section by section**: the
+  translation's banner counts the sections changed since ("Original
+  geändert: 2 Abschnitte offen"), and "Zeigen" opens the original next to
+  the editor at the first one. Each changed section gets a note with what
+  changed word by word (from a snapshot of the original kept next to the
+  translation as `.artikel.en.basis.json`) and the buttons "Kopieren" and
+  "Erledigt"; the last one done marks the translation current. Sections
+  already translated get a green edge.
+- The **release check** of a language version compares it with its
+  original: code, links, markup and headings, sections still in German,
+  changes of the original not carried over, and title or excerpt still
+  those of the original.
+- **Spell checking follows the file's language** - the English version
+  is checked against an English dictionary.
 - Translating always translates the tags and matches tags and categories
   against the target blog's existing ones (fetched before translating):
   the model is told the existing tags, and a name differing only in case

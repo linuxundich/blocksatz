@@ -632,7 +632,13 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let counterpart = counterpart::Counterpart::new(&doc_ctx, &view, &editor_scroller, &view_stack, &section_toggles);
     {
         let open_in_browser = open_in_browser.clone();
-        counterpart.pane.connect_link_clicked(move |uri| open_in_browser(uri.to_string()));
+        let weak = Rc::downgrade(&counterpart);
+        counterpart.pane.connect_link_clicked(move |uri| {
+            // The buttons above the original's changed sections.
+            if !weak.upgrade().is_some_and(|c| c.handle_action(&uri)) {
+                open_in_browser(uri.to_string());
+            }
+        });
     }
     lang_switch_slot.append(&lang_switch.widget);
     toolbar_view.add_top_bar(&main_action.banner);

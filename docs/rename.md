@@ -1,6 +1,6 @@
 # Umbenennung Blocksmith → Blocksatz
 
-Stand: 2026-10-01 · **abgeschlossen** (v0.64.0): Code, GitHub-Repo `linuxundich/blocksatz`, Projektordner `05_Projekte/blocksatz`, altes Flatpak samt Daten entfernt
+Stand: 2026-10-01 · **abgeschlossen** (v0.64.0): Code, GitHub-Repo `linuxundich/blocksatz`, Projektordner `05_Projekte/apps/blocksatz`, altes Flatpak samt Daten entfernt
 
 ## App-ID
 
@@ -66,7 +66,7 @@ Gezählt mit `grep -ri blocksmith` (ohne `target/` und `.git/`): 103-mal „Bloc
 | `CHANGELOG.md` | **Geschichte stehen lassen**, nur einen neuen Eintrag „Umbenannt in Blocksatz“ ergänzen. Vergleichslinks auf das Repo funktionieren nach der Umbenennung weiter, weil GitHub umleitet. |
 | `src/about.rs:22–23`, Metainfo-`<url>` | `https://github.com/linuxundich/blocksatz` |
 | GitHub-Repo | in den Settings umbenennen; GitHub leitet alte URLs und `git remote` weiter. Danach `git remote set-url origin git@github.com:linuxundich/blocksatz.git` |
-| Projektordner | `05_Projekte/blocksmith` → `05_Projekte/blocksatz`, dazu `todo-blocksmith.md` und `blocksmith-quill-features.mbox` (letztere steht auch in den Ausschlüssen des Manifests) |
+| Projektordner | `05_Projekte/blocksmith` → `05_Projekte/apps/blocksatz`, dazu `todo-blocksmith.md` und `blocksmith-quill-features.mbox` (letztere steht auch in den Ausschlüssen des Manifests) |
 | Kommentare im Code | `adblock.rs`, `changelog.rs`, `linkcheck.rs`, `imageedit.rs`, `aiinplace.rs`, `gutenberg/src/reverse.rs` (rein kosmetisch) |
 
 Nicht anfassen: `data/adblock/easylist-basic.txt` (ein Fremdtreffer in der Filterliste) und `data/icons/appearance-preview/ATTRIBUTION.md` (beschreibt die Herkunft).

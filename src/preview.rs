@@ -986,6 +986,10 @@ window.syncTo = function(line, topT, bottomT, totalLines) {{
     window.__blocks = null;
   }}
   window.__lastSync = [line, topT, bottomT];
+  if (line <= 1 && topT >= 1 && bottomT <= 0) {{
+    window.__scrollProgrammatically(0);
+    return;
+  }}
   let y = window.__yForLine(line);
   y = y * (1 - bottomT) + window.__maxScroll() * bottomT;
   y = y - topT * window.__blockPositions()[0].y;
@@ -1025,6 +1029,18 @@ window.addEventListener('scroll', function() {{
     const state = window.__currentSyncState();
     window.webkit.messageHandlers.{SCROLL_SYNC_HANDLER}.postMessage(state.join(';'));
   }});
+}});
+// Where a link goes, as its tooltip (WebKit shows `title` natively); a
+// link's own title stays in front of it.
+document.addEventListener('mouseover', function(e) {{
+  const a = e.target.closest && e.target.closest('a[href]');
+  if (!a || a.dataset.hrefTip) return;
+  a.dataset.hrefTip = '1';
+  const href = a.getAttribute('href');
+  if (!href || href.startsWith('#')) return;
+  // A relative link as written: resolved, it'd point into the article folder.
+  const target = /^[a-z][a-z0-9+.-]*:/i.test(href) ? a.href : href;
+  a.title = a.title ? a.title + '\n' + target : target;
 }});
 // Accordions and tabs from the blog work here too.
 document.addEventListener('click', function(e) {{

@@ -129,7 +129,7 @@ blocks. Implemented so far:
   bearbeiten…" - WebKit's own default image actions (open/save/copy the
   rendered file, copy its address) are trimmed from that menu, alongside
   the navigation items, since none of them apply to an embedded article
-  image), Gutenberg code (the exact block HTML that would be published)
+  image; hovering a link shows where it goes), Gutenberg code (the exact block HTML that would be published)
   and "Im Blog" -, "Beitrag", whose statistics section has word/character/paragraph counts, estimated reading time, and
   a German-adapted Flesch reading-ease score with a qualitative label -
   expandable into the formula itself, the article's actual average
@@ -292,7 +292,8 @@ blocks. Implemented so far:
   server-side search, 48 items per page behind "Mehr laden", and a details
   pane with file name, MIME type, dimensions, size, upload date, alt text
   and URL - plus "URL kopieren", "Im Browser öffnen", "In Artikel
-  einfügen" (images) and "Endgültig löschen".
+  einfügen" (images, videos and audio) and "Endgültig löschen". The
+  insert menu's "Aus WordPress-Mediathek …" opens the same browser.
 - **KI-Artikel schreiben** (Ctrl+Shift+G, menu of the sidebar's new-article button) — drafts a whole
   article from a topic/brief with the active KI-Chat provider, at a chosen
   length, optionally imitating your own writing style: your 1-5 most

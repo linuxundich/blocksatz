@@ -12,7 +12,7 @@ use crate::i18n::tr;
 use crate::{
     blogposts, blogsync, importer, library, librarysidebar, mainaction, markdowncheck, postpane, releasecheck, syncstate, worksave,
     about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
-    mediabrowser, medialibrary, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, themestyle, windowstate,
+    mediabrowser, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, themestyle, windowstate,
 };
 
 const DEBOUNCE_MS: u64 = 250;
@@ -854,8 +854,12 @@ fn wire_scroll_sync(scroller: &gtk4::ScrolledWindow, view: &sourceview5::View, b
         let buffer = buffer.clone();
         let preview_pane = preview_pane.clone();
         let ignore_editor_scroll_until = ignore_editor_scroll_until.clone();
-        scroller.vadjustment().connect_value_changed(move |_adjustment| {
-            if Instant::now() < ignore_editor_scroll_until.get() || sync_pending.replace(true) {
+        scroller.vadjustment().connect_value_changed(move |adjustment| {
+            // Reaching either end always syncs, even inside the echo guard:
+            // a late report from the preview must not leave it short of the
+            // top while the editor sits there.
+            let at_edge = adjustment.value() <= 0.0 || adjustment.value() >= adjustment.upper() - adjustment.page_size() - 0.5;
+            if (!at_edge && Instant::now() < ignore_editor_scroll_until.get()) || sync_pending.replace(true) {
                 return;
             }
             let scroller = scroller_for_sync.clone();
@@ -901,6 +905,10 @@ fn editor_sync_position(scroller: &gtk4::ScrolledWindow, view: &sourceview5::Vie
     let (iter, line_top) = view.line_at_y(top_y);
     let (_, line_height) = view.line_yrange(&iter);
     let fraction = if line_height > 0 { (f64::from(top_y - line_top) / f64::from(line_height)).clamp(0.0, 1.0) } else { 0.0 };
+    if adjustment.value() <= 0.0 {
+        // The very top: the preview's top too, whatever its first block is.
+        return (1.0, 1.0, 0.0);
+    }
     let (top_t, bottom_t) = edge_blend(adjustment.value(), adjustment.page_size(), adjustment.upper());
     (f64::from(iter.line()) + 1.0 + fraction, top_t, bottom_t)
 }
@@ -1427,15 +1435,9 @@ fn wire_insert_media_action(window: &adw::ApplicationWindow, buffer: &sourceview
     window.add_action(&action);
 }
 
-/// Opens the WordPress media-library picker (`medialibrary::open`) and
-/// inserts the picked image the same way "Bild einfügen" does - then
-/// immediately reconciles the body and patches the resulting `MediaItem`
-/// with the picked item's real WordPress id/URL/alt text. Without this
-/// patch, a plain `media::reconcile` pass would leave the new item's
-/// `wordpress` field `None` (it only knows the image's Markdown reference,
-/// not that it's already been uploaded), which would make Medienverwaltung's
-/// "Zu WordPress hochladen"/"Alle hochladen" try to upload it again as if
-/// it were a brand new local file.
+/// "Aus WordPress-Mediathek …": the full media browser (`mediabrowser.rs`),
+/// whose "In Artikel einfügen" takes images, videos and audio alike (see
+/// `insert_wordpress_media`).
 fn wire_insert_media_library_action(window: &adw::ApplicationWindow, buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>) {
     let action = gio::SimpleAction::new("insert-media-library", None);
     let buffer = buffer.clone();
@@ -1447,11 +1449,21 @@ fn wire_insert_media_library_action(window: &adw::ApplicationWindow, buffer: &so
         };
         let buffer = buffer.clone();
         let frontmatter = frontmatter.clone();
-        medialibrary::open(window.upcast_ref::<gtk4::Window>(), move |item| {
-            insert_wordpress_image(&buffer, &frontmatter, item.id, &item.sizes, &item.source_url, &item.alt_text);
-        });
+        let on_insert: Rc<dyn Fn(crate::wpclient::WpMediaEntry)> = Rc::new(move |entry| insert_wordpress_media(&buffer, &frontmatter, &entry));
+        mediabrowser::open(&window, Some(on_insert));
     });
     window.add_action(&action);
+}
+
+/// Inserts a media library item: an image as `insert_wordpress_image`
+/// does, a video or audio file as `![](url)` - the engine makes a video or
+/// audio block of it by its file extension.
+fn insert_wordpress_media(buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>, entry: &crate::wpclient::WpMediaEntry) {
+    if entry.media_type == "image" {
+        insert_wordpress_image(buffer, frontmatter, entry.id, &entry.sizes, &entry.source_url, &entry.alt_text);
+    } else {
+        formatting::insert_image(buffer, &entry.source_url);
+    }
 }
 
 /// Inserts an image that already lives in the WordPress media library -
@@ -1522,9 +1534,7 @@ fn wire_media_library_browser_action(window: &adw::ApplicationWindow, buffer: &s
         };
         let buffer = buffer.clone();
         let frontmatter = frontmatter.clone();
-        let on_insert: Rc<dyn Fn(crate::wpclient::WpMediaEntry)> = Rc::new(move |entry| {
-            insert_wordpress_image(&buffer, &frontmatter, entry.id, &entry.sizes, &entry.source_url, &entry.alt_text);
-        });
+        let on_insert: Rc<dyn Fn(crate::wpclient::WpMediaEntry)> = Rc::new(move |entry| insert_wordpress_media(&buffer, &frontmatter, &entry));
         mediabrowser::open(&window, Some(on_insert));
     });
     window.add_action(&action);

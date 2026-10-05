@@ -178,8 +178,6 @@ pub struct WpMediaItem {
     pub source_url: String,
     pub title: String,
     pub alt_text: String,
-    /// Every size WordPress made, `full` first.
-    pub sizes: Vec<ImageSize>,
 }
 
 /// A media library item with everything the "WordPress-Mediathek" browser
@@ -979,7 +977,7 @@ impl Client {
     /// slow and mostly pointless for this picker's actual use.
     pub fn list_media(&self, search: Option<&str>) -> Result<Vec<WpMediaItem>> {
         let mut url = format!(
-            "{}?per_page=60&orderby=date&order=desc&media_type=image&_fields=id,source_url,title,alt_text,media_details",
+            "{}?per_page=60&orderby=date&order=desc&media_type=image&_fields=id,source_url,title,alt_text",
             self.endpoint("media")
         );
         if let Some(search) = search.filter(|s| !s.trim().is_empty()) {
@@ -995,7 +993,6 @@ impl Client {
                         let source_url = item.get("source_url").and_then(Value::as_str)?.to_string();
                         Some(WpMediaItem {
                             id: item.get("id")?.as_u64()?,
-                            sizes: image_sizes(&source_url, item.get("media_details")),
                             source_url,
                             title: post_title(item),
                             alt_text: item.get("alt_text").and_then(Value::as_str).unwrap_or_default().to_string(),
@@ -1065,11 +1062,7 @@ impl Client {
         let body_text = response.body_mut().read_to_string().unwrap_or_default();
         if (200..300).contains(&status) {
             if let Ok(Value::Array(items)) = serde_json::from_str::<Value>(&body_text) {
-                let existing = items
-                    .iter()
-                    .find(|item| item.get("name").and_then(Value::as_str) == Some(name))
-                    .and_then(|item| item.get("id").and_then(Value::as_u64));
-                if let Some(id) = existing {
+                if let Some(id) = matching_term_id(&items, name) {
                     return Ok(id);
                 }
             }
@@ -1084,6 +1077,11 @@ impl Client {
         let status = response.status().as_u16();
         let body_text = response.body_mut().read_to_string().unwrap_or_default();
         if !(200..300).contains(&status) {
+            // WordPress compares names loosely ("TUXEDO" vs. "Tuxedo") and
+            // names the term that's in the way.
+            if let Some(id) = existing_term_id(&body_text) {
+                return Ok(id);
+            }
             return Err(error_from_body(status, &body_text));
         }
         let value: Value = serde_json::from_str(&body_text).map_err(|err| unreadable_response(status, err))?;
@@ -1092,6 +1090,27 @@ impl Client {
             .and_then(Value::as_u64)
             .ok_or_else(|| ApiError { status, message: tr("Kein Term-ID für \"{name}\" erhalten").replace("{name}", name) })
     }
+}
+
+/// The term in a search result that `name` means: the exact name, else one
+/// differing only in case - WordPress wouldn't create that one anyway.
+fn matching_term_id(items: &[Value], name: &str) -> Option<u64> {
+    fn term_name(item: &Value) -> Option<&str> {
+        item.get("name").and_then(Value::as_str)
+    }
+    let lower = name.to_lowercase();
+    items
+        .iter()
+        .find(|item| term_name(item) == Some(name))
+        .or_else(|| items.iter().find(|item| term_name(item).is_some_and(|n| n.to_lowercase() == lower)))
+        .and_then(|item| item.get("id").and_then(Value::as_u64))
+}
+
+/// The id from WordPress's `term_exists` refusal.
+fn existing_term_id(body_text: &str) -> Option<u64> {
+    let value: Value = serde_json::from_str(body_text).ok()?;
+    (value.get("code").and_then(Value::as_str) == Some("term_exists")).then_some(())?;
+    value.get("data")?.get("term_id")?.as_u64()
 }
 
 /// A post's `title` is `{"raw": "...", "rendered": "..."}` in `context=edit`
@@ -1120,6 +1139,22 @@ fn percent_encode(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn term_search_prefers_the_exact_name_then_ignores_case() {
+        let items = vec![serde_json::json!({"id": 1, "name": "Tuxedo OS"}), serde_json::json!({"id": 2, "name": "Tuxedo"})];
+        assert_eq!(matching_term_id(&items, "TUXEDO"), Some(2));
+        let items = vec![serde_json::json!({"id": 3, "name": "Gnome"}), serde_json::json!({"id": 4, "name": "GNOME"})];
+        assert_eq!(matching_term_id(&items, "GNOME"), Some(4));
+        assert_eq!(matching_term_id(&items, "KDE"), None);
+    }
+
+    #[test]
+    fn term_exists_refusal_names_the_existing_term() {
+        let body = r#"{"code":"term_exists","message":"Ein Begriff mit dem angegebenen Namen existiert bereits.","data":{"status":400,"term_id":1870}}"#;
+        assert_eq!(existing_term_id(body), Some(1870));
+        assert_eq!(existing_term_id(r#"{"code":"rest_forbidden","data":{"status":403}}"#), None);
+    }
     use super::*;
     use crate::{secrets, wpsite};
 

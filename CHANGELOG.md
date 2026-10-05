@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- "Aus WordPress-Mediathek …" opens the full media browser, and "In
+  Artikel einfügen" now inserts videos and audio files as well, not only
+  images. `.m4v`, `.oga`, `.aac` and `.opus` URLs become video/audio blocks.
+- Hovering a link in the preview shows its target as a tooltip.
+
+### Fixed
+
+- Uploading failed when a tag or category already existed on the blog in
+  different capitalization ("TUXEDO" vs. "Tuxedo"): Blocksatz tried to
+  create it and WordPress refused with `term_exists`. The existing term
+  is now used.
+- Scrolling the editor to the very top (or bottom) always takes the
+  preview there too, even while a scroll report from the preview is
+  still being settled.
+
 ## [0.67.0] - 2026-10-04
 
 ### Added

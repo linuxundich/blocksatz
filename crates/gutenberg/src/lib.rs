@@ -614,10 +614,15 @@ enum MediaKind {
 fn media_kind(url: &str) -> MediaKind {
     let path = url.split(['?', '#']).next().unwrap_or(url);
     match path.rsplit('.').next().unwrap_or("").to_lowercase().as_str() {
-        "mp4" | "webm" | "ogv" | "mov" => MediaKind::Video,
-        "mp3" | "wav" | "ogg" | "m4a" | "flac" => MediaKind::Audio,
+        "mp4" | "m4v" | "webm" | "ogv" | "mov" => MediaKind::Video,
+        "mp3" | "wav" | "ogg" | "oga" | "m4a" | "flac" | "aac" | "opus" => MediaKind::Audio,
         _ => MediaKind::Image,
     }
+}
+
+/// True when `url` becomes a video or audio block rather than an image.
+pub fn is_av_url(url: &str) -> bool {
+    !matches!(media_kind(url), MediaKind::Image)
 }
 
 /// A lone embeddable URL is written either as plain bare text (pulldown-cmark

@@ -4,8 +4,8 @@
 //! type filter (Alle Medien/Bilder/Dokumente/Audio/Video), server-side
 //! search, and a details pane showing file name, type, dimensions, size,
 //! upload date and URL, a live-editable Alt-Text field (images only), with
-//! "URL kopieren", "Im Browser öffnen", "In Artikel einfügen" (images only)
-//! and "Löschen".
+//! "URL kopieren", "Im Browser öffnen", "In Artikel einfügen" (images,
+//! videos and audio) and "Löschen".
 //!
 //! Unlike `medialibrary.rs`'s picker (images only, first 60, a plain list),
 //! this pages through the library 48 items at a time behind a "Mehr laden"
@@ -387,6 +387,12 @@ fn set_details_visible(details: &Details, visible: bool) {
     }
 }
 
+/// What "In Artikel einfügen" can put into the Markdown: images, and
+/// videos and audio the engine recognizes by their file extension.
+fn insertable(entry: &wpclient::WpMediaEntry) -> bool {
+    entry.media_type == "image" || (["video/", "audio/"].iter().any(|kind| entry.mime_type.starts_with(kind)) && gutenberg::is_av_url(&entry.source_url))
+}
+
 fn selected_entry(ctx: &BrowserCtx) -> Option<WpMediaEntry> {
     ctx.selected.get().and_then(|i| ctx.entries.borrow().get(i).cloned())
 }
@@ -420,7 +426,7 @@ fn show_details(ctx: &BrowserCtx) {
     details.alt_text_list.set_visible(entry.media_type == "image");
     details.alt_text_row.set_text(&entry.alt_text);
     details.url.set_label(&entry.source_url);
-    details.insert_button.set_visible(ctx.on_insert.is_some() && entry.media_type == "image");
+    details.insert_button.set_visible(ctx.on_insert.is_some() && insertable(&entry));
 
     // Re-use the tile's already-downloaded thumbnail if there is one - the
     // full-size original can be many megabytes, not worth fetching just

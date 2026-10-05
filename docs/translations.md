@@ -21,7 +21,10 @@ linuxundich.de/en/, but nothing in it is specific to that blog.
   without a file yet, a start page takes the editor's place: target blog
   and language (preselected from the blog's address), scope, categories,
   tags, model and the "Übersetzen" button - or "Original als Entwurf
-  hochladen" while the original isn't on its blog yet.
+  hochladen" while the original isn't on its blog yet. **Selbst
+  übersetzen** creates the file empty instead - linked, with categories,
+  tags and featured image, marked as reviewed - to write or paste your
+  own translation; its upload waits until the original has a post id.
 - The right-hand pane shows **the other language** ("EN" while the
   original is open, "DE" while the translation is), rendered like the
   preview and following the editor's cursor section by section; the

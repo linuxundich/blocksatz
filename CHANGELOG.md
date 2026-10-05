@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Language check before every upload**: when the text reads like
   another language than the target blog's (German going to the blog at
   `/en`, or English to the main blog), Blocksatz asks before uploading.
+- **Translate yourself**: the start page's "Selbst übersetzen" creates an
+  empty translation, already linked to its original and its blog
+  (categories, tags and featured image taken over, marked as reviewed),
+  to write or paste the text into. Works before the original is uploaded;
+  the translation can only be uploaded once the original has a post id,
+  which is then filled into the link.
 - Translating always translates the tags and matches tags and categories
   against the target blog's existing ones (fetched before translating):
   the model is told the existing tags, and a name differing only in case

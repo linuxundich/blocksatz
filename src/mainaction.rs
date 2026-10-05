@@ -375,6 +375,13 @@ impl MainAction {
     /// German text on its way to the English blog, or the other way).
     fn upload(&self, target: TargetStatus, preview_after: bool) {
         let Some(window) = self.window.upgrade() else { return };
+        // A translation is linked to its original's post: without one yet,
+        // the original goes first.
+        crate::translatedialog::fill_source_id(&self.ctx);
+        if self.ctx.frontmatter.borrow().translation.as_ref().is_some_and(|t| t.source_id == 0) {
+            window::show_toast(&self.ctx.toast_overlay, &tr("Erst das Original hochladen - die Übersetzung wird mit ihm verknüpft."));
+            return;
+        }
         let site = self.site();
         let expected = wpsite::site_lang(&site).unwrap_or_else(|| "de".to_string());
         let found = crate::translate::detect_language(&self.ctx.current_document().body);

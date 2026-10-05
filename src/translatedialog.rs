@@ -175,6 +175,66 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
     dialog.present(Some(window));
 }
 
+/// "Selbst übersetzen": an empty translation next to the open original,
+/// already tied to it and to the blog of `lang` - categories, tags and the
+/// featured image taken over, the text left for you to write or paste.
+/// Counts as reviewed: you wrote it. Works before the original is on its
+/// blog too; the link gets its post id on upload (`fill_source_id`).
+pub fn create_manual(ctx: &DocContext, lang: &str) -> Result<PathBuf, String> {
+    worksave::flush(ctx, false);
+    let path = ctx.current_path.borrow().clone().ok_or_else(|| tr("Der Artikel hat noch keine Datei."))?;
+    if library::file_lang(&path) != Some(None) || !library::contains(&library::root(), &path) {
+        return Err(tr("Selbst übersetzen geht vom Original in der Bibliothek aus."));
+    }
+    let target = library::sibling(&path, Some(lang)).ok_or_else(|| tr("Der Artikel hat noch keine Datei."))?;
+    if target.exists() {
+        return Ok(target);
+    }
+    let source = ctx.current_document();
+    let site = wpsite::for_lang(Some(lang)).map(|s| s.site_id());
+    let source_body = translate::body_with_uploaded_images(&source);
+    let src = &source.frontmatter;
+    let link = document::TranslationLink {
+        lang: lang.to_string(),
+        source_site: source_site_of(&source),
+        source_id: src.wp_post_id.unwrap_or_default(),
+        source_hash: syncstate::fingerprint(&source),
+        source_sections: translate::split_sections(&source_body).iter().map(|s| translate::section_hash(s)).collect(),
+        translated_at: today(),
+        reviewed: true,
+    };
+    let frontmatter = document::Frontmatter {
+        lang: Some(lang.to_string()),
+        post_type: src.post_type,
+        status: document::PostStatus::Draft,
+        categories: translate::map_categories(&src.categories, &aiprompts::load_text_or(translate::CATEGORY_MAP_ID, "")),
+        tags: src.tags.clone(),
+        featured_image: src.featured_image.clone(),
+        comment_status: src.comment_status,
+        wp_site: site,
+        translation: Some(link),
+        ..document::Frontmatter::default()
+    };
+    document::write(&target, &Document { frontmatter, body: String::new() }).map_err(|err| err.to_string())?;
+    Ok(target)
+}
+
+/// A translation made before its original was uploaded knows no post id
+/// yet; once the original has one, it's filled in (before the upload that
+/// sends it along as `lui_source_id`).
+pub fn fill_source_id(ctx: &DocContext) {
+    let path = ctx.current_path.borrow().clone();
+    let missing = ctx.frontmatter.borrow().translation.as_ref().is_some_and(|t| t.source_id == 0);
+    if !missing {
+        return;
+    }
+    let Some((_, original)) = path.as_deref().and_then(|p| library::sibling(p, None)).and_then(|p| document::read(&p).ok().map(|d| (p, d))) else { return };
+    if let (Some(id), Some(link)) = (original.frontmatter.wp_post_id, ctx.frontmatter.borrow_mut().translation.as_mut()) {
+        link.source_id = id;
+        link.source_site = source_site_of(&original);
+    }
+}
+
 /// The start page shown in place of the editor when the language switch
 /// (`langswitch.rs`) goes to a language that has no file yet: what will be
 /// translated, and the button that does it - or why it can't happen yet.
@@ -184,6 +244,27 @@ pub fn start_page(window: &adw::ApplicationWindow, ctx: &DocContext, lang: &str)
         .icon_name("preferences-desktop-locale-symbolic")
         .title(tr("Noch keine Fassung auf {lang}").replace("{lang}", &name))
         .build();
+    // Writing the translation yourself: an empty, linked file to paste into.
+    let manual = gtk4::Button::builder().label(tr("Selbst übersetzen")).halign(gtk4::Align::Center).margin_top(12).build();
+    manual.add_css_class("pill");
+    manual.set_tooltip_text(Some(&tr("Legt die Fassung leer an - Text selbst schreiben oder einfügen")));
+    {
+        let ctx = ctx.clone();
+        let lang = lang.to_string();
+        manual.connect_clicked(move |_| match create_manual(&ctx, &lang) {
+            Ok(path) => {
+                window::open_document_at_path(path, &ctx);
+                window::show_toast(&ctx.toast_overlay, &tr("Leere Fassung angelegt - Titel unter „Beitrag“, Text hier einfügen."));
+            }
+            Err(err) => window::show_toast(&ctx.toast_overlay, &err),
+        });
+    }
+    let with_manual = |main: &gtk4::Widget| -> gtk4::Widget {
+        let column = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+        column.append(main);
+        column.append(&manual);
+        column.upcast()
+    };
     match prepare(ctx) {
         Ok(prep) => {
             page.set_description(Some(&tr("Blocksatz übersetzt den Artikel abschnittweise. Danach liest du gegen und lädst die Fassung als Entwurf hoch.")));
@@ -194,6 +275,7 @@ pub fn start_page(window: &adw::ApplicationWindow, ctx: &DocContext, lang: &str)
             let list = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
             list.append(&form.widget);
             list.append(&form.go);
+            list.append(&manual);
             page.set_child(Some(&adw::Clamp::builder().maximum_size(560).child(&list).build()));
         }
         Err(Blocker::NotUploaded) => {
@@ -202,7 +284,7 @@ pub fn start_page(window: &adw::ApplicationWindow, ctx: &DocContext, lang: &str)
             upload.add_css_class("pill");
             upload.add_css_class("suggested-action");
             upload.set_action_name(Some("main.upload-draft"));
-            page.set_child(Some(&upload));
+            page.set_child(Some(&with_manual(upload.upcast_ref())));
         }
         Err(Blocker::NoSecondBlog) => {
             page.set_description(Some(&tr("Eine Übersetzung landet in einem anderen Blog. Lege es unter Einstellungen → WordPress an.")));

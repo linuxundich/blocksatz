@@ -331,7 +331,11 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     narrow_layout.set_name(Some("narrow"));
 
     let layout_view = adw::MultiLayoutView::new();
-    layout_view.set_child("editor", &editor_pane);
+    // The editor, or in its place the translation start page of the
+    // language switch (`langswitch.rs`).
+    let editor_area = gtk4::Stack::builder().transition_type(gtk4::StackTransitionType::Crossfade).build();
+    editor_area.add_named(&editor_pane, Some("editor"));
+    layout_view.set_child("editor", &editor_area);
     layout_view.set_child("sidebar", &right_pane);
     layout_view.add_layout(wide_layout);
     layout_view.add_layout(narrow_layout);
@@ -620,7 +624,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         releasecheck::LinkTarget { view_stack: view_stack.clone(), browser_view: browser_view.clone() },
     );
     main_action_slot.append(&main_action.button);
-    let lang_switch = langswitch::LangSwitch::new(&window, &doc_ctx, &view);
+    let lang_switch = langswitch::LangSwitch::new(&window, &doc_ctx, &view, &editor_area);
     lang_switch_slot.append(&lang_switch.widget);
     toolbar_view.add_top_bar(&main_action.banner);
     // Everything else only holds weak references to it; the window keeps

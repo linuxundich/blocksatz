@@ -2,9 +2,10 @@
 //! EN" for a library article, Alt+1 / Alt+2. Switching saves the open
 //! file, opens the other file of the pair (`library::Pair`) and puts the
 //! cursor into the same section and paragraph. Switching to a language
-//! that has no file yet starts the translation instead.
+//! that has no file yet shows the translation's start page in place of
+//! the editor (`translatedialog::start_page`).
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 
@@ -28,11 +29,16 @@ pub struct LangSwitch {
     window: glib::WeakRef<adw::ApplicationWindow>,
     /// Set while `refresh` moves the toggle, so that isn't a switch.
     updating: Cell<bool>,
+    /// Editor and start page (`editor_area` in `window.rs`).
+    editor_area: gtk4::Stack,
+    /// The folder whose start page is shown, and its original's post id
+    /// when the page was built - a new id (just uploaded) rebuilds it.
+    start: RefCell<Option<(PathBuf, Option<u64>)>>,
     weak: Weak<LangSwitch>,
 }
 
 impl LangSwitch {
-    pub fn new(window: &adw::ApplicationWindow, ctx: &DocContext, view: &sourceview5::View) -> Rc<Self> {
+    pub fn new(window: &adw::ApplicationWindow, ctx: &DocContext, view: &sourceview5::View, editor_area: &gtk4::Stack) -> Rc<Self> {
         let widget = adw::ToggleGroup::new();
         widget.add_css_class("round");
         let original = adw::Toggle::builder().name(ORIGINAL).label("DE").build();
@@ -49,6 +55,8 @@ impl LangSwitch {
             view: view.clone(),
             window: window.downgrade(),
             updating: Cell::new(false),
+            editor_area: editor_area.clone(),
+            start: RefCell::new(None),
             weak: weak.clone(),
         });
 
@@ -104,9 +112,21 @@ impl LangSwitch {
     pub fn refresh(&self) {
         let current = self.current().filter(|_| wpsite::load_all().sites.len() > 1);
         let Some((path, on_translation)) = current else {
+            self.hide_start();
             self.widget.set_visible(false);
             return;
         };
+        // The start page belongs to one folder's original; anything else
+        // open now (the new translation, another article) replaces it.
+        let start = self.start.borrow().clone();
+        if let Some((dir, post_id)) = start {
+            if on_translation || path.parent() != Some(dir.as_path()) {
+                self.hide_start();
+            } else if self.ctx.frontmatter.borrow().wp_post_id != post_id {
+                self.show_start();
+            }
+        }
+        let on_translation = on_translation || self.start.borrow().is_some();
         let dir = path.parent().unwrap_or(&path).to_path_buf();
         let pair = library::read_pair(&dir);
         let open_doc = self.ctx.current_document();
@@ -150,6 +170,12 @@ impl LangSwitch {
     /// the translation when it doesn't exist yet.
     fn switch_to(&self, translation: bool) {
         let Some((path, on_translation)) = self.current() else { return };
+        // Back from the start page: the original is still open.
+        if !translation && self.start.borrow().is_some() {
+            self.hide_start();
+            self.refresh();
+            return;
+        }
         if translation == on_translation {
             return;
         }
@@ -160,9 +186,8 @@ impl LangSwitch {
         };
         let Some(target) = target else {
             if translation {
-                if let Some(window) = self.window.upgrade() {
-                    let _ = WidgetExt::activate_action(&window, "main.translate", None);
-                }
+                self.show_start();
+                self.refresh();
             } else {
                 window::show_toast(&self.ctx.toast_overlay, &tr("Zu dieser Übersetzung liegt das Original nicht im Ordner."));
             }
@@ -186,6 +211,33 @@ impl LangSwitch {
             view.scroll_to_mark(&mark, 0.0, true, 0.0, 0.25);
             view.grab_focus();
         });
+    }
+}
+
+impl LangSwitch {
+    /// (Re)builds the start page for the open original and shows it.
+    fn show_start(&self) {
+        let (Some(window), Some((path, _))) = (self.window.upgrade(), self.current()) else { return };
+        if let Some(old) = self.editor_area.child_by_name("start") {
+            self.editor_area.remove(&old);
+        }
+        let lang = library::read_pair(path.parent().unwrap_or(&path))
+            .and_then(|pair| pair.files.iter().find_map(|e| library::file_lang(&e.path).flatten()))
+            .or_else(|| wpsite::load_all().sites.iter().find_map(wpsite::site_lang))
+            .unwrap_or_else(|| "en".into());
+        let page = crate::translatedialog::start_page(&window, &self.ctx, &lang);
+        self.editor_area.add_named(&page, Some("start"));
+        self.editor_area.set_visible_child_name("start");
+        *self.start.borrow_mut() = Some((path.parent().unwrap_or(&path).to_path_buf(), self.ctx.frontmatter.borrow().wp_post_id));
+    }
+
+    fn hide_start(&self) {
+        if self.start.borrow_mut().take().is_some() {
+            self.editor_area.set_visible_child_name("editor");
+            if let Some(page) = self.editor_area.child_by_name("start") {
+                self.editor_area.remove(&page);
+            }
+        }
     }
 }
 

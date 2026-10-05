@@ -17,7 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Language switch** "DE · EN" in the header bar for a library article
   (Alt+1 / Alt+2): saves, opens the other language and puts the cursor
   into the same section and paragraph. Switching to a language without a
-  file yet starts "Übersetzen …".
+  file yet shows a **start page** in place of the editor: target blog and
+  language (preselected from the blog whose address names the language),
+  scope, title/slug/excerpt, categories, tags and model, and the button
+  that translates - or, while the original isn't on its blog yet, the
+  button that uploads it as a draft first.
+- Translating always translates the tags and matches tags and categories
+  against the target blog's existing ones (fetched before translating):
+  the model is told the existing tags, and a name differing only in case
+  takes the blog's spelling, so no duplicate terms get created.
 - **The language decides the blog**: a library article without `wp_site`
   uploads to the blog of its language (`artikel.md` to the main blog,
   `artikel.en.md` to the blog whose address ends in `/en`), no longer to

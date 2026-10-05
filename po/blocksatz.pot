@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.67.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-05 19:37+0200\n"
+"POT-Creation-Date: 2026-10-05 19:42+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -233,7 +233,7 @@ msgstr ""
 
 #: src/aitasks.rs:57 src/promptsettings.rs:70 src/releasecheck.rs:110
 #: src/releasecheck.rs:112 src/releasecheck.rs:384 src/shortcuts.rs:38
-#: src/translatedialog.rs:444
+#: src/translatedialog.rs:565
 msgid "Übersetzung"
 msgstr ""
 
@@ -744,7 +744,7 @@ msgstr ""
 msgid "In den Papierkorb"
 msgstr ""
 
-#: src/blogposts.rs:372 src/window.rs:1293
+#: src/blogposts.rs:372 src/window.rs:1297
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr ""
 
@@ -837,7 +837,7 @@ msgstr ""
 msgid "Basis-URL"
 msgstr ""
 
-#: src/chatsettings.rs:34 src/translatedialog.rs:174
+#: src/chatsettings.rs:34 src/translatedialog.rs:302
 msgid "Modell"
 msgstr ""
 
@@ -1350,7 +1350,7 @@ msgid "Volle Größe"
 msgstr ""
 
 #: src/gallerydialog.rs:148 src/settings.rs:31 src/shortcuts.rs:53
-#: src/window.rs:381
+#: src/window.rs:385
 msgid "Einstellungen"
 msgstr ""
 
@@ -1433,7 +1433,7 @@ msgid ""
 "einem Bild (![Beschreibung](bild.png)) klicken."
 msgstr ""
 
-#: src/imagealt.rs:234 src/translatedialog.rs:121
+#: src/imagealt.rs:234 src/translatedialog.rs:149
 msgid "OK"
 msgstr ""
 
@@ -1506,11 +1506,11 @@ msgstr ""
 msgid "Interner Fehler: Bildbearbeitungs-Thread hat kein Ergebnis geliefert."
 msgstr ""
 
-#: src/langswitch.rs:144
+#: src/langswitch.rs:164
 msgid "Noch keine Fassung - übersetzen"
 msgstr ""
 
-#: src/langswitch.rs:167
+#: src/langswitch.rs:192
 msgid "Zu dieser Übersetzung liegt das Original nicht im Ordner."
 msgstr ""
 
@@ -1594,8 +1594,8 @@ msgstr ""
 msgid "{site} · nicht erreichbar"
 msgstr ""
 
-#: src/librarysidebar.rs:472 src/mainaction.rs:212 src/window.rs:363
-#: src/window.rs:712 src/window.rs:956
+#: src/librarysidebar.rs:472 src/mainaction.rs:212 src/window.rs:367
+#: src/window.rs:716 src/window.rs:960
 msgid "Unbenannt"
 msgstr ""
 
@@ -1887,7 +1887,8 @@ msgid ""
 "Teile dieses Beitrags sind WordPress-Markup und nur als Text bearbeitbar."
 msgstr ""
 
-#: src/mainaction.rs:288 src/translatedialog.rs:101 src/translatedialog.rs:403
+#: src/mainaction.rs:288 src/translatedialog.rs:137 src/translatedialog.rs:211
+#: src/translatedialog.rs:524
 msgid ""
 "Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort "
 "zuerst aus dem Blog."
@@ -2134,7 +2135,7 @@ msgid "Alle Medien"
 msgstr ""
 
 #: src/mediabrowser.rs:34 src/properties.rs:820 src/releasecheck.rs:95
-#: src/releasecheck.rs:98 src/releasecheck.rs:279 src/window.rs:1396
+#: src/releasecheck.rs:98 src/releasecheck.rs:279 src/window.rs:1400
 msgid "Bilder"
 msgstr ""
 
@@ -2146,11 +2147,11 @@ msgstr ""
 msgid "Nach Medientyp filtern"
 msgstr ""
 
-#: src/mediabrowser.rs:163 src/translatedialog.rs:193
+#: src/mediabrowser.rs:163 src/translatedialog.rs:312
 msgid "Aktualisieren"
 msgstr ""
 
-#: src/mediabrowser.rs:222 src/shortcuts.rs:36 src/window.rs:377
+#: src/mediabrowser.rs:222 src/shortcuts.rs:36 src/window.rs:381
 msgid "WordPress-Mediathek"
 msgstr ""
 
@@ -2557,7 +2558,7 @@ msgstr ""
 msgid "Archive"
 msgstr ""
 
-#: src/preview.rs:1483 src/taxonomy.rs:33
+#: src/preview.rs:1483 src/taxonomy.rs:33 src/translatedialog.rs:292
 msgid "Kategorien"
 msgstr ""
 
@@ -3067,7 +3068,7 @@ msgstr ""
 msgid "Originalsprache"
 msgstr ""
 
-#: src/shortcuts.rs:42 src/window.rs:315 src/window.rs:421
+#: src/shortcuts.rs:42 src/window.rs:315 src/window.rs:425
 msgid "Editor"
 msgstr ""
 
@@ -3091,7 +3092,7 @@ msgstr ""
 msgid "Suchen und Ersetzen"
 msgstr ""
 
-#: src/shortcuts.rs:53 src/window.rs:382
+#: src/shortcuts.rs:53 src/window.rs:386
 msgid "Tastenkürzel"
 msgstr ""
 
@@ -3339,160 +3340,188 @@ msgstr ""
 msgid "Niederländisch"
 msgstr ""
 
-#: src/translatedialog.rs:111
+#: src/translatedialog.rs:141
 msgid "Erst hochladen: Übersetzt werden Beiträge, die im Blog liegen."
 msgstr ""
 
-#: src/translatedialog.rs:118
+#: src/translatedialog.rs:146
 msgid "Kein zweites Blog"
 msgstr ""
 
-#: src/translatedialog.rs:119
+#: src/translatedialog.rs:147 src/translatedialog.rs:208
 msgid ""
 "Eine Übersetzung landet in einem anderen Blog. Lege es unter Einstellungen → "
 "WordPress an."
 msgstr ""
 
-#: src/translatedialog.rs:134
+#: src/translatedialog.rs:157
+msgid "Übersetzung aktualisieren"
+msgstr ""
+
+#: src/translatedialog.rs:157
+msgid "Übersetzung erstellen"
+msgstr ""
+
+#: src/translatedialog.rs:185
+msgid "Noch keine Fassung auf {lang}"
+msgstr ""
+
+#: src/translatedialog.rs:189
+msgid ""
+"Blocksatz übersetzt den Artikel abschnittweise. Danach liest du gegen und "
+"lädst die Fassung als Entwurf hoch."
+msgstr ""
+
+#: src/translatedialog.rs:200
+msgid ""
+"Übersetzt wird, sobald das Original als Entwurf im Blog liegt - die "
+"Übersetzung wird mit diesem Beitrag verknüpft."
+msgstr ""
+
+#: src/translatedialog.rs:201
+msgid "Original als Entwurf hochladen"
+msgstr ""
+
+#: src/translatedialog.rs:237
 msgid "Ziel-Blog"
 msgstr ""
 
-#: src/translatedialog.rs:135
+#: src/translatedialog.rs:238
 msgid "Sprache"
 msgstr ""
 
-#: src/translatedialog.rs:136
-msgid "Schlagwörter übersetzen"
-msgstr ""
-
-#: src/translatedialog.rs:136
-msgid "Sonst bleiben sie leer und lassen sich im Ziel-Blog setzen."
-msgstr ""
-
-#: src/translatedialog.rs:162
+#: src/translatedialog.rs:279
 msgid "Keine Abschnitte geändert – es wird nichts neu übersetzt."
 msgstr ""
 
-#: src/translatedialog.rs:163
+#: src/translatedialog.rs:280
 msgid ""
 "{n} von {total} Abschnitten geändert; nur sie werden neu übersetzt, deine "
 "Korrekturen in den übrigen bleiben."
 msgstr ""
 
-#: src/translatedialog.rs:164
+#: src/translatedialog.rs:281
 msgid "{s} Abschnitte · {w} Wörter · {c} Code-Blöcke bleiben unverändert"
 msgstr ""
 
-#: src/translatedialog.rs:169
+#: src/translatedialog.rs:286
 msgid "Umfang"
 msgstr ""
 
-#: src/translatedialog.rs:192
-msgid "Übersetzung aktualisieren"
+#: src/translatedialog.rs:290
+msgid "Titel, Slug, Auszug"
 msgstr ""
 
-#: src/translatedialog.rs:192
-msgid "Übersetzung erstellen"
+#: src/translatedialog.rs:290
+msgid "werden übersetzt"
 msgstr ""
 
-#: src/translatedialog.rs:193
+#: src/translatedialog.rs:295
+msgid "{n} Schlagwörter, übersetzt und mit denen des Ziel-Blogs abgeglichen"
+msgstr ""
+
+#: src/translatedialog.rs:296
+msgid "Schlagwörter"
+msgstr ""
+
+#: src/translatedialog.rs:312
 msgid "Übersetzen"
 msgstr ""
 
-#: src/translatedialog.rs:234
+#: src/translatedialog.rs:348
 msgid "Wird übersetzt …"
 msgstr ""
 
-#: src/translatedialog.rs:288
+#: src/translatedialog.rs:410
 msgid "{done} von {total}"
 msgstr ""
 
-#: src/translatedialog.rs:305 src/worksave.rs:99
+#: src/translatedialog.rs:427 src/worksave.rs:99
 msgid "Speichern fehlgeschlagen: {err}"
 msgstr ""
 
-#: src/translatedialog.rs:322
+#: src/translatedialog.rs:444
 msgid "Interner Fehler: Übersetzung hat kein Ergebnis geliefert."
 msgstr ""
 
-#: src/translatedialog.rs:380
+#: src/translatedialog.rs:501
 msgid "{n} Abschnitte übersetzt, {k} übernommen. Jetzt gegenlesen."
 msgstr ""
 
-#: src/translatedialog.rs:382
+#: src/translatedialog.rs:503
 msgid "{n} Abschnitte übersetzt. Jetzt gegenlesen."
 msgstr ""
 
-#: src/translatedialog.rs:398
+#: src/translatedialog.rs:519
 msgid "Das ist keine Übersetzung."
 msgstr ""
 
-#: src/translatedialog.rs:416
+#: src/translatedialog.rs:537
 msgid "Prüfungen"
 msgstr ""
 
-#: src/translatedialog.rs:418
+#: src/translatedialog.rs:539
 msgid "Original geändert"
 msgstr ""
 
-#: src/translatedialog.rs:418
+#: src/translatedialog.rs:539
 msgid ""
 "Das Original wurde seit der Übersetzung bearbeitet – „Übersetzen …“ "
 "übernimmt die Änderungen."
 msgstr ""
 
-#: src/translatedialog.rs:423
+#: src/translatedialog.rs:544
 msgid "Keine Auffälligkeiten"
 msgstr ""
 
-#: src/translatedialog.rs:423
+#: src/translatedialog.rs:544
 msgid ""
 "Code, Links, Auszeichnungen und Überschriften stimmen mit dem Original "
 "überein."
 msgstr ""
 
-#: src/translatedialog.rs:429 src/translatedialog.rs:471
+#: src/translatedialog.rs:550 src/translatedialog.rs:592
 msgid "Abschnitt {n}"
 msgstr ""
 
-#: src/translatedialog.rs:430
+#: src/translatedialog.rs:551
 msgid "Ganzer Artikel"
 msgstr ""
 
-#: src/translatedialog.rs:443
+#: src/translatedialog.rs:564
 msgid "Original"
 msgstr ""
 
-#: src/translatedialog.rs:469
+#: src/translatedialog.rs:590
 msgid "Abschnitt {n} · Original geändert"
 msgstr ""
 
-#: src/translatedialog.rs:487
+#: src/translatedialog.rs:608
 msgid "Abschnitte"
 msgstr ""
 
-#: src/translatedialog.rs:489
+#: src/translatedialog.rs:610
 msgid ""
 "Korrekturen machst du im Editor; dieser Dialog zeigt den gespeicherten Stand."
 msgstr ""
 
-#: src/translatedialog.rs:497
+#: src/translatedialog.rs:618
 msgid "Markierung entfernen"
 msgstr ""
 
-#: src/translatedialog.rs:497
+#: src/translatedialog.rs:618
 msgid "Als gegengelesen markieren"
 msgstr ""
 
-#: src/translatedialog.rs:506
+#: src/translatedialog.rs:627
 msgid "Gegenlesen"
 msgstr ""
 
-#: src/translatedialog.rs:516
+#: src/translatedialog.rs:637
 msgid "Markierung „gegengelesen“ entfernt."
 msgstr ""
 
-#: src/translatedialog.rs:516
+#: src/translatedialog.rs:637
 msgid ""
 "Als gegengelesen markiert. Beim nächsten Hochladen wird die Übersetzung im "
 "Blog verknüpft."
@@ -3530,11 +3559,11 @@ msgstr ""
 msgid "Abschnitt enthält noch {n} Wörter, die nach Original-Sprache aussehen."
 msgstr ""
 
-#: src/translate.rs:665
+#: src/translate.rs:691
 msgid "Die Antwort für Titel und Auszug war kein gültiges JSON."
 msgstr ""
 
-#: src/translate.rs:736
+#: src/translate.rs:762
 msgid "Hinweis des Modells: {note}"
 msgstr ""
 
@@ -3566,79 +3595,79 @@ msgstr ""
 msgid "Seitenbereich"
 msgstr ""
 
-#: src/window.rs:369
+#: src/window.rs:373
 msgid "Seitenleiste ein-/ausblenden"
 msgstr ""
 
-#: src/window.rs:378
+#: src/window.rs:382
 msgid "Galerie einfügen…"
 msgstr ""
 
-#: src/window.rs:383
+#: src/window.rs:387
 msgid "Über Blocksatz"
 msgstr ""
 
-#: src/window.rs:387
+#: src/window.rs:391
 msgid "Seitenbereich ein-/ausblenden (F9)"
 msgstr ""
 
-#: src/window.rs:395
+#: src/window.rs:399
 msgid "Fokus-Schreibmodus (Strg+Umschalt+F)"
 msgstr ""
 
-#: src/window.rs:957
+#: src/window.rs:961
 msgid "Unbenannte Seite"
 msgstr ""
 
-#: src/window.rs:1018
+#: src/window.rs:1022
 msgid "{n} Übersetzungen in den Ordner ihres Originals verschoben."
 msgstr ""
 
-#: src/window.rs:1089
+#: src/window.rs:1093
 msgid "Vorhandene Arbeitskopie geöffnet."
 msgstr ""
 
-#: src/window.rs:1133
+#: src/window.rs:1137
 msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
 msgstr ""
 
-#: src/window.rs:1238
+#: src/window.rs:1242
 msgid "Markdown-Datei öffnen"
 msgstr ""
 
-#: src/window.rs:1400
+#: src/window.rs:1404
 msgid "Bild einfügen"
 msgstr ""
 
-#: src/window.rs:1435
+#: src/window.rs:1439
 msgid "Video/Audio einfügen"
 msgstr ""
 
-#: src/window.rs:1529
+#: src/window.rs:1533
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr ""
 
-#: src/window.rs:1636
+#: src/window.rs:1640
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr ""
 
-#: src/window.rs:1645
+#: src/window.rs:1649
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1651
+#: src/window.rs:1655
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr ""
 
-#: src/window.rs:1665 src/window.rs:1679
+#: src/window.rs:1669 src/window.rs:1683
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1683
+#: src/window.rs:1687
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr ""
 
-#: src/window.rs:1688
+#: src/window.rs:1692
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr ""
 

@@ -505,6 +505,25 @@ pub struct Options {
     pub translate_tags: bool,
     /// „Allgemein = General“ lines (`CATEGORY_MAP_ID`).
     pub category_map: String,
+    /// The target blog's tags and categories: the model is asked to reuse
+    /// an existing tag's spelling, and the result is matched against both
+    /// ignoring case, so "Tuxedo" isn't created again as "TUXEDO".
+    pub known_tags: Vec<String>,
+    pub known_categories: Vec<String>,
+}
+
+/// `names` with each one replaced by the spelling of a `known` name it
+/// equals ignoring case; duplicates dropped.
+pub fn match_known(names: &[String], known: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for name in names {
+        let lower = name.trim().to_lowercase();
+        let matched = known.iter().find(|k| k.to_lowercase() == lower).cloned().unwrap_or_else(|| name.trim().to_string());
+        if !matched.is_empty() && !out.iter().any(|o| o.to_lowercase() == matched.to_lowercase()) {
+            out.push(matched);
+        }
+    }
+    out
 }
 
 pub struct Outcome {
@@ -655,8 +674,15 @@ fn translate_meta(doc: &Document, system: &str, opts: &Options, send: Send) -> R
         "featured_image_alt": fm.featured_image_alt.clone().unwrap_or_default(),
         "tags": if opts.translate_tags { fm.tags.clone() } else { Vec::new() },
     });
+    // Capped: a blog's whole tag list can run into the thousands.
+    let known: Vec<&str> = opts.known_tags.iter().map(String::as_str).take(500).collect();
+    let reuse = if opts.translate_tags && !known.is_empty() {
+        format!(" When a translated tag means the same as one of the blog's existing tags, use that tag's exact spelling instead. Existing tags: {}.", serde_json::json!(known))
+    } else {
+        String::new()
+    };
     let request = format!(
-        "Translate the values of this JSON object (title, excerpt, featured image alt text and tags of a blog article) from {} into {}. Keep the keys. Reply with the JSON object only.\n\n{}",
+        "Translate the values of this JSON object (title, excerpt, featured image alt text and tags of a blog article) from {} into {}. Keep the keys.{reuse} Reply with the JSON object only.\n\n{}",
         language_name(&opts.source_lang),
         language_name(&opts.target_lang),
         input
@@ -763,8 +789,8 @@ pub fn translate(source: &Document, previous: Option<&Document>, opts: &Options,
                 slug: document::slugify(&meta.title),
                 status: PostStatus::Draft,
                 post_type: src.post_type,
-                categories: map_categories(&src.categories, &opts.category_map),
-                tags: meta.tags,
+                categories: match_known(&map_categories(&src.categories, &opts.category_map), &opts.known_categories),
+                tags: match_known(&meta.tags, &opts.known_tags),
                 excerpt: (!meta.excerpt.is_empty()).then_some(meta.excerpt),
                 featured_image: src.featured_image.clone(),
                 featured_image_alt: (!meta.featured_image_alt.is_empty()).then_some(meta.featured_image_alt),
@@ -881,6 +907,13 @@ mod tests {
     }
 
     #[test]
+    fn translated_terms_take_the_target_blogs_spelling() {
+        let known = vec!["Tuxedo".to_string(), "GNOME Extensions".to_string()];
+        let out = match_known(&["TUXEDO".into(), "gnome extensions".into(), "Pulsgeber".into(), "tuxedo".into()], &known);
+        assert_eq!(out, vec!["Tuxedo", "GNOME Extensions", "Pulsgeber"]);
+    }
+
+    #[test]
     fn categories_are_mapped_case_insensitively() {
         let map = "Allgemein = General\n# Kommentar\nWebdesign/-hosting → Web hosting\n";
         assert_eq!(map_categories(&["allgemein".into(), "GNU/Linux".into(), "Webdesign/-hosting".into()], map), vec!["General", "GNU/Linux", "Web hosting"]);
@@ -900,6 +933,8 @@ mod tests {
             today: "2026-10-03".into(),
             translate_tags: false,
             category_map: "Allgemein = General".into(),
+            known_tags: Vec::new(),
+            known_categories: Vec::new(),
         }
     }
 

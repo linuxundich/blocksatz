@@ -85,44 +85,145 @@ enum Msg {
     Done(Box<Result<aitasks::Routed<Outcome>, String>>),
 }
 
-/// "Übersetzen …" for the open article: creates its translation or, if
-/// there is one, updates it. Also works with the translation open - then
-/// its original is looked up in the library.
-pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
+/// What translating the open article needs, looked up once.
+struct Prep {
+    source: Document,
+    source_path: Option<PathBuf>,
+    /// An existing translation to update, with its path.
+    previous: Option<(PathBuf, Document)>,
+    source_site: String,
+    /// Blogs a new translation can go to - every one but the original's.
+    targets: Vec<wpsite::SiteConfig>,
+}
+
+/// Why the open article can't be translated right now.
+enum Blocker {
+    /// The translation is open, its original isn't in the library.
+    OriginalMissing,
+    /// The original isn't on its blog yet - the link needs its post id.
+    NotUploaded,
+    NoSecondBlog,
+}
+
+fn prepare(ctx: &DocContext) -> Result<Prep, Blocker> {
     worksave::flush(ctx, false);
     let current = ctx.current_document();
     let current_path = ctx.current_path.borrow().clone();
-
-    // (original, its path, previous translation and its path)
     let (source, source_path, previous) = if current.frontmatter.translation.is_some() {
-        match find_original(&current, current_path.as_deref()) {
-            Some((path, original)) => (original, Some(path), current_path.map(|p| (p, current.clone()))),
-            None => {
-                window::show_toast(&ctx.toast_overlay, &tr("Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort zuerst aus dem Blog."));
-                return;
-            }
-        }
+        let (path, original) = find_original(&current, current_path.as_deref()).ok_or(Blocker::OriginalMissing)?;
+        (original, Some(path), current_path.map(|p| (p, current.clone())))
     } else {
         let previous = find_translation(&current, current_path.as_deref());
         (current.clone(), current_path, previous)
     };
-
     if source.frontmatter.wp_post_id.is_none() {
-        window::show_toast(&ctx.toast_overlay, &tr("Erst hochladen: Übersetzt werden Beiträge, die im Blog liegen."));
-        return;
+        return Err(Blocker::NotUploaded);
     }
     let source_site = source_site_of(&source);
     let targets: Vec<wpsite::SiteConfig> = wpsite::load_all().sites.into_iter().filter(|s| s.site_id() != source_site).collect();
     if previous.is_none() && targets.is_empty() {
-        let alert = adw::AlertDialog::builder()
-            .heading(tr("Kein zweites Blog"))
-            .body(tr("Eine Übersetzung landet in einem anderen Blog. Lege es unter Einstellungen → WordPress an."))
-            .build();
-        alert.add_response("ok", &tr("OK"));
-        alert.present(Some(window));
-        return;
+        return Err(Blocker::NoSecondBlog);
     }
+    Ok(Prep { source, source_path, previous, source_site, targets })
+}
 
+/// "Übersetzen …" for the open article: creates its translation or, if
+/// there is one, updates it. Also works with the translation open - then
+/// its original is looked up in the library.
+pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
+    let prep = match prepare(ctx) {
+        Ok(prep) => prep,
+        Err(Blocker::OriginalMissing) => {
+            window::show_toast(&ctx.toast_overlay, &tr("Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort zuerst aus dem Blog."));
+            return;
+        }
+        Err(Blocker::NotUploaded) => {
+            window::show_toast(&ctx.toast_overlay, &tr("Erst hochladen: Übersetzt werden Beiträge, die im Blog liegen."));
+            return;
+        }
+        Err(Blocker::NoSecondBlog) => {
+            let alert = adw::AlertDialog::builder()
+                .heading(tr("Kein zweites Blog"))
+                .body(tr("Eine Übersetzung landet in einem anderen Blog. Lege es unter Einstellungen → WordPress an."))
+                .build();
+            alert.add_response("ok", &tr("OK"));
+            alert.present(Some(window));
+            return;
+        }
+    };
+    let updating = prep.previous.is_some();
+    // Fixed height: the progress bar and an error message appear below the
+    // rows later and must not end up behind the dialog's lower edge.
+    let dialog = adw::Dialog::builder().title(if updating { tr("Übersetzung aktualisieren") } else { tr("Übersetzung erstellen") }).content_width(560).content_height(600).build();
+    let on_saved: Rc<dyn Fn()> = {
+        let dialog = dialog.clone();
+        Rc::new(move || {
+            dialog.close();
+        })
+    };
+    let form = build_form(prep, window, ctx, on_saved);
+    let header = adw::HeaderBar::new();
+    header.pack_end(&form.go);
+    let page = adw::PreferencesPage::new();
+    let group = adw::PreferencesGroup::new();
+    group.add(&form.widget);
+    page.add(&group);
+    let toolbar = adw::ToolbarView::new();
+    toolbar.add_top_bar(&header);
+    toolbar.set_content(Some(&page));
+    dialog.set_child(Some(&toolbar));
+    dialog.present(Some(window));
+}
+
+/// The start page shown in place of the editor when the language switch
+/// (`langswitch.rs`) goes to a language that has no file yet: what will be
+/// translated, and the button that does it - or why it can't happen yet.
+pub fn start_page(window: &adw::ApplicationWindow, ctx: &DocContext, lang: &str) -> gtk4::Widget {
+    let name = languages().into_iter().find(|(c, _)| *c == lang).map_or(lang.to_uppercase(), |(_, n)| n);
+    let page = adw::StatusPage::builder()
+        .icon_name("preferences-desktop-locale-symbolic")
+        .title(tr("Noch keine Fassung auf {lang}").replace("{lang}", &name))
+        .build();
+    match prepare(ctx) {
+        Ok(prep) => {
+            page.set_description(Some(&tr("Blocksatz übersetzt den Artikel abschnittweise. Danach liest du gegen und lädst die Fassung als Entwurf hoch.")));
+            let form = build_form(prep, window, ctx, Rc::new(|| {}));
+            form.go.add_css_class("pill");
+            form.go.set_halign(gtk4::Align::Center);
+            form.go.set_margin_top(18);
+            let list = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+            list.append(&form.widget);
+            list.append(&form.go);
+            page.set_child(Some(&adw::Clamp::builder().maximum_size(560).child(&list).build()));
+        }
+        Err(Blocker::NotUploaded) => {
+            page.set_description(Some(&tr("Übersetzt wird, sobald das Original als Entwurf im Blog liegt - die Übersetzung wird mit diesem Beitrag verknüpft.")));
+            let upload = gtk4::Button::builder().label(tr("Original als Entwurf hochladen")).halign(gtk4::Align::Center).build();
+            upload.add_css_class("pill");
+            upload.add_css_class("suggested-action");
+            upload.set_action_name(Some("main.upload-draft"));
+            page.set_child(Some(&upload));
+        }
+        Err(Blocker::NoSecondBlog) => {
+            page.set_description(Some(&tr("Eine Übersetzung landet in einem anderen Blog. Lege es unter Einstellungen → WordPress an.")));
+        }
+        Err(Blocker::OriginalMissing) => {
+            page.set_description(Some(&tr("Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort zuerst aus dem Blog.")));
+        }
+    }
+    page.upcast()
+}
+
+struct Form {
+    /// The rows, the progress bar and the status line.
+    widget: gtk4::Widget,
+    go: gtk4::Button,
+}
+
+/// Target, scope and model as rows, plus the button that translates and
+/// opens the result. `on_saved` runs once the translation is written.
+fn build_form(prep: Prep, window: &adw::ApplicationWindow, ctx: &DocContext, on_saved: Rc<dyn Fn()>) -> Form {
+    let Prep { source, source_path, previous, source_site, targets } = prep;
     let source_body = translate::body_with_uploaded_images(&source);
     let sections = translate::split_sections(&source_body);
     let changed = previous.as_ref().and_then(|(_, p)| p.frontmatter.translation.clone()).map(|link| {
@@ -130,10 +231,11 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
     });
     let code_blocks = translate::mask(&source_body).originals.iter().filter(|(k, _)| *k == "CODE").count();
 
-    let group = adw::PreferencesGroup::new();
+    let list = gtk4::ListBox::new();
+    list.add_css_class("boxed-list");
+    list.set_selection_mode(gtk4::SelectionMode::None);
     let site_row = adw::ComboRow::builder().title(tr("Ziel-Blog")).build();
     let lang_row = adw::ComboRow::builder().title(tr("Sprache")).build();
-    let tags_row = adw::SwitchRow::builder().title(tr("Schlagwörter übersetzen")).subtitle(tr("Sonst bleiben sie leer und lassen sich im Ziel-Blog setzen.")).build();
     let languages = languages();
 
     match &previous {
@@ -150,13 +252,28 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
             let ids: Vec<String> = targets.iter().map(wpsite::SiteConfig::site_id).collect();
             site_row.set_model(Some(&gtk4::StringList::new(&ids.iter().map(String::as_str).collect::<Vec<_>>())));
             lang_row.set_model(Some(&gtk4::StringList::new(&languages.iter().map(|(_, n)| n.as_str()).collect::<Vec<_>>())));
+            // The blog whose address names a language, and that language.
+            if let Some((index, lang)) = targets.iter().enumerate().find_map(|(i, s)| wpsite::site_lang(s).map(|l| (i, l))) {
+                site_row.set_selected(index as u32);
+                if let Some(lang_index) = languages.iter().position(|(c, _)| *c == lang) {
+                    lang_row.set_selected(lang_index as u32);
+                }
+            }
+            // The target blog's language follows the blog.
+            let languages = languages.clone();
+            let targets = targets.clone();
+            let lang_row = lang_row.clone();
+            site_row.connect_selected_notify(move |row| {
+                if let Some(lang) = targets.get(row.selected() as usize).and_then(wpsite::site_lang) {
+                    if let Some(index) = languages.iter().position(|(c, _)| *c == lang) {
+                        lang_row.set_selected(index as u32);
+                    }
+                }
+            });
         }
     }
-    group.add(&site_row);
-    group.add(&lang_row);
-    if previous.is_none() {
-        group.add(&tags_row);
-    }
+    list.append(&site_row);
+    list.append(&lang_row);
 
     let scope = match changed {
         Some(0) => tr("Keine Abschnitte geändert – es wird nichts neu übersetzt."),
@@ -166,169 +283,173 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
             .replace("{w}", &word_count(&source_body).to_string())
             .replace("{c}", &code_blocks.to_string()),
     };
-    let scope_row = adw::ActionRow::builder().title(tr("Umfang")).subtitle(scope).subtitle_lines(3).build();
-    group.add(&scope_row);
+    list.append(&adw::ActionRow::builder().title(tr("Umfang")).subtitle(scope).subtitle_lines(3).build());
+    if previous.is_none() {
+        let category_map = aiprompts::load_text_or(translate::CATEGORY_MAP_ID, "");
+        let categories = translate::map_categories(&source.frontmatter.categories, &category_map);
+        list.append(&adw::ActionRow::builder().title(tr("Titel, Slug, Auszug")).subtitle(tr("werden übersetzt")).build());
+        if !categories.is_empty() {
+            list.append(&adw::ActionRow::builder().title(tr("Kategorien")).subtitle(categories.join(", ")).subtitle_lines(2).build());
+        }
+        if !source.frontmatter.tags.is_empty() {
+            let tags = tr("{n} Schlagwörter, übersetzt und mit denen des Ziel-Blogs abgeglichen").replace("{n}", &source.frontmatter.tags.len().to_string());
+            list.append(&adw::ActionRow::builder().title(tr("Schlagwörter")).subtitle(tags).subtitle_lines(2).build());
+        }
+    }
 
     let chat = crate::chatconfig::load_provider_config();
     let models: Vec<String> = aitasks::candidates(&aitasks::load_assignment(AiTask::Translation), &chat).iter().map(aitasks::ModelRef::label).collect();
-    let model_row = adw::ActionRow::builder().title(tr("Modell")).subtitle(models.join(" → ")).build();
-    group.add(&model_row);
+    list.append(&adw::ActionRow::builder().title(tr("Modell")).subtitle(models.join(" → ")).build());
 
     let progress = gtk4::ProgressBar::builder().show_text(true).visible(false).margin_top(12).build();
     let status = gtk4::Label::builder().wrap(true).xalign(0.0).visible(false).margin_top(6).build();
     status.add_css_class("dim-label");
+    let widget = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+    widget.append(&list);
+    widget.append(&progress);
+    widget.append(&status);
 
-    let page = adw::PreferencesPage::new();
-    page.add(&group);
-    let extra = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
-    extra.set_margin_start(12);
-    extra.set_margin_end(12);
-    extra.append(&progress);
-    extra.append(&status);
-    let progress_group = adw::PreferencesGroup::new();
-    progress_group.add(&extra);
-    page.add(&progress_group);
-
-    let title = if previous.is_some() { tr("Übersetzung aktualisieren") } else { tr("Übersetzung erstellen") };
     let go = gtk4::Button::with_label(&if previous.is_some() { tr("Aktualisieren") } else { tr("Übersetzen") });
     go.add_css_class("suggested-action");
     go.set_sensitive(changed != Some(0));
-    let header = adw::HeaderBar::new();
-    header.pack_end(&go);
-    let toolbar = adw::ToolbarView::new();
-    toolbar.add_top_bar(&header);
-    toolbar.set_content(Some(&page));
-    // Fixed height: the progress bar and an error message appear below the
-    // rows later and must not end up behind the dialog's lower edge.
-    let dialog = adw::Dialog::builder().title(title).content_width(560).content_height(560).child(&toolbar).build();
 
     let window_weak = window.downgrade();
     let ctx = ctx.clone();
     let targets = Rc::new(targets);
     let previous = Rc::new(previous);
     let source = Rc::new(source);
-    {
-        let dialog = dialog.clone();
-        go.connect_clicked(move |go| {
-            let target_site = match previous.as_ref() {
-                Some((_, prev)) => prev.frontmatter.wp_site.clone().unwrap_or_default(),
-                None => targets.get(site_row.selected() as usize).map(wpsite::SiteConfig::site_id).unwrap_or_default(),
-            };
-            let target_lang = match previous.as_ref() {
-                Some((_, prev)) => prev.frontmatter.translation.as_ref().map(|t| t.lang.clone()).unwrap_or_else(|| "en".into()),
-                None => languages.get(lang_row.selected() as usize).map(|(c, _)| c.to_string()).unwrap_or_else(|| "en".into()),
-            };
-            let opts = Options {
-                source_lang: "de".into(),
-                target_lang,
-                source_site: source_site.clone(),
-                today: today(),
-                translate_tags: tags_row.is_active(),
-                category_map: aiprompts::load_text_or(translate::CATEGORY_MAP_ID, ""),
-            };
-            let system = aiprompts::load_text_or(translate::PROMPT_ID, translate::DEFAULT_PROMPT);
+    go.connect_clicked(move |go| {
+        let (target_site, target_url) = match previous.as_ref() {
+            Some((_, prev)) => {
+                let id = prev.frontmatter.wp_site.clone().unwrap_or_default();
+                (id.clone(), wpsite::for_site_id(Some(&id)))
+            }
+            None => targets.get(site_row.selected() as usize).map(|s| (s.site_id(), s.clone())).unwrap_or_default(),
+        };
+        let target_lang = match previous.as_ref() {
+            Some((_, prev)) => prev.frontmatter.translation.as_ref().map(|t| t.lang.clone()).unwrap_or_else(|| "en".into()),
+            None => languages.get(lang_row.selected() as usize).map(|(c, _)| c.to_string()).unwrap_or_else(|| "en".into()),
+        };
+        let mut opts = Options {
+            source_lang: "de".into(),
+            target_lang,
+            source_site: source_site.clone(),
+            today: today(),
+            translate_tags: true,
+            category_map: aiprompts::load_text_or(translate::CATEGORY_MAP_ID, ""),
+            known_tags: Vec::new(),
+            known_categories: Vec::new(),
+        };
+        let system = aiprompts::load_text_or(translate::PROMPT_ID, translate::DEFAULT_PROMPT);
 
-            go.set_sensitive(false);
-            progress.set_visible(true);
-            progress.set_fraction(0.0);
-            progress.set_text(Some(&tr("Wird übersetzt …")));
-            status.set_visible(false);
+        go.set_sensitive(false);
+        progress.set_visible(true);
+        progress.set_fraction(0.0);
+        progress.set_text(Some(&tr("Wird übersetzt …")));
+        status.set_visible(false);
 
-            let (tx, rx) = mpsc::channel::<Msg>();
-            let source_doc = (*source).clone();
-            let previous_doc = previous.as_ref().as_ref().map(|(_, d)| d.clone());
-            let source_url = wpsite::load_all().sites.into_iter().find(|s| s.site_id() == source_site).map(|s| s.url);
-            std::thread::spawn(move || {
-                let progress_tx = tx.clone();
-                let result = aitasks::run(AiTask::Translation, |client| {
-                    let api_error: RefCell<Option<llm::ApiError>> = RefCell::new(None);
-                    let send = |system: &str, history: &[ChatMessage]| {
-                        client.send_with(system, history, &llm::SendOptions::bulk_text()).map_err(|err| {
-                            let message = err.message.clone();
-                            *api_error.borrow_mut() = Some(err);
-                            message
-                        })
-                    };
-                    let report = |done: usize, total: usize| {
-                        let _ = progress_tx.send(Msg::Progress(done, total));
-                    };
-                    translate::translate(&source_doc, previous_doc.as_ref(), &opts, &system, &send, &report)
-                        .map_err(|message| api_error.take().unwrap_or(llm::ApiError { message, status: llm::ModelStatus::Other }))
-                });
-                // An original imported from the blog has its featured image
-                // only as a media id of that blog. The translation gets the
-                // file URL instead, which the upload then copies into the
-                // target blog like any other featured image.
-                let result = result.map(|mut outcome| {
-                    let fm = &mut outcome.value.document.frontmatter;
-                    if previous_doc.is_none() && fm.featured_image.is_none() {
-                        if let (Some(id), Some(url)) = (source_doc.frontmatter.featured_media_id, source_url.as_deref()) {
-                            fm.featured_image = wpclient::public_media_url(url, id).ok();
-                        }
-                    }
-                    outcome
-                });
-                let _ = tx.send(Msg::Done(Box::new(result)));
+        let (tx, rx) = mpsc::channel::<Msg>();
+        let source_doc = (*source).clone();
+        let previous_doc = previous.as_ref().as_ref().map(|(_, d)| d.clone());
+        let source_url = wpsite::load_all().sites.into_iter().find(|s| s.site_id() == source_site).map(|s| s.url);
+        std::thread::spawn(move || {
+            // The target blog's terms, so translated ones match existing
+            // spellings. Without them (offline, no password) it still works.
+            if previous_doc.is_none() && !target_url.url.is_empty() {
+                if let Ok(Some(password)) = futures_lite::future::block_on(crate::secrets::load_app_password(&target_url.url, &target_url.username)) {
+                    let client = wpclient::Client::new(&target_url.url, &target_url.username, &password);
+                    opts.known_tags = client.list_term_names("tags").unwrap_or_default();
+                    opts.known_categories = client.list_term_names("categories").unwrap_or_default();
+                }
+            }
+            let progress_tx = tx.clone();
+            let result = aitasks::run(AiTask::Translation, |client| {
+                let api_error: RefCell<Option<llm::ApiError>> = RefCell::new(None);
+                let send = |system: &str, history: &[ChatMessage]| {
+                    client.send_with(system, history, &llm::SendOptions::bulk_text()).map_err(|err| {
+                        let message = err.message.clone();
+                        *api_error.borrow_mut() = Some(err);
+                        message
+                    })
+                };
+                let report = |done: usize, total: usize| {
+                    let _ = progress_tx.send(Msg::Progress(done, total));
+                };
+                translate::translate(&source_doc, previous_doc.as_ref(), &opts, &system, &send, &report)
+                    .map_err(|message| api_error.take().unwrap_or(llm::ApiError { message, status: llm::ModelStatus::Other }))
             });
-
-            let dialog = dialog.clone();
-            let go = go.clone();
-            let progress = progress.clone();
-            let status = status.clone();
-            let ctx = ctx.clone();
-            let window_weak = window_weak.clone();
-            let previous = previous.clone();
-            let source_path = source_path.clone();
-            let target_site = target_site.clone();
-            glib::timeout_add_local(Duration::from_millis(150), move || loop {
-                match rx.try_recv() {
-                    Ok(Msg::Progress(done, total)) => {
-                        if total > 0 {
-                            progress.set_fraction(done as f64 / total as f64);
-                            progress.set_text(Some(&tr("{done} von {total}").replace("{done}", &done.to_string()).replace("{total}", &total.to_string())));
-                        }
-                    }
-                    Ok(Msg::Done(result)) => {
-                        match aitasks::deliver(*result) {
-                            Ok(outcome) => {
-                                let target = previous.as_ref().as_ref().map(|(p, _)| p.clone());
-                                match save(outcome, target, source_path.as_deref(), &target_site) {
-                                    Ok((path, issues, summary)) => {
-                                        dialog.close();
-                                        window::open_document_at_path(path, &ctx);
-                                        window::show_toast(&ctx.toast_overlay, &summary);
-                                        if let Some(window) = window_weak.upgrade() {
-                                            open_review_with(&window, &ctx, issues);
-                                        }
-                                    }
-                                    Err(err) => {
-                                        status.set_label(&tr("Speichern fehlgeschlagen: {err}").replace("{err}", &err.to_string()));
-                                        status.set_visible(true);
-                                        go.set_sensitive(true);
-                                    }
-                                }
-                            }
-                            Err(err) => {
-                                progress.set_visible(false);
-                                status.set_label(&err);
-                                status.set_visible(true);
-                                go.set_sensitive(true);
-                            }
-                        }
-                        return glib::ControlFlow::Break;
-                    }
-                    Err(mpsc::TryRecvError::Empty) => return glib::ControlFlow::Continue,
-                    Err(mpsc::TryRecvError::Disconnected) => {
-                        status.set_label(&tr("Interner Fehler: Übersetzung hat kein Ergebnis geliefert."));
-                        status.set_visible(true);
-                        go.set_sensitive(true);
-                        return glib::ControlFlow::Break;
+            // An original imported from the blog has its featured image
+            // only as a media id of that blog. The translation gets the
+            // file URL instead, which the upload then copies into the
+            // target blog like any other featured image.
+            let result = result.map(|mut outcome| {
+                let fm = &mut outcome.value.document.frontmatter;
+                if previous_doc.is_none() && fm.featured_image.is_none() {
+                    if let (Some(id), Some(url)) = (source_doc.frontmatter.featured_media_id, source_url.as_deref()) {
+                        fm.featured_image = wpclient::public_media_url(url, id).ok();
                     }
                 }
+                outcome
             });
+            let _ = tx.send(Msg::Done(Box::new(result)));
         });
-    }
-    dialog.present(Some(window));
+
+        let go = go.clone();
+        let progress = progress.clone();
+        let status = status.clone();
+        let ctx = ctx.clone();
+        let window_weak = window_weak.clone();
+        let previous = previous.clone();
+        let source_path = source_path.clone();
+        let on_saved = on_saved.clone();
+        glib::timeout_add_local(Duration::from_millis(150), move || loop {
+            match rx.try_recv() {
+                Ok(Msg::Progress(done, total)) => {
+                    if total > 0 {
+                        progress.set_fraction(done as f64 / total as f64);
+                        progress.set_text(Some(&tr("{done} von {total}").replace("{done}", &done.to_string()).replace("{total}", &total.to_string())));
+                    }
+                }
+                Ok(Msg::Done(result)) => {
+                    match aitasks::deliver(*result) {
+                        Ok(outcome) => {
+                            let target = previous.as_ref().as_ref().map(|(p, _)| p.clone());
+                            match save(outcome, target, source_path.as_deref(), &target_site) {
+                                Ok((path, issues, summary)) => {
+                                    on_saved();
+                                    window::open_document_at_path(path, &ctx);
+                                    window::show_toast(&ctx.toast_overlay, &summary);
+                                    if let Some(window) = window_weak.upgrade() {
+                                        open_review_with(&window, &ctx, issues);
+                                    }
+                                }
+                                Err(err) => {
+                                    status.set_label(&tr("Speichern fehlgeschlagen: {err}").replace("{err}", &err.to_string()));
+                                    status.set_visible(true);
+                                    go.set_sensitive(true);
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            progress.set_visible(false);
+                            status.set_label(&err);
+                            status.set_visible(true);
+                            go.set_sensitive(true);
+                        }
+                    }
+                    return glib::ControlFlow::Break;
+                }
+                Err(mpsc::TryRecvError::Empty) => return glib::ControlFlow::Continue,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    status.set_label(&tr("Interner Fehler: Übersetzung hat kein Ergebnis geliefert."));
+                    status.set_visible(true);
+                    go.set_sensitive(true);
+                    return glib::ControlFlow::Break;
+                }
+            }
+        });
+    });
+    Form { widget: widget.upcast(), go }
 }
 
 /// A new library folder for a translation whose original lives outside
@@ -535,7 +656,7 @@ mod tests {
         let article = std::env::var("BLOCKSATZ_LIVE_ARTICLE").expect("BLOCKSATZ_LIVE_ARTICLE");
         let source = document::read(Path::new(&article)).expect("article");
         let system = std::env::var("BLOCKSATZ_PROMPT_FILE").ok().and_then(|p| std::fs::read_to_string(p).ok()).unwrap_or_else(|| translate::DEFAULT_PROMPT.to_string());
-        let opts = Options { source_lang: "de".into(), target_lang: "en".into(), source_site: source_site_of(&source), today: "2026-10-03".into(), translate_tags: true, category_map: "Allgemein = General".into() };
+        let opts = Options { source_lang: "de".into(), target_lang: "en".into(), source_site: source_site_of(&source), today: "2026-10-03".into(), translate_tags: true, category_map: "Allgemein = General".into(), known_tags: Vec::new(), known_categories: Vec::new() };
         let routed = aitasks::run(AiTask::Translation, |client| {
             let send = |system: &str, history: &[ChatMessage]| client.send_with(system, history, &llm::SendOptions::bulk_text()).map_err(|e| e.message);
             translate::translate(&source, None, &opts, &system, &send, &|d, t| eprintln!("{d}/{t}")).map_err(|message| llm::ApiError { message, status: llm::ModelStatus::Other })

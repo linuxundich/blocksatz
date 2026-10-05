@@ -17,8 +17,15 @@ linuxundich.de/en/, but nothing in it is specific to that blog.
   Translations made before (in a folder of their own) are moved next to
   their original on start.
 - **DE · EN** in the header bar (Alt+1 / Alt+2) switches between the two
-  files of a pair at the same section and paragraph; a language without a
-  file yet starts the translation.
+  files of a pair at the same section and paragraph. For a language
+  without a file yet, a start page takes the editor's place: target blog
+  and language (preselected from the blog's address), scope, categories,
+  tags, model and the "Übersetzen" button - or "Original als Entwurf
+  hochladen" while the original isn't on its blog yet.
+- Tags are always translated. Before translating, the target blog's tags
+  and categories are fetched; the model gets the existing tags to reuse,
+  and every tag or category that equals an existing one ignoring case
+  takes that spelling.
 - **The language decides the blog.** A file without `wp_site` uploads to
   the blog of its language: `artikel.md` to the first blog without a
   language path, `artikel.en.md` to the blog whose address ends in `/en`.
@@ -47,9 +54,9 @@ linuxundich.de/en/, but nothing in it is specific to that blog.
    prompt under Einstellungen → KI-Prompts → Übersetzung with your blog's
    voice, conventions and glossary. "Kategorien zuordnen" maps category
    names, one per line: `Allgemein = General`.
-3. Open a post that is on the blog and pick **Übersetzen …** in the main
-   action's menu. Choose the target blog and language; the dialog shows the
-   scope and the model.
+3. Open a post that is on the blog and switch to **EN** in the header bar
+   (Alt+2), or pick **Übersetzen …** in the main action's menu. The start
+   page (or dialog) shows target blog, language, scope and model.
 4. The translation opens in the editor, and **Gegenlesen …** shows original
    and translation side by side with the checks. Correct in the editor,
    then mark it as reviewed.

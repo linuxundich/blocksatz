@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.67.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-05 19:42+0200\n"
+"POT-Creation-Date: 2026-10-05 19:47+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -744,7 +744,7 @@ msgstr ""
 msgid "In den Papierkorb"
 msgstr ""
 
-#: src/blogposts.rs:372 src/window.rs:1297
+#: src/blogposts.rs:372 src/window.rs:1306
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr ""
 
@@ -1350,7 +1350,7 @@ msgid "Volle Größe"
 msgstr ""
 
 #: src/gallerydialog.rs:148 src/settings.rs:31 src/shortcuts.rs:53
-#: src/window.rs:385
+#: src/window.rs:387
 msgid "Einstellungen"
 msgstr ""
 
@@ -1594,8 +1594,8 @@ msgstr ""
 msgid "{site} · nicht erreichbar"
 msgstr ""
 
-#: src/librarysidebar.rs:472 src/mainaction.rs:212 src/window.rs:367
-#: src/window.rs:716 src/window.rs:960
+#: src/librarysidebar.rs:472 src/mainaction.rs:212 src/window.rs:369
+#: src/window.rs:725 src/window.rs:969
 msgid "Unbenannt"
 msgstr ""
 
@@ -2052,7 +2052,7 @@ msgstr ""
 msgid "Shortcode"
 msgstr ""
 
-#: src/markdowncheck.rs:103 src/preview.rs:1481
+#: src/markdowncheck.rs:103 src/preview.rs:1495
 msgid "Abfrage-Loop"
 msgstr ""
 
@@ -2135,7 +2135,7 @@ msgid "Alle Medien"
 msgstr ""
 
 #: src/mediabrowser.rs:34 src/properties.rs:820 src/releasecheck.rs:95
-#: src/releasecheck.rs:98 src/releasecheck.rs:279 src/window.rs:1400
+#: src/releasecheck.rs:98 src/releasecheck.rs:279 src/window.rs:1409
 msgid "Bilder"
 msgstr ""
 
@@ -2151,7 +2151,7 @@ msgstr ""
 msgid "Aktualisieren"
 msgstr ""
 
-#: src/mediabrowser.rs:222 src/shortcuts.rs:36 src/window.rs:381
+#: src/mediabrowser.rs:222 src/shortcuts.rs:36 src/window.rs:383
 msgid "WordPress-Mediathek"
 msgstr ""
 
@@ -2538,147 +2538,147 @@ msgstr ""
 msgid "Bild bearbeiten…"
 msgstr ""
 
-#: src/preview.rs:735
+#: src/preview.rs:749
 msgid "Wiedergabeliste – die Titel erzeugt das Blog"
 msgstr ""
 
-#: src/preview.rs:1447
+#: src/preview.rs:1461
 msgid "Seitenumbruch"
 msgstr ""
 
-#: src/preview.rs:1479
+#: src/preview.rs:1493
 msgid "Neueste Beiträge"
 msgstr ""
 
-#: src/preview.rs:1480
+#: src/preview.rs:1494
 msgid "Neueste Kommentare"
 msgstr ""
 
-#: src/preview.rs:1482
+#: src/preview.rs:1496
 msgid "Archive"
 msgstr ""
 
-#: src/preview.rs:1483 src/taxonomy.rs:33 src/translatedialog.rs:292
+#: src/preview.rs:1497 src/taxonomy.rs:33 src/translatedialog.rs:292
 msgid "Kategorien"
 msgstr ""
 
-#: src/preview.rs:1484
+#: src/preview.rs:1498
 msgid "Schlagwörter-Wolke"
 msgstr ""
 
-#: src/preview.rs:1485
+#: src/preview.rs:1499
 msgid "Kalender"
 msgstr ""
 
-#: src/preview.rs:1486
+#: src/preview.rs:1500
 msgid "Suche"
 msgstr ""
 
-#: src/preview.rs:1487
+#: src/preview.rs:1501
 msgid "Seitenliste"
 msgstr ""
 
-#: src/preview.rs:1488
+#: src/preview.rs:1502
 msgid "Social-Media-Links"
 msgstr ""
 
-#: src/preview.rs:1489
+#: src/preview.rs:1503
 msgid "RSS-Feed"
 msgstr ""
 
-#: src/preview.rs:1490
+#: src/preview.rs:1504
 msgid "Synchronisiertes Muster"
 msgstr ""
 
-#: src/preview.rs:1491
+#: src/preview.rs:1505
 msgid "Inhaltsverzeichnis"
 msgstr ""
 
-#: src/preview.rs:1492
+#: src/preview.rs:1506
 msgid "Werbeplatz"
 msgstr ""
 
-#: src/preview.rs:1493
+#: src/preview.rs:1507
 msgid "Symbol"
 msgstr ""
 
-#: src/preview.rs:1494
+#: src/preview.rs:1508
 msgid "Anmelden/Abmelden"
 msgstr ""
 
-#: src/preview.rs:1495
+#: src/preview.rs:1509
 msgid "Lesezeit"
 msgstr ""
 
-#: src/preview.rs:1496 src/properties.rs:447
+#: src/preview.rs:1510 src/properties.rs:447
 msgid "Autor"
 msgstr ""
 
-#: src/preview.rs:1497
+#: src/preview.rs:1511
 msgid "Kategorien und Schlagwörter"
 msgstr ""
 
-#: src/preview.rs:1498
+#: src/preview.rs:1512
 msgid "Datum"
 msgstr ""
 
-#: src/preview.rs:1499
+#: src/preview.rs:1513
 msgid "Avatar"
 msgstr ""
 
-#: src/preview.rs:1500
+#: src/preview.rs:1514
 msgid "Brotkrümelnavigation"
 msgstr ""
 
-#: src/preview.rs:1501
+#: src/preview.rs:1515
 msgid "Navigation"
 msgstr ""
 
-#: src/preview.rs:1502 src/properties.rs:559
+#: src/preview.rs:1516 src/properties.rs:559
 msgid "Kommentare"
 msgstr ""
 
-#: src/preview.rs:1507 src/preview.rs:1545
+#: src/preview.rs:1521 src/preview.rs:1559
 msgid "{name} – wird vom Blog erzeugt"
 msgstr ""
 
-#: src/preview.rs:1544
+#: src/preview.rs:1558
 msgid "Shortcode [{name}]"
 msgstr ""
 
-#: src/preview.rs:1551
+#: src/preview.rs:1565
 msgid "Weiterlesen"
 msgstr ""
 
-#: src/preview.rs:1565
+#: src/preview.rs:1579
 msgid "Fußnoten"
 msgstr ""
 
-#: src/preview.rs:1580
+#: src/preview.rs:1594
 msgid "YouTube-Video"
 msgstr ""
 
-#: src/preview.rs:1581
+#: src/preview.rs:1595
 msgid "Vimeo-Video"
 msgstr ""
 
-#: src/preview.rs:1586
+#: src/preview.rs:1600
 msgid "Eingebetteter Inhalt"
 msgstr ""
 
-#: src/preview.rs:1799
+#: src/preview.rs:1813
 msgid "Bereits zu WordPress hochgeladen"
 msgstr ""
 
-#: src/preview.rs:1806 src/preview.rs:1807
+#: src/preview.rs:1820 src/preview.rs:1821
 msgid "Alt"
 msgstr ""
 
-#: src/preview.rs:1807
+#: src/preview.rs:1821
 msgid "Bewusst ohne Alternativtext (dekoratives Bild)"
 msgstr ""
 
-#: src/preview.rs:1811
+#: src/preview.rs:1825
 msgid "Bildformat"
 msgstr ""
 
@@ -3068,7 +3068,7 @@ msgstr ""
 msgid "Originalsprache"
 msgstr ""
 
-#: src/shortcuts.rs:42 src/window.rs:315 src/window.rs:425
+#: src/shortcuts.rs:42 src/window.rs:317 src/window.rs:427
 msgid "Editor"
 msgstr ""
 
@@ -3092,7 +3092,7 @@ msgstr ""
 msgid "Suchen und Ersetzen"
 msgstr ""
 
-#: src/shortcuts.rs:53 src/window.rs:386
+#: src/shortcuts.rs:53 src/window.rs:388
 msgid "Tastenkürzel"
 msgstr ""
 
@@ -3591,83 +3591,83 @@ msgstr ""
 msgid "Artikel-Kopf in der Vorschau ein-/ausblenden"
 msgstr ""
 
-#: src/window.rs:316
+#: src/window.rs:318
 msgid "Seitenbereich"
 msgstr ""
 
-#: src/window.rs:373
+#: src/window.rs:375
 msgid "Seitenleiste ein-/ausblenden"
 msgstr ""
 
-#: src/window.rs:382
+#: src/window.rs:384
 msgid "Galerie einfügen…"
 msgstr ""
 
-#: src/window.rs:387
+#: src/window.rs:389
 msgid "Über Blocksatz"
 msgstr ""
 
-#: src/window.rs:391
+#: src/window.rs:393
 msgid "Seitenbereich ein-/ausblenden (F9)"
 msgstr ""
 
-#: src/window.rs:399
+#: src/window.rs:401
 msgid "Fokus-Schreibmodus (Strg+Umschalt+F)"
 msgstr ""
 
-#: src/window.rs:961
+#: src/window.rs:970
 msgid "Unbenannte Seite"
 msgstr ""
 
-#: src/window.rs:1022
+#: src/window.rs:1031
 msgid "{n} Übersetzungen in den Ordner ihres Originals verschoben."
 msgstr ""
 
-#: src/window.rs:1093
+#: src/window.rs:1102
 msgid "Vorhandene Arbeitskopie geöffnet."
 msgstr ""
 
-#: src/window.rs:1137
+#: src/window.rs:1146
 msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
 msgstr ""
 
-#: src/window.rs:1242
+#: src/window.rs:1251
 msgid "Markdown-Datei öffnen"
 msgstr ""
 
-#: src/window.rs:1404
+#: src/window.rs:1413
 msgid "Bild einfügen"
 msgstr ""
 
-#: src/window.rs:1439
+#: src/window.rs:1448
 msgid "Video/Audio einfügen"
 msgstr ""
 
-#: src/window.rs:1533
+#: src/window.rs:1542
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr ""
 
-#: src/window.rs:1640
+#: src/window.rs:1649
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr ""
 
-#: src/window.rs:1649
+#: src/window.rs:1658
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1655
+#: src/window.rs:1664
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr ""
 
-#: src/window.rs:1669 src/window.rs:1683
+#: src/window.rs:1678 src/window.rs:1692
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1687
+#: src/window.rs:1696
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr ""
 
-#: src/window.rs:1692
+#: src/window.rs:1701
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr ""
 

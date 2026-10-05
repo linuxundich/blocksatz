@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   scope, title/slug/excerpt, categories, tags and model, and the button
   that translates - or, while the original isn't on its blog yet, the
   button that uploads it as a draft first.
+- **The other language next to the editor**: while one file of a pair
+  is open, the right-hand pane gets a view named after the other language
+  ("EN" / "DE") that renders it and follows the editor's cursor section by
+  section, with the matching paragraph highlighted.
 - Translating always translates the tags and matches tags and categories
   against the target blog's existing ones (fetched before translating):
   the model is told the existing tags, and a name differing only in case

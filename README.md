@@ -61,7 +61,8 @@ blocks. Implemented so far:
     translation lives next to its original as `artikel.en.md` in the same
     library folder - one sidebar row per article, showing the state of
     each language. The **DE · EN** switch in the header bar (Alt+1 /
-    Alt+2) flips between the two at the same paragraph, and the language
+    Alt+2) flips between the two at the same paragraph, the right-hand
+    pane shows the other language following along, and the language
     decides the blog an upload goes to. Code,
     links and markup stay untouched; "Gegenlesen …" shows original and
     translation side by side with the checks, and only a reviewed

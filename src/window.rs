@@ -10,7 +10,7 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
-    blogposts, blogsync, importer, langswitch, library, librarysidebar, mainaction, markdowncheck, postpane, releasecheck, syncstate, worksave,
+    blogposts, blogsync, counterpart, importer, langswitch, library, librarysidebar, mainaction, markdowncheck, postpane, releasecheck, syncstate, worksave,
     about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
     mediabrowser, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, themestyle, windowstate,
 };
@@ -167,6 +167,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
             let section = match page {
                 "post" => "post",
                 "browser" => "browser",
+                counterpart::PAGE => counterpart::PAGE,
                 "chat" | "evaluate" => "assistant",
                 _ => "preview",
             };
@@ -201,6 +202,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
             let page = match group.active_name().as_deref() {
                 Some("post") => "post".to_string(),
                 Some("browser") => "browser".to_string(),
+                Some(counterpart::PAGE) => counterpart::PAGE.to_string(),
                 Some("assistant") => last_assistant_page.borrow().clone(),
                 _ => last_preview_page.borrow().clone(),
             };
@@ -465,7 +467,8 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
                 // default; that says nothing about the wide-window choice.
                 sidebar_visible: if split_view.is_collapsed() { saved_sidebar } else { split_view.shows_sidebar() },
                 pane_visible: right_pane.is_visible(),
-                pane_page: view_stack.visible_child_name().map(|n| n.to_string()).unwrap_or_else(|| "preview".into()),
+                // The other language's view only exists for a pair.
+                pane_page: view_stack.visible_child_name().map(|n| n.to_string()).filter(|n| n != counterpart::PAGE).unwrap_or_else(|| "preview".into()),
             };
             let _ = windowstate::save(&state);
             glib::Propagation::Proceed
@@ -625,12 +628,18 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     );
     main_action_slot.append(&main_action.button);
     let lang_switch = langswitch::LangSwitch::new(&window, &doc_ctx, &view, &editor_area);
+    // The other language of the pair next to the editor.
+    let counterpart = counterpart::Counterpart::new(&doc_ctx, &view, &editor_scroller, &view_stack, &section_toggles);
+    {
+        let open_in_browser = open_in_browser.clone();
+        counterpart.pane.connect_link_clicked(move |uri| open_in_browser(uri.to_string()));
+    }
     lang_switch_slot.append(&lang_switch.widget);
     toolbar_view.add_top_bar(&main_action.banner);
     // Everything else only holds weak references to it; the window keeps
     // it alive.
     window.connect_destroy(move |_| {
-        let _ = (&main_action, &post_pane, &lang_switch);
+        let _ = (&main_action, &post_pane, &lang_switch, &counterpart);
     });
     blogsync::wire(&window, &doc_ctx);
     // Another blog became active: its categories/tags and sync state.

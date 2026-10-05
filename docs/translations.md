@@ -22,6 +22,10 @@ linuxundich.de/en/, but nothing in it is specific to that blog.
   and language (preselected from the blog's address), scope, categories,
   tags, model and the "Übersetzen" button - or "Original als Entwurf
   hochladen" while the original isn't on its blog yet.
+- The right-hand pane shows **the other language** ("EN" while the
+  original is open, "DE" while the translation is), rendered like the
+  preview and following the editor's cursor section by section; the
+  matching paragraph is highlighted.
 - Tags are always translated. Before translating, the target blog's tags
   and categories are fetched; the model gets the existing tags to reuse,
   and every tag or category that equals an existing one ignoring case

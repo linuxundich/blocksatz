@@ -20,6 +20,7 @@ mod chat;
 mod chatconfig;
 mod chatsettings;
 mod codeview;
+mod counterpart;
 mod compare;
 mod connection;
 mod default_prompt;

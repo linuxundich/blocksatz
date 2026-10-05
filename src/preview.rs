@@ -410,6 +410,20 @@ impl PreviewPane {
     /// `top_t`/`bottom_t` how far (0..1) the editor is into its first/last
     /// screenful, and `total_lines` the buffer's line count (the anchor for
     /// interpolating past the last block). See `render_html`'s `syncTo`.
+    /// Marks the top-level block holding 1-based source `line` with a
+    /// light background (for the other language's view, `counterpart.rs`).
+    pub fn highlight_line(&self, line: i32) {
+        let script = format!(
+            "(function(){{\
+             if(!document.getElementById('sync-current-style')){{const s=document.createElement('style');s.id='sync-current-style';\
+             s.textContent='.sync-current{{background:rgba(53,132,228,.12);border-radius:6px;box-shadow:0 0 0 6px rgba(53,132,228,.12)}}';document.head.appendChild(s);}}\
+             for(const b of document.querySelectorAll('.sync-current'))b.classList.remove('sync-current');\
+             let hit=null;for(const b of document.querySelectorAll('div[data-line]')){{const a=parseInt(b.dataset.line,10);const e=parseInt(b.dataset.lineEnd||a,10);if(a<={line}&&{line}<Math.max(e,a+1)){{hit=b;break;}}}}\
+             if(hit)hit.classList.add('sync-current');}})();"
+        );
+        self.web_view.evaluate_javascript(&script, None, None, gio::Cancellable::NONE, |_| {});
+    }
+
     pub fn sync_to(&self, line: f64, top_t: f64, bottom_t: f64, total_lines: i32) {
         let script = format!("window.syncTo && window.syncTo({line:.4}, {top_t:.4}, {bottom_t:.4}, {total_lines});");
         self.web_view.evaluate_javascript(&script, None, None, gio::Cancellable::NONE, |_| {});

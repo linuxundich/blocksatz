@@ -241,6 +241,21 @@ impl LangSwitch {
     }
 }
 
+/// The 0-based line of `to` that corresponds to 0-based `line` of `from` -
+/// same section, same paragraph (see `position_in`).
+pub(crate) fn map_line(from: &str, line: usize, to: &str) -> usize {
+    let offset: usize = from.split_inclusive('\n').take(line).map(|l| l.chars().count()).sum();
+    let target = offset_of(to, position_in(from, offset));
+    let mut seen = 0;
+    to.split_inclusive('\n')
+        .take_while(|l| {
+            let start = seen;
+            seen += l.chars().count();
+            start < target
+        })
+        .count()
+}
+
 /// Where in an article a character offset is: (number of headings before
 /// it, number of blocks after that heading). Both languages have the same
 /// headings and the same paragraphs, so the pair maps onto the other file.
@@ -334,6 +349,14 @@ mod tests {
         // The start of a paragraph and its second line mean that paragraph.
         assert_eq!(offset_of(EN, position_in(DE, at(DE, "Dritter"))), at(EN, "Third"));
         assert_eq!(offset_of(EN, position_in(DE, at(DE, "zweite Zeile"))), at(EN, "Fourth"));
+    }
+
+    #[test]
+    fn lines_map_onto_the_same_paragraph() {
+        let line_of = |text: &str, needle: &str| text[..text.find(needle).unwrap()].matches('\n').count();
+        assert_eq!(map_line(DE, line_of(DE, "Dritter"), EN), line_of(EN, "Third"));
+        assert_eq!(map_line(DE, line_of(DE, "zweite Zeile"), EN), line_of(EN, "Fourth"));
+        assert_eq!(map_line(DE, 0, EN), 0);
     }
 
     #[test]

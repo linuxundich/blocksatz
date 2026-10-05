@@ -370,8 +370,49 @@ impl MainAction {
         }
     }
 
-    /// Uploads the open article with `target`'s status.
+    /// Uploads the open article with `target`'s status - after asking, if
+    /// its text reads like another language than the target blog's (a
+    /// German text on its way to the English blog, or the other way).
     fn upload(&self, target: TargetStatus, preview_after: bool) {
+        let Some(window) = self.window.upgrade() else { return };
+        let site = self.site();
+        let expected = wpsite::site_lang(&site).unwrap_or_else(|| "de".to_string());
+        let found = crate::translate::detect_language(&self.ctx.current_document().body);
+        let Some(found) = found.filter(|found| *found != expected) else {
+            self.upload_now(target, preview_after);
+            return;
+        };
+        let name = |lang: &str| match lang {
+            "de" => tr("Deutsch"),
+            "en" => tr("Englisch"),
+            other => other.to_uppercase(),
+        };
+        let alert = adw::AlertDialog::builder()
+            .heading(tr("Falsche Sprache für diesen Blog?"))
+            .body(
+                tr("Der Text sieht nach {found} aus, geht aber an {site}, einen Blog auf {expected}.")
+                    .replace("{found}", &name(found))
+                    .replace("{site}", &site.site_id())
+                    .replace("{expected}", &name(&expected)),
+            )
+            .build();
+        alert.add_response("cancel", &tr("Abbrechen"));
+        alert.add_response("upload", &tr("Trotzdem hochladen"));
+        alert.set_response_appearance("upload", adw::ResponseAppearance::Destructive);
+        alert.set_default_response(Some("cancel"));
+        alert.set_close_response("cancel");
+        let weak = self.weak.clone();
+        alert.connect_response(None, move |_, response| {
+            if response == "upload" {
+                if let Some(this) = weak.upgrade() {
+                    this.upload_now(target, preview_after);
+                }
+            }
+        });
+        alert.present(Some(&window));
+    }
+
+    fn upload_now(&self, target: TargetStatus, preview_after: bool) {
         let Some(window) = self.window.upgrade() else { return };
         // The working copy needs a file before the upload can record its
         // post id in it.

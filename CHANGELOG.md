@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   is open, the right-hand pane gets a view named after the other language
   ("EN" / "DE") that renders it and follows the editor's cursor section by
   section, with the matching paragraph highlighted.
+- **Language check before every upload**: when the text reads like
+  another language than the target blog's (German going to the blog at
+  `/en`, or English to the main blog), Blocksatz asks before uploading.
 - Translating always translates the tags and matches tags and categories
   against the target blog's existing ones (fetched before translating):
   the model is told the existing tags, and a name differing only in case

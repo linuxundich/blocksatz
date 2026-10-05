@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.67.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-05 19:47+0200\n"
+"POT-Creation-Date: 2026-10-05 19:49+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -173,9 +173,9 @@ msgid ""
 msgstr ""
 
 #: src/aimenu.rs:188 src/blogposts.rs:385 src/export.rs:202
-#: src/gallerydialog.rs:154 src/mainaction.rs:649 src/mainaction.rs:705
-#: src/markdowncheck.rs:162 src/mediabrowser.rs:554 src/releasecheck.rs:193
-#: src/taxonomy.rs:352 src/taxonomy.rs:666
+#: src/gallerydialog.rs:154 src/mainaction.rs:399 src/mainaction.rs:690
+#: src/mainaction.rs:746 src/markdowncheck.rs:162 src/mediabrowser.rs:554
+#: src/releasecheck.rs:193 src/taxonomy.rs:352 src/taxonomy.rs:666
 msgid "Abbrechen"
 msgstr ""
 
@@ -907,11 +907,11 @@ msgstr ""
 msgid "− nur im Blog · + nur hier"
 msgstr ""
 
-#: src/compare.rs:105 src/mainaction.rs:651
+#: src/compare.rs:105 src/mainaction.rs:692
 msgid "Blog-Fassung übernehmen"
 msgstr ""
 
-#: src/compare.rs:120 src/mainaction.rs:652
+#: src/compare.rs:120 src/mainaction.rs:693
 msgid "Meine Fassung behalten"
 msgstr ""
 
@@ -1611,7 +1611,7 @@ msgstr ""
 msgid "Im Blog gelöscht"
 msgstr ""
 
-#: src/librarysidebar.rs:526 src/mainaction.rs:730
+#: src/librarysidebar.rs:526 src/mainaction.rs:771
 msgid "Nur lokal"
 msgstr ""
 
@@ -1937,82 +1937,104 @@ msgstr ""
 msgid "Wird hochgeladen …"
 msgstr ""
 
-#: src/mainaction.rs:411
+#: src/mainaction.rs:386
+msgid "Deutsch"
+msgstr ""
+
+#: src/mainaction.rs:387 src/translatedialog.rs:29
+msgid "Englisch"
+msgstr ""
+
+#: src/mainaction.rs:391
+msgid "Falsche Sprache für diesen Blog?"
+msgstr ""
+
+#: src/mainaction.rs:393
+msgid ""
+"Der Text sieht nach {found} aus, geht aber an {site}, einen Blog auf "
+"{expected}."
+msgstr ""
+
+#: src/mainaction.rs:400
+msgid "Trotzdem hochladen"
+msgstr ""
+
+#: src/mainaction.rs:452
 msgid "Als Entwurf hochgeladen."
 msgstr ""
 
-#: src/mainaction.rs:412
+#: src/mainaction.rs:453
 msgid "Zur Prüfung eingereicht."
 msgstr ""
 
-#: src/mainaction.rs:413
+#: src/mainaction.rs:454
 msgid "Veröffentlicht."
 msgstr ""
 
-#: src/mainaction.rs:414
+#: src/mainaction.rs:455
 msgid "Geplant."
 msgstr ""
 
-#: src/mainaction.rs:415
+#: src/mainaction.rs:456
 msgid "Aktualisiert."
 msgstr ""
 
-#: src/mainaction.rs:458
+#: src/mainaction.rs:499
 msgid "Vorschau nicht verfügbar: {err}"
 msgstr ""
 
-#: src/mainaction.rs:470
+#: src/mainaction.rs:511
 msgid "Noch nicht im Blog – erst als Entwurf hochladen."
 msgstr ""
 
-#: src/mainaction.rs:505
+#: src/mainaction.rs:546
 msgid ""
 "Vorschau fehlgeschlagen. Bist du im Browser-Tab bei WordPress angemeldet?"
 msgstr ""
 
-#: src/mainaction.rs:569 src/mainaction.rs:617
+#: src/mainaction.rs:610 src/mainaction.rs:658
 msgid "Laden fehlgeschlagen: {err}"
 msgstr ""
 
-#: src/mainaction.rs:600
+#: src/mainaction.rs:641
 msgid "Blog-Fassung geladen."
 msgstr ""
 
-#: src/mainaction.rs:646
+#: src/mainaction.rs:687
 msgid "Welche Fassung soll gelten?"
 msgstr ""
 
-#: src/mainaction.rs:647
+#: src/mainaction.rs:688
 msgid ""
 "Der Beitrag wurde im Blog geändert, nachdem du ihn zuletzt abgeglichen hast, "
 "und du hast hier weitergeschrieben."
 msgstr ""
 
-#: src/mainaction.rs:650
+#: src/mainaction.rs:691
 msgid "Vergleichen …"
 msgstr ""
 
-#: src/mainaction.rs:699
+#: src/mainaction.rs:740
 msgid "Verknüpfung gelöst. Der Artikel ist jetzt nur lokal."
 msgstr ""
 
-#: src/mainaction.rs:738
+#: src/mainaction.rs:779
 msgid "im Blog gelöscht"
 msgstr ""
 
-#: src/mainaction.rs:739
+#: src/mainaction.rs:780
 msgid "Konflikt"
 msgstr ""
 
-#: src/mainaction.rs:740
+#: src/mainaction.rs:781
 msgid "im Blog geändert"
 msgstr ""
 
-#: src/mainaction.rs:741
+#: src/mainaction.rs:782
 msgid "Änderungen nicht online"
 msgstr ""
 
-#: src/mainaction.rs:742
+#: src/mainaction.rs:783
 msgid "nicht hochgeladen"
 msgstr ""
 
@@ -3321,10 +3343,6 @@ msgid "Interner Fehler: kein Ergebnis vom Erstellen-Thread."
 msgstr ""
 
 #: src/translatedialog.rs:29
-msgid "Englisch"
-msgstr ""
-
-#: src/translatedialog.rs:29
 msgid "Französisch"
 msgstr ""
 
@@ -3539,31 +3557,31 @@ msgstr ""
 msgid "{p} kommt {n}-mal vor"
 msgstr ""
 
-#: src/translate.rs:469
+#: src/translate.rs:494
 msgid "Code, Links oder Auszeichnungen weichen vom Original ab."
 msgstr ""
 
-#: src/translate.rs:472
+#: src/translate.rs:497
 msgid "Fehlt: {list}"
 msgstr ""
 
-#: src/translate.rs:476
+#: src/translate.rs:501
 msgid "Zusätzlich: {list}"
 msgstr ""
 
-#: src/translate.rs:484
+#: src/translate.rs:509
 msgid "Überschriften: {a} im Original, {b} in der Übersetzung."
 msgstr ""
 
-#: src/translate.rs:490
+#: src/translate.rs:515
 msgid "Abschnitt enthält noch {n} Wörter, die nach Original-Sprache aussehen."
 msgstr ""
 
-#: src/translate.rs:691
+#: src/translate.rs:716
 msgid "Die Antwort für Titel und Auszug war kein gültiges JSON."
 msgstr ""
 
-#: src/translate.rs:762
+#: src/translate.rs:787
 msgid "Hinweis des Modells: {note}"
 msgstr ""
 

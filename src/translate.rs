@@ -443,6 +443,31 @@ fn heading_count(text: &str) -> usize {
 
 const SOURCE_MARKERS_DE: &[&str] = &["und", "der", "die", "das", "nicht", "mit", "für", "ist", "ein", "eine", "auch", "oder", "wird", "sind", "auf", "sich", "dem", "den", "ich", "ihr", "euch"];
 
+const MARKERS_EN: &[&str] = &["the", "and", "of", "to", "is", "with", "for", "you", "that", "this", "are", "it", "on", "your", "be", "can", "not", "or", "which", "from"];
+
+/// The language an article body is written in - `"de"` or `"en"`, judged
+/// by common function words outside code, links and markup; `None` when
+/// the text is too short or too mixed to tell.
+pub fn detect_language(body: &str) -> Option<&'static str> {
+    let masked = mask(body).text;
+    let (mut de, mut en) = (0usize, 0usize);
+    for word in masked.split(|c: char| !c.is_alphabetic()).filter(|w| !w.is_empty()) {
+        let lower = word.to_lowercase();
+        if SOURCE_MARKERS_DE.contains(&lower.as_str()) {
+            de += 1;
+        } else if MARKERS_EN.contains(&lower.as_str()) {
+            en += 1;
+        }
+    }
+    if de >= 8 && de >= en * 3 {
+        Some("de")
+    } else if en >= 8 && en >= de * 3 {
+        Some("en")
+    } else {
+        None
+    }
+}
+
 /// Words in `text` (with placeholders, i.e. without code) that look like
 /// the source language left untranslated - only German for now.
 fn leftover_score(masked: &str, source_lang: &str) -> usize {
@@ -904,6 +929,17 @@ mod tests {
         assert_eq!(notes, vec!["[CHECK: menu label]", "Pun not carried over"]);
         let (text, notes) = split_notes("A\n\n---\n\nB\n");
         assert_eq!((text.as_str(), notes.len()), ("A\n\n---\n\nB\n", 0));
+    }
+
+    #[test]
+    fn the_language_of_a_body_is_recognized() {
+        let de = "Wer ein Notebook von TUXEDO besitzt, der kennt das Control Center. Über die App legt ihr fest, wie schnell der Prozessor taktet und welches Profil gilt. Das ist auch unter GNOME nicht anders, und die Erweiterung ist für euch gedacht.";
+        let en = "If you own a TUXEDO notebook, you know the Control Center. With the app you decide how fast the processor runs and which profile is used. This is not different on GNOME, and the extension is for you and your desktop.";
+        assert_eq!(detect_language(de), Some("de"));
+        assert_eq!(detect_language(en), Some("en"));
+        assert_eq!(detect_language("Kurz."), None);
+        // Code doesn't count.
+        assert_eq!(detect_language(&format!("{de}\n\n```sh\nthe and of to is with for you that this are it on\n```\n")), Some("de"));
     }
 
     #[test]

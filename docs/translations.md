@@ -26,6 +26,10 @@ linuxundich.de/en/, but nothing in it is specific to that blog.
   original is open, "DE" while the translation is), rendered like the
   preview and following the editor's cursor section by section; the
   matching paragraph is highlighted.
+- Before **every upload** the text's language (German or English, judged
+  by common words outside code) is compared with the target blog's; a
+  mismatch asks "Falsche Sprache für diesen Blog?" before anything is
+  sent.
 - Tags are always translated. Before translating, the target blog's tags
   and categories are fetched; the model gets the existing tags to reuse,
   and every tag or category that equals an existing one ignoring case

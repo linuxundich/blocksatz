@@ -217,7 +217,8 @@ impl MainAction {
             match self.original_changed.get() {
                 (cached, value) if cached == generation => value,
                 _ => {
-                    let value = crate::translatedialog::original_changed(&doc);
+                    let path = self.ctx.current_path.borrow().clone();
+                    let value = crate::translatedialog::original_changed(&doc, path.as_deref());
                     self.original_changed.set((generation, value));
                     value
                 }
@@ -278,14 +279,16 @@ impl MainAction {
         add("review", MainAction::review);
         add("open-original", |this| {
             let doc = this.ctx.current_document();
-            match crate::translatedialog::find_original(&doc) {
+            let path = this.ctx.current_path.borrow().clone();
+            match crate::translatedialog::find_original(&doc, path.as_deref()) {
                 Some((path, _)) => window::open_document_at_path(path, &this.ctx),
                 None => window::show_toast(&this.ctx.toast_overlay, &tr("Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort zuerst aus dem Blog.")),
             }
         });
         add("open-translation", |this| {
             let doc = this.ctx.current_document();
-            match crate::translatedialog::find_translation(&doc) {
+            let path = this.ctx.current_path.borrow().clone();
+            match crate::translatedialog::find_translation(&doc, path.as_deref()) {
                 Some((path, _)) => window::open_document_at_path(path, &this.ctx),
                 None => window::show_toast(&this.ctx.toast_overlay, &tr("Zu diesem Beitrag gibt es noch keine Übersetzung.")),
             }

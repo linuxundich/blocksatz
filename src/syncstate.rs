@@ -43,6 +43,7 @@ pub fn fingerprint(doc: &Document) -> String {
         wp_synced_hash: None,
         wp_synced_at: None,
         wp_pending_create: None,
+        lang: None,
         featured_media_id: None,
         media: Vec::new(),
         // A local notice (`markdowncheck.rs`), never sent.

@@ -698,8 +698,9 @@ pub(crate) fn subtitle_for(path: Option<&Path>, frontmatter: &Frontmatter) -> St
     if !frontmatter.title.is_empty() {
         return frontmatter.title.clone();
     }
-    // Every library article is called `artikel.md`; its folder says more.
-    let name_source = path.map(|p| if p.file_name().is_some_and(|n| n == library::ARTICLE_FILE) { p.parent().unwrap_or(p) } else { p });
+    // Every library article is called `artikel.md` (or `artikel.en.md`);
+    // its folder says more.
+    let name_source = path.map(|p| if library::file_lang(p).is_some() { p.parent().unwrap_or(p) } else { p });
     name_source
         .and_then(Path::file_name)
         .map(|n| n.to_string_lossy().to_string())
@@ -1006,6 +1007,11 @@ fn wire_library(window: &adw::ApplicationWindow, ctx: &DocContext, split_view: &
             hide_if_overlay();
         })
     };
+    // Translations from before language pairs move next to their original.
+    let migrated = library::migrate_translations(&library::root());
+    if migrated > 0 {
+        show_toast(&ctx.toast_overlay, &tr("{n} Übersetzungen in den Ordner ihres Originals verschoben.").replace("{n}", &migrated.to_string()));
+    }
     let sidebar = librarysidebar::LibrarySidebar::new(
         window,
         ctx,

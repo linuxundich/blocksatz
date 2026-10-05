@@ -292,7 +292,9 @@ impl LibrarySidebar {
     /// not touched). Closes it first if it's the open one.
     fn remove_entry(&self, window: &adw::ApplicationWindow, path: &Path) {
         let Some(dir) = path.parent() else { return };
-        if self.ctx.current_path.borrow().as_deref() == Some(path) {
+        // Either language of the pair being open counts.
+        let open = self.ctx.current_path.borrow().as_deref().and_then(Path::parent) == Some(dir);
+        if open {
             let _ = WidgetExt::activate_action(window, "win.new", None);
         }
         let name = dir.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
@@ -303,34 +305,39 @@ impl LibrarySidebar {
         self.reload();
     }
 
-    /// Rebuilds "In Arbeit" from disk.
+    /// Rebuilds "In Arbeit" from disk: one row per library folder, i.e.
+    /// per language pair (`library::Pair`).
     pub fn reload(&self) {
         let root = library::root();
         let current = self.ctx.current_path.borrow().clone();
+        let current_dir = current.as_deref().and_then(Path::parent).map(Path::to_path_buf);
         let now = glib::DateTime::now_utc().ok();
         let active_site = wpsite::load().site_id();
-        let mut entries: Vec<(library::Entry, std::time::SystemTime)> = library::scan(&root)
+        let mut pairs: Vec<(library::Pair, std::time::SystemTime)> = library::scan_pairs(&root)
             .into_iter()
-            .filter(|entry| Some(&entry.path) == current.as_ref() || !now.as_ref().is_some_and(|now| library::is_retired(&entry.document, now)))
-            // The active blog's working copies and the local-only ones.
-            .filter(|entry| Some(&entry.path) == current.as_ref() || entry.document.frontmatter.wp_site.as_deref().is_none_or(|site| site == active_site))
-            .map(|entry| {
-                let modified = std::fs::metadata(&entry.path).and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH);
-                (entry, modified)
+            .filter(|pair| {
+                let open = Some(&pair.dir) == current_dir.as_ref();
+                // Retired once every language is; shown when one of its
+                // files belongs to the active blog (or is local only).
+                open || (!pair.files.iter().all(|e| now.as_ref().is_some_and(|now| library::is_retired(&e.document, now)))
+                    && pair.files.iter().any(|e| e.document.frontmatter.wp_site.as_deref().is_none_or(|site| site == active_site || pair.original().is_some_and(|o| o.document.frontmatter.wp_site.as_deref().is_none_or(|s| s == active_site)))))
+            })
+            .map(|pair| {
+                let modified = pair.files.iter().filter_map(|e| std::fs::metadata(&e.path).and_then(|m| m.modified()).ok()).max().unwrap_or(std::time::UNIX_EPOCH);
+                (pair, modified)
             })
             .collect();
-        entries.sort_by_key(|(_, modified)| std::cmp::Reverse(*modified));
+        pairs.sort_by_key(|(_, modified)| std::cmp::Reverse(*modified));
 
         self.work.remove_all();
         let mut items = Vec::new();
-        for (entry, _) in entries {
-            // The open article's row reflects the editor, not the file,
-            // which can be up to one save interval behind.
-            let document = if Some(&entry.path) == current.as_ref() { self.ctx.current_document() } else { entry.document };
+        for (pair, _) in pairs {
+            // A click opens the language that's open now, else the original.
+            let path = current.clone().filter(|c| c.parent() == Some(pair.dir.as_path())).unwrap_or_else(|| pair.primary().path.clone());
             let item = adw::SidebarItem::new("");
-            apply(&item, &entry.path, &document, &self.ctx.remote_for(&document.frontmatter));
+            self.apply_pair(&item, &pair.dir, &path);
             self.work.append(item.clone());
-            items.push((entry.path, item));
+            items.push((path, item));
         }
         if items.is_empty() {
             let placeholder = adw::SidebarItem::new(&tr("Noch keine Artikel"));
@@ -341,14 +348,34 @@ impl LibrarySidebar {
         self.sync_selection();
     }
 
+    /// Fills the row of the folder `dir`; `path` is the file it opens. The
+    /// open file's state comes from the editor, not from disk, which can be
+    /// up to one save interval behind.
+    fn apply_pair(&self, item: &adw::SidebarItem, dir: &Path, path: &Path) {
+        let current = self.ctx.current_path.borrow().clone();
+        let mut files: Vec<(PathBuf, Document)> = library::read_pair(dir).map(|pair| pair.files.into_iter().map(|e| (e.path, e.document)).collect()).unwrap_or_default();
+        for (file, document) in &mut files {
+            if Some(&*file) == current.as_ref() {
+                *document = self.ctx.current_document();
+            }
+        }
+        if !files.iter().any(|(f, _)| f == path) && Some(path) == current.as_deref() {
+            files.push((path.to_path_buf(), self.ctx.current_document()));
+        }
+        let remotes: Vec<Remote> = files.iter().map(|(_, d)| self.ctx.remote_for(&d.frontmatter)).collect();
+        apply(item, path, &files, &remotes);
+    }
+
     /// Updates the open article's row after an edit or upload.
     fn update_current(&self) {
         let Some(path) = self.ctx.current_path.borrow().clone() else { return };
-        let item = self.work_items.borrow().iter().find(|(p, _)| *p == path).map(|(_, i)| i.clone());
+        let item = self.work_items.borrow().iter().find(|(p, _)| p.parent() == path.parent()).map(|(_, i)| i.clone());
         match item {
             Some(item) => {
-                let document = self.ctx.current_document();
-                apply(&item, &path, &document, &self.ctx.remote_for(&document.frontmatter));
+                if let Some(entry) = self.work_items.borrow_mut().iter_mut().find(|(_, i)| *i == item) {
+                    entry.0 = path.clone();
+                }
+                self.apply_pair(&item, path.parent().unwrap_or(&path), &path);
             }
             None if library::contains(&library::root(), &path) => self.reload(),
             None => {}
@@ -372,7 +399,8 @@ impl LibrarySidebar {
             Some(filter) => self.blog_items.iter().find(|(f, _)| *f == filter).map(|(_, item)| item.clone()),
             None => {
                 let current = self.ctx.current_path.borrow().clone();
-                self.work_items.borrow().iter().find(|(p, _)| Some(p) == current.as_ref()).map(|(_, item)| item.clone())
+                let dir = current.as_deref().and_then(Path::parent);
+                self.work_items.borrow().iter().find(|(p, _)| dir.is_some() && p.parent() == dir).map(|(_, item)| item.clone())
             }
         };
         let index = selected.map(|item| item.index()).unwrap_or(gtk4::INVALID_LIST_POSITION);
@@ -433,20 +461,41 @@ impl LibrarySidebar {
     }
 }
 
-/// Fills a row from an article: title, status subtitle, sync suffix.
-fn apply(item: &adw::SidebarItem, path: &Path, doc: &Document, remote: &Remote) {
-    let title = library::title_hint(doc)
+/// Fills a row from a language pair: the original's title, the status of
+/// each language ("DE Veröffentlicht · EN Entwurf") - or just the status
+/// when there's no translation - and a sync suffix when any of them has
+/// something to do.
+fn apply(item: &adw::SidebarItem, path: &Path, files: &[(PathBuf, Document)], remotes: &[Remote]) {
+    let shown = files.iter().find(|(f, _)| library::file_lang(f) == Some(None)).or_else(|| files.iter().find(|(f, _)| f == path)).or(files.first());
+    let title = shown
+        .and_then(|(_, d)| library::title_hint(d))
         .or_else(|| path.parent().and_then(Path::file_name).map(|n| n.to_string_lossy().to_string()))
         .unwrap_or_else(|| tr("Unbenannt"));
     item.set_title(Some(&title));
-    let state = syncstate::state(doc, remote);
-    item.set_subtitle(Some(&status_text(doc, state.status)));
+    let states: Vec<_> = files.iter().zip(remotes).map(|((_, d), r)| syncstate::state(d, r)).collect();
+    let subtitle = if files.len() > 1 {
+        files
+            .iter()
+            .zip(&states)
+            .map(|((f, d), state)| format!("{} {}", lang_label(f, d), status_text(d, state.status)))
+            .collect::<Vec<_>>()
+            .join(" · ")
+    } else {
+        files.first().zip(states.first()).map(|((_, d), state)| status_text(d, state.status)).unwrap_or_default()
+    };
+    item.set_subtitle(Some(&subtitle));
     item.set_icon_name(Some("text-x-generic-symbolic"));
-    let suffix = match state.sync {
-        SyncState::LocalChanges => Some(("document-send-symbolic", tr("Änderungen noch nicht hochgeladen"))),
-        SyncState::Conflict | SyncState::RemoteChanged => Some(("dialog-warning-symbolic", tr("Im Blog geändert"))),
-        SyncState::RemoteGone => Some(("dialog-warning-symbolic", tr("Im Blog gelöscht"))),
-        SyncState::LocalOnly | SyncState::InSync => None,
+    let worst = states.iter().map(|s| s.sync).max_by_key(|sync| match sync {
+        SyncState::RemoteGone => 4,
+        SyncState::Conflict | SyncState::RemoteChanged => 3,
+        SyncState::LocalChanges => 2,
+        SyncState::LocalOnly | SyncState::InSync => 0,
+    });
+    let suffix = match worst {
+        Some(SyncState::LocalChanges) => Some(("document-send-symbolic", tr("Änderungen noch nicht hochgeladen"))),
+        Some(SyncState::Conflict | SyncState::RemoteChanged) => Some(("dialog-warning-symbolic", tr("Im Blog geändert"))),
+        Some(SyncState::RemoteGone) => Some(("dialog-warning-symbolic", tr("Im Blog gelöscht"))),
+        _ => None,
     };
     match suffix {
         Some((icon, tooltip)) => {
@@ -457,7 +506,19 @@ fn apply(item: &adw::SidebarItem, path: &Path, doc: &Document, remote: &Remote) 
         }
         None => item.set_suffix(gtk4::Widget::NONE),
     }
-    item.set_tooltip(Some(&glib::markup_escape_text(&path.display().to_string())));
+    let dir = path.parent().unwrap_or(path);
+    item.set_tooltip(Some(&glib::markup_escape_text(&dir.display().to_string())));
+}
+
+/// "DE", "EN" ...: a file's language - its `lang`, else what its name
+/// says, else the original's default.
+fn lang_label(path: &Path, doc: &Document) -> String {
+    doc.frontmatter
+        .lang
+        .clone()
+        .or_else(|| library::file_lang(path).flatten())
+        .unwrap_or_else(|| "de".to_string())
+        .to_uppercase()
 }
 
 /// "Nur lokal", "Entwurf", "Geplant · 2026-10-03 08:00", ...

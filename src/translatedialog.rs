@@ -1,10 +1,11 @@
 //! "Übersetzen …" and "Gegenlesen …" (`docs/translations.md`): the dialogs
 //! around `translate.rs`.
 //!
-//! A translation is an ordinary working copy in a library folder of its
-//! own, tied to the other blog through `Frontmatter::wp_site` and to its
-//! original through `Frontmatter::translation`. Everything else - autosave,
-//! upload, sync state - works on it like on any other article.
+//! A translation is an ordinary working copy next to its original, as
+//! `artikel.<lang>.md` in the same library folder (`library::Pair`), tied
+//! to the other blog through `Frontmatter::wp_site` and to its original
+//! through `Frontmatter::translation`. Everything else - autosave, upload,
+//! sync state - works on it like on any other article.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -32,8 +33,15 @@ fn source_site_of(doc: &Document) -> String {
     doc.frontmatter.wp_site.clone().unwrap_or_else(|| wpsite::load().site_id())
 }
 
-/// The library working copy translating `original`, if there is one.
-pub fn find_translation(original: &Document) -> Option<(PathBuf, Document)> {
+/// The working copy translating `original` (at `path`, if known): the
+/// translation file next to it, else one elsewhere in the library.
+pub fn find_translation(original: &Document, path: Option<&Path>) -> Option<(PathBuf, Document)> {
+    if let Some(path) = path.filter(|p| library::file_lang(p) == Some(None)) {
+        let pair = path.parent().and_then(library::read_pair);
+        if let Some(entry) = pair.and_then(|pair| pair.files.into_iter().find(|e| e.document.frontmatter.translation.is_some())) {
+            return Some((entry.path, entry.document));
+        }
+    }
     let post_id = original.frontmatter.wp_post_id?;
     let site = source_site_of(original);
     library::scan(&library::root())
@@ -42,9 +50,15 @@ pub fn find_translation(original: &Document) -> Option<(PathBuf, Document)> {
         .map(|entry| (entry.path, entry.document))
 }
 
-/// The library working copy a translation was made from, if it's there.
-pub fn find_original(translation: &Document) -> Option<(PathBuf, Document)> {
+/// The working copy a translation (at `path`, if known) was made from:
+/// `artikel.md` next to it, else the library copy of its source post.
+pub fn find_original(translation: &Document, path: Option<&Path>) -> Option<(PathBuf, Document)> {
     let link = translation.frontmatter.translation.as_ref()?;
+    if let Some(original) = path.filter(|p| library::file_lang(p).is_some_and(|l| l.is_some())).and_then(|p| library::sibling(p, None)) {
+        if let Ok(doc) = document::read(&original) {
+            return Some((original, doc));
+        }
+    }
     let path = library::find_by_post_id(&library::root(), &link.source_site, link.source_id)?;
     let doc = document::read(&path).ok()?;
     Some((path, doc))
@@ -52,9 +66,9 @@ pub fn find_original(translation: &Document) -> Option<(PathBuf, Document)> {
 
 /// Whether the original changed since `translation` was made - `None` when
 /// it isn't a translation or the original isn't in the library.
-pub fn original_changed(translation: &Document) -> Option<bool> {
+pub fn original_changed(translation: &Document, path: Option<&Path>) -> Option<bool> {
     let link = translation.frontmatter.translation.as_ref()?;
-    let (_, original) = find_original(translation)?;
+    let (_, original) = find_original(translation, path)?;
     Some(syncstate::fingerprint(&original) != link.source_hash)
 }
 
@@ -81,7 +95,7 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
 
     // (original, its path, previous translation and its path)
     let (source, source_path, previous) = if current.frontmatter.translation.is_some() {
-        match find_original(&current) {
+        match find_original(&current, current_path.as_deref()) {
             Some((path, original)) => (original, Some(path), current_path.map(|p| (p, current.clone()))),
             None => {
                 window::show_toast(&ctx.toast_overlay, &tr("Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort zuerst aus dem Blog."));
@@ -89,7 +103,7 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
             }
         }
     } else {
-        let previous = find_translation(&current);
+        let previous = find_translation(&current, current_path.as_deref());
         (current.clone(), current_path, previous)
     };
 
@@ -317,32 +331,48 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext) {
     dialog.present(Some(window));
 }
 
-/// Writes the result: into the existing translation, or into a new
-/// library folder (with copies of the images that aren't uploaded yet).
+/// A new library folder for a translation whose original lives outside
+/// the library, with copies of the images that aren't uploaded yet.
+fn new_folder_with_media(document: &Document, source_path: Option<&Path>) -> std::io::Result<PathBuf> {
+    let path = library::create_entry(&library::root(), Some(&document.frontmatter.title), &library::untitled_name())?;
+    if let (Some(from_dir), Some(to_dir)) = (source_path.and_then(Path::parent), path.parent()) {
+        let mut files: Vec<String> = Vec::new();
+        if let Some(source) = source_path.and_then(|p| document::read(p).ok()) {
+            files.extend(translate::local_media(&source));
+        }
+        files.extend(document.frontmatter.featured_image.iter().filter(|f| !f.contains("://")).cloned());
+        for file in files {
+            let from = from_dir.join(&file);
+            if from.is_file() {
+                if let Some(parent) = to_dir.join(&file).parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::copy(&from, to_dir.join(&file))?;
+            }
+        }
+    }
+    Ok(path)
+}
+
+/// Writes the result: into the existing translation, else next to the
+/// original as `artikel.<lang>.md` - or, for an original outside the
+/// library, into a new library folder with copies of the images that
+/// aren't uploaded yet.
 fn save(outcome: Outcome, existing: Option<PathBuf>, source_path: Option<&Path>, target_site: &str) -> std::io::Result<(PathBuf, Vec<Issue>, String)> {
     let Outcome { mut document, issues, translated_sections, reused_sections } = outcome;
+    let lang = document.frontmatter.translation.as_ref().map(|t| t.lang.clone()).filter(|l| !l.is_empty());
+    if document.frontmatter.lang.is_none() {
+        document.frontmatter.lang = lang.clone();
+    }
+    let root = library::root();
     let path = match existing {
         Some(path) => path,
         None => {
             document.frontmatter.wp_site = Some(target_site.to_string());
-            let path = library::create_entry(&library::root(), Some(&document.frontmatter.title), &library::untitled_name())?;
-            if let (Some(from_dir), Some(to_dir)) = (source_path.and_then(Path::parent), path.parent()) {
-                let mut files: Vec<String> = Vec::new();
-                if let Ok(source) = document::read(source_path.expect("checked above")) {
-                    files.extend(translate::local_media(&source));
-                }
-                files.extend(document.frontmatter.featured_image.iter().filter(|f| !f.contains("://")).cloned());
-                for file in files {
-                    let from = from_dir.join(&file);
-                    if from.is_file() {
-                        if let Some(parent) = to_dir.join(&file).parent() {
-                            std::fs::create_dir_all(parent)?;
-                        }
-                        std::fs::copy(&from, to_dir.join(&file))?;
-                    }
-                }
+            match source_path.filter(|p| library::contains(&root, p) && library::file_lang(p) == Some(None)) {
+                Some(original) => library::sibling(original, Some(lang.as_deref().unwrap_or("en"))).expect("library file has a folder"),
+                None => new_folder_with_media(&document, source_path)?,
             }
-            path
         }
     };
     document::write(&path, &document)?;
@@ -368,7 +398,8 @@ fn open_review_with(window: &adw::ApplicationWindow, ctx: &DocContext, extra_iss
         window::show_toast(&ctx.toast_overlay, &tr("Das ist keine Übersetzung."));
         return;
     };
-    let Some((_, original)) = find_original(&translation) else {
+    let path = ctx.current_path.borrow().clone();
+    let Some((_, original)) = find_original(&translation, path.as_deref()) else {
         window::show_toast(&ctx.toast_overlay, &tr("Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort zuerst aus dem Blog."));
         return;
     };

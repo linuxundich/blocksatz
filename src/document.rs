@@ -216,6 +216,10 @@ pub struct Frontmatter {
     /// after WordPress had already created the post; `export.rs` then
     /// looks for that post before creating another one.
     pub wp_pending_create: Option<String>,
+    /// Language of this file of a language pair, e.g. `en` - `None` for
+    /// the original in the blog's own language (`library.rs`). The upload
+    /// checks it against the target blog.
+    pub lang: Option<String>,
     /// The WordPress media id of the post's *current* featured image, when
     /// the document was opened from an existing post (`importer.rs`) - not
     /// user-editable. `featured_image` is a local path to *upload as a new*
@@ -357,6 +361,7 @@ pub fn parse(input: &str) -> Document {
         let value = value.trim();
         match key {
             "title" => frontmatter.title = unquote(value),
+            "lang" => frontmatter.lang = (!value.is_empty()).then(|| unquote(value)),
             "slug" => frontmatter.slug = unquote(value),
             "status" => frontmatter.status = PostStatus::from_str(value),
             "post_type" => frontmatter.post_type = PostType::from_str(value),
@@ -450,6 +455,9 @@ pub fn serialize(doc: &Document) -> String {
 
     let fm = &doc.frontmatter;
     let mut out = String::from("---\n");
+    if let Some(lang) = &fm.lang {
+        out.push_str(&format!("lang: \"{}\"\n", escape(lang)));
+    }
     out.push_str(&format!("title: \"{}\"\n", escape(&fm.title)));
     out.push_str(&format!("slug: \"{}\"\n", escape(&fm.slug)));
     if fm.post_type != PostType::Post {
@@ -1098,6 +1106,7 @@ mod tests {
                 wp_synced_hash: Some("cafe".to_string()),
                 wp_synced_at: Some("2026-10-01T10:00:05Z".to_string()),
                 wp_pending_create: None,
+                lang: None,
                 translation: None,
                 featured_media_id: Some(99),
                 author_id: Some(3),

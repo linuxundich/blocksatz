@@ -6,6 +6,10 @@
 //! user picking a file name, and the sidebar can list "what am I working
 //! on" without a separate index. See `docs/gui-redesign.md`, section 3.
 //!
+//! A folder is a language pair (`docs/translations.md`): `artikel.md` is
+//! the original, `artikel.<lang>.md` (e.g. `artikel.en.md`) its
+//! translation, each with frontmatter of its own. The images are shared.
+//!
 //! Files opened from elsewhere keep working where they are; they just
 //! aren't part of the library listing.
 
@@ -35,9 +39,34 @@ pub fn root() -> PathBuf {
         .join("Blocksatz")
 }
 
+/// The file of language `lang` in a library folder: `artikel.md` for the
+/// original (`None`), `artikel.en.md` for an English translation.
+pub fn article_file(lang: Option<&str>) -> String {
+    match lang {
+        Some(lang) => format!("artikel.{lang}.md"),
+        None => ARTICLE_FILE.to_string(),
+    }
+}
+
+/// Which file of a pair `path` is: `Some(None)` for the original,
+/// `Some(Some("en"))` for a translation, `None` for any other file name.
+pub fn file_lang(path: &Path) -> Option<Option<String>> {
+    let name = path.file_name()?.to_str()?;
+    if name == ARTICLE_FILE {
+        return Some(None);
+    }
+    let lang = name.strip_prefix("artikel.")?.strip_suffix(".md")?;
+    (!lang.is_empty() && lang.len() <= 8 && lang.bytes().all(|b| b.is_ascii_lowercase() || b == b'-')).then(|| Some(lang.to_string()))
+}
+
+/// The other-language file next to `path` (it may not exist yet).
+pub fn sibling(path: &Path, lang: Option<&str>) -> Option<PathBuf> {
+    Some(path.parent()?.join(article_file(lang)))
+}
+
 /// Whether `path` is an article file inside the library at `root`.
 pub fn contains(root: &Path, path: &Path) -> bool {
-    path.file_name().is_some_and(|name| name == ARTICLE_FILE) && path.parent().and_then(Path::parent) == Some(root)
+    file_lang(path).is_some() && path.parent().and_then(Path::parent) == Some(root)
 }
 
 /// The current local time as the folder name of an untitled article,
@@ -102,7 +131,8 @@ pub fn create_entry(root: &Path, title: Option<&str>, fallback_name: &str) -> st
 /// that's known. Returns the article's new path, or `None` when nothing
 /// was renamed (not in the library, already named, no title yet).
 pub fn rename_after_title(root: &Path, path: &Path, doc: &Document) -> std::io::Result<Option<PathBuf>> {
-    if !contains(root, path) {
+    // The folder is named after the original, never after a translation.
+    if !contains(root, path) || file_lang(path) != Some(None) {
         return Ok(None);
     }
     let Some(dir) = path.parent() else { return Ok(None) };
@@ -125,13 +155,106 @@ pub struct Entry {
     pub document: Document,
 }
 
-/// Every article in the library, unsorted. Unreadable folders are skipped.
+/// The article files of one library folder: the original first, then the
+/// translations by language.
+fn folder_files(dir: &Path) -> Vec<PathBuf> {
+    let Ok(files) = std::fs::read_dir(dir) else { return Vec::new() };
+    let mut paths: Vec<PathBuf> = files.filter_map(Result::ok).map(|f| f.path()).filter(|p| p.is_file() && file_lang(p).is_some()).collect();
+    paths.sort_by_key(|p| file_lang(p).flatten());
+    paths
+}
+
+/// Every article file in the library - originals and translations -
+/// unsorted. Unreadable files are skipped.
 pub fn scan(root: &Path) -> Vec<Entry> {
+    scan_pairs(root).into_iter().flat_map(|pair| pair.files).collect()
+}
+
+/// One library folder: an article and its translations.
+#[derive(Debug, Clone)]
+pub struct Pair {
+    pub dir: PathBuf,
+    /// The original (if the folder has one) first, then the translations.
+    pub files: Vec<Entry>,
+}
+
+impl Pair {
+    pub fn original(&self) -> Option<&Entry> {
+        self.files.iter().find(|e| file_lang(&e.path) == Some(None))
+    }
+
+    /// The file a click on the folder opens: the original, else the first
+    /// translation.
+    pub fn primary(&self) -> &Entry {
+        self.original().unwrap_or(&self.files[0])
+    }
+
+    pub fn get(&self, lang: Option<&str>) -> Option<&Entry> {
+        self.files.iter().find(|e| file_lang(&e.path).flatten().as_deref() == lang)
+    }
+}
+
+/// Every library folder with at least one readable article file.
+pub fn scan_pairs(root: &Path) -> Vec<Pair> {
     let Ok(dirs) = std::fs::read_dir(root) else { return Vec::new() };
-    dirs.filter_map(Result::ok)
-        .map(|entry| entry.path().join(ARTICLE_FILE))
-        .filter_map(|path| document::read(&path).ok().map(|document| Entry { path, document }))
-        .collect()
+    dirs.filter_map(Result::ok).map(|entry| entry.path()).filter(|dir| dir.is_dir()).filter_map(|dir| read_pair(&dir)).collect()
+}
+
+/// The pair in one folder, if it holds a readable article file.
+pub fn read_pair(dir: &Path) -> Option<Pair> {
+    let files: Vec<Entry> = folder_files(dir).into_iter().filter_map(|path| document::read(&path).ok().map(|document| Entry { path, document })).collect();
+    (!files.is_empty()).then(|| Pair { dir: dir.to_path_buf(), files })
+}
+
+/// Moves translations that still live in a folder of their own (as
+/// Blocksatz 0.67 made them) next to their original, as
+/// `artikel.<lang>.md`, together with their images. Skipped when the
+/// original isn't in the library or already has a file for that language.
+/// Returns how many were moved.
+pub fn migrate_translations(root: &Path) -> usize {
+    let pairs = scan_pairs(root);
+    let mut moved = 0;
+    for pair in &pairs {
+        let (Some(original), [only]) = (pair.original(), pair.files.as_slice()) else { continue };
+        let Some(link) = original.document.frontmatter.translation.as_ref() else { continue };
+        let Some(target) = pairs.iter().find(|p| {
+            p.dir != pair.dir
+                && p.original().is_some_and(|o| {
+                    let fm = &o.document.frontmatter;
+                    o.document.frontmatter.translation.is_none() && fm.wp_post_id == Some(link.source_id) && fm.wp_site.as_deref().is_none_or(|s| s == link.source_site)
+                })
+        }) else {
+            continue;
+        };
+        let lang = if link.lang.is_empty() { "en" } else { link.lang.as_str() };
+        let dest = target.dir.join(article_file(Some(lang)));
+        if dest.exists() {
+            continue;
+        }
+        let mut doc = only.document.clone();
+        if doc.frontmatter.lang.is_none() {
+            doc.frontmatter.lang = Some(lang.to_string());
+        }
+        // Its own images move along unless the original has a file of
+        // that name already (then it's the same picture).
+        let Ok(files) = std::fs::read_dir(&pair.dir) else { continue };
+        for file in files.filter_map(Result::ok).map(|f| f.path()) {
+            if file == only.path {
+                continue;
+            }
+            if let Some(name) = file.file_name() {
+                let to = target.dir.join(name);
+                if !to.exists() {
+                    let _ = std::fs::rename(&file, &to);
+                }
+            }
+        }
+        if document::write(&dest, &doc).is_ok() && std::fs::remove_file(&only.path).is_ok() {
+            let _ = gtk4::prelude::FileExt::trash(&gtk4::gio::File::for_path(&pair.dir), gtk4::gio::Cancellable::NONE);
+            moved += 1;
+        }
+    }
+    moved
 }
 
 /// The working copy of WordPress post `post_id` on site `site_id`, if the
@@ -242,6 +365,61 @@ mod tests {
         assert_eq!(find_by_post_id(&root.0, "example.org", 42), Some(path));
         assert_eq!(find_by_post_id(&root.0, "anderes.blog", 42), None);
         assert_eq!(find_by_post_id(&root.0, "example.org", 43), None);
+    }
+
+    #[test]
+    fn pair_files_are_recognized_by_name() {
+        assert_eq!(file_lang(Path::new("/x/artikel.md")), Some(None));
+        assert_eq!(file_lang(Path::new("/x/artikel.en.md")), Some(Some("en".into())));
+        assert_eq!(file_lang(Path::new("/x/artikel.pt-br.md")), Some(Some("pt-br".into())));
+        assert_eq!(file_lang(Path::new("/x/notizen.md")), None);
+        assert_eq!(file_lang(Path::new("/x/artikel.EN.md")), None);
+        assert_eq!(sibling(Path::new("/x/artikel.md"), Some("en")), Some(PathBuf::from("/x/artikel.en.md")));
+    }
+
+    #[test]
+    fn a_folder_with_both_languages_is_one_pair() {
+        let root = TempRoot::new("pairs");
+        let path = create_entry(&root.0, Some("Beitrag"), "x").unwrap();
+        document::write(&path, &doc("Beitrag", "Text")).unwrap();
+        let en = sibling(&path, Some("en")).unwrap();
+        document::write(&en, &doc("Post", "Text")).unwrap();
+        assert!(contains(&root.0, &en));
+
+        let pairs = scan_pairs(&root.0);
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].primary().path, path);
+        assert_eq!(pairs[0].get(Some("en")).map(|e| e.path.clone()), Some(en.clone()));
+        assert_eq!(scan(&root.0).len(), 2);
+        // A translation never renames the folder.
+        assert_eq!(rename_after_title(&root.0, &en, &doc("Anders", "")).unwrap(), None);
+    }
+
+    #[test]
+    fn a_translation_in_its_own_folder_moves_next_to_its_original() {
+        let root = TempRoot::new("migrate");
+        let original = create_entry(&root.0, Some("Beitrag"), "x").unwrap();
+        let mut d = doc("Beitrag", "Text");
+        d.frontmatter.wp_post_id = Some(42);
+        d.frontmatter.wp_site = Some("example.org".into());
+        document::write(&original, &d).unwrap();
+
+        let old = create_entry(&root.0, Some("Post"), "x").unwrap();
+        let mut t = doc("Post", "Text");
+        t.frontmatter.wp_site = Some("example.org/en".into());
+        t.frontmatter.translation = Some(document::TranslationLink { lang: "en".into(), source_site: "example.org".into(), source_id: 42, ..Default::default() });
+        document::write(&old, &t).unwrap();
+        std::fs::write(old.parent().unwrap().join("titel.png"), b"png").unwrap();
+
+        assert_eq!(migrate_translations(&root.0), 1);
+        let en = sibling(&original, Some("en")).unwrap();
+        let moved = document::read(&en).unwrap();
+        assert_eq!(moved.frontmatter.title, "Post");
+        assert_eq!(moved.frontmatter.lang.as_deref(), Some("en"));
+        assert!(original.parent().unwrap().join("titel.png").exists());
+        assert!(!old.exists());
+        assert_eq!(scan_pairs(&root.0).len(), 1);
+        assert_eq!(migrate_translations(&root.0), 0);
     }
 
     #[test]

@@ -6,10 +6,16 @@ linuxundich.de/en/, but nothing in it is specific to that blog.
 
 ## The idea
 
-- The original stays the original. A translation is a **working copy of its
-  own** in a library folder of its own, tied to the target blog through
-  `wp_site` and to its original through the `translation_*` frontmatter
-  keys. Autosave, upload, sync state and the release check work on it like
+- The original stays the original. Original and translation are a
+  **language pair**: one library folder holding `artikel.md` (the original)
+  and `artikel.en.md` (the translation), each with frontmatter of its own
+  (title, slug, tags, blog, post id, sync state, alt texts). The images in
+  the folder are shared. The translation is tied to the target blog through
+  `wp_site`, to its original through the `translation_*` frontmatter keys,
+  and carries `lang: "en"`. The sidebar shows one row per pair with the
+  state of each language ("DE Veröffentlicht · EN Entwurf").
+  Translations made before (in a folder of their own) are moved next to
+  their original on start. Autosave, upload, sync state and the release check work on it like
   on any other article.
 - The model translates **section by section** (split at `## `). Long
   articles never hit a model's output limit, and an update only sends the
@@ -52,6 +58,7 @@ the translation counts as unreviewed again.
 A translation's frontmatter:
 
 ```yaml
+lang: "en"                              # language of this file
 wp_site: "linuxundich.de/en"            # target blog
 translation_of: "linuxundich.de#45505"  # original blog and post id
 translation_lang: "en"
@@ -63,8 +70,10 @@ translation_reviewed: true
 
 Images already uploaded with the original point at their WordPress URLs,
 so the second blog doesn't get the same files again. Images not uploaded
-yet and the featured image are copied into the translation's folder and
-uploaded to the target blog like any local image. If the original only
+yet and the featured image are shared from the pair's folder and uploaded
+to the target blog like any local image. (Only an original outside the
+library gets a translation in a new folder of its own, with copies of its
+local images.) If the original only
 knows its featured image as a media id of its blog (because it was opened
 from the blog), the translation gets that image's URL from the blog's public
 REST API, and the upload copies the file into the target blog.

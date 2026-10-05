@@ -57,7 +57,10 @@ blocks. Implemented so far:
   - **Translations for a second blog** (see
     [`docs/translations.md`](docs/translations.md)): "Übersetzen …" turns
     a post into a working copy for a linked blog in another language,
-    section by section through the AI model chosen for translations. Code,
+    section by section through the AI model chosen for translations. The
+    translation lives next to its original as `artikel.en.md` in the same
+    library folder - one sidebar row per article, showing the state of
+    each language. Code,
     links and markup stay untouched; "Gegenlesen …" shows original and
     translation side by side with the checks, and only a reviewed
     translation can be published. When the original changes, an update

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Language pairs**: a translation now lives next to its original, as
+  `artikel.en.md` in the same library folder, each file with its own
+  frontmatter (new key `lang`). "In Arbeit" shows one row per article
+  with the state of each language. Translations from 0.67 are moved next
+  to their original on start (`docs/translations.md`).
 - Every PNG or JPEG is uploaded as WebP (transparency kept, at most
   2000px on the longer edge) instead of only oversized ones being
   re-encoded as JPEG/PNG.

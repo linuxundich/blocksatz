@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Large media uploads failed after 30 seconds on a slow uplink (as a
   timeout or a TLS "bad record mac" error); the timeout now grows with
   the file size.
+- The preview showed an image's alt text as a tooltip over the whole
+  image, in the way of its context menu; it's now only on the "Alt"
+  badge.
 - Scrolling the editor to the very top (or bottom) always takes the
   preview there too, even while a scroll report from the preview is
   still being settled.

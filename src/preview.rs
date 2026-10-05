@@ -1736,7 +1736,10 @@ fn wrap_images_with_badges(html: &str, media: &[MediaItem]) -> String {
         let item = media.iter().find(|item| item.source == src);
 
         out.push_str("<span class=\"img-wrap\">");
-        out.push_str(tag);
+        // The Markdown title (this app's alt text) would be a tooltip over
+        // the whole image, in the way of its context menu - the "Alt"
+        // badge shows it instead.
+        out.push_str(&without_attr(tag, "title"));
         out.push_str(&badges_html(&src, media));
         out.push_str("</span>");
         // An image inside a `<figure>` (Gutenberg markup: an attributed
@@ -1752,6 +1755,18 @@ fn wrap_images_with_badges(html: &str, media: &[MediaItem]) -> String {
     }
     out.push_str(rest);
     out
+}
+
+/// `tag` with its `attr="value"` removed (double-quoted, as pulldown-cmark
+/// writes it).
+fn without_attr(tag: &str, attr: &str) -> String {
+    let needle = format!(" {attr}=\"");
+    let Some(start) = tag.find(&needle) else { return tag.to_string() };
+    let value_start = start + needle.len();
+    match tag[value_start..].find('"') {
+        Some(end) => format!("{}{}", &tag[..start], &tag[value_start + end + 1..]),
+        None => tag.to_string(),
+    }
 }
 
 /// Pulls `attr="value"` out of a single HTML tag's source text - pulldown-
@@ -2192,6 +2207,16 @@ mod tests {
         let item = media_item("cat.png", "cat.png", crate::media::AltText::Empty, false);
         let out = render_body_with_line_anchors("![](cat.png)\n", std::slice::from_ref(&item));
         assert!(out.contains(">Alt<"), "{out}");
+    }
+
+    #[test]
+    fn the_image_itself_has_no_tooltip_only_its_alt_badge() {
+        let item = media_item("cat.png", "cat.png", crate::media::AltText::Text("eine rote Katze".into()), false);
+        let out = render_body_with_line_anchors("![Katze](cat.png \"eine rote Katze\")\n", std::slice::from_ref(&item));
+        let img = &out[out.find("<img ").unwrap()..];
+        let img = &img[..img.find('>').unwrap()];
+        assert!(!img.contains("title="), "{out}");
+        assert!(out.contains("class=\"img-badge\" title=\"eine rote Katze\""), "{out}");
     }
 
     #[test]

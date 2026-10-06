@@ -578,7 +578,7 @@ fn unescape(s: &str) -> String {
     s.replace("\\\"", "\"").replace("\\\\", "\\")
 }
 
-fn unquote(s: &str) -> String {
+pub(crate) fn unquote(s: &str) -> String {
     let s = s.trim();
     let quoted = (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\''));
     if quoted && s.len() >= 2 {
@@ -714,7 +714,7 @@ pub fn adopt_file(path: &Path, doc_dir: Option<&Path>) -> String {
 }
 
 /// `dir/name`, or `dir/stem-2.ext`, `dir/stem-3.ext`, … while `taken`.
-fn unique_file_path(dir: &Path, name: &Path, taken: impl Fn(&Path) -> bool) -> PathBuf {
+pub(crate) fn unique_file_path(dir: &Path, name: &Path, taken: impl Fn(&Path) -> bool) -> PathBuf {
     let candidate = dir.join(name);
     if !taken(&candidate) {
         return candidate;

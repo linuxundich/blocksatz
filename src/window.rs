@@ -10,6 +10,7 @@ use gtk4::{gdk, gio, glib};
 use crate::document::{Document, Frontmatter, PostType};
 use crate::i18n::tr;
 use crate::{
+    newarticle,
     blogposts, blogsync, counterpart, importer, langswitch, library, librarysidebar, mainaction, markdowncheck, postpane, releasecheck, syncstate, worksave,
     about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
     mediabrowser, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, themestyle, windowstate,
@@ -959,31 +960,70 @@ fn scroll_editor_to(scroller: &gtk4::ScrolledWindow, view: &sourceview5::View, b
 }
 
 fn wire_new_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
-    // "new" starts a blank blog post, "new-page" a blank static WordPress
-    // page - identical apart from the frontmatter's `post_type`. The
-    // article being replaced is saved first; the new one gets its library
-    // folder once something is typed (`worksave.rs`).
+    // "new"/"new-page" open the "Neuer Artikel" dialog (`newarticle.rs`),
+    // "new-from-file" asks for a text file first, "new-with-files" takes
+    // dropped files. "new-blank" empties the editor without asking - for
+    // closing a trashed article.
     for (name, post_type) in [("new", PostType::Post), ("new-page", PostType::Page)] {
         let action = gio::SimpleAction::new(name, None);
         let ctx = ctx.clone();
+        let window_weak = window.downgrade();
         action.connect_activate(move |_, _| {
-            worksave::flush(&ctx, false);
-            ctx.buffer.set_text("");
-            *ctx.current_path.borrow_mut() = None;
-            *ctx.frontmatter.borrow_mut() = Frontmatter { post_type, ..Frontmatter::default() };
-            ctx.title.set_subtitle(&match post_type {
-                PostType::Post => tr("Unbenannt"),
-                PostType::Page => tr("Unbenannte Seite"),
-            });
-            ctx.preview_pane.set_doc_dir(None);
-            ctx.preview_pane.set_article_header(&ctx.frontmatter.borrow());
-            *ctx.saved_text.borrow_mut() = String::new();
-            *ctx.written.borrow_mut() = String::new();
-            ctx.bump_generation();
-            ctx.notify_library(true);
+            let Some(window) = window_weak.upgrade() else { return };
+            newarticle::present(&window, &ctx, post_type, Vec::new());
         });
         window.add_action(&action);
     }
+
+    let action = gio::SimpleAction::new("new-from-file", None);
+    let window_weak = window.downgrade();
+    {
+        let ctx = ctx.clone();
+        action.connect_activate(move |_, _| {
+            let Some(window) = window_weak.upgrade() else { return };
+            newarticle::present_from_file(&window, &ctx);
+        });
+    }
+    window.add_action(&action);
+
+    let action = gio::SimpleAction::new("new-with-files", Some(&Vec::<String>::static_variant_type()));
+    let window_weak = window.downgrade();
+    {
+        let ctx = ctx.clone();
+        action.connect_activate(move |_, param| {
+            let Some(window) = window_weak.upgrade() else { return };
+            let paths: Vec<PathBuf> = param.and_then(|p| p.get::<Vec<String>>()).unwrap_or_default().into_iter().map(PathBuf::from).collect();
+            newarticle::present(&window, &ctx, PostType::Post, paths);
+        });
+    }
+    window.add_action(&action);
+
+    let action = gio::SimpleAction::new("new-blank", None);
+    {
+        let ctx = ctx.clone();
+        action.connect_activate(move |_, _| start_blank(&ctx, PostType::Post));
+    }
+    window.add_action(&action);
+}
+
+/// Empties the editor for a new, untitled article of `post_type`. The
+/// article being replaced is saved first; the new one gets its library
+/// folder once something is typed (`worksave.rs`).
+pub(crate) fn start_blank(ctx: &DocContext, post_type: PostType) {
+    worksave::flush(ctx, false);
+    ctx.buffer.set_text("");
+    *ctx.current_path.borrow_mut() = None;
+    *ctx.frontmatter.borrow_mut() = Frontmatter { post_type, ..Frontmatter::default() };
+    ctx.title.set_subtitle(&match post_type {
+        PostType::Post => tr("Unbenannt"),
+        PostType::Page => tr("Unbenannte Seite"),
+    });
+    ctx.preview_pane.set_doc_dir(None);
+    ctx.preview_pane.set_article_header(&ctx.frontmatter.borrow());
+    *ctx.saved_text.borrow_mut() = String::new();
+    *ctx.written.borrow_mut() = String::new();
+    ctx.bump_generation();
+    ctx.notify_library(true);
 }
 
 /// Wires the library sidebar, the blog archive page and the actions that

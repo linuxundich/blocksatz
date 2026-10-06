@@ -16,6 +16,11 @@ All of 0.65.0's features were tested live against linuxundich.de -
 import warning (all three answers), banner, autosave preview, image
 sizes, connection check.
 
+- [x] **New article dialog** (planned and built 2026-10-06, unreleased) - title, slug, text
+  from a `.md`/`.txt` with its header mapped into the frontmatter, images
+  copied in by picker or drag & drop; folder named after the slug. See
+  `docs/new-article-dialog.md`, mockups in `docs/mockups/`.
+
 - ~~**Block design gaps**~~ Done (0.66.0) - quote
   with citation, Media & Text, padding/border/radius/shadow, captions on
   audio/video/embeds/galleries, linked images; after 0.66.0 also custom

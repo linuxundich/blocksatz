@@ -195,7 +195,7 @@ impl MediaItem {
 /// doc comment), not a real block tree, so an image inside one wouldn't be
 /// rewritten on export either - matching how WordPress's own pullquote
 /// block doesn't support inline images.
-fn scan_images(markdown: &str) -> Vec<(String, String, String)> {
+pub(crate) fn scan_images(markdown: &str) -> Vec<(String, String, String)> {
     let mut out = Vec::new();
     let mut in_image = false;
     let mut current_source = String::new();

@@ -80,6 +80,7 @@ impl LibrarySidebar {
         let new_menu = gio::Menu::new();
         new_menu.append(Some(&tr("Neuer Artikel")), Some("win.new"));
         new_menu.append(Some(&tr("Neue Seite")), Some("win.new-page"));
+        new_menu.append(Some(&tr("Aus Textdatei …")), Some("win.new-from-file"));
         new_menu.append(Some(&tr("KI-Artikel schreiben…")), Some("win.ai-write"));
         let open_section = gio::Menu::new();
         open_section.append(Some(&tr("Datei öffnen…")), Some("win.open"));
@@ -134,6 +135,27 @@ impl LibrarySidebar {
         toolbar.add_top_bar(&search_bar);
         toolbar.set_content(Some(&sidebar));
         toolbar.add_bottom_bar(&footer);
+
+        // Text files and images dropped onto the library start a new
+        // article with them (`newarticle.rs`).
+        let drop_target = gtk4::DropTarget::new(gtk4::gdk::FileList::static_type(), gtk4::gdk::DragAction::COPY);
+        drop_target.connect_drop({
+            let window = window.downgrade();
+            move |_, value, _, _| {
+                let Ok(list) = value.get::<gtk4::gdk::FileList>() else { return false };
+                let paths: Vec<String> = list
+                    .files()
+                    .iter()
+                    .filter_map(|f| f.path())
+                    .filter(|p| crate::newarticle::is_text_file(p) || crate::newarticle::is_image_file(p))
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect();
+                let Some(window) = window.upgrade().filter(|_| !paths.is_empty()) else { return false };
+                let _ = WidgetExt::activate_action(&window, "win.new-with-files", Some(&paths.to_variant()));
+                true
+            }
+        });
+        toolbar.add_controller(drop_target);
 
         let this = Rc::new_cyclic(|weak| LibrarySidebar {
             widget: toolbar,
@@ -295,7 +317,7 @@ impl LibrarySidebar {
         // Either language of the pair being open counts.
         let open = self.ctx.current_path.borrow().as_deref().and_then(Path::parent) == Some(dir);
         if open {
-            let _ = WidgetExt::activate_action(window, "win.new", None);
+            let _ = WidgetExt::activate_action(window, "win.new-blank", None);
         }
         let name = dir.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
         match gio::File::for_path(dir).trash(gio::Cancellable::NONE) {

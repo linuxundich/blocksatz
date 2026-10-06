@@ -91,7 +91,7 @@ blocks. Implemented so far:
   own animated reveal handles the header/status bar, so entering and
   leaving is a smooth slide rather than an abrupt layout jump. A plain launch with no file argument reopens the most
   recent one automatically instead of always starting at a blank
-  "Unbenannt" document - `Ctrl+N` still gets to a blank one in one step.
+  "Unbenannt" document - `Ctrl+N`, `Enter` still gets to a blank one.
   Markdown editing pane (GtkSourceView, syntax
   highlighting, spell-checking via [`libspelling`](https://gitlab.gnome.org/GNOME/libspelling))
   with a compact formatting toolbar in three groups - inline (bold Ctrl+B,
@@ -270,11 +270,25 @@ blocks. Implemented so far:
   button lists every existing category/tag and lets you rename or
   permanently delete one straight from the app, instead of only ever
   being able to read or auto-create a term.
+- **New article dialog** (`Ctrl+N`) — title, slug and post/page in one
+  dialog; the library folder is created right away and named after the
+  slug. Start empty or from a Markdown/text file: its header (YAML front
+  matter from Jekyll/Hugo/Obsidian, Hugo's TOML, MultiMarkdown, a Pandoc
+  title block) goes into the frontmatter - title, slug, tags, categories,
+  excerpt, featured image, a future date as scheduled - and the dialog
+  shows which keys were taken over and which weren't. Local images the
+  text points to are copied into the folder and the references rewritten;
+  more images can be added by picker or drag and drop, a star picks the
+  featured image. A Blocksatz `artikel.md` used as source loses its link
+  to the blog post, so the copy never overwrites the original. Files
+  dropped onto the library sidebar open the dialog pre-filled; "Aus
+  Textdatei …" in the new-article menu asks for the file first.
+  `Ctrl+N`, `Enter` without a title still starts an untitled article.
 - **Library and continuous saving** — every article lives in its own
   folder under `~/Dokumente/Blocksatz/` (`<slug>/artikel.md` plus its
-  images). A new article gets its folder as soon as something is typed
-  (named by date and time, renamed after the title once the first `# `
-  heading is finished); a post opened from WordPress gets one right away,
+  images). An untitled article gets its folder as soon as something is typed
+  (named by date and time, renamed after the slug or title once known);
+  a post opened from WordPress gets one right away,
   and opening the same post again reopens that working copy instead of
   overwriting it. The open article is written to disk every two seconds
   and when the window closes, so there is no unsaved state to lose.

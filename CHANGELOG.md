@@ -7,8 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **New article dialog** (Ctrl+N, Ctrl+Alt+N for a page): title, slug
+  (follows the title until edited), post/page and the folder it will get.
+  Start empty or **from a Markdown or text file** - its header is read
+  into the frontmatter: YAML front matter (Jekyll, Hugo, Obsidian,
+  Pandoc), Hugo's TOML, MultiMarkdown, a Pandoc title block. Title, slug
+  (also from a permalink), tags/keywords, categories,
+  description/excerpt/summary, cover/featured image, language, SEO fields,
+  `draft`/`status` (never straight to published) and a future `date` as
+  scheduled (9:00 when it has no time). A list shows which keys were taken
+  over and which weren't. Without a title in the header, a leading
+  `# Heading` becomes the title. Text files in Windows-1252 are read too.
+- **Images right away**: local images the text points to are copied into
+  the article folder and the references rewritten (spaces in file names
+  become hyphens); more images can be added with "Hinzufügen …" or by drag
+  and drop, optionally appended to the text. A star picks the featured
+  image. Images the text points to but that don't exist are listed.
+- A Blocksatz `artikel.md` as source becomes a new article: post ID, sync
+  data, translation link and the media upload ids are dropped, the status
+  is reset to draft - the first upload creates a new post instead of
+  overwriting the original.
+- "Aus Textdatei …" in the new-article menu; text files and images
+  dropped onto the library sidebar open the dialog pre-filled.
+
 ### Changed
 
+- The library folder of a new article is created once, with its final
+  name, when the dialog is confirmed - named after the **slug** rather
+  than the full title (`rpi-imager-linux/` instead of
+  `raspberry-pi-imager-2-0-unter-linux-installation-unter-…/`). An
+  untitled article (Ctrl+N, Enter) still starts with a date-and-time
+  folder, which is now renamed after the slug if one is set, else the
+  title.
 - **Language pairs**: a translation now lives next to its original, as
   `artikel.en.md` in the same library folder, each file with its own
   frontmatter (new key `lang`). "In Arbeit" shows one row per article

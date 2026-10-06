@@ -109,7 +109,7 @@ pub fn title_hint(doc: &Document) -> Option<String> {
 
 /// A folder name under `root` derived from `name` that doesn't exist yet:
 /// `name`, else `name-2`, `name-3` ...
-fn unique_dir(root: &Path, name: &str) -> PathBuf {
+pub(crate) fn unique_dir(root: &Path, name: &str) -> PathBuf {
     let candidate = root.join(name);
     if !candidate.exists() {
         return candidate;
@@ -127,8 +127,42 @@ pub fn create_entry(root: &Path, title: Option<&str>, fallback_name: &str) -> st
     Ok(dir.join(ARTICLE_FILE))
 }
 
-/// Renames an auto-named library folder after the article's title, once
-/// that's known. Returns the article's new path, or `None` when nothing
+/// Creates a library folder named `name` (or `name-2` …) and has `fill`
+/// write its contents. `fill` works in a hidden `.<name>.partial` folder
+/// that only gets its real name once everything is in it - a failure
+/// part-way leaves nothing behind, and the sidebar never lists a half-made
+/// article. Returns the path of the folder's `artikel.md`.
+pub fn create_prepared(root: &Path, name: &str, fill: impl FnOnce(&Path) -> std::io::Result<()>) -> std::io::Result<PathBuf> {
+    std::fs::create_dir_all(root)?;
+    let partial = root.join(format!(".{name}.partial"));
+    if partial.exists() {
+        std::fs::remove_dir_all(&partial)?;
+    }
+    std::fs::create_dir(&partial)?;
+    if let Err(err) = fill(&partial) {
+        let _ = std::fs::remove_dir_all(&partial);
+        return Err(err);
+    }
+    let target = unique_dir(root, name);
+    if let Err(err) = std::fs::rename(&partial, &target) {
+        let _ = std::fs::remove_dir_all(&partial);
+        return Err(err);
+    }
+    Ok(target.join(ARTICLE_FILE))
+}
+
+/// The folder name for an article: its slug, else its title as a slug,
+/// else `None`.
+pub fn folder_name(doc: &Document) -> Option<String> {
+    let slug = document::slugify(doc.frontmatter.slug.trim());
+    if !slug.is_empty() {
+        return Some(slug);
+    }
+    title_hint(doc).map(|t| document::slugify(&t)).filter(|s| !s.is_empty())
+}
+
+/// Renames an auto-named library folder after the article's slug (else
+/// its title), once that's known. Returns the article's new path, or `None` when nothing
 /// was renamed (not in the library, already named, no title yet).
 pub fn rename_after_title(root: &Path, path: &Path, doc: &Document) -> std::io::Result<Option<PathBuf>> {
     // The folder is named after the original, never after a translation.
@@ -140,7 +174,7 @@ pub fn rename_after_title(root: &Path, path: &Path, doc: &Document) -> std::io::
     if !is_auto_named(dir_name) {
         return Ok(None);
     }
-    let Some(slug) = title_hint(doc).map(|t| document::slugify(&t)).filter(|s| !s.is_empty()) else {
+    let Some(slug) = folder_name(doc) else {
         return Ok(None);
     };
     let target = unique_dir(root, &slug);
@@ -197,7 +231,13 @@ impl Pair {
 /// Every library folder with at least one readable article file.
 pub fn scan_pairs(root: &Path) -> Vec<Pair> {
     let Ok(dirs) = std::fs::read_dir(root) else { return Vec::new() };
-    dirs.filter_map(Result::ok).map(|entry| entry.path()).filter(|dir| dir.is_dir()).filter_map(|dir| read_pair(&dir)).collect()
+    dirs.filter_map(Result::ok).map(|entry| entry.path()).filter(|dir| dir.is_dir() && !is_hidden(dir)).filter_map(|dir| read_pair(&dir)).collect()
+}
+
+/// A dot folder - `create_prepared`'s work in progress, or anything else
+/// that isn't an article.
+fn is_hidden(dir: &Path) -> bool {
+    dir.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with('.'))
 }
 
 /// The pair in one folder, if it holds a readable article file.
@@ -351,6 +391,39 @@ mod tests {
         assert!(renamed.parent().unwrap().join("bild.png").exists());
         // Named folders are left alone.
         assert_eq!(rename_after_title(&root.0, &renamed, &doc("Neuer Titel", "")).unwrap(), None);
+    }
+
+    #[test]
+    fn folder_is_named_after_the_slug_first() {
+        let mut d = doc("Raspberry Pi Imager 2.0 unter Linux", "");
+        assert_eq!(folder_name(&d).as_deref(), Some("raspberry-pi-imager-2-0-unter-linux"));
+        d.frontmatter.slug = "rpi-imager".into();
+        assert_eq!(folder_name(&d).as_deref(), Some("rpi-imager"));
+        assert_eq!(folder_name(&doc("", "")), None);
+    }
+
+    #[test]
+    fn prepared_folder_appears_only_when_complete() {
+        let root = TempRoot::new("prepared");
+        let path = create_prepared(&root.0, "neu", |dir| {
+            std::fs::write(dir.join(ARTICLE_FILE), "Text")?;
+            // Not listed while it is being filled.
+            assert!(scan_pairs(dir.parent().unwrap()).is_empty());
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(path, root.0.join("neu").join(ARTICLE_FILE));
+        assert_eq!(scan_pairs(&root.0).len(), 1);
+
+        let failed = create_prepared(&root.0, "neu", |dir| {
+            std::fs::write(dir.join("bild.png"), b"png")?;
+            Err(std::io::Error::other("kaputt"))
+        });
+        assert!(failed.is_err());
+        assert_eq!(std::fs::read_dir(&root.0).unwrap().count(), 1);
+
+        let second = create_prepared(&root.0, "neu", |dir| std::fs::write(dir.join(ARTICLE_FILE), "")).unwrap();
+        assert_eq!(second, root.0.join("neu-2").join(ARTICLE_FILE));
     }
 
     #[test]

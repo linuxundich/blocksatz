@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.67.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-06 00:16+0200\n"
+"POT-Creation-Date: 2026-10-06 12:37+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -175,7 +175,8 @@ msgstr ""
 #: src/aimenu.rs:188 src/blogposts.rs:385 src/export.rs:202
 #: src/gallerydialog.rs:154 src/mainaction.rs:468 src/mainaction.rs:759
 #: src/mainaction.rs:815 src/markdowncheck.rs:162 src/mediabrowser.rs:554
-#: src/releasecheck.rs:230 src/taxonomy.rs:352 src/taxonomy.rs:666
+#: src/newarticle.rs:209 src/releasecheck.rs:230 src/taxonomy.rs:352
+#: src/taxonomy.rs:666
 msgid "Abbrechen"
 msgstr ""
 
@@ -449,7 +450,7 @@ msgstr ""
 msgid "Auf Systemschrift zurücksetzen"
 msgstr ""
 
-#: src/appearance.rs:532 src/window.rs:113
+#: src/appearance.rs:532 src/window.rs:114
 msgid "Vorschau"
 msgstr ""
 
@@ -491,7 +492,7 @@ msgstr ""
 msgid "Zitat"
 msgstr ""
 
-#: src/blockinspector.rs:58 src/window.rs:120
+#: src/blockinspector.rs:58 src/window.rs:121
 msgid "Code"
 msgstr ""
 
@@ -667,7 +668,7 @@ msgid "Ausstehend"
 msgstr ""
 
 #: src/blogposts.rs:46 src/document.rs:74 src/importer.rs:57
-#: src/releasecheck.rs:208
+#: src/newarticle.rs:708 src/releasecheck.rs:208
 msgid "Geplant"
 msgstr ""
 
@@ -691,7 +692,7 @@ msgstr ""
 msgid "Im Blog suchen"
 msgstr ""
 
-#: src/blogposts.rs:232 src/librarysidebar.rs:418
+#: src/blogposts.rs:232 src/librarysidebar.rs:419
 msgid "Kein Blog verbunden"
 msgstr ""
 
@@ -708,7 +709,7 @@ msgstr ""
 msgid "Fehler beim Laden: {err}"
 msgstr ""
 
-#: src/blogposts.rs:288 src/librarysidebar.rs:114
+#: src/blogposts.rs:288 src/librarysidebar.rs:115
 msgid "Keine Treffer"
 msgstr ""
 
@@ -744,7 +745,7 @@ msgstr ""
 msgid "In den Papierkorb"
 msgstr ""
 
-#: src/blogposts.rs:372 src/window.rs:1313
+#: src/blogposts.rs:372 src/window.rs:1353
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr ""
 
@@ -800,7 +801,7 @@ msgstr ""
 msgid "Blockiert bekannte Werbe- und Tracking-Domains, wie GNOME Web es tut."
 msgstr ""
 
-#: src/browsersettings.rs:23 src/browsersettings.rs:29 src/window.rs:116
+#: src/browsersettings.rs:23 src/browsersettings.rs:29 src/window.rs:117
 msgid "Browser"
 msgstr ""
 
@@ -1087,7 +1088,7 @@ msgstr ""
 msgid "Blogartikel"
 msgstr ""
 
-#: src/document.rs:123
+#: src/document.rs:123 src/newarticle.rs:129
 msgid "Seite"
 msgstr ""
 
@@ -1366,7 +1367,7 @@ msgid "Volle Größe"
 msgstr ""
 
 #: src/gallerydialog.rs:148 src/settings.rs:31 src/shortcuts.rs:53
-#: src/window.rs:387
+#: src/window.rs:388
 msgid "Einstellungen"
 msgstr ""
 
@@ -1542,92 +1543,96 @@ msgstr ""
 msgid "Aus Bibliothek entfernen"
 msgstr ""
 
-#: src/librarysidebar.rs:64 src/window.rs:120
+#: src/librarysidebar.rs:64 src/window.rs:121
 msgid "Im Blog"
 msgstr ""
 
-#: src/librarysidebar.rs:81 src/shortcuts.rs:20
+#: src/librarysidebar.rs:81 src/newarticle.rs:120 src/shortcuts.rs:20
 msgid "Neuer Artikel"
 msgstr ""
 
-#: src/librarysidebar.rs:82 src/shortcuts.rs:21
+#: src/librarysidebar.rs:82 src/newarticle.rs:121 src/shortcuts.rs:21
 msgid "Neue Seite"
 msgstr ""
 
 #: src/librarysidebar.rs:83
+msgid "Aus Textdatei …"
+msgstr ""
+
+#: src/librarysidebar.rs:84
 msgid "KI-Artikel schreiben…"
 msgstr ""
 
-#: src/librarysidebar.rs:85
+#: src/librarysidebar.rs:86
 msgid "Datei öffnen…"
 msgstr ""
 
-#: src/librarysidebar.rs:87
+#: src/librarysidebar.rs:88
 msgid "Neuer Artikel (Strg+N)"
 msgstr ""
 
-#: src/librarysidebar.rs:87
+#: src/librarysidebar.rs:88
 msgid "Weitere Möglichkeiten"
 msgstr ""
 
-#: src/librarysidebar.rs:89
+#: src/librarysidebar.rs:90
 msgid "Bibliothek durchsuchen"
 msgstr ""
 
-#: src/librarysidebar.rs:90
+#: src/librarysidebar.rs:91
 msgid "Hauptmenü"
 msgstr ""
 
-#: src/librarysidebar.rs:97
+#: src/librarysidebar.rs:98
 msgid "Artikel suchen"
 msgstr ""
 
-#: src/librarysidebar.rs:124
+#: src/librarysidebar.rs:125
 msgid "Blog wechseln"
 msgstr ""
 
-#: src/librarysidebar.rs:126
+#: src/librarysidebar.rs:127
 msgid "Bibliothek und Blog aktualisieren"
 msgstr ""
 
-#: src/librarysidebar.rs:286
+#: src/librarysidebar.rs:287
 msgid "Blogs verwalten …"
 msgstr ""
 
-#: src/librarysidebar.rs:302
+#: src/librarysidebar.rs:303
 msgid "„{name}“ in den Papierkorb verschoben."
 msgstr ""
 
-#: src/librarysidebar.rs:303
+#: src/librarysidebar.rs:304
 msgid "Entfernen fehlgeschlagen: {err}"
 msgstr ""
 
-#: src/librarysidebar.rs:342
+#: src/librarysidebar.rs:343
 msgid "Noch keine Artikel"
 msgstr ""
 
-#: src/librarysidebar.rs:448
+#: src/librarysidebar.rs:449
 msgid "{site} · nicht erreichbar"
 msgstr ""
 
-#: src/librarysidebar.rs:472 src/mainaction.rs:225 src/window.rs:369
-#: src/window.rs:731 src/window.rs:975
+#: src/librarysidebar.rs:473 src/mainaction.rs:225 src/window.rs:370
+#: src/window.rs:732 src/window.rs:1018
 msgid "Unbenannt"
 msgstr ""
 
-#: src/librarysidebar.rs:494
+#: src/librarysidebar.rs:495
 msgid "Änderungen noch nicht hochgeladen"
 msgstr ""
 
-#: src/librarysidebar.rs:495
+#: src/librarysidebar.rs:496
 msgid "Im Blog geändert"
 msgstr ""
 
-#: src/librarysidebar.rs:496
+#: src/librarysidebar.rs:497
 msgid "Im Blog gelöscht"
 msgstr ""
 
-#: src/librarysidebar.rs:526 src/mainaction.rs:840
+#: src/librarysidebar.rs:527 src/mainaction.rs:840
 msgid "Nur lokal"
 msgstr ""
 
@@ -2210,8 +2215,9 @@ msgstr ""
 msgid "Alle Medien"
 msgstr ""
 
-#: src/mediabrowser.rs:34 src/properties.rs:820 src/releasecheck.rs:97
-#: src/releasecheck.rs:100 src/releasecheck.rs:328 src/window.rs:1416
+#: src/mediabrowser.rs:34 src/newarticle.rs:194 src/newarticle.rs:412
+#: src/properties.rs:820 src/releasecheck.rs:97 src/releasecheck.rs:100
+#: src/releasecheck.rs:328 src/window.rs:1456
 msgid "Bilder"
 msgstr ""
 
@@ -2227,7 +2233,7 @@ msgstr ""
 msgid "Aktualisieren"
 msgstr ""
 
-#: src/mediabrowser.rs:222 src/shortcuts.rs:36 src/window.rs:383
+#: src/mediabrowser.rs:222 src/shortcuts.rs:36 src/window.rs:384
 msgid "WordPress-Mediathek"
 msgstr ""
 
@@ -2557,8 +2563,9 @@ msgid ""
 "Modelle, außer denen, die die Prüfung als gesperrt erkannt hat."
 msgstr ""
 
-#: src/nautilustemplate.rs:21 src/promptsettings.rs:242 src/properties.rs:313
-#: src/releasecheck.rs:60 src/releasecheck.rs:61 src/translatedialog.rs:346
+#: src/nautilustemplate.rs:21 src/newarticle.rs:132 src/newarticle.rs:699
+#: src/promptsettings.rs:242 src/properties.rs:313 src/releasecheck.rs:60
+#: src/releasecheck.rs:61 src/translatedialog.rs:346
 msgid "Titel"
 msgstr ""
 
@@ -2568,6 +2575,223 @@ msgstr ""
 
 #: src/nautilustemplate.rs:30
 msgid "Blocksatz-Artikel"
+msgstr ""
+
+#: src/newarticle.rs:112
+msgid "Markdown und Text"
+msgstr ""
+
+#: src/newarticle.rs:115
+msgid "Text übernehmen"
+msgstr ""
+
+#: src/newarticle.rs:128 src/window.rs:114
+msgid "Beitrag"
+msgstr ""
+
+#: src/newarticle.rs:133 src/newarticle.rs:700 src/properties.rs:314
+msgid "Slug"
+msgstr ""
+
+#: src/newarticle.rs:134
+msgid "Aus dem Titel erzeugen"
+msgstr ""
+
+#: src/newarticle.rs:136
+msgid "Ordner"
+msgstr ""
+
+#: src/newarticle.rs:137
+msgid "Titel und Adresse"
+msgstr ""
+
+#: src/newarticle.rs:145
+msgid "Leer beginnen"
+msgstr ""
+
+#: src/newarticle.rs:147 src/newarticle.rs:485
+msgid "Auswählen …"
+msgstr ""
+
+#: src/newarticle.rs:149 src/newarticle.rs:486
+msgid "Aus Datei …"
+msgstr ""
+
+#: src/newarticle.rs:150 src/newarticle.rs:487
+msgid ""
+"Markdown oder Text, auch mit Kopfzeile (YAML, TOML, MultiMarkdown) – oder "
+"hierher ziehen"
+msgstr ""
+
+#: src/newarticle.rs:155
+msgid "Aus der Kopfzeile"
+msgstr ""
+
+#: src/newarticle.rs:157
+msgid "Erste Überschrift als Titel"
+msgstr ""
+
+#: src/newarticle.rs:158
+msgid "Die Überschrift wird zum Titel und aus dem Text entfernt."
+msgstr ""
+
+#: src/newarticle.rs:163
+msgid "Als neuer Artikel – ohne Verbindung zum Blogbeitrag"
+msgstr ""
+
+#: src/newarticle.rs:164
+msgid ""
+"Beitrags-ID und Abgleichsdaten werden nicht übernommen; der erste Upload "
+"legt einen neuen Beitrag an."
+msgstr ""
+
+#: src/newarticle.rs:168
+msgid "Text"
+msgstr ""
+
+#: src/newarticle.rs:176
+msgid "Hinzufügen …"
+msgstr ""
+
+#: src/newarticle.rs:190
+msgid "Bilder hierher ziehen oder „Hinzufügen …“ wählen"
+msgstr ""
+
+#: src/newarticle.rs:194
+msgid ""
+"Werden in den Artikelordner kopiert; die Originale bleiben, wo sie sind."
+msgstr ""
+
+#: src/newarticle.rs:196
+msgid "Bilder im Text nicht gefunden"
+msgstr ""
+
+#: src/newarticle.rs:198
+msgid "Am Ende des Textes einfügen"
+msgstr ""
+
+#: src/newarticle.rs:198
+msgid ""
+"Sonst liegen hinzugefügte Bilder nur im Ordner und im Medienbereich bereit."
+msgstr ""
+
+#: src/newarticle.rs:210
+msgid "Anlegen"
+msgstr ""
+
+#: src/newarticle.rs:415
+msgid "Bilder hinzufügen"
+msgstr ""
+
+#: src/newarticle.rs:449
+msgid "Datei konnte nicht gelesen werden: {err}"
+msgstr ""
+
+#: src/newarticle.rs:462
+msgid "Ändern …"
+msgstr ""
+
+#: src/newarticle.rs:532
+msgid "{n} Wörter"
+msgstr ""
+
+#: src/newarticle.rs:534
+msgid "Kopfzeile {format}"
+msgstr ""
+
+#: src/newarticle.rs:564
+msgid "Aus der Kopfzeile ({format})"
+msgstr ""
+
+#: src/newarticle.rs:565
+msgid "{taken} übernommen, {rest} nicht"
+msgstr ""
+
+#: src/newarticle.rs:570
+msgid "übernommen"
+msgstr ""
+
+#: src/newarticle.rs:571
+msgid "entfernt"
+msgstr ""
+
+#: src/newarticle.rs:572
+msgid "nicht übernommen"
+msgstr ""
+
+#: src/newarticle.rs:598
+msgid "Ein Bild im Text nicht gefunden"
+msgstr ""
+
+#: src/newarticle.rs:598
+msgid "{n} Bilder im Text nicht gefunden"
+msgstr ""
+
+#: src/newarticle.rs:600
+msgid "Der Verweis bleibt stehen und lässt sich später ersetzen."
+msgstr ""
+
+#: src/newarticle.rs:611
+msgid "{name} – im Text verwendet"
+msgstr ""
+
+#: src/newarticle.rs:611
+msgid "{name} – hinzugefügt"
+msgstr ""
+
+#: src/newarticle.rs:616
+msgid "Als Beitragsbild"
+msgstr ""
+
+#: src/newarticle.rs:638
+msgid "Entfernen"
+msgstr ""
+
+#: src/newarticle.rs:692
+msgid "Artikel konnte nicht angelegt werden: {err}"
+msgstr ""
+
+#: src/newarticle.rs:701 src/translatedialog.rs:708
+msgid "Schlagwörter"
+msgstr ""
+
+#: src/newarticle.rs:702 src/preview.rs:1540 src/taxonomy.rs:33
+#: src/translatedialog.rs:704
+msgid "Kategorien"
+msgstr ""
+
+#: src/newarticle.rs:703 src/releasecheck.rs:66 src/releasecheck.rs:68
+#: src/translatedialog.rs:350
+msgid "Auszug"
+msgstr ""
+
+#: src/newarticle.rs:704 src/releasecheck.rs:87 src/releasecheck.rs:88
+#: src/releasecheck.rs:89
+msgid "Beitragsbild"
+msgstr ""
+
+#: src/newarticle.rs:705
+msgid "Alternativtext Beitragsbild"
+msgstr ""
+
+#: src/newarticle.rs:706 src/translatedialog.rs:650
+msgid "Sprache"
+msgstr ""
+
+#: src/newarticle.rs:707 src/statuscontrols.rs:55
+msgid "Status"
+msgstr ""
+
+#: src/newarticle.rs:709 src/properties.rs:334
+msgid "SEO-Titel"
+msgstr ""
+
+#: src/newarticle.rs:710 src/properties.rs:337
+msgid "SEO-Beschreibung"
+msgstr ""
+
+#: src/newarticle.rs:711
+msgid "Fokus-Schlüsselwort"
 msgstr ""
 
 #: src/postpane.rs:78
@@ -2632,10 +2856,6 @@ msgstr ""
 
 #: src/preview.rs:1539
 msgid "Archive"
-msgstr ""
-
-#: src/preview.rs:1540 src/taxonomy.rs:33 src/translatedialog.rs:704
-msgid "Kategorien"
 msgstr ""
 
 #: src/preview.rs:1541
@@ -2839,10 +3059,6 @@ msgstr ""
 msgid "Interner Fehler: kein Ergebnis vom Ladevorgang."
 msgstr ""
 
-#: src/properties.rs:314
-msgid "Slug"
-msgstr ""
-
 #: src/properties.rs:316
 msgid "Slug aus Titel generieren"
 msgstr ""
@@ -2853,14 +3069,6 @@ msgstr ""
 
 #: src/properties.rs:332
 msgid "Auszug / Meta-Beschreibung"
-msgstr ""
-
-#: src/properties.rs:334
-msgid "SEO-Titel"
-msgstr ""
-
-#: src/properties.rs:337
-msgid "SEO-Beschreibung"
 msgstr ""
 
 #: src/properties.rs:339 src/releasecheck.rs:116 src/releasecheck.rs:117
@@ -2945,10 +3153,6 @@ msgstr ""
 msgid "Kein Titel gesetzt."
 msgstr ""
 
-#: src/releasecheck.rs:66 src/releasecheck.rs:68 src/translatedialog.rs:350
-msgid "Auszug"
-msgstr ""
-
 #: src/releasecheck.rs:66
 msgid ""
 "Ohne Auszug zeigen Feeds und Vorschaukarten einen abgeschnittenen Textanfang."
@@ -2972,10 +3176,6 @@ msgstr ""
 
 #: src/releasecheck.rs:78
 msgid "Keine Tags gesetzt."
-msgstr ""
-
-#: src/releasecheck.rs:87 src/releasecheck.rs:88 src/releasecheck.rs:89
-msgid "Beitragsbild"
 msgstr ""
 
 #: src/releasecheck.rs:87
@@ -3171,7 +3371,7 @@ msgstr ""
 msgid "Originalsprache"
 msgstr ""
 
-#: src/shortcuts.rs:42 src/window.rs:317 src/window.rs:427
+#: src/shortcuts.rs:42 src/window.rs:318 src/window.rs:428
 msgid "Editor"
 msgstr ""
 
@@ -3195,7 +3395,7 @@ msgstr ""
 msgid "Suchen und Ersetzen"
 msgstr ""
 
-#: src/shortcuts.rs:53 src/window.rs:388
+#: src/shortcuts.rs:53 src/window.rs:389
 msgid "Tastenkürzel"
 msgstr ""
 
@@ -3321,10 +3521,6 @@ msgstr ""
 
 #: src/statuscontrols.rs:33
 msgid "Bereits mit WordPress verknüpft - nicht mehr änderbar"
-msgstr ""
-
-#: src/statuscontrols.rs:55
-msgid "Status"
 msgstr ""
 
 #: src/statuscontrols.rs:61
@@ -3562,10 +3758,6 @@ msgstr ""
 msgid "Ziel-Blog"
 msgstr ""
 
-#: src/translatedialog.rs:650
-msgid "Sprache"
-msgstr ""
-
 #: src/translatedialog.rs:691
 msgid "Keine Abschnitte geändert – es wird nichts neu übersetzt."
 msgstr ""
@@ -3594,10 +3786,6 @@ msgstr ""
 
 #: src/translatedialog.rs:707
 msgid "{n} Schlagwörter, übersetzt und mit denen des Ziel-Blogs abgeglichen"
-msgstr ""
-
-#: src/translatedialog.rs:708
-msgid "Schlagwörter"
 msgstr ""
 
 #: src/translatedialog.rs:724
@@ -3808,107 +3996,103 @@ msgstr ""
 msgid "Hinweis des Modells: {note}"
 msgstr ""
 
-#: src/window.rs:113
-msgid "Beitrag"
-msgstr ""
-
-#: src/window.rs:113
+#: src/window.rs:114
 msgid "Assistent"
 msgstr ""
 
-#: src/window.rs:120
+#: src/window.rs:121
 msgid "Gerendert"
 msgstr ""
 
-#: src/window.rs:121
+#: src/window.rs:122
 msgid "Chat"
 msgstr ""
 
-#: src/window.rs:121
+#: src/window.rs:122
 msgid "Bewertung"
 msgstr ""
 
-#: src/window.rs:132
+#: src/window.rs:133
 msgid "Artikel-Kopf in der Vorschau ein-/ausblenden"
 msgstr ""
 
-#: src/window.rs:318
+#: src/window.rs:319
 msgid "Seitenbereich"
 msgstr ""
 
-#: src/window.rs:375
+#: src/window.rs:376
 msgid "Seitenleiste ein-/ausblenden"
 msgstr ""
 
-#: src/window.rs:384
+#: src/window.rs:385
 msgid "Galerie einfügen…"
 msgstr ""
 
-#: src/window.rs:389
+#: src/window.rs:390
 msgid "Über Blocksatz"
 msgstr ""
 
-#: src/window.rs:393
+#: src/window.rs:394
 msgid "Seitenbereich ein-/ausblenden (F9)"
 msgstr ""
 
-#: src/window.rs:401
+#: src/window.rs:402
 msgid "Fokus-Schreibmodus (Strg+Umschalt+F)"
 msgstr ""
 
-#: src/window.rs:976
+#: src/window.rs:1019
 msgid "Unbenannte Seite"
 msgstr ""
 
-#: src/window.rs:1037
+#: src/window.rs:1077
 msgid "{n} Übersetzungen in den Ordner ihres Originals verschoben."
 msgstr ""
 
-#: src/window.rs:1108
+#: src/window.rs:1148
 msgid "Vorhandene Arbeitskopie geöffnet."
 msgstr ""
 
-#: src/window.rs:1152
+#: src/window.rs:1192
 msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
 msgstr ""
 
-#: src/window.rs:1257
+#: src/window.rs:1297
 msgid "Markdown-Datei öffnen"
 msgstr ""
 
-#: src/window.rs:1420
+#: src/window.rs:1460
 msgid "Bild einfügen"
 msgstr ""
 
-#: src/window.rs:1455
+#: src/window.rs:1495
 msgid "Video/Audio einfügen"
 msgstr ""
 
-#: src/window.rs:1549
+#: src/window.rs:1589
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr ""
 
-#: src/window.rs:1656
+#: src/window.rs:1696
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr ""
 
-#: src/window.rs:1665
+#: src/window.rs:1705
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1671
+#: src/window.rs:1711
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr ""
 
-#: src/window.rs:1685 src/window.rs:1699
+#: src/window.rs:1725 src/window.rs:1739
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1703
+#: src/window.rs:1743
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr ""
 
-#: src/window.rs:1708
+#: src/window.rs:1748
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr ""
 

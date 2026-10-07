@@ -16,7 +16,7 @@ All of 0.65.0's features were tested live against linuxundich.de -
 import warning (all three answers), banner, autosave preview, image
 sizes, connection check.
 
-- [x] **New article dialog** (planned and built 2026-10-06, unreleased) - title, slug, text
+- [x] **New article dialog** (0.68.0) - title, slug, text
   from a `.md`/`.txt` with its header mapped into the frontmatter, images
   copied in by picker or drag & drop; folder named after the slug. See
   `docs/new-article-dialog.md`, mockups in `docs/mockups/`.
@@ -32,7 +32,7 @@ sizes, connection check.
 - ~~**Cover image from a local file**~~ Done - also Media & Text.
 - ~~**Write footnotes in Markdown**~~ Done (0.66.0) -
   `[^1]` both ways, Einfügen → Fußnote.
-- ~~**Translations for a second blog**~~ Done (unreleased) - see
+- ~~**Translations for a second blog**~~ Done (0.67.0) - see
   `docs/translations.md`. Open: a translation badge in the library
   sidebar, a live test with a real model (needs an API key).
 - **Flathub** (deferred, 2026-10-02 - not now): sandbox narrowed to the documents folder, runtime GNOME
@@ -246,7 +246,7 @@ that a GNOME/Flatpak-native app is expected to have? Checked against
   subsystem, and the kind of integration that makes a GNOME app feel like
   it belongs on the desktop rather than being "a Linux port."
 - ~~**A `~/Templates` entry for Nautilus's "New Document."**~~ Done (see
-  CHANGELOG.md, Unreleased) - "Blocksatz-Artikel.md" written once into the
+  CHANGELOG.md, 0.67.0) - "Blocksatz-Artikel.md" written once into the
   XDG templates folder; the desktop entry passes files (`%F`).
 
 ### Larger / architectural

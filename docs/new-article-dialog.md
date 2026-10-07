@@ -1,6 +1,6 @@
 # New article dialog
 
-*Planned and built 2026-10-06 (unreleased). Mockups: [`mockups/new-article-dialog.html`](mockups/new-article-dialog.html). Code: `src/newarticle.rs` (dialog), `src/textimport.rs` (header and image references), `library::create_prepared`.*
+*Planned and built 2026-10-06, released in 0.68.0. Mockups: [`mockups/new-article-dialog.html`](mockups/new-article-dialog.html). Code: `src/newarticle.rs` (dialog), `src/textimport.rs` (header and image references), `library::create_prepared`.*
 
 ## 1. Today
 

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.68.0] - 2026-10-07
+
 ### Added
 
 - **Fold-out terminal** at the bottom of the window (F12 or the new
@@ -39,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   overwriting the original.
 - "Aus Textdatei …" in the new-article menu; text files and images
   dropped onto the library sidebar open the dialog pre-filled.
+- "Aus WordPress-Mediathek …" opens the full media browser, and "In
+  Artikel einfügen" now inserts videos and audio files as well, not only
+  images. `.m4v`, `.oga`, `.aac` and `.opus` URLs become video/audio blocks.
+- Hovering a link in the preview shows its target as a tooltip.
 
 ### Changed
 
@@ -139,13 +145,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Every PNG or JPEG is uploaded as WebP (transparency kept, at most
   2000px on the longer edge) instead of only oversized ones being
   re-encoded as JPEG/PNG.
-
-### Added
-
-- "Aus WordPress-Mediathek …" opens the full media browser, and "In
-  Artikel einfügen" now inserts videos and audio files as well, not only
-  images. `.m4v`, `.oga`, `.aac` and `.opus` URLs become video/audio blocks.
-- Hovering a link in the preview shows its target as a tooltip.
 
 ### Fixed
 
@@ -2356,7 +2355,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.67.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.68.0...HEAD
+[0.68.0]: https://github.com/linuxundich/blocksatz/compare/v0.67.0...v0.68.0
 [0.67.0]: https://github.com/linuxundich/blocksatz/compare/v0.66.0...v0.67.0
 [0.66.0]: https://github.com/linuxundich/blocksatz/compare/v0.65.0...v0.66.0
 [0.65.0]: https://github.com/linuxundich/blocksatz/compare/v0.64.0...v0.65.0

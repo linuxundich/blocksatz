@@ -25,6 +25,14 @@
   <url type="homepage">https://github.com/linuxundich/blocksatz</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksatz</url>
   <releases>
+    <release version="0.68.0" date="2026-10-07">
+      <description>
+        <p>Sprachpaare: Original und Übersetzung liegen als artikel.md und artikel.en.md im selben Ordner, umschaltbar per „DE · EN“ in der Kopfleiste, mit der anderen Sprache neben dem Editor und einer Sprachprüfung vor jedem Hochladen. Selbst übersetzen mit DeepL oder ChatGPT per Zwischenablage ist der Normalfall.</p>
+        <p>Neuer Artikel per Dialog, auch aus einer Text- oder Markdown-Datei samt Kopfzeilen und Bildern. Ein ausklappbares Terminal am unteren Fensterrand (F12) startet die eigene Shell im Artikelordner.</p>
+        <p>Die Einstellungen zeigen ihre Seiten als Tabs in einer Seitenleiste. Die Farbschemata entsprechen denen von GNOME Builder und gelten für Editor, Gutenberg-Code, Vergleich, Terminal und Code-Blöcke der Vorschau; Hell und Dunkel lassen sich direkt im Hauptmenü umschalten.</p>
+        <p>Behoben: Kopieren per Rechtsklick ging verloren, GTK-Texte blieben auf Englisch, Schlagwörter mit anderer Schreibweise ließen das Hochladen scheitern, große Uploads brachen nach 30 Sekunden ab.</p>
+      </description>
+    </release>
     <release version="0.67.0" date="2026-10-04">
       <description>
         <p>Übersetzungen für ein zweites Blog: „Übersetzen …“ legt aus einem Beitrag eine Übersetzung als eigene Arbeitskopie an, abschnittsweise und mit geschützten Code-Blöcken, Links und Auszeichnungen. „Gegenlesen …“ zeigt Original und Übersetzung nebeneinander mit Prüfungen; erst gegengelesene Übersetzungen lassen sich veröffentlichen. „Übersetzung aktualisieren …“ übersetzt nur geänderte Abschnitte neu.</p>

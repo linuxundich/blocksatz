@@ -34,6 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **"KI-Tags vorschlagen" dialog reworked**: the title no longer gets
+  squeezed between the buttons (Cancel on the left, Apply on the right);
+  the empty state explains what happens and carries the generate button;
+  a spinner while generating; suggestions as a proper list with a legend
+  (green = tag exists, red = new) and a regenerate button; errors and
+  "nothing new" get their own page with "Try again". Apply now follows
+  the checkboxes live and turns insensitive once nothing is checked.
+
 - The library folder of a new article is created once, with its final
   name, when the dialog is confirmed - named after the **slug** rather
   than the full title (`rpi-imager-linux/` instead of

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-06 12:37+0200\n"
+"POT-Creation-Date: 2026-10-07 08:10+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -46,7 +46,7 @@ msgstr "Generate Text"
 msgid "Noch kein Text generiert - auf „Text generieren“ klicken."
 msgstr "No text generated yet - click “Generate Text”."
 
-#: src/aialt.rs:182 src/aiinplace.rs:102 src/tagsuggest.rs:74
+#: src/aialt.rs:182 src/aiinplace.rs:102 src/tagsuggest.rs:84
 msgid "Übernehmen"
 msgstr "Apply"
 
@@ -55,7 +55,7 @@ msgid "KI-Alternativtext"
 msgstr "AI Alt Text"
 
 #: src/aialt.rs:202 src/aiwriter.rs:438 src/imagealt.rs:388 src/imagealt.rs:492
-#: src/tagsuggest.rs:178
+#: src/tagsuggest.rs:61
 msgid "Wird generiert …"
 msgstr "Generating …"
 
@@ -64,11 +64,10 @@ msgstr "Generating …"
 #: src/export.rs:334 src/gallerydialog.rs:509 src/imagealt.rs:401
 #: src/imagealt.rs:503 src/imageedit.rs:306 src/mediabrowser.rs:500
 #: src/mediabrowser.rs:589 src/mediapanel.rs:285 src/mediapanel.rs:749
-#: src/tagsuggest.rs:209
 msgid "Fehler: {err}"
 msgstr "Error: {err}"
 
-#: src/aialt.rs:267 src/aicaption.rs:69 src/tagsuggest.rs:215
+#: src/aialt.rs:267 src/aicaption.rs:69 src/tagsuggest.rs:226
 msgid "Interner Fehler: Generierungs-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the generation thread returned no result."
 
@@ -180,8 +179,8 @@ msgstr ""
 #: src/aimenu.rs:188 src/blogposts.rs:385 src/export.rs:202
 #: src/gallerydialog.rs:154 src/mainaction.rs:468 src/mainaction.rs:759
 #: src/mainaction.rs:815 src/markdowncheck.rs:162 src/mediabrowser.rs:554
-#: src/newarticle.rs:209 src/releasecheck.rs:230 src/taxonomy.rs:352
-#: src/taxonomy.rs:666
+#: src/newarticle.rs:209 src/releasecheck.rs:230 src/tagsuggest.rs:83
+#: src/taxonomy.rs:352 src/taxonomy.rs:666
 msgid "Abbrechen"
 msgstr "Cancel"
 
@@ -710,7 +709,7 @@ msgstr "Posts"
 msgid "Im Blog suchen"
 msgstr "Search the blog"
 
-#: src/blogposts.rs:232 src/librarysidebar.rs:419
+#: src/blogposts.rs:232 src/librarysidebar.rs:440
 msgid "Kein Blog verbunden"
 msgstr "No blog connected"
 
@@ -1639,44 +1638,44 @@ msgstr "Switch blog"
 msgid "Bibliothek und Blog aktualisieren"
 msgstr "Refresh library and blog"
 
-#: src/librarysidebar.rs:287
+#: src/librarysidebar.rs:308
 msgid "Blogs verwalten …"
 msgstr "Manage Blogs…"
 
-#: src/librarysidebar.rs:303
+#: src/librarysidebar.rs:324
 msgid "„{name}“ in den Papierkorb verschoben."
 msgstr "“{name}” moved to the trash."
 
-#: src/librarysidebar.rs:304
+#: src/librarysidebar.rs:325
 msgid "Entfernen fehlgeschlagen: {err}"
 msgstr "Removing failed: {err}"
 
-#: src/librarysidebar.rs:343
+#: src/librarysidebar.rs:364
 msgid "Noch keine Artikel"
 msgstr "No articles yet"
 
-#: src/librarysidebar.rs:449
+#: src/librarysidebar.rs:470
 msgid "{site} · nicht erreichbar"
 msgstr "{site} · unreachable"
 
-#: src/librarysidebar.rs:473 src/mainaction.rs:225 src/window.rs:370
+#: src/librarysidebar.rs:494 src/mainaction.rs:225 src/window.rs:370
 #: src/window.rs:732 src/window.rs:1018
 msgid "Unbenannt"
 msgstr "Untitled"
 
-#: src/librarysidebar.rs:495
+#: src/librarysidebar.rs:516
 msgid "Änderungen noch nicht hochgeladen"
 msgstr "Changes not uploaded yet"
 
-#: src/librarysidebar.rs:496
+#: src/librarysidebar.rs:517
 msgid "Im Blog geändert"
 msgstr "Changed on the blog"
 
-#: src/librarysidebar.rs:497
+#: src/librarysidebar.rs:518
 msgid "Im Blog gelöscht"
 msgstr "Deleted on the blog"
 
-#: src/librarysidebar.rs:527 src/mainaction.rs:840
+#: src/librarysidebar.rs:548 src/mainaction.rs:840
 msgid "Nur lokal"
 msgstr "Local only"
 
@@ -3620,21 +3619,53 @@ msgstr "Already linked to WordPress - can no longer be changed"
 msgid "Veröffentlichungstermin (JJJJ-MM-TT HH:MM)"
 msgstr "Publish Date (YYYY-MM-DD HH:MM)"
 
-#: src/tagsuggest.rs:43
+#: src/tagsuggest.rs:51
 msgid "Vorschläge generieren"
 msgstr "Generate Suggestions"
 
-#: src/tagsuggest.rs:55
-msgid "Noch keine Vorschläge - auf „Vorschläge generieren“ klicken."
-msgstr "No suggestions yet - click “Generate Suggestions”."
+#: src/tagsuggest.rs:54
+msgid "Tags vorschlagen lassen"
+msgstr "Get Tag Suggestions"
 
-#: src/tagsuggest.rs:79 src/tagsuggest.rs:86
+#: src/tagsuggest.rs:55
+msgid ""
+"Die KI liest Titel und Text und schlägt passende Tags vor. Vorhandene Tags "
+"der Website haben Vorrang."
+msgstr ""
+"The AI reads the title and text and suggests fitting tags. Tags the site "
+"already has take precedence."
+
+#: src/tagsuggest.rs:67
+msgid "Erneut versuchen"
+msgstr "Try Again"
+
+#: src/tagsuggest.rs:72
+msgid "Neu generieren"
+msgstr "Regenerate"
+
+#: src/tagsuggest.rs:75
+msgid "Vorschläge"
+msgstr "Suggestions"
+
+#: src/tagsuggest.rs:76
+msgid "Grün: Tag gibt es schon. Rot: wird neu angelegt."
+msgstr "Green: tag already exists. Red: will be created."
+
+#: src/tagsuggest.rs:96
 msgid "KI-Tags vorschlagen"
 msgstr "Suggest AI Tags"
 
-#: src/tagsuggest.rs:199
-msgid "Keine neuen Tag-Vorschläge gefunden."
-msgstr "No new tag suggestions found."
+#: src/tagsuggest.rs:214
+msgid "Keine neuen Tag-Vorschläge"
+msgstr "No New Tag Suggestions"
+
+#: src/tagsuggest.rs:214
+msgid "Alles Passende ist schon gesetzt."
+msgstr "Everything that fits is already set."
+
+#: src/tagsuggest.rs:221 src/tagsuggest.rs:226
+msgid "Generierung fehlgeschlagen"
+msgstr "Generation Failed"
 
 #: src/taxonomy.rs:29
 msgid "Lade Kategorien & Tags …"

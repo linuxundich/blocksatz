@@ -30,6 +30,7 @@ pub fn open(parent: &impl IsA<gtk4::Widget>) {
         tr("Ansicht"),
         &[
             (tr("Seitenbereich ein-/ausblenden"), "F9"),
+            (tr("Terminal ein-/ausblenden"), "F12"),
             (tr("Beitragseigenschaften"), "<Alt>Return"),
             (tr("Fokus-Schreibmodus"), "<Ctrl><Shift>F"),
             (tr("Medienverwaltung"), "<Ctrl><Shift>M"),

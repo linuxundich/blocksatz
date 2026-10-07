@@ -20,6 +20,8 @@ pub struct WindowState {
     pub pane_visible: bool,
     /// The right-hand pane's visible page ("preview", "post", "chat" ...).
     pub pane_page: String,
+    /// Height of the fold-out terminal (`terminal.rs`) in pixels.
+    pub terminal_height: i32,
 }
 
 impl Default for WindowState {
@@ -32,6 +34,7 @@ impl Default for WindowState {
             sidebar_visible: true,
             pane_visible: true,
             pane_page: "preview".to_string(),
+            terminal_height: 240,
         }
     }
 }
@@ -90,6 +93,13 @@ fn parse(input: &str) -> WindowState {
                 "sidebar_visible" => state.sidebar_visible = value != "false",
                 "pane_visible" => state.pane_visible = value != "false",
                 "pane_page" if !value.is_empty() => state.pane_page = value.to_string(),
+                "terminal_height" => {
+                    if let Ok(height) = value.parse::<i32>() {
+                        if height >= 80 {
+                            state.terminal_height = height;
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -99,8 +109,8 @@ fn parse(input: &str) -> WindowState {
 
 fn serialize(state: &WindowState) -> String {
     format!(
-        "width = {}\nheight = {}\nmaximized = {}\nsplit_ratio = {:.3}\nsidebar_visible = {}\npane_visible = {}\npane_page = {}\n",
-        state.width, state.height, state.maximized, state.split_ratio, state.sidebar_visible, state.pane_visible, state.pane_page
+        "width = {}\nheight = {}\nmaximized = {}\nsplit_ratio = {:.3}\nsidebar_visible = {}\npane_visible = {}\npane_page = {}\nterminal_height = {}\n",
+        state.width, state.height, state.maximized, state.split_ratio, state.sidebar_visible, state.pane_visible, state.pane_page, state.terminal_height
     )
 }
 
@@ -118,6 +128,7 @@ mod tests {
             sidebar_visible: false,
             pane_visible: true,
             pane_page: "post".to_string(),
+            terminal_height: 320,
         };
         assert_eq!(parse(&serialize(&state)), state);
     }

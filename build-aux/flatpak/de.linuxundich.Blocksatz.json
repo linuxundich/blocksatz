@@ -14,7 +14,8 @@
         "--device=dri",
         "--share=network",
         "--filesystem=xdg-documents",
-        "--filesystem=xdg-templates"
+        "--filesystem=xdg-templates",
+        "--talk-name=org.freedesktop.Flatpak"
     ],
     "build-options": {
         "append-path": "/usr/lib/sdk/rust-stable/bin",
@@ -43,6 +44,26 @@
                     "url": "https://gitlab.gnome.org/GNOME/libspelling.git",
                     "tag": "0.4.10",
                     "commit": "1facdde8e1c0fd72bed806f9a9be2fbec83af5f2"
+                }
+            ]
+        },
+        {
+            "name": "vte",
+            "buildsystem": "meson",
+            "config-opts": [
+                "--buildtype=release",
+                "-Dgtk3=false",
+                "-Dgtk4=true",
+                "-Dglade=false",
+                "-Dgir=false",
+                "-Dvapi=false",
+                "-Ddocs=false"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://download.gnome.org/sources/vte/0.84/vte-0.84.0.tar.xz",
+                    "sha256": "0414e31583836aeb7878da25f67c515f7e8879917ecc37c92e26b83e8d8fc3e3"
                 }
             ]
         },

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-07 08:10+0200\n"
+"POT-Creation-Date: 2026-10-07 08:27+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -46,7 +46,7 @@ msgstr "Generate Text"
 msgid "Noch kein Text generiert - auf „Text generieren“ klicken."
 msgstr "No text generated yet - click “Generate Text”."
 
-#: src/aialt.rs:182 src/aiinplace.rs:102 src/tagsuggest.rs:84
+#: src/aialt.rs:182 src/aiinplace.rs:102 src/tagsuggest.rs:87
 msgid "Übernehmen"
 msgstr "Apply"
 
@@ -54,20 +54,20 @@ msgstr "Apply"
 msgid "KI-Alternativtext"
 msgstr "AI Alt Text"
 
-#: src/aialt.rs:202 src/aiwriter.rs:438 src/imagealt.rs:388 src/imagealt.rs:492
-#: src/tagsuggest.rs:61
+#: src/aialt.rs:202 src/aiwriter.rs:438 src/imagealt.rs:394 src/imagealt.rs:498
+#: src/tagsuggest.rs:62
 msgid "Wird generiert …"
 msgstr "Generating …"
 
 #: src/aialt.rs:213 src/aievaluate.rs:225 src/aiinplace.rs:206
 #: src/aiwriter.rs:403 src/aiwriter.rs:472 src/blogposts.rs:424 src/chat.rs:181
-#: src/export.rs:334 src/gallerydialog.rs:509 src/imagealt.rs:401
-#: src/imagealt.rs:503 src/imageedit.rs:306 src/mediabrowser.rs:500
+#: src/export.rs:334 src/gallerydialog.rs:509 src/imagealt.rs:407
+#: src/imagealt.rs:509 src/imageedit.rs:306 src/mediabrowser.rs:500
 #: src/mediabrowser.rs:589 src/mediapanel.rs:285 src/mediapanel.rs:749
 msgid "Fehler: {err}"
 msgstr "Error: {err}"
 
-#: src/aialt.rs:267 src/aicaption.rs:69 src/tagsuggest.rs:226
+#: src/aialt.rs:267 src/aicaption.rs:69 src/tagsuggest.rs:241
 msgid "Interner Fehler: Generierungs-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the generation thread returned no result."
 
@@ -179,7 +179,7 @@ msgstr ""
 #: src/aimenu.rs:188 src/blogposts.rs:385 src/export.rs:202
 #: src/gallerydialog.rs:154 src/mainaction.rs:468 src/mainaction.rs:759
 #: src/mainaction.rs:815 src/markdowncheck.rs:162 src/mediabrowser.rs:554
-#: src/newarticle.rs:209 src/releasecheck.rs:230 src/tagsuggest.rs:83
+#: src/newarticle.rs:209 src/releasecheck.rs:230 src/tagsuggest.rs:86
 #: src/taxonomy.rs:352 src/taxonomy.rs:666
 msgid "Abbrechen"
 msgstr "Cancel"
@@ -237,7 +237,7 @@ msgid "Texterstellung"
 msgstr "Text generation"
 
 #: src/aitasks.rs:57 src/promptsettings.rs:70 src/releasecheck.rs:112
-#: src/releasecheck.rs:453 src/shortcuts.rs:38 src/translatedialog.rs:979
+#: src/releasecheck.rs:453 src/shortcuts.rs:39 src/translatedialog.rs:979
 #: src/translationsettings.rs:99 src/translationsettings.rs:140
 msgid "Übersetzung"
 msgstr "Translation"
@@ -762,7 +762,7 @@ msgstr "Restore as draft"
 msgid "In den Papierkorb"
 msgstr "Move to trash"
 
-#: src/blogposts.rs:372 src/window.rs:1353
+#: src/blogposts.rs:372 src/window.rs:1415
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr "Failed to open: {err}"
 
@@ -1100,7 +1100,7 @@ msgstr "Changed since the translation"
 msgid "Neu oder geändert"
 msgstr "New or changed"
 
-#: src/counterpart.rs:47
+#: src/counterpart.rs:47 src/terminal.rs:137
 msgid "Kopieren"
 msgstr "Copy"
 
@@ -1406,7 +1406,7 @@ msgstr "Large"
 msgid "Volle Größe"
 msgstr "Full Size"
 
-#: src/gallerydialog.rs:148 src/settings.rs:31 src/shortcuts.rs:53
+#: src/gallerydialog.rs:148 src/settings.rs:31 src/shortcuts.rs:54
 #: src/window.rs:388
 msgid "Einstellungen"
 msgstr "Preferences"
@@ -1451,7 +1451,7 @@ msgstr "Remove from Gallery"
 msgid "Alt-Text"
 msgstr "Alt text"
 
-#: src/gallerydialog.rs:399 src/imagealt.rs:464 src/imagealt.rs:511
+#: src/gallerydialog.rs:399 src/imagealt.rs:470 src/imagealt.rs:517
 #: src/mediapanel.rs:650
 msgid "Bildunterschrift"
 msgstr "Caption"
@@ -1477,15 +1477,15 @@ msgstr "Showing {n} images."
 msgid "Interner Fehler: Lade-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the load thread returned no result."
 
-#: src/imagealt.rs:65 src/preview.rs:357
+#: src/imagealt.rs:66 src/preview.rs:357
 msgid "Bildbeschriftung bearbeiten…"
 msgstr "Edit Image Description…"
 
-#: src/imagealt.rs:231
+#: src/imagealt.rs:237
 msgid "Keine Bildreferenz gefunden"
 msgstr "No Image Reference Found"
 
-#: src/imagealt.rs:232
+#: src/imagealt.rs:238
 msgid ""
 "Für die Bildbeschriftung bitte mit der rechten Maustaste auf eine Zeile mit "
 "einem Bild (![Beschreibung](bild.png)) klicken."
@@ -1493,39 +1493,39 @@ msgstr ""
 "For the image description, please right-click a line containing an image (!"
 "[description](image.png))."
 
-#: src/imagealt.rs:234 src/translatedialog.rs:149
+#: src/imagealt.rs:240 src/translatedialog.rs:149
 msgid "OK"
 msgstr "OK"
 
-#: src/imagealt.rs:358 src/mediapanel.rs:583
+#: src/imagealt.rs:364 src/mediapanel.rs:583
 msgid "Alternativtext definieren"
 msgstr "Define Alt Text"
 
-#: src/imagealt.rs:359 src/mediapanel.rs:584
+#: src/imagealt.rs:365 src/mediapanel.rs:584
 msgid "Aus lassen für rein dekorative Bilder - das ist kein Fehler"
 msgstr "Leave off for purely decorative images - that's not an error"
 
-#: src/imagealt.rs:363 src/imagealt.rs:457 src/mediapanel.rs:588
+#: src/imagealt.rs:369 src/imagealt.rs:463 src/mediapanel.rs:588
 msgid "Alternativtext"
 msgstr "Alt Text"
 
-#: src/imagealt.rs:375 src/properties.rs:417
+#: src/imagealt.rs:381 src/properties.rs:417
 msgid "KI-Alternativtext generieren…"
 msgstr "Generate AI Alt Text…"
 
-#: src/imagealt.rs:458
+#: src/imagealt.rs:464
 msgid "Für Screenreader - wird im Artikel selbst nicht sichtbar angezeigt."
 msgstr "For screen readers - not shown visibly in the article itself."
 
-#: src/imagealt.rs:479
+#: src/imagealt.rs:485
 msgid "KI-Bildunterschrift generieren…"
 msgstr "Generate AI Caption…"
 
-#: src/imagealt.rs:512
+#: src/imagealt.rs:518
 msgid "Sichtbarer Text, der im Artikel unter dem Bild angezeigt wird."
 msgstr "Visible text shown below the image in the article."
 
-#: src/imagealt.rs:532
+#: src/imagealt.rs:538
 msgid "Bildbeschriftung"
 msgstr "Image Description"
 
@@ -1659,7 +1659,7 @@ msgid "{site} · nicht erreichbar"
 msgstr "{site} · unreachable"
 
 #: src/librarysidebar.rs:494 src/mainaction.rs:225 src/window.rs:370
-#: src/window.rs:732 src/window.rs:1018
+#: src/window.rs:794 src/window.rs:1080
 msgid "Unbenannt"
 msgstr "Untitled"
 
@@ -2273,7 +2273,7 @@ msgstr "All media"
 
 #: src/mediabrowser.rs:34 src/newarticle.rs:194 src/newarticle.rs:412
 #: src/properties.rs:820 src/releasecheck.rs:97 src/releasecheck.rs:100
-#: src/releasecheck.rs:328 src/window.rs:1456
+#: src/releasecheck.rs:328 src/window.rs:1518
 msgid "Bilder"
 msgstr "Images"
 
@@ -2289,7 +2289,7 @@ msgstr "Filter by media type"
 msgid "Aktualisieren"
 msgstr "Update"
 
-#: src/mediabrowser.rs:222 src/shortcuts.rs:36 src/window.rs:384
+#: src/mediabrowser.rs:222 src/shortcuts.rs:37 src/window.rs:384
 msgid "WordPress-Mediathek"
 msgstr "WordPress Media Library"
 
@@ -2398,7 +2398,7 @@ msgstr "Loading images …"
 msgid "{n} Bilder gefunden."
 msgstr "Images found: {n}."
 
-#: src/mediapanel.rs:42 src/postpane.rs:76 src/shortcuts.rs:35
+#: src/mediapanel.rs:42 src/postpane.rs:76 src/shortcuts.rs:36
 msgid "Medienverwaltung"
 msgstr "Media Manager"
 
@@ -3207,7 +3207,7 @@ msgstr "Refresh categories & tags from WordPress"
 msgid "Kategorien & Tags verwalten…"
 msgstr "Manage Categories & Tags…"
 
-#: src/properties.rs:629 src/shortcuts.rs:52
+#: src/properties.rs:629 src/shortcuts.rs:53
 msgid "Allgemein"
 msgstr "General"
 
@@ -3440,42 +3440,46 @@ msgid "Seitenbereich ein-/ausblenden"
 msgstr "Show/hide side pane"
 
 #: src/shortcuts.rs:33
+msgid "Terminal ein-/ausblenden"
+msgstr "Show/hide terminal"
+
+#: src/shortcuts.rs:34
 msgid "Beitragseigenschaften"
 msgstr "Post properties"
 
-#: src/shortcuts.rs:34
+#: src/shortcuts.rs:35
 msgid "Fokus-Schreibmodus"
 msgstr "Focus Writing Mode"
 
-#: src/shortcuts.rs:37
+#: src/shortcuts.rs:38
 msgid "Originalsprache"
 msgstr "Original language"
 
-#: src/shortcuts.rs:42 src/window.rs:318 src/window.rs:428
+#: src/shortcuts.rs:43 src/window.rs:318 src/window.rs:447
 msgid "Editor"
 msgstr "Editor"
 
-#: src/shortcuts.rs:44
+#: src/shortcuts.rs:45
 msgid "Fett"
 msgstr "Bold"
 
-#: src/shortcuts.rs:45
+#: src/shortcuts.rs:46
 msgid "Kursiv"
 msgstr "Italic"
 
-#: src/shortcuts.rs:46
+#: src/shortcuts.rs:47
 msgid "Link einfügen"
 msgstr "Insert Link"
 
-#: src/shortcuts.rs:47
+#: src/shortcuts.rs:48
 msgid "Bild aus der Zwischenablage einfügen"
 msgstr "Paste Image from Clipboard"
 
-#: src/shortcuts.rs:48
+#: src/shortcuts.rs:49
 msgid "Suchen und Ersetzen"
 msgstr "Find and Replace"
 
-#: src/shortcuts.rs:53 src/window.rs:389
+#: src/shortcuts.rs:54 src/window.rs:389
 msgid "Tastenkürzel"
 msgstr "Keyboard Shortcuts"
 
@@ -3635,35 +3639,35 @@ msgstr ""
 "The AI reads the title and text and suggests fitting tags. Tags the site "
 "already has take precedence."
 
-#: src/tagsuggest.rs:67
+#: src/tagsuggest.rs:70
 msgid "Erneut versuchen"
 msgstr "Try Again"
 
-#: src/tagsuggest.rs:72
+#: src/tagsuggest.rs:75
 msgid "Neu generieren"
 msgstr "Regenerate"
 
-#: src/tagsuggest.rs:75
+#: src/tagsuggest.rs:78
 msgid "Vorschläge"
 msgstr "Suggestions"
 
-#: src/tagsuggest.rs:76
+#: src/tagsuggest.rs:79
 msgid "Grün: Tag gibt es schon. Rot: wird neu angelegt."
 msgstr "Green: tag already exists. Red: will be created."
 
-#: src/tagsuggest.rs:96
+#: src/tagsuggest.rs:99
 msgid "KI-Tags vorschlagen"
 msgstr "Suggest AI Tags"
 
-#: src/tagsuggest.rs:214
+#: src/tagsuggest.rs:229
 msgid "Keine neuen Tag-Vorschläge"
 msgstr "No New Tag Suggestions"
 
-#: src/tagsuggest.rs:214
+#: src/tagsuggest.rs:229
 msgid "Alles Passende ist schon gesetzt."
 msgstr "Everything that fits is already set."
 
-#: src/tagsuggest.rs:221 src/tagsuggest.rs:226
+#: src/tagsuggest.rs:236 src/tagsuggest.rs:241
 msgid "Generierung fehlgeschlagen"
 msgstr "Generation Failed"
 
@@ -3742,6 +3746,18 @@ msgstr "Error creating"
 #: src/taxonomy.rs:533
 msgid "Interner Fehler: kein Ergebnis vom Erstellen-Thread."
 msgstr "Internal error: no result from the create thread."
+
+#: src/terminal.rs:99
+msgid "Shell konnte nicht gestartet werden: {err}"
+msgstr "Could not start the shell: {err}"
+
+#: src/terminal.rs:138
+msgid "Aus Zwischenablage einfügen"
+msgstr "Paste"
+
+#: src/terminal.rs:141
+msgid "Alles auswählen"
+msgstr "Select All"
 
 #: src/translatedialog.rs:29
 msgid "Französisch"
@@ -4022,6 +4038,46 @@ msgid ""
 "Blog verknüpft."
 msgstr "Marked as reviewed. The next upload links the translation on the blog."
 
+#: src/translate.rs:513
+msgid "Unbekannter Platzhalter „{p}“"
+msgstr "Unknown placeholder “{p}”"
+
+#: src/translate.rs:523
+msgid "{p} fehlt ({o})"
+msgstr "{p} is missing ({o})"
+
+#: src/translate.rs:525
+msgid "{p} kommt {n}-mal vor"
+msgstr "{p} appears {n} times"
+
+#: src/translate.rs:630
+msgid "Code, Links oder Auszeichnungen weichen vom Original ab."
+msgstr "Code, links or markup differ from the original."
+
+#: src/translate.rs:633
+msgid "Fehlt: {list}"
+msgstr "Missing: {list}"
+
+#: src/translate.rs:637
+msgid "Zusätzlich: {list}"
+msgstr "Extra: {list}"
+
+#: src/translate.rs:645
+msgid "Überschriften: {a} im Original, {b} in der Übersetzung."
+msgstr "Headings: {a} in the original, {b} in the translation."
+
+#: src/translate.rs:651
+msgid "Abschnitt enthält noch {n} Wörter, die nach Original-Sprache aussehen."
+msgstr "Section still contains {n} words that look like the original language."
+
+#: src/translate.rs:852
+msgid "Die Antwort für Titel und Auszug war kein gültiges JSON."
+msgstr "The reply for title and excerpt wasn’t valid JSON."
+
+#: src/translate.rs:923
+msgid "Hinweis des Modells: {note}"
+msgstr "Model note: {note}"
+
 #: src/translationsettings.rs:39
 msgid "Original als Vorlage"
 msgstr "Original as Template"
@@ -4102,46 +4158,6 @@ msgstr ""
 "One line per category, e.g. “Allgemein = General”. Names not listed stay the "
 "same."
 
-#: src/translate.rs:513
-msgid "Unbekannter Platzhalter „{p}“"
-msgstr "Unknown placeholder “{p}”"
-
-#: src/translate.rs:523
-msgid "{p} fehlt ({o})"
-msgstr "{p} is missing ({o})"
-
-#: src/translate.rs:525
-msgid "{p} kommt {n}-mal vor"
-msgstr "{p} appears {n} times"
-
-#: src/translate.rs:630
-msgid "Code, Links oder Auszeichnungen weichen vom Original ab."
-msgstr "Code, links or markup differ from the original."
-
-#: src/translate.rs:633
-msgid "Fehlt: {list}"
-msgstr "Missing: {list}"
-
-#: src/translate.rs:637
-msgid "Zusätzlich: {list}"
-msgstr "Extra: {list}"
-
-#: src/translate.rs:645
-msgid "Überschriften: {a} im Original, {b} in der Übersetzung."
-msgstr "Headings: {a} in the original, {b} in the translation."
-
-#: src/translate.rs:651
-msgid "Abschnitt enthält noch {n} Wörter, die nach Original-Sprache aussehen."
-msgstr "Section still contains {n} words that look like the original language."
-
-#: src/translate.rs:852
-msgid "Die Antwort für Titel und Auszug war kein gültiges JSON."
-msgstr "The reply for title and excerpt wasn’t valid JSON."
-
-#: src/translate.rs:923
-msgid "Hinweis des Modells: {note}"
-msgstr "Model note: {note}"
-
 #: src/window.rs:114
 msgid "Assistent"
 msgstr "Assistant"
@@ -4186,59 +4202,63 @@ msgstr "Show/hide side pane (F9)"
 msgid "Fokus-Schreibmodus (Strg+Umschalt+F)"
 msgstr "Focus writing mode (Ctrl+Shift+F)"
 
-#: src/window.rs:1019
+#: src/window.rs:412
+msgid "Terminal ein-/ausblenden (F12)"
+msgstr "Show/hide terminal (F12)"
+
+#: src/window.rs:1081
 msgid "Unbenannte Seite"
 msgstr "Untitled page"
 
-#: src/window.rs:1077
+#: src/window.rs:1139
 msgid "{n} Übersetzungen in den Ordner ihres Originals verschoben."
 msgstr "Moved {n} translations into the folder of their original."
 
-#: src/window.rs:1148
+#: src/window.rs:1210
 msgid "Vorhandene Arbeitskopie geöffnet."
 msgstr "Opened the existing working copy."
 
-#: src/window.rs:1192
+#: src/window.rs:1254
 msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
 msgstr "Couldn't create a working copy: {err}"
 
-#: src/window.rs:1297
+#: src/window.rs:1359
 msgid "Markdown-Datei öffnen"
 msgstr "Open Markdown File"
 
-#: src/window.rs:1460
+#: src/window.rs:1522
 msgid "Bild einfügen"
 msgstr "Insert Image"
 
-#: src/window.rs:1495
+#: src/window.rs:1557
 msgid "Video/Audio einfügen"
 msgstr "Insert Video/Audio"
 
-#: src/window.rs:1589
+#: src/window.rs:1651
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr "AI draft created as a new document - please review it."
 
-#: src/window.rs:1696
+#: src/window.rs:1758
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr "Please save the article first to insert images."
 
-#: src/window.rs:1705
+#: src/window.rs:1767
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the image from the clipboard."
 
-#: src/window.rs:1711
+#: src/window.rs:1773
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr "Couldn't save the image: {err}"
 
-#: src/window.rs:1725 src/window.rs:1739
+#: src/window.rs:1787 src/window.rs:1801
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the formatted text from the clipboard."
 
-#: src/window.rs:1743
+#: src/window.rs:1805
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr "Formatted text from the clipboard is in an unknown format."
 
-#: src/window.rs:1748
+#: src/window.rs:1810
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr "Couldn't convert the formatted text: {err}"
 

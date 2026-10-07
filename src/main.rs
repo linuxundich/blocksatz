@@ -74,6 +74,7 @@ mod translatedialog;
 mod translationsettings;
 mod tagsuggest;
 mod taxonomy;
+mod terminal;
 mod termcache;
 mod textimport;
 mod themestyle;
@@ -119,6 +120,7 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("win.find", &["<Ctrl>f"]);
     app.set_accels_for_action("win.toggle-focus-mode", &["<Ctrl><Shift>f"]);
     app.set_accels_for_action("win.toggle-preview", &["F9"]);
+    app.set_accels_for_action("win.toggle-terminal", &["F12"]);
     app.set_accels_for_action("win.properties", &["<Alt>Return"]);
     app.set_accels_for_action("win.lang-original", &["<Alt>1"]);
     app.set_accels_for_action("win.lang-translation", &["<Alt>2"]);
@@ -183,7 +185,8 @@ fn main() -> glib::ExitCode {
 /// exactly that positive/negative distinction, the same one this app's
 /// "success"/"error" CSS classes already give an icon elsewhere (e.g. the
 /// URL-length check in `properties.rs`). `.gallery-selected` is
-/// `gallerydialog.rs`'s "this tile is in the gallery" highlight.
+/// `gallerydialog.rs`'s "this tile is in the gallery" highlight,
+/// `.blocksatz-terminal` the text margin of `terminal.rs`'s panel.
 fn load_chat_bubble_css() {
     let Some(display) = gtk4::gdk::Display::default() else {
         return;
@@ -198,6 +201,7 @@ fn load_chat_bubble_css() {
         .tag-pill-existing { background-color: @success_bg_color; color: @success_fg_color; }
         .tag-pill-new { background-color: @error_bg_color; color: @error_fg_color; }
         .gallery-selected { border: 2px solid @accent_bg_color; border-radius: 6px; }
+        .blocksatz-terminal vte-terminal { padding: 6px 12px; }
         ",
     );
     gtk4::style_context_add_provider_for_display(&display, &provider, gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION);

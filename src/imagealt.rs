@@ -23,8 +23,9 @@
 //! NOT reposition that mark on its own (confirmed live: it stayed wherever
 //! an earlier left-click/edit had left it), unlike e.g. a web browser's
 //! text field. So a small `Gtk.GestureClick` explicitly moves the cursor
-//! to the click point on every secondary-button press, before rebuilding
-//! the menu from the now-accurate position.
+//! to the click point on every secondary-button press (unless it lands in
+//! the selection, which must survive for Cut/Copy), before rebuilding the
+//! menu from the now-accurate position.
 
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -88,7 +89,12 @@ pub fn install(
             let Some(view) = view_weak.upgrade() else { return };
             let (buffer_x, buffer_y) = view.window_to_buffer_coords(gtk4::TextWindowType::Widget, x as i32, y as i32);
             if let Some((iter, _trailing)) = view.iter_at_position(buffer_x, buffer_y) {
-                buffer.place_cursor(&iter);
+                // A right-click into the selection keeps it, otherwise
+                // Cut/Copy and the KI-Aktionen would have nothing to act on.
+                let inside_selection = buffer.selection_bounds().is_some_and(|(start, end)| iter.in_range(&start, &end) || iter == end);
+                if !inside_selection {
+                    buffer.place_cursor(&iter);
+                }
             }
             let line = buffer.iter_at_mark(&buffer.get_insert()).line();
             rebuild_menu_for_line(&menu, &buffer, line);

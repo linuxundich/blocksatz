@@ -13,7 +13,7 @@ use crate::{
     newarticle,
     blogposts, blogsync, counterpart, importer, langswitch, library, librarysidebar, mainaction, markdowncheck, postpane, releasecheck, syncstate, worksave,
     about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
-    mediabrowser, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, themestyle, windowstate,
+    mediabrowser, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, terminal, themestyle, windowstate,
 };
 
 const DEBOUNCE_MS: u64 = 250;
@@ -408,6 +408,10 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     // The language switch of a language pair (`langswitch.rs`), likewise.
     let lang_switch_slot = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
 
+    let terminal_toggle_button = gtk4::ToggleButton::builder().icon_name("utilities-terminal-symbolic").build();
+    terminal_toggle_button.set_tooltip_text(Some(&tr("Terminal ein-/ausblenden (F12)")));
+    terminal_toggle_button.set_action_name(Some("win.toggle-terminal"));
+
     let header_bar = adw::HeaderBar::new();
     header_bar.set_title_widget(Some(&title));
     header_bar.pack_start(&sidebar_toggle_button);
@@ -415,12 +419,27 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     header_bar.pack_end(&main_action_slot);
     header_bar.pack_end(&preview_toggle_button);
     header_bar.pack_end(&focus_mode_toggle_button);
+    header_bar.pack_end(&terminal_toggle_button);
 
     let status_bar = Rc::new(statusbar::StatusBar::new());
 
+    // The fold-out terminal (`terminal.rs`) below editor and pane. Hidden,
+    // it leaves the Paned's whole height to the editor, like the right pane.
+    let terminal_panel = terminal::TerminalPanel::new();
+    let terminal_paned = gtk4::Paned::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .start_child(&layout_view)
+        .end_child(&terminal_panel.widget)
+        .resize_end_child(false)
+        .shrink_end_child(false)
+        .shrink_start_child(false)
+        .build();
+    terminal_panel.widget.set_size_request(-1, 80);
+    let terminal_height = Rc::new(Cell::new(saved_window_state.terminal_height));
+
     let toolbar_view = adw::ToolbarView::new();
     toolbar_view.add_top_bar(&header_bar);
-    toolbar_view.set_content(Some(&layout_view));
+    toolbar_view.set_content(Some(&terminal_paned));
     toolbar_view.add_bottom_bar(&status_bar.widget);
 
     // Content area: the editor, with the blog archive page pushed on top
@@ -452,6 +471,9 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let right_pane = right_pane.clone();
         let view_stack = view_stack.clone();
         let saved_sidebar = saved_window_state.sidebar_visible;
+        let terminal_paned = terminal_paned.clone();
+        let terminal_panel = terminal_panel.clone();
+        let terminal_height = terminal_height.clone();
         let (saved_width, saved_height) = (saved_window_state.width, saved_window_state.height);
         window.connect_close_request(move |window| {
             // A maximized window's size is the monitor's; keeping it as the
@@ -470,6 +492,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
                 pane_visible: right_pane.is_visible(),
                 // The other language's view only exists for a pair.
                 pane_page: view_stack.visible_child_name().map(|n| n.to_string()).filter(|n| n != counterpart::PAGE).unwrap_or_else(|| "preview".into()),
+                terminal_height: if terminal_panel.widget.is_visible() { terminal_paned.height() - terminal_paned.position() } else { terminal_height.get() },
             };
             let _ = windowstate::save(&state);
             glib::Propagation::Proceed
@@ -510,6 +533,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let toggle_preview_action = toggle_preview_action.clone();
         let split_view = split_view.clone();
         let sidebar_before_focus = Rc::new(Cell::new(true));
+        let terminal_panel = terminal_panel.clone();
         toggle_focus_mode_action.connect_activate(move |action, _| {
             let focus_mode = !action.state().and_then(|state| state.get::<bool>()).unwrap_or(false);
             action.set_state(&focus_mode.to_variant());
@@ -525,11 +549,49 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
             toolbar_separator.set_visible(!focus_mode);
             let preview_wanted = toggle_preview_action.state().and_then(|state| state.get::<bool>()).unwrap_or(true);
             right_pane.set_visible(!focus_mode && preview_wanted);
+            if focus_mode && terminal_panel.widget.is_visible() {
+                let _ = toolbar_view.activate_action("win.toggle-terminal", None);
+            }
         });
     }
     window.add_action(&toggle_focus_mode_action);
 
     let current_path: Rc<RefCell<Option<PathBuf>>> = Rc::new(RefCell::new(None));
+
+    // Opening starts the shell in the article's folder (first time only,
+    // see `terminal.rs`) and moves the focus in; closing hands it back to
+    // the editor and remembers the height the user dragged it to.
+    let toggle_terminal_action = gio::SimpleAction::new_stateful("toggle-terminal", None, &false.to_variant());
+    {
+        let terminal_panel = terminal_panel.clone();
+        let terminal_paned = terminal_paned.clone();
+        let terminal_height = terminal_height.clone();
+        let current_path = current_path.clone();
+        let view = view.clone();
+        toggle_terminal_action.connect_activate(move |action, _| {
+            let visible = !action.state().and_then(|state| state.get::<bool>()).unwrap_or(false);
+            action.set_state(&visible.to_variant());
+            if visible {
+                let available = terminal_paned.height();
+                terminal_paned.set_position((available - terminal_height.get()).max(available / 4));
+                terminal_panel.widget.set_visible(true);
+                terminal_panel.open(&terminal::start_dir(current_path.borrow().as_deref()));
+            } else {
+                terminal_height.set((terminal_paned.height() - terminal_paned.position()).max(80));
+                terminal_panel.widget.set_visible(false);
+                view.grab_focus();
+            }
+        });
+    }
+    window.add_action(&toggle_terminal_action);
+    {
+        let toggle_terminal_action = toggle_terminal_action.clone();
+        terminal_panel.connect_exit(move || {
+            if toggle_terminal_action.state().and_then(|state| state.get::<bool>()).unwrap_or(false) {
+                toggle_terminal_action.activate(None);
+            }
+        });
+    }
     // The body as currently on disk (or "" for a document without a file
     // yet) - `worksave.rs` uses it to tell whether a file from outside the
     // library was actually edited before writing to it.

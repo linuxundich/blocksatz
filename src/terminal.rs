@@ -1,0 +1,249 @@
+//! The fold-out terminal at the bottom of the editor area (header-bar
+//! toggle, F12). A VTE terminal running the user's own shell, started in
+//! the open article's folder the first time the panel opens and kept
+//! running while it is hidden again - closing the panel is not closing the
+//! shell. `exit` in the shell does close the panel; the next opening
+//! starts a fresh one.
+//!
+//! In the Flatpak the shell has to run on the host, not in the sandbox
+//! (which has no user tools at all), so it goes through `flatpak-spawn
+//! --host` - which is what the `org.freedesktop.Flatpak` talk permission
+//! in the manifest is for.
+
+use std::cell::{Cell, RefCell};
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
+
+use adw::prelude::*;
+use gtk4::{gdk, gio, glib};
+use vte4::prelude::*;
+
+use crate::i18n::tr;
+
+/// An action name and the accelerators it had before the terminal took
+/// the focus.
+type SavedAccels = (String, Vec<glib::GString>);
+
+/// Stay active inside the terminal.
+const KEPT_SHORTCUTS: &[&str] = &["win.toggle-terminal", "win.toggle-preview"];
+
+pub struct TerminalPanel {
+    pub widget: gtk4::Box,
+    terminal: vte4::Terminal,
+    running: Cell<bool>,
+    on_exit: RefCell<Option<Box<dyn Fn()>>>,
+}
+
+impl TerminalPanel {
+    pub fn new() -> Rc<Self> {
+        let terminal = vte4::Terminal::builder().vexpand(true).hexpand(true).scrollback_lines(10_000).build();
+        terminal.set_mouse_autohide(true);
+        terminal.set_bold_is_bright(true);
+
+        let scrollbar = gtk4::Scrollbar::new(gtk4::Orientation::Vertical, terminal.vadjustment().as_ref());
+        let row = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
+        row.append(&terminal);
+        row.append(&scrollbar);
+
+        let widget = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+        widget.add_css_class("blocksatz-terminal");
+        widget.append(&row);
+        widget.set_visible(false);
+
+        let panel = Rc::new(Self { widget, terminal, running: Cell::new(false), on_exit: RefCell::new(None) });
+        panel.install_clipboard();
+        panel.release_app_shortcuts_while_focused();
+        panel.follow_color_scheme();
+
+        let weak = Rc::downgrade(&panel);
+        panel.terminal.connect_child_exited(move |_, _| {
+            let Some(panel) = weak.upgrade() else { return };
+            panel.running.set(false);
+            panel.terminal.reset(true, true);
+            let on_exit = panel.on_exit.borrow();
+            if let Some(on_exit) = on_exit.as_ref() {
+                on_exit();
+            }
+        });
+        panel
+    }
+
+    /// Called when the shell ends by itself (`exit`, Ctrl+D) - the window
+    /// hides the panel and resets its toggle.
+    pub fn connect_exit(&self, f: impl Fn() + 'static) {
+        *self.on_exit.borrow_mut() = Some(Box::new(f));
+    }
+
+    /// Starts the shell in `dir` unless one is already running (that one
+    /// keeps its own working directory), and moves the keyboard focus in.
+    pub fn open(&self, dir: &Path) {
+        if !self.running.get() {
+            self.spawn(dir);
+        }
+        self.terminal.grab_focus();
+    }
+
+    fn spawn(&self, dir: &Path) {
+        self.running.set(true);
+        let dir = dir.to_string_lossy().to_string();
+        let argv = shell_argv(&dir);
+        let argv: Vec<&str> = argv.iter().map(String::as_str).collect();
+        let terminal = self.terminal.clone();
+        self.terminal.spawn_async(
+            vte4::PtyFlags::DEFAULT,
+            Some(&dir),
+            &argv,
+            &["COLORTERM=truecolor"],
+            glib::SpawnFlags::SEARCH_PATH,
+            || {},
+            -1,
+            None::<&gio::Cancellable>,
+            move |result| {
+                if let Err(err) = result {
+                    terminal.feed(format!("{}\r\n", tr("Shell konnte nicht gestartet werden: {err}").replace("{err}", err.message())).as_bytes());
+                }
+            },
+        );
+    }
+
+    /// Ctrl+Shift+C/V like every other terminal, plus a context menu. The
+    /// controller runs in the capture phase so these keys reach the
+    /// terminal before the window's own Ctrl+Shift+C/V shortcuts.
+    fn install_clipboard(&self) {
+        let actions = gio::SimpleActionGroup::new();
+        let copy = gio::SimpleAction::new("copy", None);
+        {
+            let terminal = self.terminal.clone();
+            copy.connect_activate(move |_, _| terminal.copy_clipboard_format(vte4::Format::Text));
+        }
+        let paste = gio::SimpleAction::new("paste", None);
+        {
+            let terminal = self.terminal.clone();
+            paste.connect_activate(move |_, _| terminal.paste_clipboard());
+        }
+        let select_all = gio::SimpleAction::new("select-all", None);
+        {
+            let terminal = self.terminal.clone();
+            select_all.connect_activate(move |_, _| terminal.select_all());
+        }
+        {
+            let copy = copy.clone();
+            self.terminal.connect_selection_changed(move |terminal| copy.set_enabled(terminal.has_selection()));
+        }
+        copy.set_enabled(false);
+        actions.add_action(&copy);
+        actions.add_action(&paste);
+        actions.add_action(&select_all);
+        self.terminal.insert_action_group("term", Some(&actions));
+
+        let menu = gio::Menu::new();
+        let clipboard_section = gio::Menu::new();
+        clipboard_section.append(Some(&tr("Kopieren")), Some("term.copy"));
+        clipboard_section.append(Some(&tr("Aus Zwischenablage einfügen")), Some("term.paste"));
+        menu.append_section(None, &clipboard_section);
+        let select_section = gio::Menu::new();
+        select_section.append(Some(&tr("Alles auswählen")), Some("term.select-all"));
+        menu.append_section(None, &select_section);
+        self.terminal.set_context_menu_model(Some(&menu));
+
+        let shortcuts = gtk4::ShortcutController::new();
+        shortcuts.set_propagation_phase(gtk4::PropagationPhase::Capture);
+        for (trigger, action) in [("<Ctrl><Shift>c", "term.copy"), ("<Ctrl><Shift>v", "term.paste")] {
+            shortcuts.add_shortcut(gtk4::Shortcut::new(gtk4::ShortcutTrigger::parse_string(trigger), Some(gtk4::NamedAction::new(action))));
+        }
+        self.terminal.add_controller(shortcuts);
+    }
+
+    /// The application's accelerators are handled before any widget sees
+    /// the key, so Ctrl+N would open "Neuer Artikel" instead of reaching
+    /// the shell. While the terminal has the focus they are switched off,
+    /// except the ones that toggle the panels.
+    fn release_app_shortcuts_while_focused(&self) {
+        let saved: Rc<RefCell<Vec<SavedAccels>>> = Rc::new(RefCell::new(Vec::new()));
+        let focus = gtk4::EventControllerFocus::new();
+        {
+            let saved = saved.clone();
+            focus.connect_enter(move |_| {
+                let Some(app) = gio::Application::default().and_downcast::<gtk4::Application>() else { return };
+                let mut saved = saved.borrow_mut();
+                if !saved.is_empty() {
+                    return;
+                }
+                for action in app.list_action_descriptions() {
+                    if KEPT_SHORTCUTS.contains(&action.as_str()) {
+                        continue;
+                    }
+                    let accels = app.accels_for_action(&action);
+                    if !accels.is_empty() {
+                        app.set_accels_for_action(&action, &[]);
+                        saved.push((action.to_string(), accels.to_vec()));
+                    }
+                }
+            });
+        }
+        focus.connect_leave(move |_| {
+            let Some(app) = gio::Application::default().and_downcast::<gtk4::Application>() else { return };
+            for (action, accels) in saved.borrow_mut().drain(..) {
+                let accels: Vec<&str> = accels.iter().map(|a| a.as_str()).collect();
+                app.set_accels_for_action(&action, &accels);
+            }
+        });
+        self.terminal.add_controller(focus);
+    }
+
+    fn follow_color_scheme(&self) {
+        let style_manager = adw::StyleManager::default();
+        apply_colors(&self.terminal, style_manager.is_dark());
+        let terminal = self.terminal.downgrade();
+        style_manager.connect_dark_notify(move |manager| {
+            if let Some(terminal) = terminal.upgrade() {
+                apply_colors(&terminal, manager.is_dark());
+            }
+        });
+    }
+}
+
+/// Foreground and background close to libadwaita's own view colors, the
+/// 16-color palette left to VTE's default.
+fn apply_colors(terminal: &vte4::Terminal, dark: bool) {
+    let (foreground, background) = if dark { ("#ffffff", "#1d1d20") } else { ("#1e1e1e", "#ffffff") };
+    let foreground = gdk::RGBA::parse(foreground).ok();
+    let background = gdk::RGBA::parse(background).ok();
+    terminal.set_colors(foreground.as_ref(), background.as_ref(), &[]);
+}
+
+fn in_flatpak() -> bool {
+    Path::new("/.flatpak-info").exists()
+}
+
+/// The user's login shell as an argv - on the host via `flatpak-spawn`
+/// when running as a Flatpak.
+fn shell_argv(dir: &str) -> Vec<String> {
+    if in_flatpak() {
+        let shell = host_shell().unwrap_or_else(|| "/bin/bash".to_string());
+        return vec![
+            "flatpak-spawn".into(),
+            "--host".into(),
+            "--watch-bus".into(),
+            format!("--directory={dir}"),
+            "--env=TERM=xterm-256color".into(),
+            "--env=COLORTERM=truecolor".into(),
+            shell,
+        ];
+    }
+    vec![std::env::var("SHELL").ok().filter(|s| !s.is_empty()).unwrap_or_else(|| "/bin/bash".to_string())]
+}
+
+/// The sandbox's own passwd has no idea which shell the user picked, so
+/// ask the host's.
+fn host_shell() -> Option<String> {
+    let user = glib::user_name().to_string_lossy().to_string();
+    let output = std::process::Command::new("flatpak-spawn").args(["--host", "getent", "passwd", &user]).output().ok()?;
+    let line = String::from_utf8(output.stdout).ok()?;
+    line.trim().rsplit(':').next().filter(|shell| !shell.is_empty()).map(str::to_string)
+}
+
+/// Where a new shell starts: the open article's folder, else the library.
+pub fn start_dir(article: Option<&Path>) -> PathBuf {
+    article.and_then(Path::parent).filter(|dir| dir.is_dir()).map(Path::to_path_buf).unwrap_or_else(crate::library::root)
+}

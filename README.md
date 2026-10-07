@@ -74,6 +74,12 @@ blocks. Implemented so far:
     it, draft preview or live post), Beitrag (state, all post properties,
     media, statistics), Assistent (chat / evaluation) and a Browser of its
     own (switchable in Einstellungen → Browser).
+- **Fold-out terminal** (F12, header-bar toggle) — a terminal below
+  editor and pane, starting your own shell in the article's folder (on the
+  host when running as a Flatpak, via `flatpak-spawn --host`). Hiding it
+  keeps the shell running; `exit` closes the panel. Ctrl+Shift+C/V copy
+  and paste, and while it has the focus the app's own shortcuts step
+  aside, so Ctrl+N and friends reach the shell. Its height is remembered.
 - **Split-pane editor** — the window remembers its size (and whether it was
   maximized) across restarts, together with the layout of its panes: the
   editor/pane split (a ratio, 50/50 to start), whether the sidebar and the
@@ -551,6 +557,11 @@ where the library `~/Dokumente/Blocksatz` lives) and the templates folder
 Dokument") and nothing else of the home directory: other files arrive through the file chooser and drag and
 drop portals, and an image or video picked from elsewhere is copied into
 the article's folder, so an article stays self-contained.
+
+`--talk-name=org.freedesktop.Flatpak` is for the fold-out terminal only:
+it runs the user's shell on the host through `flatpak-spawn --host`, the
+sandbox having no shell tools of its own. VTE isn't part of the GNOME
+runtime, so the manifest builds it as a module.
 
 For Flathub, `build-aux/flathub/prepare.sh <tag>` writes the submission
 manifest (building from the Git tag) and `cargo-sources.json` (every

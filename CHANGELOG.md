@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Fold-out terminal** at the bottom of the window (F12 or the new
+  header-bar toggle): your own shell, started in the article's folder - on
+  the host in the Flatpak (new `org.freedesktop.Flatpak` permission, VTE
+  built as a module). Hiding keeps the shell, `exit` closes the panel;
+  Ctrl+Shift+C/V and a context menu for copy and paste; the app's
+  shortcuts step aside while it has the focus. Height is remembered.
 - **New article dialog** (Ctrl+N, Ctrl+Alt+N for a page): title, slug
   (follows the title until edited), post/page and the folder it will get.
   Start empty or **from a Markdown or text file** - its header is read
@@ -123,6 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Right-clicking into a selection in the editor no longer drops it, so
+  Cut/Copy (and the KI-Aktionen) in the context menu work again.
 - Uploading failed when a tag or category already existed on the blog in
   different capitalization ("TUXEDO" vs. "Tuxedo"): Blocksatz tried to
   create it and WordPress refused with `term_exists`. The existing term

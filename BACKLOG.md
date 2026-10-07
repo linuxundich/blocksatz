@@ -45,6 +45,15 @@ sizes, connection check.
   flathub/flathub (needs the GitHub account and a decision on the
   timing), then the domain verification (`docs/flathub-verification.md`).
 
+- [ ] **Terminal follow-ups** (built 2026-10-07, unreleased): changing
+  the editor font only reaches the terminal the next time it's opened;
+  the comparison dialog in the new color scheme hasn't been looked at
+  live yet.
+- [ ] **Flathub and the terminal**: `--talk-name=org.freedesktop.Flatpak`
+  (host shell via `flatpak-spawn`) is a sandbox escape Flathub asks to
+  justify - state it in the submission like GNOME Builder does, or ship
+  the terminal disabled there.
+
 ## Quick wins (small scope, low risk)
 
 - ~~**Write the attachment id into exported `wp:image` blocks.**~~ Done

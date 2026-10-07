@@ -239,6 +239,28 @@ pub fn install_editor_font_css(view: &sourceview5::View) {
     });
 }
 
+thread_local! {
+    static FONT_LISTENERS: std::cell::RefCell<Vec<Box<dyn Fn() -> bool>>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Calls `f` whenever the editor font changes in Einstellungen, for
+/// widgets the editor-font CSS class can't reach (the terminal draws its
+/// own text). `f` returns `false` once its widget is gone.
+pub fn connect_editor_font_changed(f: impl Fn() -> bool + 'static) {
+    FONT_LISTENERS.with(|listeners| listeners.borrow_mut().push(Box::new(f)));
+}
+
+fn notify_editor_font_changed() {
+    let listeners = FONT_LISTENERS.with(|listeners| std::mem::take(&mut *listeners.borrow_mut()));
+    let kept: Vec<Box<dyn Fn() -> bool>> = listeners.into_iter().filter(|f| f()).collect();
+    FONT_LISTENERS.with(|listeners| {
+        let mut listeners = listeners.borrow_mut();
+        let added = std::mem::take(&mut *listeners);
+        *listeners = kept;
+        listeners.extend(added);
+    });
+}
+
 fn apply_editor_font_override_live(desc: &str) {
     save_editor_font_override(desc);
     EDITOR_FONT_PROVIDER.with(|cell| {
@@ -246,6 +268,7 @@ fn apply_editor_font_override_live(desc: &str) {
             refresh_editor_font_css(provider);
         }
     });
+    notify_editor_font_changed();
 }
 
 fn reset_editor_font_override_live() {
@@ -255,6 +278,7 @@ fn reset_editor_font_override_live() {
             refresh_editor_font_css(provider);
         }
     });
+    notify_editor_font_changed();
 }
 
 /// Port of Builder's `ide_source_style_scheme_is_dark()`

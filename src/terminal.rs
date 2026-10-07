@@ -52,6 +52,15 @@ impl TerminalPanel {
         panel.install_clipboard();
         panel.release_app_shortcuts_while_focused();
         panel.follow_color_scheme();
+        apply_editor_font(&panel.terminal);
+        {
+            let terminal = panel.terminal.downgrade();
+            crate::appearance::connect_editor_font_changed(move || {
+                let Some(terminal) = terminal.upgrade() else { return false };
+                apply_editor_font(&terminal);
+                true
+            });
+        }
 
         let weak = Rc::downgrade(&panel);
         panel.terminal.connect_child_exited(move |_, _| {
@@ -78,10 +87,6 @@ impl TerminalPanel {
         if !self.running.get() {
             self.spawn(dir);
         }
-        // The editor's font when one is set (Einstellungen), else the
-        // system's monospace font.
-        let font = crate::appearance::load_editor_font_override().map(|desc| gtk4::pango::FontDescription::from_string(&desc));
-        self.terminal.set_font_desc(font.as_ref());
         // The panel was only just made visible and isn't mapped yet, which
         // a focus grab right now would silently miss.
         let terminal = self.terminal.downgrade();
@@ -264,6 +269,13 @@ fn apply_scheme(terminal: &vte4::Terminal, scheme: &sourceview5::StyleScheme) {
     let (selection_background, selection_foreground) = crate::appearance::scheme_style_colors(scheme, "selection");
     terminal.set_color_highlight(rgba(selection_background).as_ref());
     terminal.set_color_highlight_foreground(rgba(selection_foreground).as_ref());
+}
+
+/// The editor's font when one is set (Einstellungen), else the system's
+/// monospace font.
+fn apply_editor_font(terminal: &vte4::Terminal) {
+    let font = crate::appearance::load_editor_font_override().map(|desc| gtk4::pango::FontDescription::from_string(&desc));
+    terminal.set_font_desc(font.as_ref());
 }
 
 fn in_flatpak() -> bool {

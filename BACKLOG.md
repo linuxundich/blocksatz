@@ -47,8 +47,8 @@ sizes, connection check.
 
 - [x] **Terminal font**: a new editor font reaches an open terminal
   right away (2026-10-07).
-- [ ] **Comparison dialog** in the new color scheme hasn't been looked at
-  live yet.
+- [x] **Comparison dialog** in the color scheme: checked live in light
+  and dark (2026-10-07).
 - [ ] **Flathub and the terminal**: `--talk-name=org.freedesktop.Flatpak`
   (host shell via `flatpak-spawn`) is a sandbox escape Flathub asks to
   justify - state it in the submission like GNOME Builder does, or ship

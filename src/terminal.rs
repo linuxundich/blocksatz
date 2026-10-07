@@ -76,17 +76,28 @@ impl TerminalPanel {
 
     /// Starts the shell in `dir` unless one is already running (that one
     /// keeps its own working directory), and moves the keyboard focus in.
-    pub fn open(&self, dir: &Path) {
+    pub fn open(self: &Rc<Self>, dir: &Path) {
         if !self.running.get() {
             self.spawn(dir);
         }
-        self.terminal.grab_focus();
+        // The panel was only just made visible and isn't mapped yet, which
+        // a focus grab right now would silently miss.
+        let terminal = self.terminal.downgrade();
+        glib::idle_add_local_once(move || {
+            if let Some(terminal) = terminal.upgrade() {
+                terminal.grab_focus();
+            }
+        });
     }
 
-    fn spawn(&self, dir: &Path) {
+    fn spawn(self: &Rc<Self>, dir: &Path) {
         self.running.set(true);
         let dir = dir.to_string_lossy().to_string();
-        let argv = shell_argv(&dir);
+        let marker = format!("blocksatz-terminal-{}-{}", std::process::id(), glib::monotonic_time());
+        let argv = shell_argv(&dir, &marker);
+        if in_flatpak() {
+            self.forward_resizes(marker);
+        }
         let argv: Vec<&str> = argv.iter().map(String::as_str).collect();
         let terminal = self.terminal.clone();
         self.terminal.spawn_async(
@@ -104,6 +115,31 @@ impl TerminalPanel {
                 }
             },
         );
+    }
+
+    /// `flatpak-spawn` passes no SIGWINCH on to the host, so the host's
+    /// `script` (see `shell_argv`) would never learn about a new terminal
+    /// size and full-screen programs would draw for the old one. VTE has
+    /// no signal for "rows/columns changed" either, so the size is checked
+    /// a few times a second while the shell runs, and a change is sent to
+    /// `script` - found by the marker in its command line - as SIGWINCH;
+    /// it then reads the new size from the terminal and passes it on.
+    fn forward_resizes(self: &Rc<Self>, marker: String) {
+        let weak = Rc::downgrade(self);
+        let last = Cell::new((self.terminal.row_count(), self.terminal.column_count()));
+        glib::timeout_add_local(std::time::Duration::from_millis(300), move || {
+            let Some(panel) = weak.upgrade() else { return glib::ControlFlow::Break };
+            if !panel.running.get() {
+                return glib::ControlFlow::Break;
+            }
+            let size = (panel.terminal.row_count(), panel.terminal.column_count());
+            if size != last.replace(size) {
+                if let Ok(mut child) = std::process::Command::new("flatpak-spawn").args(["--host", "pkill", "-WINCH", "-f", &marker]).spawn() {
+                    std::thread::spawn(move || child.wait());
+                }
+            }
+            glib::ControlFlow::Continue
+        });
     }
 
     /// Ctrl+Shift+C/V like every other terminal, plus a context menu. The
@@ -217,10 +253,15 @@ fn in_flatpak() -> bool {
 }
 
 /// The user's login shell as an argv - on the host via `flatpak-spawn`
-/// when running as a Flatpak.
-fn shell_argv(dir: &str) -> Vec<String> {
+/// when running as a Flatpak. There the shell would get no controlling
+/// terminal (no job control, `sudo` and Ctrl+Z misbehave), so util-linux'
+/// `script` runs in between and gives it a real pty on the host; `marker`
+/// is a shell comment in its command line for `forward_resizes`. Without
+/// `script` on the host the shell runs bare.
+fn shell_argv(dir: &str, marker: &str) -> Vec<String> {
     if in_flatpak() {
         let shell = host_shell().unwrap_or_else(|| "/bin/bash".to_string());
+        let wrapper = format!("if command -v script >/dev/null 2>&1; then exec script -qfe -c 'exec {shell} #{marker}' /dev/null; fi; exec {shell}");
         return vec![
             "flatpak-spawn".into(),
             "--host".into(),
@@ -228,7 +269,10 @@ fn shell_argv(dir: &str) -> Vec<String> {
             format!("--directory={dir}"),
             "--env=TERM=xterm-256color".into(),
             "--env=COLORTERM=truecolor".into(),
-            shell,
+            format!("--env=SHELL={shell}"),
+            "/bin/sh".into(),
+            "-c".into(),
+            wrapper,
         ];
     }
     vec![std::env::var("SHELL").ok().filter(|s| !s.is_empty()).unwrap_or_else(|| "/bin/bash".to_string())]

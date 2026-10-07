@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Fold-out terminal** at the bottom of the window (F12 or the new
   header-bar toggle): your own shell, started in the article's folder - on
   the host in the Flatpak (new `org.freedesktop.Flatpak` permission, VTE
-  built as a module). Hiding keeps the shell, `exit` closes the panel;
+  built as a module, util-linux' `script` on the host gives the shell a
+  real terminal for job control, `sudo` and resizing). Hiding keeps the
+  shell, `exit` closes the panel;
   Ctrl+Shift+C/V and a context menu for copy and paste; the app's
   shortcuts step aside while it has the focus. Height is remembered.
 - **New article dialog** (Ctrl+N, Ctrl+Alt+N for a page): title, slug

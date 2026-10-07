@@ -76,7 +76,8 @@ blocks. Implemented so far:
     own (switchable in Einstellungen → Browser).
 - **Fold-out terminal** (F12, header-bar toggle) — a terminal below
   editor and pane, starting your own shell in the article's folder (on the
-  host when running as a Flatpak, via `flatpak-spawn --host`). Hiding it
+  host when running as a Flatpak, via `flatpak-spawn --host`, with the
+  host's `script` providing a proper pty there). Hiding it
   keeps the shell running; `exit` closes the panel. Ctrl+Shift+C/V copy
   and paste, and while it has the focus the app's own shortcuts step
   aside, so Ctrl+N and friends reach the shell. Its height is remembered.

@@ -77,7 +77,8 @@ pub enum Choice {
 /// conflict); `on_choice` runs for the chosen button, not on close.
 pub fn open(parent: &impl IsA<gtk4::Widget>, blog: &str, local: &str, offer_keep_mine: bool, on_choice: impl Fn(Choice) + 'static) {
     let diff = line_diff(blog, local);
-    let buffer = gtk4::TextBuffer::new(None::<&gtk4::TextTagTable>);
+    let buffer = sourceview5::Buffer::new(None::<&gtk4::TextTagTable>);
+    crate::appearance::follow_scheme(&buffer);
     let removed = buffer.create_tag(Some("removed"), &[("paragraph-background-rgba", &gtk4::gdk::RGBA::new(0.88, 0.11, 0.14, 0.18))]).expect("new tag");
     let added = buffer.create_tag(Some("added"), &[("paragraph-background-rgba", &gtk4::gdk::RGBA::new(0.15, 0.64, 0.41, 0.20))]).expect("new tag");
     let same = buffer.create_tag(Some("same"), &[("foreground-rgba", &gtk4::gdk::RGBA::new(0.5, 0.5, 0.5, 1.0))]).expect("new tag");
@@ -91,7 +92,8 @@ pub fn open(parent: &impl IsA<gtk4::Widget>, blog: &str, local: &str, offer_keep
         let mut end = buffer.end_iter();
         buffer.insert_with_tags(&mut end, &format!("{prefix}{}\n", line.text), &[tag]);
     }
-    let view = gtk4::TextView::builder().buffer(&buffer).editable(false).monospace(true).wrap_mode(gtk4::WrapMode::WordChar).top_margin(12).bottom_margin(12).left_margin(12).right_margin(12).build();
+    let view = sourceview5::View::builder().buffer(&buffer).editable(false).monospace(true).wrap_mode(gtk4::WrapMode::WordChar).top_margin(12).bottom_margin(12).left_margin(12).right_margin(12).build();
+    view.add_css_class(crate::appearance::EDITOR_FONT_CSS_CLASS);
     let scrolled = gtk4::ScrolledWindow::builder().child(&view).vexpand(true).build();
 
     let title = adw::WindowTitle::new(

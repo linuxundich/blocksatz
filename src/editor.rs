@@ -17,9 +17,7 @@ pub fn build() -> (gtk4::ScrolledWindow, sourceview5::View, sourceview5::Buffer,
     }
     buffer.set_highlight_syntax(true);
 
-    if let Some(scheme) = sourceview5::StyleSchemeManager::default().scheme(&appearance::load_source_scheme_id()) {
-        buffer.set_style_scheme(Some(&scheme));
-    }
+    appearance::follow_scheme(&buffer);
 
     let view = sourceview5::View::with_buffer(&buffer);
     view.set_show_line_numbers(true);

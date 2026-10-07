@@ -389,7 +389,9 @@ blocks. Implemented so far:
   for a free, non-proportional resize) - writes a new sibling file and
   updates the article's own image reference to it, leaving the original
   untouched.
-- **Einstellungen dialog** (`Adw.PreferencesDialog`, Ctrl+,) — an
+- **Einstellungen dialog** (Ctrl+,; its pages as vertical tabs in a
+  sidebar, an `Adw.NavigationSplitView` that turns into two steps when
+  narrow) — an
   "Erscheinungsbild" page adopted directly from GNOME Builder's own
   implementation (light/dark/follow-system cards using Builder's bundled
   preview illustrations, and an editor color-scheme grid using
@@ -400,9 +402,14 @@ blocks. Implemented so far:
   mode: `Adwaita`/`-dark`, `classic`/`-dark`, `cobalt`/`-light`,
   `kate`/`-dark`, `oblivion`, `solarized-light`/`-dark`, `tango`) rather
   than the app shipping its own copies - the same set GNOME Builder and
-  GNOME Text Editor themselves offer. Whichever scheme is picked also
-  colors the live Markdown preview's code blocks to match, not just the
-  editor. Independent font pickers for the editor and the preview
+  GNOME Text Editor themselves offer. The picked scheme colors
+  everything code-like: the editor, the Gutenberg code tab (HTML
+  highlighted), the comparison dialog, the fold-out terminal (background,
+  text, cursor and selection, with a GNOME ANSI palette tuned for light or
+  dark backgrounds) and the preview's code blocks. Switching between light
+  and dark swaps in the scheme's own counterpart (`cobalt-light` ↔
+  `cobalt` ...), so a light pick never leaves a white editor in a dark
+  window. Independent font pickers for the editor and the preview
   (family/size/weight/style,
   each with a live sample and a reset-to-default button), a WordPress-connection page (site
   URL/username in a small config file, the Application Password in the

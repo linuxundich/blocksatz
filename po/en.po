@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-07 08:27+0200\n"
+"POT-Creation-Date: 2026-10-07 08:52+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -405,35 +405,43 @@ msgid ""
 "Fertig - vor dem Übernehmen prüfen und bei Bedarf direkt hier bearbeiten."
 msgstr "Done - review before using it, and edit it right here if needed."
 
-#: src/appearance.rs:349
+#: src/appearance.rs:381
 msgid "Schnittstelle"
 msgstr "Interface"
 
-#: src/appearance.rs:351
+#: src/appearance.rs:383
 msgid "Dem System folgen"
 msgstr "Follow System"
 
-#: src/appearance.rs:352
+#: src/appearance.rs:384
 msgid "Hell"
 msgstr "Light"
 
-#: src/appearance.rs:353
+#: src/appearance.rs:385
 msgid "Dunkel"
 msgstr "Dark"
 
-#: src/appearance.rs:387
-msgid "Farbe"
-msgstr "Color"
+#: src/appearance.rs:420
+msgid "Farbschema"
+msgstr "Color Scheme"
 
-#: src/appearance.rs:416
+#: src/appearance.rs:421
+msgid ""
+"Gilt für Editor, Gutenberg-Code, Vergleich, Terminal und die Code-Blöcke der "
+"Vorschau. Hell und Dunkel wechseln mit der Oberfläche."
+msgstr ""
+"Applies to the editor, Gutenberg code, comparison, terminal and the "
+"preview's code blocks. Light and dark follow the interface."
+
+#: src/appearance.rs:452
 msgid "Erscheinungsbild"
 msgstr "Appearance"
 
-#: src/appearance.rs:431
+#: src/appearance.rs:465
 msgid "Editor-Schriftart"
 msgstr "Editor Font"
 
-#: src/appearance.rs:438
+#: src/appearance.rs:472
 msgid ""
 "# Überschrift\n"
 "\n"
@@ -449,23 +457,23 @@ msgstr ""
 "- First list item\n"
 "- Second list item\n"
 
-#: src/appearance.rs:479 src/appearance.rs:574
+#: src/appearance.rs:492 src/appearance.rs:583
 msgid "Schriftart"
 msgstr "Font"
 
-#: src/appearance.rs:480
+#: src/appearance.rs:493
 msgid "Editor-Schriftart wählen"
 msgstr "Choose Editor Font"
 
-#: src/appearance.rs:486
+#: src/appearance.rs:499
 msgid "Auf Systemschrift zurücksetzen"
 msgstr "Reset to System Font"
 
-#: src/appearance.rs:532 src/window.rs:114
+#: src/appearance.rs:545 src/window.rs:114
 msgid "Vorschau"
 msgstr "Preview"
 
-#: src/appearance.rs:546
+#: src/appearance.rs:559
 msgid ""
 "# Beispielartikel\n"
 "\n"
@@ -480,15 +488,15 @@ msgstr ""
 "\n"
 "> A quote for illustration.\n"
 
-#: src/appearance.rs:556 src/blockinspector.rs:239
+#: src/appearance.rs:565 src/blockinspector.rs:239
 msgid "Stil"
 msgstr "Style"
 
-#: src/appearance.rs:575
+#: src/appearance.rs:584
 msgid "Vorschau-Schriftart wählen"
 msgstr "Choose Preview Font"
 
-#: src/appearance.rs:581
+#: src/appearance.rs:590
 msgid "Auf Stil-Standardschrift zurücksetzen"
 msgstr "Reset to Style's Default Font"
 
@@ -762,7 +770,7 @@ msgstr "Restore as draft"
 msgid "In den Papierkorb"
 msgstr "Move to trash"
 
-#: src/blogposts.rs:372 src/window.rs:1415
+#: src/blogposts.rs:372 src/window.rs:1424
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr "Failed to open: {err}"
 
@@ -920,23 +928,23 @@ msgstr "System Prompt"
 msgid "KI-Chat"
 msgstr "AI Chat"
 
-#: src/compare.rs:98 src/mainaction.rs:152 src/mainaction.rs:170
+#: src/compare.rs:100 src/mainaction.rs:152 src/mainaction.rs:170
 msgid "Mit Blog-Fassung vergleichen"
 msgstr "Compare with Blog Version"
 
-#: src/compare.rs:99
+#: src/compare.rs:101
 msgid "Keine Unterschiede im Text"
 msgstr "No differences in the text"
 
-#: src/compare.rs:99
+#: src/compare.rs:101
 msgid "− nur im Blog · + nur hier"
 msgstr "− only on the blog · + only here"
 
-#: src/compare.rs:105 src/mainaction.rs:761
+#: src/compare.rs:107 src/mainaction.rs:761
 msgid "Blog-Fassung übernehmen"
 msgstr "Use Blog Version"
 
-#: src/compare.rs:120 src/mainaction.rs:762
+#: src/compare.rs:122 src/mainaction.rs:762
 msgid "Meine Fassung behalten"
 msgstr "Keep My Version"
 
@@ -1100,7 +1108,7 @@ msgstr "Changed since the translation"
 msgid "Neu oder geändert"
 msgstr "New or changed"
 
-#: src/counterpart.rs:47 src/terminal.rs:137
+#: src/counterpart.rs:47 src/terminal.rs:179
 msgid "Kopieren"
 msgstr "Copy"
 
@@ -1406,8 +1414,8 @@ msgstr "Large"
 msgid "Volle Größe"
 msgstr "Full Size"
 
-#: src/gallerydialog.rs:148 src/settings.rs:31 src/shortcuts.rs:54
-#: src/window.rs:388
+#: src/gallerydialog.rs:148 src/settings.rs:62 src/settings.rs:67
+#: src/settings.rs:77 src/shortcuts.rs:54 src/window.rs:388
 msgid "Einstellungen"
 msgstr "Preferences"
 
@@ -1659,7 +1667,7 @@ msgid "{site} · nicht erreichbar"
 msgstr "{site} · unreachable"
 
 #: src/librarysidebar.rs:494 src/mainaction.rs:225 src/window.rs:370
-#: src/window.rs:794 src/window.rs:1080
+#: src/window.rs:803 src/window.rs:1089
 msgid "Unbenannt"
 msgstr "Untitled"
 
@@ -2273,7 +2281,7 @@ msgstr "All media"
 
 #: src/mediabrowser.rs:34 src/newarticle.rs:194 src/newarticle.rs:412
 #: src/properties.rs:820 src/releasecheck.rs:97 src/releasecheck.rs:100
-#: src/releasecheck.rs:328 src/window.rs:1518
+#: src/releasecheck.rs:328 src/window.rs:1525
 msgid "Bilder"
 msgstr "Images"
 
@@ -3747,15 +3755,15 @@ msgstr "Error creating"
 msgid "Interner Fehler: kein Ergebnis vom Erstellen-Thread."
 msgstr "Internal error: no result from the create thread."
 
-#: src/terminal.rs:99
+#: src/terminal.rs:116
 msgid "Shell konnte nicht gestartet werden: {err}"
 msgstr "Could not start the shell: {err}"
 
-#: src/terminal.rs:138
+#: src/terminal.rs:180
 msgid "Aus Zwischenablage einfügen"
 msgstr "Paste"
 
-#: src/terminal.rs:141
+#: src/terminal.rs:183
 msgid "Alles auswählen"
 msgstr "Select All"
 
@@ -4206,59 +4214,59 @@ msgstr "Focus writing mode (Ctrl+Shift+F)"
 msgid "Terminal ein-/ausblenden (F12)"
 msgstr "Show/hide terminal (F12)"
 
-#: src/window.rs:1081
+#: src/window.rs:1090
 msgid "Unbenannte Seite"
 msgstr "Untitled page"
 
-#: src/window.rs:1139
+#: src/window.rs:1148
 msgid "{n} Übersetzungen in den Ordner ihres Originals verschoben."
 msgstr "Moved {n} translations into the folder of their original."
 
-#: src/window.rs:1210
+#: src/window.rs:1219
 msgid "Vorhandene Arbeitskopie geöffnet."
 msgstr "Opened the existing working copy."
 
-#: src/window.rs:1254
+#: src/window.rs:1263
 msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
 msgstr "Couldn't create a working copy: {err}"
 
-#: src/window.rs:1359
+#: src/window.rs:1368
 msgid "Markdown-Datei öffnen"
 msgstr "Open Markdown File"
 
-#: src/window.rs:1522
+#: src/window.rs:1529
 msgid "Bild einfügen"
 msgstr "Insert Image"
 
-#: src/window.rs:1557
+#: src/window.rs:1564
 msgid "Video/Audio einfügen"
 msgstr "Insert Video/Audio"
 
-#: src/window.rs:1651
+#: src/window.rs:1658
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr "AI draft created as a new document - please review it."
 
-#: src/window.rs:1758
+#: src/window.rs:1765
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr "Please save the article first to insert images."
 
-#: src/window.rs:1767
+#: src/window.rs:1774
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the image from the clipboard."
 
-#: src/window.rs:1773
+#: src/window.rs:1780
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr "Couldn't save the image: {err}"
 
-#: src/window.rs:1787 src/window.rs:1801
+#: src/window.rs:1794 src/window.rs:1808
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the formatted text from the clipboard."
 
-#: src/window.rs:1805
+#: src/window.rs:1812
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr "Formatted text from the clipboard is in an unknown format."
 
-#: src/window.rs:1810
+#: src/window.rs:1817
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr "Couldn't convert the formatted text: {err}"
 

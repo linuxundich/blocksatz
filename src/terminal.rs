@@ -40,14 +40,12 @@ impl TerminalPanel {
         terminal.set_mouse_autohide(true);
         terminal.set_bold_is_bright(true);
 
-        let scrollbar = gtk4::Scrollbar::new(gtk4::Orientation::Vertical, terminal.vadjustment().as_ref());
-        let row = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
-        row.append(&terminal);
-        row.append(&scrollbar);
+        // Overlay scrollbars, so the terminal's background reaches the edge.
+        let scroller = gtk4::ScrolledWindow::builder().hscrollbar_policy(gtk4::PolicyType::Never).vexpand(true).child(&terminal).build();
 
         let widget = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
         widget.add_css_class("blocksatz-terminal");
-        widget.append(&row);
+        widget.append(&scroller);
         widget.set_visible(false);
 
         let panel = Rc::new(Self { widget, terminal, running: Cell::new(false), on_exit: RefCell::new(None) });
@@ -80,6 +78,10 @@ impl TerminalPanel {
         if !self.running.get() {
             self.spawn(dir);
         }
+        // The editor's font when one is set (Einstellungen), else the
+        // system's monospace font.
+        let font = crate::appearance::load_editor_font_override().map(|desc| gtk4::pango::FontDescription::from_string(&desc));
+        self.terminal.set_font_desc(font.as_ref());
         // The panel was only just made visible and isn't mapped yet, which
         // a focus grab right now would silently miss.
         let terminal = self.terminal.downgrade();
@@ -228,24 +230,40 @@ impl TerminalPanel {
     }
 
     fn follow_color_scheme(&self) {
-        let style_manager = adw::StyleManager::default();
-        apply_colors(&self.terminal, style_manager.is_dark());
         let terminal = self.terminal.downgrade();
-        style_manager.connect_dark_notify(move |manager| {
-            if let Some(terminal) = terminal.upgrade() {
-                apply_colors(&terminal, manager.is_dark());
-            }
+        crate::appearance::connect_scheme_changed(move |scheme| {
+            let Some(terminal) = terminal.upgrade() else { return false };
+            apply_scheme(&terminal, scheme);
+            true
         });
     }
 }
 
-/// Foreground and background close to libadwaita's own view colors, the
-/// 16-color palette left to VTE's default.
-fn apply_colors(terminal: &vte4::Terminal, dark: bool) {
-    let (foreground, background) = if dark { ("#ffffff", "#1d1d20") } else { ("#1e1e1e", "#ffffff") };
-    let foreground = gdk::RGBA::parse(foreground).ok();
-    let background = gdk::RGBA::parse(background).ok();
-    terminal.set_colors(foreground.as_ref(), background.as_ref(), &[]);
+/// The 16 ANSI colors from the GNOME palette, one set per background:
+/// on light schemes yellow, green, cyan and "white" are darkened so they
+/// stay readable, on dark ones blue and black are lightened.
+const PALETTE_LIGHT: [&str; 16] = [
+    "#241f31", "#c01c28", "#26a269", "#c88800", "#1c71d8", "#9141ac", "#1a8fa6", "#77767b", "#5e5c64", "#e01b24", "#2ec27e", "#e5a50a", "#3584e4", "#c061cb", "#0ab9dc", "#9a9996",
+];
+const PALETTE_DARK: [&str; 16] = [
+    "#5e5c64", "#ed333b", "#57e389", "#f8e45c", "#62a0ea", "#c061cb", "#4fd2fd", "#deddda", "#9a9996", "#f66151", "#8ff0a4", "#f9f06b", "#99c1f1", "#dc8add", "#93ddf3", "#ffffff",
+];
+
+/// Background, text, cursor and selection from the editor's color scheme
+/// (`appearance::current_scheme`), so the terminal sits in the same
+/// colors as the editor above it; the 16 ANSI colors are Console's.
+fn apply_scheme(terminal: &vte4::Terminal, scheme: &sourceview5::StyleScheme) {
+    let rgba = |color: Option<String>| color.and_then(|c| gdk::RGBA::parse(c.as_str()).ok());
+    let (background, foreground) = crate::appearance::scheme_style_colors(scheme, "text");
+    let dark = background.as_deref().and_then(|c| gdk::RGBA::parse(c).ok()).is_some_and(|bg| 0.299 * bg.red() + 0.587 * bg.green() + 0.114 * bg.blue() < 0.5);
+    let palette: Vec<gdk::RGBA> = (if dark { PALETTE_DARK } else { PALETTE_LIGHT }).iter().filter_map(|c| gdk::RGBA::parse(*c).ok()).collect();
+    let palette_refs: Vec<&gdk::RGBA> = palette.iter().collect();
+    terminal.set_colors(rgba(foreground).as_ref(), rgba(background).as_ref(), &palette_refs);
+    let (cursor_background, cursor_foreground) = crate::appearance::scheme_style_colors(scheme, "cursor");
+    terminal.set_color_cursor(rgba(cursor_foreground.or(cursor_background)).as_ref());
+    let (selection_background, selection_foreground) = crate::appearance::scheme_style_colors(scheme, "selection");
+    terminal.set_color_highlight(rgba(selection_background).as_ref());
+    terminal.set_color_highlight_foreground(rgba(selection_foreground).as_ref());
 }
 
 fn in_flatpak() -> bool {

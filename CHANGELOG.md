@@ -42,6 +42,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Einstellungen as vertical tabs**: the pages sit in a sidebar instead
+  of the tab bar at the bottom; the dialog reopens on the last page.
+- **One color scheme for everything code-like**: the picked scheme now
+  also colors the Gutenberg code tab (now with HTML highlighting), the
+  comparison dialog and the terminal (with an ANSI palette per light/dark
+  background), not only the editor. The terminal also takes the editor
+  font.
+
 - **"KI-Tags vorschlagen" dialog reworked**: the title no longer gets
   squeezed between the buttons (Cancel on the left, Apply on the right);
   the empty state explains what happens and carries the generate button;
@@ -131,6 +139,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Switching between light and dark kept the scheme picked in the other
+  mode (a light editor in a dark window, or the reverse); it now changes
+  to the scheme's own light/dark counterpart. Schemes also follow a
+  system switch while Einstellungen is closed.
 - Right-clicking into a selection in the editor no longer drops it, so
   Cut/Copy (and the KI-Aktionen) in the context menu work again.
 - Uploading failed when a tag or category already existed on the blog in

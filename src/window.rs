@@ -609,6 +609,15 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let preview_pane = preview_pane.clone();
         themestyle::connect_changed(move || preview_pane.refresh());
     }
+    {
+        // The code blocks take the editor scheme's colors.
+        let preview_pane = Rc::downgrade(&preview_pane);
+        crate::appearance::connect_scheme_changed(move |_| {
+            let Some(preview_pane) = preview_pane.upgrade() else { return false };
+            preview_pane.refresh();
+            true
+        });
+    }
 
     let image_alt_menu = imagealt::install(&view, &buffer, frontmatter.clone(), current_path.clone(), preview_pane.clone());
     preview::PreviewPane::install_alt_text_menu(&preview_pane, &window, frontmatter.clone(), buffer.clone());
@@ -747,7 +756,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let ctx = doc_ctx.clone();
         Rc::new(move || ctx.notify_site_changed())
     };
-    wire_settings_action(&window, &buffer, ai_menu_handles, &preview_pane, &browser_view, set_browser_tab.clone(), on_sites_changed);
+    wire_settings_action(&window, ai_menu_handles, &preview_pane, &browser_view, set_browser_tab.clone(), on_sites_changed);
     wire_about_action(&window);
     wire_media_action(&window, &buffer, &current_path, &frontmatter, &preview_pane);
     wire_insert_image_action(&window, &buffer, &current_path);
@@ -1472,7 +1481,6 @@ fn wire_properties_action(window: &adw::ApplicationWindow, view_stack: &adw::Vie
 
 fn wire_settings_action(
     window: &adw::ApplicationWindow,
-    buffer: &sourceview5::Buffer,
     ai_menu_handles: aimenu::AiMenuHandles,
     preview_pane: &Rc<preview::PreviewPane>,
     browser_view: &Rc<browser::BrowserView>,
@@ -1480,13 +1488,12 @@ fn wire_settings_action(
     on_sites_changed: Rc<dyn Fn()>,
 ) {
     let action = gio::SimpleAction::new("settings", None);
-    let buffer = buffer.clone();
     let preview_pane = preview_pane.clone();
     let browser_view = browser_view.clone();
     let window_weak = window.downgrade();
     action.connect_activate(move |_, _| {
         if let Some(window) = window_weak.upgrade() {
-            settings::open(&window, &buffer, &ai_menu_handles, &preview_pane, &browser_view, set_browser_tab.clone(), on_sites_changed.clone());
+            settings::open(&window, &ai_menu_handles, &preview_pane, &browser_view, set_browser_tab.clone(), on_sites_changed.clone());
         }
     });
     window.add_action(&action);

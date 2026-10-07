@@ -129,6 +129,10 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("win.shortcuts", &["<Ctrl>question"]);
 
     app.connect_startup(|app| {
+        // Binds GtkSourceView's own translations, so its scheme names come
+        // out localized ("Klassisch", "Kobalt hell") - the scheme grid sorts
+        // by them, as Builder does.
+        sourceview5::init();
         nautilustemplate::install_once();
         appearance::install_style_variant_action(app);
     });

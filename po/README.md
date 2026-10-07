@@ -25,6 +25,13 @@ before committing - a `fuzzy` entry is *not* used at runtime, and
 gefunden" with "{n} articles found."), so every one of them needs reading
 rather than just unmarking.
 
+`po/de.po` is empty on purpose and must stay: German is the source
+language, but GLib only translates *library* strings (GTK's context menu,
+GtkSourceView's color-scheme names) when the application's own text
+domain has a catalog for the current language. Without it a German
+desktop showed "Cut/Copy/Paste" and English scheme names. Don't run
+`msgmerge` on it.
+
 Deliberately **not** translated, by design:
 
 - **AI prompt content** (`src/aiprompts.rs`'s `default_template`s,

@@ -1,0 +1,21 @@
+# German "translation" for Blocksatz: deliberately empty.
+# Copyright (C) 2026 Christoph Langner
+# This file is distributed under the same license as the Blocksatz package
+# (GPL-3.0-or-later).
+#
+# German is Blocksatz's source language, so there is nothing to translate.
+# The catalog still has to exist: GLib only translates library strings
+# (GTK's "Ausschneiden"/"Kopieren", GtkSourceView's scheme names) when the
+# application's own text domain has a catalog for the current language -
+# without one, a German desktop would get them in English.
+msgid ""
+msgstr ""
+"Project-Id-Version: Blocksatz\n"
+"Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
+"Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
+"Language-Team: none\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"

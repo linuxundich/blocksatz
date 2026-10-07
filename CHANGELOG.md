@@ -149,6 +149,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- On a German desktop GTK's own texts stayed English (the editor's
+  context menu showed "Cut/Copy/Paste") and so did the color-scheme names,
+  which also put the scheme grid in a different order than Builder's: an
+  empty German catalog now tells GLib to translate library strings, and
+  GtkSourceView is initialized properly.
 - Switching between light and dark kept the scheme picked in the other
   mode (a light editor in a dark window, or the reverse); it now changes
   to the scheme's own light/dark counterpart. Schemes also follow a

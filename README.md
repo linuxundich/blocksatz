@@ -398,18 +398,19 @@ blocks. Implemented so far:
   GtkSourceView's `StyleSchemePreview` widget filtered to schemes matching
   the current light/dark mode, the same widget and filtering Builder uses,
   plus the article preview's own typographic style picker). The grid
-  shows GtkSourceView's own real, canonical bundled schemes (six per
-  mode: `Adwaita`/`-dark`, `classic`/`-dark`, `cobalt`/`-light`,
-  `kate`/`-dark`, `oblivion`, `solarized-light`/`-dark`, `tango`) rather
-  than the app shipping its own copies - the same set GNOME Builder and
-  GNOME Text Editor themselves offer. The picked scheme colors
+  offers exactly what GNOME Builder 50 offers: GtkSourceView's own
+  schemes plus Builder's 20 (Builder, Peninsula, Catppuccin, Tokyo Night,
+  VS Code, XTerm ... - `data/style-schemes/`, licenses in its
+  `ATTRIBUTION.md`), sorted, filtered and previewed (four lines of C)
+  the way Builder does it. The picked scheme colors
   everything code-like: the editor, the Gutenberg code tab (HTML
   highlighted), the comparison dialog, the fold-out terminal (background,
   text, cursor and selection, with a GNOME ANSI palette tuned for light or
   dark backgrounds) and the preview's code blocks. Switching between light
-  and dark swaps in the scheme's own counterpart (`cobalt-light` ↔
-  `cobalt` ...), so a light pick never leaves a white editor in a dark
-  window. Independent font pickers for the editor and the preview
+  and dark swaps in the scheme's counterpart the way Builder looks it up
+  (`cobalt-light` ↔ `cobalt` ...). The primary menu starts with
+  Builder's follow-system/light/dark selector (libpanel's
+  `PanelThemeSelector`), tied to the same setting as the cards. Independent font pickers for the editor and the preview
   (family/size/weight/style,
   each with a live sample and a reset-to-default button), a WordPress-connection page (site
   URL/username in a small config file, the Application Password in the

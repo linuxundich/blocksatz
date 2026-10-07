@@ -88,22 +88,31 @@ fn load_source_scheme_id() -> String {
 }
 
 /// The scheme everything code-like is drawn in - editor, Gutenberg code,
-/// comparison, terminal, the preview's code blocks: the saved pick, or its
-/// light/dark counterpart when that matches the interface instead. Every
-/// bundled scheme names its counterpart in its metadata ("Adwaita" ↔
-/// "Adwaita-dark", "cobalt-light" ↔ "cobalt" ...), so a scheme picked in
-/// light mode doesn't leave a white editor in a dark window. Falls back
-/// to Adwaita in the matching variant.
+/// comparison, terminal, the preview's code blocks: the saved pick in the
+/// variant matching the interface, looked up the way GNOME Builder does
+/// (`scheme_variant`), so "Adwaita" picked in light mode becomes
+/// "Adwaita-dark" in a dark window. A scheme without a counterpart stays
+/// as it is, as in Builder.
 pub fn current_scheme() -> Option<sourceview5::StyleScheme> {
     let manager = sourceview5::StyleSchemeManager::default();
+    install_bundled_schemes();
     let dark = adw::StyleManager::default().is_dark();
-    let fallback = || manager.scheme(if dark { "Adwaita-dark" } else { DEFAULT_SOURCE_SCHEME_ID });
-    let Some(saved) = manager.scheme(&load_source_scheme_id()) else { return fallback() };
-    if scheme_is_dark(&saved) == dark {
-        return Some(saved);
+    let saved = manager.scheme(&load_source_scheme_id()).or_else(|| manager.scheme(DEFAULT_SOURCE_SCHEME_ID))?;
+    Some(scheme_variant(&saved, if dark { "dark" } else { "light" }))
+}
+
+/// Port of Builder's `ide_source_style_scheme_get_variant()`: the
+/// scheme's own "light-variant"/"dark-variant" metadata if that scheme
+/// exists, else the id with its "-light"/"-dark" suffix swapped ("foo-dark",
+/// then "foo"), else `scheme` itself.
+fn scheme_variant(scheme: &sourceview5::StyleScheme, variant: &str) -> sourceview5::StyleScheme {
+    let manager = sourceview5::StyleSchemeManager::default();
+    if let Some(mapped) = scheme.metadata(&format!("{variant}-variant")).and_then(|id| manager.scheme(&id)) {
+        return mapped;
     }
-    let counterpart_key = if dark { "dark-variant" } else { "light-variant" };
-    saved.metadata(counterpart_key).and_then(|id| manager.scheme(&id)).filter(|s| scheme_is_dark(s) == dark).or_else(fallback)
+    let id = scheme.id();
+    let base = id.strip_suffix("-light").or_else(|| id.strip_suffix("-dark")).unwrap_or(&id);
+    manager.scheme(&format!("{base}-{variant}")).or_else(|| manager.scheme(base)).unwrap_or_else(|| scheme.clone())
 }
 
 type SchemeListener = Box<dyn Fn(&sourceview5::StyleScheme) -> bool>;
@@ -177,9 +186,113 @@ fn save_source_scheme_id(id: &str) {
 
 /// Applies the saved color-scheme preference - call once at startup so the
 /// app's chrome starts in the right scheme immediately rather than
-/// flashing the default first.
+/// flashing the default first - and makes GNOME Builder's own color
+/// schemes available (`install_bundled_schemes`).
 pub fn apply_saved_color_scheme() {
     adw::StyleManager::default().set_color_scheme(load_color_scheme());
+    install_bundled_schemes();
+}
+
+/// GNOME Builder's color schemes (`data/style-schemes/`, see
+/// `ATTRIBUTION.md` there), so the grid offers exactly what Builder's
+/// "Appearance" page does. GtkSourceView only reads schemes from
+/// directories, so they're written to the cache once (and again whenever
+/// they change) and that directory goes first on the search path.
+const BUNDLED_SCHEMES: &[(&str, &str)] = &[
+    ("arctic-dark.xml", include_str!("../data/style-schemes/arctic-dark.xml")),
+    ("builder-dark.xml", include_str!("../data/style-schemes/builder-dark.xml")),
+    ("builder.xml", include_str!("../data/style-schemes/builder.xml")),
+    ("catppuccin-latte.xml", include_str!("../data/style-schemes/catppuccin-latte.xml")),
+    ("catppuccin-mocha.xml", include_str!("../data/style-schemes/catppuccin-mocha.xml")),
+    ("fishtank.xml", include_str!("../data/style-schemes/fishtank.xml")),
+    ("horizon-dark.xml", include_str!("../data/style-schemes/horizon-dark.xml")),
+    ("horizon-light.xml", include_str!("../data/style-schemes/horizon-light.xml")),
+    ("monokai-soda.xml", include_str!("../data/style-schemes/monokai-soda.xml")),
+    ("peninsula-dark.xml", include_str!("../data/style-schemes/peninsula-dark.xml")),
+    ("peninsula.xml", include_str!("../data/style-schemes/peninsula.xml")),
+    ("pixiefloss.xml", include_str!("../data/style-schemes/pixiefloss.xml")),
+    ("spacedust.xml", include_str!("../data/style-schemes/spacedust.xml")),
+    ("tokyo-night-light.xml", include_str!("../data/style-schemes/tokyo-night-light.xml")),
+    ("tokyo-night.xml", include_str!("../data/style-schemes/tokyo-night.xml")),
+    ("ubuntu.xml", include_str!("../data/style-schemes/ubuntu.xml")),
+    ("vscode-dark.xml", include_str!("../data/style-schemes/vscode-dark.xml")),
+    ("vscode-light.xml", include_str!("../data/style-schemes/vscode-light.xml")),
+    ("xterm-dark.xml", include_str!("../data/style-schemes/xterm-dark.xml")),
+    ("xterm-light.xml", include_str!("../data/style-schemes/xterm-light.xml")),
+];
+
+fn install_bundled_schemes() {
+    static INSTALLED: std::sync::Once = std::sync::Once::new();
+    INSTALLED.call_once(|| {
+        let mut dir = glib::user_cache_dir();
+        dir.push(crate::APP_DIR);
+        dir.push("style-schemes");
+        if std::fs::create_dir_all(&dir).is_err() {
+            return;
+        }
+        for (name, contents) in BUNDLED_SCHEMES {
+            let path = dir.join(name);
+            if std::fs::read_to_string(&path).ok().as_deref() != Some(*contents) {
+                let _ = std::fs::write(&path, contents);
+            }
+        }
+        sourceview5::StyleSchemeManager::default().prepend_search_path(&dir.to_string_lossy());
+    });
+}
+
+/// `app.style-variant` ("default"/"light"/"dark"), the action behind both
+/// the theme selector in the primary menu (`theme_selector`) and the
+/// three cards on the Erscheinungsbild page - as in GNOME Builder.
+pub fn install_style_variant_action(app: &adw::Application) {
+    let current = match load_color_scheme() {
+        adw::ColorScheme::ForceLight => "light",
+        adw::ColorScheme::ForceDark => "dark",
+        _ => "default",
+    };
+    let action = gtk4::gio::SimpleAction::new_stateful("style-variant", Some(glib::VariantTy::STRING), &current.to_variant());
+    action.connect_change_state(|action, value| {
+        let Some(variant) = value.and_then(|v| v.get::<String>()) else { return };
+        let scheme = match variant.as_str() {
+            "light" => adw::ColorScheme::ForceLight,
+            "dark" => adw::ColorScheme::ForceDark,
+            _ => adw::ColorScheme::Default,
+        };
+        adw::StyleManager::default().set_color_scheme(scheme);
+        save_color_scheme(scheme);
+        action.set_state(&variant.to_variant());
+    });
+    action.connect_activate(|action, value| action.change_state(value.expect("style-variant takes a string")));
+    app.add_action(&action);
+}
+
+/// The three round buttons (follow system, light, dark) at the top of
+/// the primary menu - a port of libpanel's `PanelThemeSelector`, which is
+/// what GNOME Builder puts there, including its stylesheet.
+pub fn theme_selector() -> gtk4::Widget {
+    install_theme_card_css();
+    let row = gtk4::Box::builder().orientation(gtk4::Orientation::Horizontal).spacing(12).hexpand(true).build();
+    row.add_css_class("themeselector");
+    let mut group: Option<gtk4::CheckButton> = None;
+    for (variant, class, tooltip) in [("default", "follow", tr("Dem System folgen")), ("light", "light", tr("Hell")), ("dark", "dark", tr("Dunkel"))] {
+        let button = gtk4::CheckButton::builder()
+            .hexpand(true)
+            .halign(gtk4::Align::Center)
+            .focus_on_click(false)
+            .tooltip_text(tooltip.as_str())
+            .action_name("app.style-variant")
+            .action_target(&variant.to_variant())
+            .build();
+        button.add_css_class("theme-selector");
+        button.add_css_class(class);
+        button.update_property(&[gtk4::accessible::Property::Label(&tooltip)]);
+        if let Some(group) = &group {
+            button.set_group(Some(group));
+        } else {
+            group = Some(button.clone());
+        }
+        row.append(&button);
+    }
+    row.upcast()
 }
 
 fn editor_font_path() -> PathBuf {
@@ -318,13 +431,67 @@ fn install_theme_card_css() {
         let provider = gtk4::CssProvider::new();
         provider.load_from_string(
             "
-            .theme-card { padding: 6px; border-radius: 12px; }
+            .theme-card, .theme-card:checked, .theme-card:hover { padding: 6px; border-radius: 12px; background: none; box-shadow: none; }
+            .theme-card label { font-weight: normal; }
             .theme-card-preview {
                 border-radius: 8px;
-                border: 1px solid alpha(currentColor, 0.15);
+                outline: 2px solid transparent;
+                outline-offset: 2px;
+                box-shadow: 0 0 0 1px alpha(currentColor, 0.15);
             }
-            .theme-card:checked .theme-card-preview {
-                border: 2px solid @accent_bg_color;
+            .theme-card:checked .theme-card-preview { outline-color: var(--accent-bg-color); }
+            .theme-card:hover .theme-card-preview { box-shadow: 0 0 0 1px alpha(currentColor, 0.3); }
+
+            /* GNOME Builder's scheme grid (plugins/editorui/style.css) */
+            flowbox.style-schemes flowboxchild {
+                outline-offset: 2px;
+                border-radius: 12px;
+                outline-width: 2px;
+                padding: 0;
+            }
+            flowbox.style-schemes flowboxchild GtkSourceStyleSchemePreview { margin: 0; }
+            flowbox.style-schemes flowboxchild GtkSourceStyleSchemePreview:not(.selected) {
+                box-shadow: 0 0 0 1px rgb(0 0 0 / 3%),
+                            0 1px 3px 1px rgb(0 0 0 / 7%),
+                            0 2px 6px 2px rgb(0 0 0 / 3%);
+            }
+
+            /* libpanel's PanelThemeSelector (stylesheet.css) */
+            .themeselector { margin: 9px; }
+            .themeselector checkbutton {
+                padding: 1px;
+                min-height: 44px;
+                min-width: 44px;
+                background-clip: content-box;
+                border-radius: 9999px;
+                box-shadow: inset 0 0 0 1px var(--border-color);
+                --light-bg: #fff;
+                --dark-bg: #202020;
+            }
+            .themeselector checkbutton.follow:checked,
+            .themeselector checkbutton.light:checked,
+            .themeselector checkbutton.dark:checked {
+                box-shadow: inset 0 0 0 2px var(--accent-bg-color);
+            }
+            .themeselector checkbutton.follow {
+                background-image: linear-gradient(to bottom right, var(--light-bg) 49.99%, var(--dark-bg) 50.01%);
+            }
+            .themeselector checkbutton.light { background-color: var(--light-bg); }
+            .themeselector checkbutton.dark { background-color: var(--dark-bg); }
+            .themeselector checkbutton radio {
+                -gtk-icon-source: none;
+                border: none;
+                background: none;
+                box-shadow: none;
+                min-width: 12px;
+                min-height: 12px;
+                transform: translate(27px, 14px);
+                padding: 2px;
+            }
+            .themeselector checkbutton radio:checked {
+                -gtk-icon-source: -gtk-icontheme(\"object-select-symbolic\");
+                background-color: var(--accent-bg-color);
+                color: var(--accent-fg-color);
             }
             ",
         );
@@ -341,7 +508,7 @@ fn picture_from_svg_bytes(bytes: &'static [u8]) -> gtk4::Picture {
     picture
 }
 
-fn build_theme_card(label_text: &str, svg_bytes: &'static [u8], group: Option<&gtk4::ToggleButton>) -> gtk4::ToggleButton {
+fn build_theme_card(label_text: &str, svg_bytes: &'static [u8], variant: &str) -> gtk4::ToggleButton {
     let picture = picture_from_svg_bytes(svg_bytes);
     let preview = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
     preview.add_css_class("theme-card-preview");
@@ -354,23 +521,20 @@ fn build_theme_card(label_text: &str, svg_bytes: &'static [u8], group: Option<&g
     content.append(&preview);
     content.append(&label);
 
-    let mut builder = gtk4::ToggleButton::builder().child(&content);
-    if let Some(group) = group {
-        builder = builder.group(group);
-    }
-    let button = builder.build();
+    let button = gtk4::ToggleButton::builder().child(&content).action_name("app.style-variant").action_target(&variant.to_variant()).build();
     button.add_css_class("theme-card");
     button.add_css_class("flat");
     button
 }
 
-/// Rebuilds the scheme `flow_box`'s children from every installed
-/// `GtkSourceStyleScheme` matching the current light/dark mode - Builder's
-/// `update_style_schemes()`. GtkSourceView's own bundled set is what GNOME
-/// Builder and Text Editor offer too, so there's nothing to ship here.
-/// A pick is saved and announced through `notify_scheme_changed`, which
-/// reaches every buffer, the terminal and the preview at once (and
-/// repopulates this grid, see `build_page`).
+/// Port of Builder's `update_style_schemes()`: every installed scheme
+/// except "printing", light ones first, those with a light/dark
+/// counterpart before those without, then by name (a dark scheme sorts
+/// by its light counterpart's id, so pairs line up in both grids). Only
+/// the current mode's schemes are shown, plus the current pick if it has
+/// no counterpart. A pick is saved and announced through
+/// `notify_scheme_changed`, which reaches every buffer, the terminal and
+/// the preview at once (and repopulates this grid, see `build_page`).
 fn populate_scheme_flow_box(flow_box: &gtk4::FlowBox) {
     while let Some(child) = flow_box.first_child() {
         flow_box.remove(&child);
@@ -378,19 +542,36 @@ fn populate_scheme_flow_box(flow_box: &gtk4::FlowBox) {
 
     let manager = sourceview5::StyleSchemeManager::default();
     let is_dark = adw::StyleManager::default().is_dark();
+    let saved_id = load_source_scheme_id();
     let current_id = current_scheme().map(|s| s.id().to_string()).unwrap_or_default();
 
-    let mut schemes: Vec<sourceview5::StyleScheme> =
-        manager.scheme_ids().iter().filter(|id| id.as_str() != "printing").filter_map(|id| manager.scheme(id)).collect();
-    schemes.sort_by_key(|s| s.name().to_string());
+    struct Info {
+        scheme: sourceview5::StyleScheme,
+        sort_key: String,
+        has_alt: bool,
+        is_dark: bool,
+    }
+    let mut schemes: Vec<Info> = manager
+        .scheme_ids()
+        .iter()
+        .filter(|id| id.as_str() != "printing")
+        .filter_map(|id| manager.scheme(id))
+        .map(|scheme| {
+            let dark = scheme_is_dark(&scheme);
+            let alt = scheme_variant(&scheme, if dark { "light" } else { "dark" });
+            let has_alt = alt.id() != scheme.id();
+            let sort_key = if dark && has_alt { alt.id().to_string() } else { scheme.name().to_string() };
+            Info { scheme, sort_key, has_alt, is_dark: dark }
+        })
+        .collect();
+    schemes.sort_by(|a, b| a.is_dark.cmp(&b.is_dark).then(b.has_alt.cmp(&a.has_alt)).then_with(|| glib::GString::from(a.sort_key.as_str()).as_gstr().collate(b.sort_key.as_str())));
 
-    for scheme in schemes {
-        if scheme_is_dark(&scheme) != is_dark {
+    for info in schemes {
+        if is_dark != info.is_dark && (info.scheme.id() != saved_id || info.has_alt) {
             continue;
         }
-        let preview = sourceview5::StyleSchemePreview::new(&scheme);
-        preview.set_selected(scheme.id() == current_id);
-        preview.set_tooltip_text(Some(&scheme.name()));
+        let preview = sourceview5::StyleSchemePreview::new(&info.scheme);
+        preview.set_selected(info.scheme.id() == current_id);
         preview.connect_activate(|activated| {
             save_source_scheme_id(&activated.scheme().id());
             notify_scheme_changed();
@@ -399,44 +580,53 @@ fn populate_scheme_flow_box(flow_box: &gtk4::FlowBox) {
     }
 }
 
+/// Builder's GbpEditoruiPreview: four lines of C with line numbers in the
+/// current scheme and the editor font, as a card above the scheme grid.
+fn scheme_preview() -> gtk4::Widget {
+    let buffer = sourceview5::Buffer::new(None::<&gtk4::TextTagTable>);
+    if let Some(lang) = sourceview5::LanguageManager::default().language("c") {
+        buffer.set_language(Some(&lang));
+    }
+    buffer.set_text("#include <glib.h>\ntypedef struct _type_t type_t;\ntype_t *type_new (int id);\nvoid type_free (type_t *t);");
+    follow_scheme(&buffer);
+    let view = sourceview5::View::builder()
+        .buffer(&buffer)
+        .editable(false)
+        .cursor_visible(false)
+        .monospace(true)
+        .show_line_numbers(true)
+        .top_margin(8)
+        .bottom_margin(8)
+        .left_margin(12)
+        .right_margin(12)
+        .right_margin_position(30)
+        .build();
+    view.add_css_class("card");
+    view.add_css_class(EDITOR_FONT_CSS_CLASS);
+    view.set_overflow(gtk4::Overflow::Hidden);
+    view.upcast()
+}
+
 pub fn build_page(preview_pane: Rc<preview::PreviewPane>) -> adw::PreferencesPage {
     install_theme_card_css();
 
     let interface_group = adw::PreferencesGroup::builder().title(tr("Schnittstelle")).build();
 
-    let follow_button = build_theme_card(&tr("Dem System folgen"), PREVIEW_SYSTEM_SVG, None);
-    let light_button = build_theme_card(&tr("Hell"), PREVIEW_LIGHT_SVG, Some(&follow_button));
-    let dark_button = build_theme_card(&tr("Dunkel"), PREVIEW_DARK_SVG, Some(&follow_button));
-
-    match load_color_scheme() {
-        adw::ColorScheme::ForceLight => light_button.set_active(true),
-        adw::ColorScheme::ForceDark => dark_button.set_active(true),
-        _ => follow_button.set_active(true),
-    }
-
-    let scheme_row = gtk4::Box::builder().orientation(gtk4::Orientation::Horizontal).spacing(12).halign(gtk4::Align::Center).margin_top(12).margin_bottom(12).build();
-    scheme_row.append(&follow_button);
-    scheme_row.append(&light_button);
-    scheme_row.append(&dark_button);
-
-    follow_button.connect_toggled(|button| {
-        if button.is_active() {
-            adw::StyleManager::default().set_color_scheme(adw::ColorScheme::Default);
-            save_color_scheme(adw::ColorScheme::Default);
-        }
-    });
-    light_button.connect_toggled(|button| {
-        if button.is_active() {
-            adw::StyleManager::default().set_color_scheme(adw::ColorScheme::ForceLight);
-            save_color_scheme(adw::ColorScheme::ForceLight);
-        }
-    });
-    dark_button.connect_toggled(|button| {
-        if button.is_active() {
-            adw::StyleManager::default().set_color_scheme(adw::ColorScheme::ForceDark);
-            save_color_scheme(adw::ColorScheme::ForceDark);
-        }
-    });
+    // Builder's IdeStyleVariantPreview cards, wired to the same
+    // `app.style-variant` action as the menu's theme selector.
+    let scheme_row = gtk4::Box::builder().orientation(gtk4::Orientation::Horizontal).spacing(12).halign(gtk4::Align::Center).homogeneous(true).build();
+    scheme_row.append(&build_theme_card(&tr("Dem System folgen"), PREVIEW_SYSTEM_SVG, "default"));
+    scheme_row.append(&build_theme_card(&tr("Hell"), PREVIEW_LIGHT_SVG, "light"));
+    scheme_row.append(&build_theme_card(&tr("Dunkel"), PREVIEW_DARK_SVG, "dark"));
+    let scheme_card = gtk4::Box::builder().margin_top(0).build();
+    scheme_card.add_css_class("card");
+    scheme_row.set_margin_top(12);
+    scheme_row.set_margin_bottom(12);
+    scheme_row.set_margin_start(12);
+    scheme_row.set_margin_end(12);
+    scheme_row.set_hexpand(true);
+    scheme_card.append(&scheme_row);
+    let scheme_row = scheme_card;
 
     interface_group.add(&scheme_row);
 
@@ -445,10 +635,16 @@ pub fn build_page(preview_pane: Rc<preview::PreviewPane>) -> adw::PreferencesPag
         .description(tr("Gilt für Editor, Gutenberg-Code, Vergleich, Terminal und die Code-Blöcke der Vorschau. Hell und Dunkel wechseln mit der Oberfläche."))
         .build();
 
-    // 3 columns - GtkSourceView's own bundled set is six schemes per mode
-    // (see `populate_scheme_flow_box`'s doc comment), so this renders as a
-    // clean 3x2 rectangle.
-    let flow_box = gtk4::FlowBox::builder().column_spacing(12).row_spacing(12).max_children_per_line(3).selection_mode(gtk4::SelectionMode::None).homogeneous(true).build();
+    color_group.add(&scheme_preview());
+    // Builder's GbpEditoruiSchemeSelector: 4 per line, 18px below the preview.
+    let flow_box = gtk4::FlowBox::builder()
+        .column_spacing(12)
+        .row_spacing(12)
+        .max_children_per_line(4)
+        .selection_mode(gtk4::SelectionMode::None)
+        .hexpand(true)
+        .margin_top(18)
+        .build();
     flow_box.add_css_class("style-schemes");
     color_group.add(&flow_box);
     {
@@ -481,37 +677,10 @@ pub fn build_page(preview_pane: Rc<preview::PreviewPane>) -> adw::PreferencesPag
     page
 }
 
-/// "Editor-Schriftart": a live Markdown sample (Builder's
-/// `GbpEditoruiPreview` pattern - a small read-only source view reflecting
-/// the current scheme *and* font, not just a static swatch) plus a
-/// `Gtk.FontDialogButton`/Reset pair for the custom-font override.
+/// "Editor-Schriftart": a `Gtk.FontDialogButton`/Reset pair for the
+/// custom-font override; the scheme preview above shows its effect.
 fn build_editor_font_group() -> adw::PreferencesGroup {
     let group = adw::PreferencesGroup::builder().title(tr("Editor-Schriftart")).build();
-
-    let sample_buffer = sourceview5::Buffer::new(None::<&gtk4::TextTagTable>);
-    sample_buffer.set_highlight_syntax(true);
-    if let Some(lang) = sourceview5::LanguageManager::default().language("markdown") {
-        sample_buffer.set_language(Some(&lang));
-    }
-    sample_buffer.set_text(&tr("# Überschrift\n\nEin **fetter** und *kursiver* Text mit `Inline-Code`.\n\n- Erster Listenpunkt\n- Zweiter Listenpunkt\n"));
-    follow_scheme(&sample_buffer);
-    let sample_view = sourceview5::View::with_buffer(&sample_buffer);
-    sample_view.set_editable(false);
-    sample_view.set_cursor_visible(false);
-    sample_view.set_monospace(true);
-    sample_view.set_top_margin(8);
-    sample_view.set_bottom_margin(8);
-    sample_view.set_left_margin(10);
-    sample_view.set_right_margin(10);
-    sample_view.add_css_class(EDITOR_FONT_CSS_CLASS);
-    let sample_scroller = gtk4::ScrolledWindow::builder()
-        .child(&sample_view)
-        .height_request(130)
-        .hscrollbar_policy(gtk4::PolicyType::Never)
-        .vscrollbar_policy(gtk4::PolicyType::Never)
-        .build();
-    sample_scroller.add_css_class("card");
-    group.add(&sample_scroller);
 
     let font_row = adw::ActionRow::builder().title(tr("Schriftart")).build();
     let font_dialog = gtk4::FontDialog::builder().title(tr("Editor-Schriftart wählen")).build();
@@ -528,7 +697,6 @@ fn build_editor_font_group() -> adw::PreferencesGroup {
     let suppress_font_notify = Rc::new(Cell::new(false));
     {
         let reset_button = reset_button.clone();
-        let sample_view = sample_view.clone();
         let suppress_font_notify = suppress_font_notify.clone();
         font_button.connect_font_desc_notify(move |button| {
             if suppress_font_notify.replace(false) {
@@ -536,7 +704,6 @@ fn build_editor_font_group() -> adw::PreferencesGroup {
             }
             let Some(desc) = button.font_desc() else { return };
             apply_editor_font_override_live(&desc.to_str());
-            sample_view.add_css_class(EDITOR_FONT_CSS_CLASS); // re-touch to force a redraw
             reset_button.set_sensitive(true);
         });
     }

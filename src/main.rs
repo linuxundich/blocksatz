@@ -128,7 +128,10 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("main.paste-translation", &["<Ctrl><Shift>v"]);
     app.set_accels_for_action("win.shortcuts", &["<Ctrl>question"]);
 
-    app.connect_startup(|_| nautilustemplate::install_once());
+    app.connect_startup(|app| {
+        nautilustemplate::install_once();
+        appearance::install_style_variant_action(app);
+    });
 
     app.connect_activate(|app| {
         appearance::apply_saved_color_scheme();

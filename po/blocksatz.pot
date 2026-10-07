@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.67.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-07 08:52+0200\n"
+"POT-Creation-Date: 2026-10-07 21:38+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -399,67 +399,57 @@ msgid ""
 "Fertig - vor dem Übernehmen prüfen und bei Bedarf direkt hier bearbeiten."
 msgstr ""
 
-#: src/appearance.rs:381
-msgid "Schnittstelle"
-msgstr ""
-
-#: src/appearance.rs:383
+#: src/appearance.rs:276 src/appearance.rs:618
 msgid "Dem System folgen"
 msgstr ""
 
-#: src/appearance.rs:384
+#: src/appearance.rs:276 src/appearance.rs:619
 msgid "Hell"
 msgstr ""
 
-#: src/appearance.rs:385
+#: src/appearance.rs:276 src/appearance.rs:620
 msgid "Dunkel"
 msgstr ""
 
-#: src/appearance.rs:420
+#: src/appearance.rs:613
+msgid "Schnittstelle"
+msgstr ""
+
+#: src/appearance.rs:634
 msgid "Farbschema"
 msgstr ""
 
-#: src/appearance.rs:421
+#: src/appearance.rs:635
 msgid ""
 "Gilt für Editor, Gutenberg-Code, Vergleich, Terminal und die Code-Blöcke der "
 "Vorschau. Hell und Dunkel wechseln mit der Oberfläche."
 msgstr ""
 
-#: src/appearance.rs:452
+#: src/appearance.rs:672
 msgid "Erscheinungsbild"
 msgstr ""
 
-#: src/appearance.rs:465
+#: src/appearance.rs:683
 msgid "Editor-Schriftart"
 msgstr ""
 
-#: src/appearance.rs:472
-msgid ""
-"# Überschrift\n"
-"\n"
-"Ein **fetter** und *kursiver* Text mit `Inline-Code`.\n"
-"\n"
-"- Erster Listenpunkt\n"
-"- Zweiter Listenpunkt\n"
-msgstr ""
-
-#: src/appearance.rs:492 src/appearance.rs:583
+#: src/appearance.rs:685 src/appearance.rs:774
 msgid "Schriftart"
 msgstr ""
 
-#: src/appearance.rs:493
+#: src/appearance.rs:686
 msgid "Editor-Schriftart wählen"
 msgstr ""
 
-#: src/appearance.rs:499
+#: src/appearance.rs:692
 msgid "Auf Systemschrift zurücksetzen"
 msgstr ""
 
-#: src/appearance.rs:545 src/window.rs:114
+#: src/appearance.rs:736 src/window.rs:114
 msgid "Vorschau"
 msgstr ""
 
-#: src/appearance.rs:559
+#: src/appearance.rs:750
 msgid ""
 "# Beispielartikel\n"
 "\n"
@@ -469,15 +459,15 @@ msgid ""
 "> Ein Zitat zur Veranschaulichung.\n"
 msgstr ""
 
-#: src/appearance.rs:565 src/blockinspector.rs:239
+#: src/appearance.rs:756 src/blockinspector.rs:239
 msgid "Stil"
 msgstr ""
 
-#: src/appearance.rs:584
+#: src/appearance.rs:775
 msgid "Vorschau-Schriftart wählen"
 msgstr ""
 
-#: src/appearance.rs:590
+#: src/appearance.rs:781
 msgid "Auf Stil-Standardschrift zurücksetzen"
 msgstr ""
 
@@ -697,7 +687,7 @@ msgstr ""
 msgid "Im Blog suchen"
 msgstr ""
 
-#: src/blogposts.rs:232 src/librarysidebar.rs:440
+#: src/blogposts.rs:232 src/librarysidebar.rs:443
 msgid "Kein Blog verbunden"
 msgstr ""
 
@@ -714,7 +704,7 @@ msgstr ""
 msgid "Fehler beim Laden: {err}"
 msgstr ""
 
-#: src/blogposts.rs:288 src/librarysidebar.rs:115
+#: src/blogposts.rs:288 src/librarysidebar.rs:118
 msgid "Keine Treffer"
 msgstr ""
 
@@ -750,7 +740,7 @@ msgstr ""
 msgid "In den Papierkorb"
 msgstr ""
 
-#: src/blogposts.rs:372 src/window.rs:1424
+#: src/blogposts.rs:372 src/window.rs:1431
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr ""
 
@@ -1073,7 +1063,7 @@ msgstr ""
 msgid "Neu oder geändert"
 msgstr ""
 
-#: src/counterpart.rs:47 src/terminal.rs:179
+#: src/counterpart.rs:47 src/terminal.rs:184
 msgid "Kopieren"
 msgstr ""
 
@@ -1372,7 +1362,7 @@ msgid "Volle Größe"
 msgstr ""
 
 #: src/gallerydialog.rs:148 src/settings.rs:62 src/settings.rs:67
-#: src/settings.rs:77 src/shortcuts.rs:54 src/window.rs:388
+#: src/settings.rs:77 src/shortcuts.rs:54 src/window.rs:395
 msgid "Einstellungen"
 msgstr ""
 
@@ -1588,56 +1578,56 @@ msgstr ""
 msgid "Hauptmenü"
 msgstr ""
 
-#: src/librarysidebar.rs:98
+#: src/librarysidebar.rs:101
 msgid "Artikel suchen"
 msgstr ""
 
-#: src/librarysidebar.rs:125
+#: src/librarysidebar.rs:128
 msgid "Blog wechseln"
 msgstr ""
 
-#: src/librarysidebar.rs:127
+#: src/librarysidebar.rs:130
 msgid "Bibliothek und Blog aktualisieren"
 msgstr ""
 
-#: src/librarysidebar.rs:308
+#: src/librarysidebar.rs:311
 msgid "Blogs verwalten …"
 msgstr ""
 
-#: src/librarysidebar.rs:324
+#: src/librarysidebar.rs:327
 msgid "„{name}“ in den Papierkorb verschoben."
 msgstr ""
 
-#: src/librarysidebar.rs:325
+#: src/librarysidebar.rs:328
 msgid "Entfernen fehlgeschlagen: {err}"
 msgstr ""
 
-#: src/librarysidebar.rs:364
+#: src/librarysidebar.rs:367
 msgid "Noch keine Artikel"
 msgstr ""
 
-#: src/librarysidebar.rs:470
+#: src/librarysidebar.rs:473
 msgid "{site} · nicht erreichbar"
 msgstr ""
 
-#: src/librarysidebar.rs:494 src/mainaction.rs:225 src/window.rs:370
-#: src/window.rs:803 src/window.rs:1089
+#: src/librarysidebar.rs:497 src/mainaction.rs:225 src/window.rs:370
+#: src/window.rs:810 src/window.rs:1096
 msgid "Unbenannt"
 msgstr ""
 
-#: src/librarysidebar.rs:516
+#: src/librarysidebar.rs:519
 msgid "Änderungen noch nicht hochgeladen"
 msgstr ""
 
-#: src/librarysidebar.rs:517
+#: src/librarysidebar.rs:520
 msgid "Im Blog geändert"
 msgstr ""
 
-#: src/librarysidebar.rs:518
+#: src/librarysidebar.rs:521
 msgid "Im Blog gelöscht"
 msgstr ""
 
-#: src/librarysidebar.rs:548 src/mainaction.rs:840
+#: src/librarysidebar.rs:551 src/mainaction.rs:840
 msgid "Nur lokal"
 msgstr ""
 
@@ -2222,7 +2212,7 @@ msgstr ""
 
 #: src/mediabrowser.rs:34 src/newarticle.rs:194 src/newarticle.rs:412
 #: src/properties.rs:820 src/releasecheck.rs:97 src/releasecheck.rs:100
-#: src/releasecheck.rs:328 src/window.rs:1525
+#: src/releasecheck.rs:328 src/window.rs:1532
 msgid "Bilder"
 msgstr ""
 
@@ -2238,7 +2228,7 @@ msgstr ""
 msgid "Aktualisieren"
 msgstr ""
 
-#: src/mediabrowser.rs:222 src/shortcuts.rs:37 src/window.rs:384
+#: src/mediabrowser.rs:222 src/shortcuts.rs:37 src/window.rs:391
 msgid "WordPress-Mediathek"
 msgstr ""
 
@@ -3380,7 +3370,7 @@ msgstr ""
 msgid "Originalsprache"
 msgstr ""
 
-#: src/shortcuts.rs:43 src/window.rs:318 src/window.rs:447
+#: src/shortcuts.rs:43 src/window.rs:318 src/window.rs:454
 msgid "Editor"
 msgstr ""
 
@@ -3404,7 +3394,7 @@ msgstr ""
 msgid "Suchen und Ersetzen"
 msgstr ""
 
-#: src/shortcuts.rs:54 src/window.rs:389
+#: src/shortcuts.rs:54 src/window.rs:396
 msgid "Tastenkürzel"
 msgstr ""
 
@@ -3658,15 +3648,15 @@ msgstr ""
 msgid "Interner Fehler: kein Ergebnis vom Erstellen-Thread."
 msgstr ""
 
-#: src/terminal.rs:116
+#: src/terminal.rs:121
 msgid "Shell konnte nicht gestartet werden: {err}"
 msgstr ""
 
-#: src/terminal.rs:180
+#: src/terminal.rs:185
 msgid "Aus Zwischenablage einfügen"
 msgstr ""
 
-#: src/terminal.rs:183
+#: src/terminal.rs:188
 msgid "Alles auswählen"
 msgstr ""
 
@@ -4075,79 +4065,79 @@ msgstr ""
 msgid "Seitenleiste ein-/ausblenden"
 msgstr ""
 
-#: src/window.rs:385
+#: src/window.rs:392
 msgid "Galerie einfügen…"
 msgstr ""
 
-#: src/window.rs:390
+#: src/window.rs:397
 msgid "Über Blocksatz"
 msgstr ""
 
-#: src/window.rs:394
+#: src/window.rs:401
 msgid "Seitenbereich ein-/ausblenden (F9)"
 msgstr ""
 
-#: src/window.rs:402
+#: src/window.rs:409
 msgid "Fokus-Schreibmodus (Strg+Umschalt+F)"
 msgstr ""
 
-#: src/window.rs:412
+#: src/window.rs:419
 msgid "Terminal ein-/ausblenden (F12)"
 msgstr ""
 
-#: src/window.rs:1090
+#: src/window.rs:1097
 msgid "Unbenannte Seite"
 msgstr ""
 
-#: src/window.rs:1148
+#: src/window.rs:1155
 msgid "{n} Übersetzungen in den Ordner ihres Originals verschoben."
 msgstr ""
 
-#: src/window.rs:1219
+#: src/window.rs:1226
 msgid "Vorhandene Arbeitskopie geöffnet."
 msgstr ""
 
-#: src/window.rs:1263
+#: src/window.rs:1270
 msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
 msgstr ""
 
-#: src/window.rs:1368
+#: src/window.rs:1375
 msgid "Markdown-Datei öffnen"
 msgstr ""
 
-#: src/window.rs:1529
+#: src/window.rs:1536
 msgid "Bild einfügen"
 msgstr ""
 
-#: src/window.rs:1564
+#: src/window.rs:1571
 msgid "Video/Audio einfügen"
 msgstr ""
 
-#: src/window.rs:1658
+#: src/window.rs:1665
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr ""
 
-#: src/window.rs:1765
+#: src/window.rs:1772
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr ""
 
-#: src/window.rs:1774
+#: src/window.rs:1781
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1780
+#: src/window.rs:1787
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr ""
 
-#: src/window.rs:1794 src/window.rs:1808
+#: src/window.rs:1801 src/window.rs:1815
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1812
+#: src/window.rs:1819
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr ""
 
-#: src/window.rs:1817
+#: src/window.rs:1824
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr ""
 

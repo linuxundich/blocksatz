@@ -89,6 +89,9 @@ impl LibrarySidebar {
 
         let search_button = gtk4::ToggleButton::builder().icon_name("edit-find-symbolic").tooltip_text(tr("Bibliothek durchsuchen")).build();
         let menu_button = gtk4::MenuButton::builder().icon_name("open-menu-symbolic").menu_model(primary_menu).tooltip_text(tr("Hauptmenü")).primary(true).build();
+        if let Some(popover) = menu_button.popover().and_downcast::<gtk4::PopoverMenu>() {
+            popover.add_child(&crate::appearance::theme_selector(), "theme");
+        }
         let header = adw::HeaderBar::new();
         header.set_title_widget(Some(&adw::WindowTitle::new("Blocksatz", "")));
         header.pack_start(&new_button);

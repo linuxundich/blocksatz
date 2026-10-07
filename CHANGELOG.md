@@ -42,6 +42,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **GNOME Builder's color schemes**: the grid now offers exactly
+  Builder's selection - its 20 own schemes (Builder, Peninsula,
+  Catppuccin, Horizon, Tokyo Night, VS Code, XTerm, Monokai Soda ...) next
+  to GtkSourceView's - sorted and filtered like Builder, four per row,
+  with Builder's C preview above. A scheme without a light/dark
+  counterpart now stays as picked, as in Builder.
+- **Light/dark switch in the primary menu**: three round buttons (follow
+  system, light, dark) at the top, as in Builder; the cards in
+  Einstellungen use the same setting.
+
 - **Einstellungen as vertical tabs**: the pages sit in a sidebar instead
   of the tab bar at the bottom; the dialog reopens on the last page.
 - **One color scheme for everything code-like**: the picked scheme now

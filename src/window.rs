@@ -380,6 +380,13 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     // The primary menu, shown in the sidebar's header bar. The editing
     // entries move into the formatting toolbar in a later redesign phase.
     let primary_menu = gio::Menu::new();
+    // Follow system / light / dark, as GNOME Builder has it (the widget
+    // is put in by `librarysidebar.rs`).
+    let theme_section = gio::Menu::new();
+    let theme_item = gio::MenuItem::new(None, None);
+    theme_item.set_attribute_value("custom", Some(&"theme".to_variant()));
+    theme_section.append_item(&theme_item);
+    primary_menu.append_section(None, &theme_section);
     let insert_section = gio::Menu::new();
     insert_section.append(Some(&tr("WordPress-Mediathek")), Some("win.media-library"));
     insert_section.append(Some(&tr("Galerie einfügen…")), Some("win.insert-gallery"));

@@ -55,7 +55,7 @@ jobs:
           pacman -S --noconfirm glibc
           pacman -S --noconfirm --needed \
             base-devel git rust \
-            gtk4 libadwaita gtksourceview5 webkitgtk-6.0 libspelling \
+            gtk4 libadwaita gtksourceview5 webkitgtk-6.0 libspelling vte4 \
             gdk-pixbuf2 gettext
           echo "de_DE.UTF-8 UTF-8" >> /etc/locale.gen
           locale-gen

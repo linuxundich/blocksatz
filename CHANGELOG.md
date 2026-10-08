@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Images uploaded by Blocksatz showed up in WordPress's block editor as
+  "Dieser Block enthält unerwarteten oder ungültigen Inhalt", and
+  "Wiederherstellung versuchen" turned them into resized images with a
+  fixed pixel width. The `<img>` carried `width`/`height`, which the
+  block editor's own image markup doesn't have (WordPress adds them when
+  serving the page). They are left out now.
+
 ## [0.68.0] - 2026-10-07
 
 ### Added

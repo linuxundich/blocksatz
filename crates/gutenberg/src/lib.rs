@@ -1340,7 +1340,7 @@ pub fn render_block(block: &Block) -> String {
                 escape_html(text.trim_end_matches('\n'))
             ),
         ),
-        Block::Image { url, alt, title, media_id, width, height, link } => {
+        Block::Image { url, alt, title, media_id, link, .. } => {
             // A markdown image "title" is the caption - rendered as a real
             // `<figcaption>` inside the figure, matching WordPress's own
             // image block markup, so it actually shows up on the published
@@ -1352,18 +1352,18 @@ pub fn render_block(block: &Block) -> String {
                 .map(|t| format!("<figcaption class=\"wp-element-caption\">{t}</figcaption>"))
                 .unwrap_or_default();
             // `wp-image-<id>` is what WordPress's own `the_content` filter
-            // keys off to inject `srcset`/`sizes` (and, if missing,
-            // `width`/`height`) into the *served* page - see `media_id`'s
-            // doc comment. `width`/`height` are also written directly here
-            // so the browser reserves the right space even before that
-            // filter runs.
+            // keys off to inject `srcset`/`sizes` and `width`/`height` into
+            // the *served* page - see `media_id`'s doc comment. They must
+            // not be written here: the block editor's own save output has
+            // no `width`/`height` on the `<img>`, so with them the editor
+            // flags the block as invalid, and its recovery reads them as a
+            // resized image (`is-resized`, a fixed pixel width).
             let img_class = media_id.map(|id| format!(" class=\"wp-image-{id}\"")).unwrap_or_default();
-            let dimensions = if *width > 0 && *height > 0 { format!(" width=\"{width}\" height=\"{height}\"") } else { String::new() };
             let mut json = serde_json::Map::new();
             if let Some(id) = media_id {
                 json.insert("id".into(), (*id).into());
             }
-            let img = format!("<img src=\"{}\" alt=\"{}\"{img_class}{dimensions}/>", escape_html(url), escape_html(alt));
+            let img = format!("<img src=\"{}\" alt=\"{}\"{img_class}/>", escape_html(url), escape_html(alt));
             let img = match link {
                 Some(link) => {
                     json.insert("linkDestination".into(), if link == url { "media" } else { "custom" }.into());
@@ -1518,12 +1518,12 @@ mod tests {
     }
 
     #[test]
-    fn image_with_known_dimensions_gets_width_and_height_attrs() {
+    fn image_with_known_dimensions_keeps_them_off_the_img_like_the_block_editor() {
         let block = Block::Image { url: "https://example.com/cat.png".to_string(), alt: "a cat".to_string(), title: None, media_id: Some(42), width: 640, height: 480, link: None };
         assert_eq!(
             render_block(&block),
             "<!-- wp:image {\"id\":42} -->\n<figure class=\"wp-block-image\">\
-             <img src=\"https://example.com/cat.png\" alt=\"a cat\" class=\"wp-image-42\" width=\"640\" height=\"480\"/></figure>\n<!-- /wp:image -->"
+             <img src=\"https://example.com/cat.png\" alt=\"a cat\" class=\"wp-image-42\"/></figure>\n<!-- /wp:image -->"
         );
     }
 
@@ -1533,7 +1533,7 @@ mod tests {
         assert_eq!(
             render_block(&block),
             "<!-- wp:image -->\n<figure class=\"wp-block-image\">\
-             <img src=\"https://example.com/cat.png\" alt=\"a cat\" width=\"640\" height=\"480\"/></figure>\n<!-- /wp:image -->"
+             <img src=\"https://example.com/cat.png\" alt=\"a cat\"/></figure>\n<!-- /wp:image -->"
         );
     }
 

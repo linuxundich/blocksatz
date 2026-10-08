@@ -879,7 +879,7 @@ mod tests {
         let out = gutenberg::render_blocks(&blocks);
         assert!(out.contains("\"id\":42") && out.contains("\"sizeSlug\":\"large\""), "{out}");
         assert!(out.contains("<figure class=\"wp-block-image size-large\">"), "{out}");
-        assert!(out.contains("src=\"https://example.org/bild-1280x800.png\" alt=\"Alternativtext\" class=\"wp-image-42\" width=\"1280\" height=\"800\""), "{out}");
+        assert!(out.contains("src=\"https://example.org/bild-1280x800.png\" alt=\"Alternativtext\" class=\"wp-image-42\"/>"), "{out}");
         assert!(out.contains("<figcaption class=\"wp-element-caption\">Bildunterschrift</figcaption>"), "{out}");
     }
 

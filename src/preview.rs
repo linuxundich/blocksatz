@@ -873,20 +873,19 @@ object.wp-block-file__embed {{ display: none; }}
 .wp-block-group[style*="display:flex"] > *, .wp-block-group[style*="display:grid"] > *, .wp-block-buttons > * {{ margin-top: 0; margin-bottom: 0; }}
 .wp-block-gallery.has-nested-images {{ display: flex; flex-wrap: wrap; gap: 1rem; align-items: normal; }}
 .wp-block-gallery.has-nested-images figure.wp-block-image {{ margin: 0; flex-grow: 0; width: calc(33.33% - .67rem); box-sizing: border-box; display: flex; flex-direction: column; }}
-.wp-block-gallery.has-nested-images.columns-default figure.wp-block-image:first-of-type:nth-last-of-type(2),
-.wp-block-gallery.has-nested-images.columns-default figure.wp-block-image:first-of-type:nth-last-of-type(2) ~ figure.wp-block-image {{ width: calc(50% - .5rem); }}
-.wp-block-gallery.has-nested-images.columns-default figure.wp-block-image:only-of-type {{ width: 100%; }}
 .wp-block-gallery.has-nested-images.columns-1 figure.wp-block-image {{ width: 100%; }}
 .wp-block-gallery.has-nested-images.columns-2 figure.wp-block-image {{ width: calc(50% - .5rem); }}
 .wp-block-gallery.has-nested-images.columns-4 figure.wp-block-image {{ width: calc(25% - .75rem); }}
 .wp-block-gallery.has-nested-images.columns-5 figure.wp-block-image {{ width: calc(20% - .8rem); }}
 .wp-block-gallery.has-nested-images.columns-6 figure.wp-block-image {{ width: calc(16.66% - .84rem); }}
 .wp-block-gallery.has-nested-images > figcaption {{ flex-basis: 100%; flex-grow: 1; text-align: center; }}
-/* One format for every tile of a gallery (`with_gallery_ratios`), so the
-   rows line up and nothing moves while the images load. */
+/* One tile format for every gallery of the article (`with_gallery_ratios`):
+   the tallest image's, so none is cut off or stretched - a shorter image
+   sits at the top of its tile at full width and simply ends earlier.
+   Tiles keep their column width, so all galleries share one scale, and
+   nothing moves while the images load. */
 .wp-block-gallery.has-nested-images figure.wp-block-image .img-wrap {{ display: block; width: 100%; }}
-.wp-block-gallery.has-nested-images figure.wp-block-image img {{ width: 100%; height: auto; aspect-ratio: var(--gallery-ratio, 4 / 3); object-fit: cover; display: block; }}
-.wp-block-gallery.has-nested-images:not(.is-cropped) figure.wp-block-image img {{ object-fit: contain; }}
+.wp-block-gallery.has-nested-images figure.wp-block-image img {{ width: 100%; height: auto; aspect-ratio: var(--gallery-ratio, 4 / 3); object-fit: contain; object-position: top center; display: block; }}
 .wp-block-pullquote {{ text-align: center; margin: 2rem 0; padding: 1.5rem 0; border-top: 3px solid currentColor; border-bottom: 3px solid currentColor; }}
 .wp-block-pullquote blockquote {{ margin: 0; font-size: 1.5rem; font-style: italic; }}
 .wp-block-pullquote cite {{ display: block; margin-top: .75rem; font-size: 1rem; font-style: normal; }}
@@ -1861,18 +1860,27 @@ fn wrap_images_with_badges(html: &str, media: &[MediaItem]) -> String {
     out
 }
 
-/// Gives every gallery one aspect ratio for all its tiles: the most common
-/// one among its images (the first on a tie), read from the image files'
-/// headers - before the page loads, so the tiles have their final size
-/// from the start instead of jumping as each image arrives. Images the
-/// app can't read (remote URLs) don't vote; a gallery without any falls
-/// back to 4:3 in the CSS.
+/// Gives every gallery of the page one tile format: that of the tallest
+/// image in any of them (smallest width/height), read from the image
+/// files' headers - before the page loads, so the tiles have their final
+/// size from the start instead of jumping as each image arrives. With the
+/// tallest format no image needs cropping or scaling up. Images the app
+/// can't read (remote URLs) don't count; without any, the CSS falls back
+/// to 4:3.
 fn with_gallery_ratios(html: &str, doc_dir: Option<&std::path::Path>) -> String {
     const OPEN: &str = "<figure class=\"wp-block-gallery";
-    let mut out = String::with_capacity(html.len() + 64);
+    let Some((w, h)) = gallery_ratio(html, doc_dir) else { return html.to_string() };
+    html.replace(OPEN, &format!("<figure style=\"--gallery-ratio: {w} / {h}\" class=\"wp-block-gallery"))
+}
+
+/// Width and height of the tallest local image inside any gallery of
+/// `html`.
+fn gallery_ratio(html: &str, doc_dir: Option<&std::path::Path>) -> Option<(i32, i32)> {
+    const OPEN: &str = "<figure class=\"wp-block-gallery";
+    let dir = doc_dir?;
+    let mut tallest: Option<(i32, i32)> = None;
     let mut rest = html;
     while let Some(start) = rest.find(OPEN) {
-        out.push_str(&rest[..start]);
         let gallery = &rest[start..];
         // The gallery's own `</figure>`, past its nested image figures.
         let mut depth = 0usize;
@@ -1890,49 +1898,27 @@ fn with_gallery_ratios(html: &str, doc_dir: Option<&std::path::Path>) -> String 
             }
             i += gallery[i..].chars().next().map_or(1, char::len_utf8);
         }
-        let segment = &gallery[..end];
-        match gallery_ratio(segment, doc_dir) {
-            Some((w, h)) => {
-                let tag_end = segment.find('>').unwrap_or(segment.len());
-                out.push_str(&segment[..tag_end]);
-                out.push_str(&format!(" style=\"--gallery-ratio: {w} / {h}\""));
-                out.push_str(&segment[tag_end..]);
+        let mut images = &gallery[..end];
+        while let Some(img) = images.find("<img ") {
+            let tag_end = images[img..].find('>').map_or(images.len(), |e| img + e + 1);
+            let tag = &images[img..tag_end];
+            images = &images[tag_end..];
+            let Some(src) = extract_attr(tag, "src").map(|s| unescape_html_attr(&s)) else { continue };
+            if src.contains("://") {
+                continue;
             }
-            None => out.push_str(segment),
+            let Some((_, w, h)) = gdk_pixbuf::Pixbuf::file_info(dir.join(&src)) else { continue };
+            if w <= 0 || h <= 0 {
+                continue;
+            }
+            // Taller = smaller width/height (compared without division).
+            if tallest.is_none_or(|(tw, th)| i64::from(w) * i64::from(th) < i64::from(tw) * i64::from(h)) {
+                tallest = Some((w, h));
+            }
         }
         rest = &gallery[end..];
     }
-    out.push_str(rest);
-    out
-}
-
-/// Width and height of the most common aspect ratio among a gallery's
-/// local images.
-fn gallery_ratio(segment: &str, doc_dir: Option<&std::path::Path>) -> Option<(i32, i32)> {
-    let dir = doc_dir?;
-    let mut counts: Vec<((i32, i32), i64, usize)> = Vec::new();
-    let mut rest = segment;
-    while let Some(start) = rest.find("<img ") {
-        let tag_end = rest[start..].find('>').map_or(rest.len(), |e| start + e + 1);
-        let tag = &rest[start..tag_end];
-        rest = &rest[tag_end..];
-        let Some(src) = extract_attr(tag, "src").map(|s| unescape_html_attr(&s)) else { continue };
-        if src.contains("://") {
-            continue;
-        }
-        let Some((_, w, h)) = gdk_pixbuf::Pixbuf::file_info(dir.join(&src)) else { continue };
-        if w <= 0 || h <= 0 {
-            continue;
-        }
-        // Ratios a hair apart (a 1px crop) count as the same format.
-        let key = (f64::from(w) / f64::from(h) * 100.0).round() as i64;
-        match counts.iter_mut().find(|(_, k, _)| *k == key) {
-            Some(entry) => entry.2 += 1,
-            None => counts.push(((w, h), key, 1)),
-        }
-    }
-    let best = counts.iter().map(|(_, _, n)| *n).max()?;
-    counts.into_iter().find(|(_, _, n)| *n == best).map(|(size, _, _)| size)
+    tallest
 }
 
 /// `tag` with its `attr="value"` removed (double-quoted, as pulldown-cmark
@@ -2436,18 +2422,18 @@ mod tests {
     }
 
     #[test]
-    fn galleries_get_the_most_common_ratio_of_their_images() {
+    fn all_galleries_get_the_format_of_the_tallest_image() {
         let dir = std::env::temp_dir().join(format!("blocksatz-gallery-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        for (name, w, h) in [("quer-a.png", 300, 200), ("hoch.png", 100, 200), ("quer-b.png", 600, 400)] {
+        for (name, w, h) in [("kurz.png", 108, 123), ("hoch.png", 108, 242), ("quer.png", 300, 200)] {
             let pixbuf = gdk_pixbuf::Pixbuf::new(gdk_pixbuf::Colorspace::Rgb, false, 8, w, h).unwrap();
             pixbuf.savev(dir.join(name), "png", &[]).unwrap();
         }
-        let html = "<p>x</p><figure class=\"wp-block-gallery has-nested-images is-cropped\"><figure class=\"wp-block-image\"><img src=\"hoch.png\"></figure>\
-                    <figure class=\"wp-block-image\"><img src=\"quer-a.png\"></figure><figure class=\"wp-block-image\"><img src=\"quer-b.png\"></figure></figure><p>y</p>";
+        let html = "<p>x</p><figure class=\"wp-block-gallery has-nested-images\"><figure class=\"wp-block-image\"><img src=\"kurz.png\"></figure>\
+                    <figure class=\"wp-block-image\"><img src=\"quer.png\"></figure></figure><p>y</p>\
+                    <figure class=\"wp-block-gallery has-nested-images\"><figure class=\"wp-block-image\"><img src=\"hoch.png\"></figure></figure>";
         let out = with_gallery_ratios(html, Some(&dir));
-        assert!(out.contains("<figure class=\"wp-block-gallery has-nested-images is-cropped\" style=\"--gallery-ratio: 300 / 200\">"), "{out}");
-        assert!(out.ends_with("</figure></figure><p>y</p>"), "{out}");
+        assert_eq!(out.matches("<figure style=\"--gallery-ratio: 108 / 242\" class=\"wp-block-gallery").count(), 2, "{out}");
         // Without readable images the markup stays as it was.
         assert_eq!(with_gallery_ratios(html, None), html);
         let _ = std::fs::remove_dir_all(&dir);

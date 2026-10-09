@@ -20,12 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **Galleries in the preview keep one format**: every tile of a gallery
-  gets the same aspect ratio (the most common among its images, read from
-  the files before the page loads, so nothing jumps while they arrive),
-  and tiles keep their column width - a lone image in the last row no
-  longer stretches across the whole width. Uncropped galleries letterbox
-  instead of cropping.
+- **Galleries in the preview share one format**: every tile of every
+  gallery in the article has the format of the tallest image among them,
+  read from the files before the page loads, so nothing jumps while the
+  images arrive. No image is cropped or scaled up - a shorter one sits at
+  the top of its tile and simply ends earlier. Tiles keep their column
+  width, so a two-image gallery looks like the three-image one above it
+  and a lone image in the last row no longer spans the whole width.
 
 ### Fixed
 

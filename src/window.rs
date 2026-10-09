@@ -390,6 +390,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     let insert_section = gio::Menu::new();
     insert_section.append(Some(&tr("WordPress-Mediathek")), Some("win.media-library"));
     insert_section.append(Some(&tr("Galerie einfügen…")), Some("win.insert-gallery"));
+    insert_section.append(Some(&tr("Alle Bilder bearbeiten…")), Some("win.edit-all-images"));
     primary_menu.append_section(None, &insert_section);
     let app_section = gio::Menu::new();
     app_section.append(Some(&tr("Einstellungen")), Some("win.settings"));
@@ -591,6 +592,22 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         });
     }
     window.add_action(&toggle_terminal_action);
+
+    // Resize or convert every local image of the article in one go
+    // (`imageedit::open_all`).
+    let edit_all_images_action = gio::SimpleAction::new("edit-all-images", None);
+    {
+        let window = window.downgrade();
+        let frontmatter = frontmatter.clone();
+        let current_path = current_path.clone();
+        let buffer = buffer.clone();
+        edit_all_images_action.connect_activate(move |_, _| {
+            let Some(window) = window.upgrade() else { return };
+            let doc_dir = current_path.borrow().as_deref().and_then(Path::parent).map(Path::to_path_buf);
+            crate::imageedit::open_all(window.upcast_ref(), frontmatter.clone(), doc_dir, buffer.clone());
+        });
+    }
+    window.add_action(&edit_all_images_action);
     {
         let toggle_terminal_action = toggle_terminal_action.clone();
         terminal_panel.connect_exit(move || {

@@ -178,13 +178,18 @@ pub(crate) fn encode_webp(pixbuf: &gdk_pixbuf::Pixbuf) -> Vec<u8> {
 /// Decodes, optionally resizes, and re-encodes `bytes` as `format` -
 /// the whole non-UI, non-blocking-thread-aware core of this feature, run
 /// on a background thread by `open`'s apply handler.
-fn convert_and_resize(bytes: &[u8], format: ImageFormat, target_width: Option<u32>, target_height: Option<u32>, keep_aspect: bool) -> Result<Vec<u8>, String> {
+fn convert_and_resize(bytes: &[u8], format: ImageFormat, target_width: Option<u32>, target_height: Option<u32>, keep_aspect: bool, no_upscale: bool) -> Result<Vec<u8>, String> {
     let pixbuf = decode(bytes).ok_or_else(|| tr("Bild konnte nicht gelesen werden - unbekanntes oder beschädigtes Format."))?;
     let (width, height) = (pixbuf.width(), pixbuf.height());
     if width <= 0 || height <= 0 {
         return Err(tr("Bild konnte nicht gelesen werden - unbekanntes oder beschädigtes Format."));
     }
-    let (target_w, target_h) = compute_target_dimensions(width as u32, height as u32, target_width, target_height, keep_aspect);
+    let (mut target_w, mut target_h) = compute_target_dimensions(width as u32, height as u32, target_width, target_height, keep_aspect);
+    // A batch edit ("all images to 1280px wide") must not blow up the
+    // smaller ones: keep their size instead.
+    if no_upscale && (target_w > width as u32 || target_h > height as u32) {
+        (target_w, target_h) = (width as u32, height as u32);
+    }
     let resized = if (target_w, target_h) == (width as u32, height as u32) {
         pixbuf
     } else {
@@ -283,7 +288,7 @@ pub fn open(window: &gtk4::Window, frontmatter: Rc<RefCell<Frontmatter>>, index:
             let (tx, rx) = mpsc::channel::<Result<(), String>>();
             std::thread::spawn(move || {
                 let outcome = export::read_image_bytes(&source_for_thread, doc_dir_for_thread.as_deref())
-                    .and_then(|bytes| convert_and_resize(&bytes, format, target_width, target_height, keep_aspect))
+                    .and_then(|bytes| convert_and_resize(&bytes, format, target_width, target_height, keep_aspect, false))
                     .and_then(|encoded| std::fs::write(&output_path, encoded).map_err(|err| err.to_string()));
                 let _ = tx.send(outcome);
             });
@@ -313,6 +318,197 @@ pub fn open(window: &gtk4::Window, frontmatter: Rc<RefCell<Frontmatter>>, index:
                     apply_button.set_sensitive(true);
                     glib::ControlFlow::Break
                 }
+            });
+        });
+    }
+
+    dialog.present(Some(window));
+}
+
+/// One image of "Alle Bilder bearbeiten…": its source and the new
+/// reference, or what went wrong.
+type BatchResult = (String, Result<String, String>);
+
+/// The article's local images, each once, in order of appearance - what
+/// "Alle Bilder bearbeiten…" works on. Videos, audio and remote images
+/// are left out.
+fn local_images(frontmatter: &Frontmatter) -> Vec<String> {
+    let mut sources: Vec<String> = Vec::new();
+    for item in &frontmatter.media {
+        if is_local(&item.source) && crate::document::media_reference_kind(&item.source) == crate::document::MediaReferenceKind::Image && !sources.contains(&item.source) {
+            sources.push(item.source.clone());
+        }
+    }
+    sources
+}
+
+/// "Alle Bilder bearbeiten…": the same edit as `open`, applied to every
+/// local image of the article in one go - format (or each keeps its own),
+/// size and aspect, and by default without enlarging images smaller than
+/// the target. Each result is a sibling file like a single edit, and the
+/// article's references are switched over at the end.
+pub fn open_all(window: &gtk4::Window, frontmatter: Rc<RefCell<Frontmatter>>, doc_dir: Option<PathBuf>, buffer: sourceview5::Buffer) {
+    let body = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
+    {
+        let mut fm = frontmatter.borrow_mut();
+        fm.media = crate::media::reconcile(&fm.media, &body);
+    }
+    let sources = local_images(&frontmatter.borrow());
+    if sources.is_empty() {
+        let alert = adw::AlertDialog::new(Some(&tr("Keine Bilder")), Some(&tr("Der Artikel enthält keine lokalen Bilder.")));
+        alert.add_response("ok", &tr("OK"));
+        alert.present(Some(window));
+        return;
+    }
+
+    let mut format_labels: Vec<String> = vec![tr("Unverändert")];
+    format_labels.extend(ImageFormat::ALL.iter().map(|f| f.label().to_string()));
+    let format_label_refs: Vec<&str> = format_labels.iter().map(String::as_str).collect();
+    let format_row = adw::ComboRow::builder().title(tr("Format")).model(&gtk4::StringList::new(&format_label_refs)).selected(0).build();
+    let width_row = adw::EntryRow::builder().title(tr("Breite (px)")).build();
+    let height_row = adw::EntryRow::builder().title(tr("Höhe (px)")).build();
+    let keep_aspect_row = adw::SwitchRow::builder().title(tr("Seitenverhältnis beibehalten")).active(true).build();
+    let no_upscale_row = adw::SwitchRow::builder().title(tr("Kleinere Bilder nicht vergrößern")).active(true).build();
+
+    let count_title = if sources.len() == 1 { tr("1 Bild im Artikel") } else { tr("{n} Bilder im Artikel").replace("{n}", &sources.len().to_string()) };
+    let group = adw::PreferencesGroup::builder()
+        .title(count_title)
+        .description(tr("Jedes Bild wird als neue Datei „…-bearbeitet“ neben dem Original gespeichert, der Artikel verweist danach darauf."))
+        .build();
+    group.add(&format_row);
+    group.add(&width_row);
+    group.add(&height_row);
+    group.add(&keep_aspect_row);
+    group.add(&no_upscale_row);
+
+    let status_label = gtk4::Label::builder().wrap(true).xalign(0.0).build();
+    status_label.set_visible(false);
+    let progress = gtk4::ProgressBar::new();
+    progress.set_visible(false);
+
+    let content = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(12).margin_top(18).margin_bottom(18).margin_start(18).margin_end(18).build();
+    content.append(&group);
+    content.append(&progress);
+    content.append(&status_label);
+
+    let apply_button = gtk4::Button::with_label(&tr("Alle bearbeiten"));
+    apply_button.add_css_class("suggested-action");
+    apply_button.set_sensitive(false);
+    let header = adw::HeaderBar::new();
+    header.pack_end(&apply_button);
+    let toolbar_view = adw::ToolbarView::new();
+    toolbar_view.add_top_bar(&header);
+    toolbar_view.set_content(Some(&gtk4::ScrolledWindow::builder().child(&content).hscrollbar_policy(gtk4::PolicyType::Never).build()));
+    let dialog = adw::Dialog::builder().title(tr("Alle Bilder bearbeiten")).content_width(440).content_height(520).child(&toolbar_view).build();
+
+    // Nothing to do while the format stays and no size is given.
+    let update_sensitivity: Rc<dyn Fn()> = {
+        let format_row = format_row.clone();
+        let width_row = width_row.clone();
+        let height_row = height_row.clone();
+        let apply_button = apply_button.clone();
+        Rc::new(move || {
+            let invalid = [&width_row, &height_row].iter().any(|row| !row.text().trim().is_empty() && parse_dimension(&row.text()).is_none());
+            let sized = parse_dimension(&width_row.text()).is_some() || parse_dimension(&height_row.text()).is_some();
+            apply_button.set_sensitive(!invalid && (format_row.selected() > 0 || sized));
+        })
+    };
+    for row in [&width_row, &height_row] {
+        let update_sensitivity = update_sensitivity.clone();
+        row.connect_changed(move |row| {
+            let text = row.text().to_string();
+            row.remove_css_class("error");
+            if !text.trim().is_empty() && parse_dimension(&text).is_none() {
+                row.add_css_class("error");
+            }
+            update_sensitivity();
+        });
+    }
+    {
+        let update_sensitivity = update_sensitivity.clone();
+        format_row.connect_selected_notify(move |_| update_sensitivity());
+    }
+
+    {
+        let dialog = dialog.clone();
+        let apply_button_for_click = apply_button.clone();
+        apply_button.connect_clicked(move |_| {
+            let format_choice = match format_row.selected() {
+                0 => None,
+                n => ImageFormat::ALL.get(n as usize - 1).copied(),
+            };
+            let target_width = parse_dimension(&width_row.text());
+            let target_height = parse_dimension(&height_row.text());
+            let keep_aspect = keep_aspect_row.is_active();
+            let no_upscale = no_upscale_row.is_active();
+            for row in [format_row.upcast_ref::<gtk4::Widget>(), width_row.upcast_ref(), height_row.upcast_ref(), keep_aspect_row.upcast_ref(), no_upscale_row.upcast_ref()] {
+                row.set_sensitive(false);
+            }
+            apply_button_for_click.set_sensitive(false);
+            progress.set_visible(true);
+            status_label.set_visible(true);
+
+            // (index, source, new reference or error)
+            let (tx, rx) = mpsc::channel::<(usize, String, Result<String, String>)>();
+            let jobs = sources.clone();
+            let doc_dir_for_thread = doc_dir.clone();
+            std::thread::spawn(move || {
+                for (index, source) in jobs.into_iter().enumerate() {
+                    let format = format_choice.unwrap_or_else(|| ImageFormat::from_extension(&source));
+                    let new_source = sibling_reference(&source, format);
+                    let output_path = export::resolve_local_path(&new_source, doc_dir_for_thread.as_deref());
+                    let outcome = export::read_image_bytes(&source, doc_dir_for_thread.as_deref())
+                        .and_then(|bytes| convert_and_resize(&bytes, format, target_width, target_height, keep_aspect, no_upscale))
+                        .and_then(|encoded| std::fs::write(&output_path, encoded).map_err(|err| err.to_string()))
+                        .map(|()| new_source);
+                    if tx.send((index, source, outcome)).is_err() {
+                        return;
+                    }
+                }
+            });
+
+            let total = sources.len();
+            let done: Rc<RefCell<Vec<BatchResult>>> = Rc::new(RefCell::new(Vec::new()));
+            let progress = progress.clone();
+            let status_label = status_label.clone();
+            let buffer = buffer.clone();
+            let dialog = dialog.clone();
+            glib::timeout_add_local(Duration::from_millis(100), move || {
+                loop {
+                    match rx.try_recv() {
+                        Ok((_, source, outcome)) => done.borrow_mut().push((source, outcome)),
+                        Err(mpsc::TryRecvError::Empty) => break,
+                        Err(mpsc::TryRecvError::Disconnected) => break,
+                    }
+                }
+                let finished = done.borrow().len();
+                progress.set_fraction(finished as f64 / total as f64);
+                status_label.set_label(&tr("Bild {i} von {n} …").replace("{i}", &finished.min(total).to_string()).replace("{n}", &total.to_string()));
+                if finished < total {
+                    return glib::ControlFlow::Continue;
+                }
+                // All through: switch the article's references over in one
+                // user action, so a single Ctrl+Z undoes the lot.
+                buffer.begin_user_action();
+                let mut failed: Vec<String> = Vec::new();
+                for (source, outcome) in done.borrow().iter() {
+                    match outcome {
+                        Ok(new_source) if new_source != source => {
+                            let settings = sourceview5::SearchSettings::builder().search_text(source.as_str()).case_sensitive(true).build();
+                            let context = sourceview5::SearchContext::builder().buffer(&buffer).settings(&settings).build();
+                            let _ = context.replace_all(new_source);
+                        }
+                        Ok(_) => {}
+                        Err(err) => failed.push(format!("{source}: {err}")),
+                    }
+                }
+                buffer.end_user_action();
+                if failed.is_empty() {
+                    dialog.close();
+                } else {
+                    status_label.set_label(&tr("{k} von {n} Bildern bearbeitet. Fehler:\n{errors}").replace("{k}", &(total - failed.len()).to_string()).replace("{n}", &total.to_string()).replace("{errors}", &failed.join("\n")));
+                }
+                glib::ControlFlow::Break
             });
         });
     }
@@ -394,6 +590,25 @@ mod tests {
         assert_eq!(parse_dimension("0"), None);
         assert_eq!(parse_dimension("abc"), None);
         assert_eq!(parse_dimension("400"), Some(400));
+    }
+
+    #[test]
+    fn no_upscale_keeps_a_smaller_image_at_its_size() {
+        let pixbuf = gdk_pixbuf::Pixbuf::new(gdk_pixbuf::Colorspace::Rgb, false, 8, 400, 300).unwrap();
+        let png = pixbuf.save_to_bufferv("png", &[]).unwrap();
+        let kept = decode(&convert_and_resize(&png, ImageFormat::Png, Some(1280), None, true, true).unwrap()).unwrap();
+        assert_eq!((kept.width(), kept.height()), (400, 300));
+        let enlarged = decode(&convert_and_resize(&png, ImageFormat::Png, Some(800), None, true, false).unwrap()).unwrap();
+        assert_eq!((enlarged.width(), enlarged.height()), (800, 600));
+        let shrunk = decode(&convert_and_resize(&png, ImageFormat::Png, Some(200), None, true, true).unwrap()).unwrap();
+        assert_eq!((shrunk.width(), shrunk.height()), (200, 150));
+    }
+
+    #[test]
+    fn local_images_lists_each_local_image_once_without_videos_or_remote_ones() {
+        let body = "![a](eins.png)\n\n![b](https://example.org/x.png)\n\n![c](clip.mp4)\n\n![d](eins.png)\n\n![e](zwei.jpg)\n";
+        let frontmatter = Frontmatter { media: crate::media::reconcile(&[], body), ..Frontmatter::default() };
+        assert_eq!(local_images(&frontmatter), vec!["eins.png".to_string(), "zwei.jpg".to_string()]);
     }
 
     #[test]

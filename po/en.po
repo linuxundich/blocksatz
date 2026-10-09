@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-09 08:27+0200\n"
+"POT-Creation-Date: 2026-10-09 08:45+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -62,7 +62,7 @@ msgstr "Generating …"
 #: src/aialt.rs:213 src/aievaluate.rs:225 src/aiinplace.rs:206
 #: src/aiwriter.rs:403 src/aiwriter.rs:472 src/blogposts.rs:424 src/chat.rs:181
 #: src/export.rs:334 src/gallerydialog.rs:509 src/imagealt.rs:407
-#: src/imagealt.rs:509 src/imageedit.rs:306 src/mediabrowser.rs:500
+#: src/imagealt.rs:509 src/imageedit.rs:311 src/mediabrowser.rs:500
 #: src/mediabrowser.rs:589 src/mediapanel.rs:285 src/mediapanel.rs:749
 msgid "Fehler: {err}"
 msgstr "Error: {err}"
@@ -184,7 +184,7 @@ msgstr ""
 msgid "Abbrechen"
 msgstr "Cancel"
 
-#: src/aimenu.rs:189 src/imageedit.rs:235
+#: src/aimenu.rs:189 src/imageedit.rs:240
 msgid "Anwenden"
 msgstr "Apply"
 
@@ -754,7 +754,7 @@ msgstr "Restore as draft"
 msgid "In den Papierkorb"
 msgstr "Move to trash"
 
-#: src/blogposts.rs:372 src/window.rs:1434
+#: src/blogposts.rs:372 src/window.rs:1451
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr "Failed to open: {err}"
 
@@ -1458,7 +1458,7 @@ msgid "Volle Größe"
 msgstr "Full Size"
 
 #: src/gallerydialog.rs:148 src/settings.rs:62 src/settings.rs:67
-#: src/settings.rs:77 src/shortcuts.rs:54 src/window.rs:395
+#: src/settings.rs:77 src/shortcuts.rs:54 src/window.rs:396
 msgid "Einstellungen"
 msgstr "Preferences"
 
@@ -1544,7 +1544,7 @@ msgstr ""
 "For the image description, please right-click a line containing an image (!"
 "[description](image.png))."
 
-#: src/imagealt.rs:240 src/translatedialog.rs:149
+#: src/imagealt.rs:240 src/imageedit.rs:355 src/translatedialog.rs:149
 msgid "OK"
 msgstr "OK"
 
@@ -1585,37 +1585,89 @@ msgid ""
 "Bild konnte nicht gelesen werden - unbekanntes oder beschädigtes Format."
 msgstr "Couldn't read the image - unknown or corrupted format."
 
-#: src/imageedit.rs:193
+#: src/imageedit.rs:198
 msgid "Bild konnte nicht skaliert werden."
 msgstr "Couldn't resize the image."
 
-#: src/imageedit.rs:216
+#: src/imageedit.rs:221 src/imageedit.rs:363
 msgid "Format"
 msgstr "Format"
 
-#: src/imageedit.rs:218
+#: src/imageedit.rs:223 src/imageedit.rs:364
 msgid "Breite (px)"
 msgstr "Width (px)"
 
-#: src/imageedit.rs:219
+#: src/imageedit.rs:224 src/imageedit.rs:365
 msgid "Höhe (px)"
 msgstr "Height (px)"
 
-#: src/imageedit.rs:220
+#: src/imageedit.rs:225 src/imageedit.rs:366
 msgid "Seitenverhältnis beibehalten"
 msgstr "Keep aspect ratio"
 
-#: src/imageedit.rs:245
+#: src/imageedit.rs:250
 msgid "Bild bearbeiten"
 msgstr "Edit Image"
 
-#: src/imageedit.rs:278
+#: src/imageedit.rs:283
 msgid "Wird verarbeitet …"
 msgstr "Processing …"
 
-#: src/imageedit.rs:312
+#: src/imageedit.rs:317
 msgid "Interner Fehler: Bildbearbeitungs-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the image-editing thread returned no result."
+
+#: src/imageedit.rs:354 src/postpane.rs:173
+msgid "Keine Bilder"
+msgstr "No Images"
+
+#: src/imageedit.rs:354
+msgid "Der Artikel enthält keine lokalen Bilder."
+msgstr "The article has no local images."
+
+#: src/imageedit.rs:360
+msgid "Unverändert"
+msgstr "Unchanged"
+
+#: src/imageedit.rs:367
+msgid "Kleinere Bilder nicht vergrößern"
+msgstr "Don't enlarge smaller images"
+
+#: src/imageedit.rs:369
+msgid "1 Bild im Artikel"
+msgstr "1 image in the article"
+
+#: src/imageedit.rs:369
+msgid "{n} Bilder im Artikel"
+msgstr "{n} images in the article"
+
+#: src/imageedit.rs:372
+msgid ""
+"Jedes Bild wird als neue Datei „…-bearbeitet“ neben dem Original "
+"gespeichert, der Artikel verweist danach darauf."
+msgstr ""
+"Each image is saved as a new “…-bearbeitet” file next to the original, and "
+"the article points to it afterwards."
+
+#: src/imageedit.rs:390
+msgid "Alle bearbeiten"
+msgstr "Edit All"
+
+#: src/imageedit.rs:398
+msgid "Alle Bilder bearbeiten"
+msgstr "Edit All Images"
+
+#: src/imageedit.rs:482
+msgid "Bild {i} von {n} …"
+msgstr "Image {i} of {n} …"
+
+#: src/imageedit.rs:505
+msgid ""
+"{k} von {n} Bildern bearbeitet. Fehler:\n"
+"{errors}"
+msgstr ""
+"{k} of {n} images edited. Errors:\n"
+"{errors}"
 
 #: src/langswitch.rs:162
 msgid "Noch keine Fassung - übersetzen"
@@ -1710,7 +1762,7 @@ msgid "{site} · nicht erreichbar"
 msgstr "{site} · unreachable"
 
 #: src/librarysidebar.rs:497 src/mainaction.rs:225 src/window.rs:370
-#: src/window.rs:813 src/window.rs:1099
+#: src/window.rs:830 src/window.rs:1116
 msgid "Unbenannt"
 msgstr "Untitled"
 
@@ -2230,7 +2282,7 @@ msgstr "Classic content"
 msgid "Shortcode"
 msgstr "Shortcode"
 
-#: src/markdowncheck.rs:103 src/preview.rs:1585
+#: src/markdowncheck.rs:103 src/preview.rs:1595
 msgid "Abfrage-Loop"
 msgstr "Query loop"
 
@@ -2316,7 +2368,7 @@ msgstr "All media"
 
 #: src/mediabrowser.rs:34 src/newarticle.rs:194 src/newarticle.rs:412
 #: src/properties.rs:820 src/releasecheck.rs:97 src/releasecheck.rs:100
-#: src/releasecheck.rs:328 src/window.rs:1535
+#: src/releasecheck.rs:328 src/window.rs:1552
 msgid "Bilder"
 msgstr "Images"
 
@@ -2872,7 +2924,7 @@ msgstr "Could not create the article: {err}"
 msgid "Schlagwörter"
 msgstr "Tags"
 
-#: src/newarticle.rs:702 src/preview.rs:1587 src/taxonomy.rs:33
+#: src/newarticle.rs:702 src/preview.rs:1597 src/taxonomy.rs:33
 #: src/translatedialog.rs:704
 msgid "Kategorien"
 msgstr "Categories"
@@ -2927,10 +2979,6 @@ msgstr "Last synced: {at}"
 msgid "Noch nicht im Blog."
 msgstr "Not on the blog yet."
 
-#: src/postpane.rs:173
-msgid "Keine Bilder"
-msgstr "No images"
-
 #: src/postpane.rs:174
 msgid "1 Bild"
 msgstr "1 image"
@@ -2955,147 +3003,151 @@ msgstr "Sepia"
 msgid "Bild bearbeiten…"
 msgstr "Edit Image…"
 
-#: src/preview.rs:795
+#: src/preview.rs:415 src/window.rs:393
+msgid "Alle Bilder bearbeiten…"
+msgstr "Edit All Images…"
+
+#: src/preview.rs:806
 msgid "Wiedergabeliste – die Titel erzeugt das Blog"
 msgstr "Playlist – the blog renders its tracks"
 
-#: src/preview.rs:1480
+#: src/preview.rs:1490
 msgid "Video lässt sich in der Vorschau nicht abspielen"
 msgstr "The video can't be played in the preview"
 
-#: src/preview.rs:1551
+#: src/preview.rs:1561
 msgid "Seitenumbruch"
 msgstr "Page break"
 
-#: src/preview.rs:1583
+#: src/preview.rs:1593
 msgid "Neueste Beiträge"
 msgstr "Latest posts"
 
-#: src/preview.rs:1584
+#: src/preview.rs:1594
 msgid "Neueste Kommentare"
 msgstr "Latest comments"
 
-#: src/preview.rs:1586
+#: src/preview.rs:1596
 msgid "Archive"
 msgstr "Archives"
 
-#: src/preview.rs:1588
+#: src/preview.rs:1598
 msgid "Schlagwörter-Wolke"
 msgstr "Tag cloud"
 
-#: src/preview.rs:1589
+#: src/preview.rs:1599
 msgid "Kalender"
 msgstr "Calendar"
 
-#: src/preview.rs:1590
+#: src/preview.rs:1600
 msgid "Suche"
 msgstr "Search"
 
-#: src/preview.rs:1591
+#: src/preview.rs:1601
 msgid "Seitenliste"
 msgstr "Page list"
 
-#: src/preview.rs:1592
+#: src/preview.rs:1602
 msgid "Social-Media-Links"
 msgstr "Social links"
 
-#: src/preview.rs:1593
+#: src/preview.rs:1603
 msgid "RSS-Feed"
 msgstr "RSS feed"
 
-#: src/preview.rs:1594
+#: src/preview.rs:1604
 msgid "Synchronisiertes Muster"
 msgstr "Synced pattern"
 
-#: src/preview.rs:1595
+#: src/preview.rs:1605
 msgid "Inhaltsverzeichnis"
 msgstr "Table of contents"
 
-#: src/preview.rs:1596
+#: src/preview.rs:1606
 msgid "Werbeplatz"
 msgstr "Ad slot"
 
-#: src/preview.rs:1597
+#: src/preview.rs:1607
 msgid "Symbol"
 msgstr "Icon"
 
-#: src/preview.rs:1598
+#: src/preview.rs:1608
 msgid "Anmelden/Abmelden"
 msgstr "Log in/out"
 
-#: src/preview.rs:1599
+#: src/preview.rs:1609
 msgid "Lesezeit"
 msgstr "Reading time"
 
-#: src/preview.rs:1600 src/properties.rs:447
+#: src/preview.rs:1610 src/properties.rs:447
 msgid "Autor"
 msgstr "Author"
 
-#: src/preview.rs:1601
+#: src/preview.rs:1611
 msgid "Kategorien und Schlagwörter"
 msgstr "Categories and tags"
 
-#: src/preview.rs:1602
+#: src/preview.rs:1612
 msgid "Datum"
 msgstr "Date"
 
-#: src/preview.rs:1603
+#: src/preview.rs:1613
 msgid "Avatar"
 msgstr "Avatar"
 
-#: src/preview.rs:1604
+#: src/preview.rs:1614
 msgid "Brotkrümelnavigation"
 msgstr "Breadcrumbs"
 
-#: src/preview.rs:1605
+#: src/preview.rs:1615
 msgid "Navigation"
 msgstr "Navigation"
 
-#: src/preview.rs:1606 src/properties.rs:559
+#: src/preview.rs:1616 src/properties.rs:559
 msgid "Kommentare"
 msgstr "Comments"
 
-#: src/preview.rs:1611 src/preview.rs:1649
+#: src/preview.rs:1621 src/preview.rs:1659
 msgid "{name} – wird vom Blog erzeugt"
 msgstr "{name} – rendered by the blog"
 
-#: src/preview.rs:1648
+#: src/preview.rs:1658
 msgid "Shortcode [{name}]"
 msgstr "Shortcode [{name}]"
 
-#: src/preview.rs:1655
+#: src/preview.rs:1665
 msgid "Weiterlesen"
 msgstr "Read more"
 
-#: src/preview.rs:1669
+#: src/preview.rs:1679
 msgid "Fußnoten"
 msgstr "Footnotes"
 
-#: src/preview.rs:1684
+#: src/preview.rs:1694
 msgid "YouTube-Video"
 msgstr "YouTube video"
 
-#: src/preview.rs:1685
+#: src/preview.rs:1695
 msgid "Vimeo-Video"
 msgstr "Vimeo video"
 
-#: src/preview.rs:1690
+#: src/preview.rs:1700
 msgid "Eingebetteter Inhalt"
 msgstr "Embedded content"
 
-#: src/preview.rs:1977
+#: src/preview.rs:1974
 msgid "Bereits zu WordPress hochgeladen"
 msgstr "Already uploaded to WordPress"
 
-#: src/preview.rs:1984 src/preview.rs:1985
+#: src/preview.rs:1981 src/preview.rs:1982
 msgid "Alt"
 msgstr "Alt"
 
-#: src/preview.rs:1985
+#: src/preview.rs:1982
 msgid "Bewusst ohne Alternativtext (dekoratives Bild)"
 msgstr "Deliberately without alt text (decorative image)"
 
-#: src/preview.rs:1989
+#: src/preview.rs:1986
 msgid "Bildformat"
 msgstr "Image format"
 
@@ -3502,7 +3554,7 @@ msgstr "Focus Writing Mode"
 msgid "Originalsprache"
 msgstr "Original language"
 
-#: src/shortcuts.rs:43 src/window.rs:318 src/window.rs:454
+#: src/shortcuts.rs:43 src/window.rs:318 src/window.rs:455
 msgid "Editor"
 msgstr "Editor"
 
@@ -3526,7 +3578,7 @@ msgstr "Paste Image from Clipboard"
 msgid "Suchen und Ersetzen"
 msgstr "Find and Replace"
 
-#: src/shortcuts.rs:54 src/window.rs:396
+#: src/shortcuts.rs:54 src/window.rs:397
 msgid "Tastenkürzel"
 msgstr "Keyboard Shortcuts"
 
@@ -4237,75 +4289,75 @@ msgstr "Show/hide sidebar"
 msgid "Galerie einfügen…"
 msgstr "Insert Gallery…"
 
-#: src/window.rs:397
+#: src/window.rs:398
 msgid "Über Blocksatz"
 msgstr "About Blocksatz"
 
-#: src/window.rs:401
+#: src/window.rs:402
 msgid "Seitenbereich ein-/ausblenden (F9)"
 msgstr "Show/hide side pane (F9)"
 
-#: src/window.rs:409
+#: src/window.rs:410
 msgid "Fokus-Schreibmodus (Strg+Umschalt+F)"
 msgstr "Focus writing mode (Ctrl+Shift+F)"
 
-#: src/window.rs:419
+#: src/window.rs:420
 msgid "Terminal ein-/ausblenden (F12)"
 msgstr "Show/hide terminal (F12)"
 
-#: src/window.rs:1100
+#: src/window.rs:1117
 msgid "Unbenannte Seite"
 msgstr "Untitled page"
 
-#: src/window.rs:1158
+#: src/window.rs:1175
 msgid "{n} Übersetzungen in den Ordner ihres Originals verschoben."
 msgstr "Moved {n} translations into the folder of their original."
 
-#: src/window.rs:1229
+#: src/window.rs:1246
 msgid "Vorhandene Arbeitskopie geöffnet."
 msgstr "Opened the existing working copy."
 
-#: src/window.rs:1273
+#: src/window.rs:1290
 msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
 msgstr "Couldn't create a working copy: {err}"
 
-#: src/window.rs:1378
+#: src/window.rs:1395
 msgid "Markdown-Datei öffnen"
 msgstr "Open Markdown File"
 
-#: src/window.rs:1539
+#: src/window.rs:1556
 msgid "Bild einfügen"
 msgstr "Insert Image"
 
-#: src/window.rs:1574
+#: src/window.rs:1591
 msgid "Video/Audio einfügen"
 msgstr "Insert Video/Audio"
 
-#: src/window.rs:1668
+#: src/window.rs:1685
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr "AI draft created as a new document - please review it."
 
-#: src/window.rs:1775
+#: src/window.rs:1792
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr "Please save the article first to insert images."
 
-#: src/window.rs:1784
+#: src/window.rs:1801
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the image from the clipboard."
 
-#: src/window.rs:1790
+#: src/window.rs:1807
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr "Couldn't save the image: {err}"
 
-#: src/window.rs:1804 src/window.rs:1818
+#: src/window.rs:1821 src/window.rs:1835
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the formatted text from the clipboard."
 
-#: src/window.rs:1822
+#: src/window.rs:1839
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr "Formatted text from the clipboard is in an unknown format."
 
-#: src/window.rs:1827
+#: src/window.rs:1844
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr "Couldn't convert the formatted text: {err}"
 

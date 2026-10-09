@@ -402,6 +402,17 @@ impl PreviewPane {
             }
             let item = webkit6::ContextMenuItem::from_gaction(&action, &tr("Bild bearbeiten…"), None);
             context_menu.append(&item);
+            let all_action = gio::SimpleAction::new("edit-all-images", None);
+            {
+                let frontmatter = frontmatter.clone();
+                let window = window.clone();
+                let doc_dir_value = doc_dir_value.clone();
+                let buffer = buffer.clone();
+                all_action.connect_activate(move |_, _| {
+                    crate::imageedit::open_all(&window, frontmatter.clone(), doc_dir_value.clone(), buffer.clone());
+                });
+            }
+            context_menu.append(&webkit6::ContextMenuItem::from_gaction(&all_action, &tr("Alle Bilder bearbeiten…"), None));
             false
         });
     }

@@ -395,7 +395,11 @@ blocks. Implemented so far:
   width or height (with an optional "Seitenverhältnis beibehalten" toggle
   for a free, non-proportional resize) - writes a new sibling file and
   updates the article's own image reference to it, leaving the original
-  untouched.
+  untouched. "Alle Bilder bearbeiten…" (same context menu, or the main
+  menu) applies one such edit to every local image of the article at
+  once - one format for all or each keeps its own, and by default images
+  already smaller than the target size are left at their size; a single
+  Ctrl+Z switches all references back.
 - **Einstellungen dialog** (Ctrl+,; its pages as vertical tabs in a
   sidebar, an `Adw.NavigationSplitView` that turns into two steps when
   narrow) — an

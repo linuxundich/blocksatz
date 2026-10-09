@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **"Alle Bilder bearbeiten…"** (main menu, or the context menu of an
+  image in the preview): resize and/or convert every local image of the
+  article in one go, with the same settings as "Bild bearbeiten…" plus
+  "Unverändert" as format and "Kleinere Bilder nicht vergrößern". Each
+  image gets its `…-bearbeitet` sibling file, the references switch over
+  in one undoable step.
 - **Changes to the open file made outside Blocksatz** are noticed: autosave
   stops writing to it and a banner offers to reload. If you kept writing
   in Blocksatz meanwhile, a conflict dialog lets you keep your version,

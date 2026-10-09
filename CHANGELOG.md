@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.69.0] - 2026-10-09
+
 ### Added
 
 - **"Alle Bilder bearbeiten…"** (main menu, or the context menu of an
@@ -2399,7 +2401,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.68.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.69.0...HEAD
+[0.69.0]: https://github.com/linuxundich/blocksatz/compare/v0.68.0...v0.69.0
 [0.68.0]: https://github.com/linuxundich/blocksatz/compare/v0.67.0...v0.68.0
 [0.67.0]: https://github.com/linuxundich/blocksatz/compare/v0.66.0...v0.67.0
 [0.66.0]: https://github.com/linuxundich/blocksatz/compare/v0.65.0...v0.66.0

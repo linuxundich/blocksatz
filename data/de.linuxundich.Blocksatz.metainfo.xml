@@ -25,6 +25,13 @@
   <url type="homepage">https://github.com/linuxundich/blocksatz</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksatz</url>
   <releases>
+    <release version="0.69.0" date="2026-10-09">
+      <description>
+        <p>Ändert ein anderes Programm die offene Datei, merkt Blocksatz das und bietet „Neu laden“ an, statt sie zu überschreiben. Hat man inzwischen selbst weitergeschrieben, entscheidet man im Konfliktdialog, welche Fassung gilt, auf Wunsch nach einem Zeilenvergleich.</p>
+        <p>Lokale Videos spielen in der Vorschau, mit dem ersten Bild als Vorschaubild. Galerien zeigen alle Bilder im selben Format, ohne Zuschneiden und ohne Springen beim Laden. „Alle Bilder bearbeiten …“ skaliert oder konvertiert sämtliche Bilder eines Artikels auf einmal.</p>
+        <p>Behoben: Bilder aus Blocksatz galten im Block-Editor von WordPress als ungültig.</p>
+      </description>
+    </release>
     <release version="0.68.0" date="2026-10-07">
       <description>
         <p>Sprachpaare: Original und Übersetzung liegen als artikel.md und artikel.en.md im selben Ordner, umschaltbar per „DE · EN“ in der Kopfleiste, mit der anderen Sprache neben dem Editor und einer Sprachprüfung vor jedem Hochladen. Selbst übersetzen mit DeepL oder ChatGPT per Zwischenablage ist der Normalfall.</p>

@@ -721,10 +721,13 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     }
     lang_switch_slot.append(&lang_switch.widget);
     toolbar_view.add_top_bar(&main_action.banner);
+    // Changes to the open file made outside Blocksatz (`diskwatch.rs`).
+    let disk_watch = crate::diskwatch::DiskWatch::new(&doc_ctx);
+    toolbar_view.add_top_bar(&disk_watch.banner);
     // Everything else only holds weak references to it; the window keeps
     // it alive.
     window.connect_destroy(move |_| {
-        let _ = (&main_action, &post_pane, &lang_switch, &counterpart);
+        let _ = (&main_action, &post_pane, &lang_switch, &counterpart, &disk_watch);
     });
     blogsync::wire(&window, &doc_ctx);
     // Another blog became active: its categories/tags and sync state.

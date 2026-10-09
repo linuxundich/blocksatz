@@ -73,9 +73,40 @@ pub enum Choice {
     KeepMine,
 }
 
+/// Wording of the dialog: which other version the working copy is
+/// compared with.
+pub struct Labels {
+    pub title: String,
+    /// Shown when the texts differ ("− only there · + only here").
+    pub legend: String,
+    pub take_other: String,
+}
+
+impl Labels {
+    fn blog() -> Self {
+        Self { title: tr("Mit Blog-Fassung vergleichen"), legend: tr("− nur im Blog · + nur hier"), take_other: tr("Blog-Fassung übernehmen") }
+    }
+
+    /// The file on disk changed outside Blocksatz (`diskwatch.rs`).
+    pub fn disk() -> Self {
+        Self {
+            title: tr("Mit der Datei auf der Festplatte vergleichen"),
+            legend: tr("− nur in der Datei · + nur hier"),
+            take_other: tr("Fassung der Datei laden"),
+        }
+    }
+}
+
 /// Shows the diff. `offer_keep_mine` adds "Meine Fassung behalten" (for a
 /// conflict); `on_choice` runs for the chosen button, not on close.
 pub fn open(parent: &impl IsA<gtk4::Widget>, blog: &str, local: &str, offer_keep_mine: bool, on_choice: impl Fn(Choice) + 'static) {
+    open_with(parent, &Labels::blog(), blog, local, offer_keep_mine, on_choice);
+}
+
+/// `open` with its own wording; `other` is the version that isn't the
+/// editor's (the blog's, the file's on disk).
+pub fn open_with(parent: &impl IsA<gtk4::Widget>, labels: &Labels, other: &str, local: &str, offer_keep_mine: bool, on_choice: impl Fn(Choice) + 'static) {
+    let blog = other;
     let diff = line_diff(blog, local);
     let buffer = sourceview5::Buffer::new(None::<&gtk4::TextTagTable>);
     crate::appearance::follow_scheme(&buffer);
@@ -96,15 +127,12 @@ pub fn open(parent: &impl IsA<gtk4::Widget>, blog: &str, local: &str, offer_keep
     view.add_css_class(crate::appearance::EDITOR_FONT_CSS_CLASS);
     let scrolled = gtk4::ScrolledWindow::builder().child(&view).vexpand(true).build();
 
-    let title = adw::WindowTitle::new(
-        &tr("Mit Blog-Fassung vergleichen"),
-        &if changes == 0 { tr("Keine Unterschiede im Text") } else { tr("− nur im Blog · + nur hier") },
-    );
+    let title = adw::WindowTitle::new(&labels.title, &if changes == 0 { tr("Keine Unterschiede im Text") } else { labels.legend.clone() });
     let header = adw::HeaderBar::new();
     header.set_title_widget(Some(&title));
 
     let dialog = adw::Dialog::builder().content_width(900).content_height(700).build();
-    let take_blog = gtk4::Button::builder().label(tr("Blog-Fassung übernehmen")).build();
+    let take_blog = gtk4::Button::builder().label(labels.take_other.as_str()).build();
     take_blog.add_css_class("destructive-action");
     take_blog.add_css_class("pill");
     let buttons = gtk4::Box::builder().spacing(12).halign(gtk4::Align::Center).margin_top(12).margin_bottom(12).build();

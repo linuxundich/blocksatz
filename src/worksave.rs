@@ -29,6 +29,16 @@ const INTERVAL: Duration = Duration::from_secs(2);
 /// unedited file outside the library (Ctrl+S, after an upload). Returns
 /// whether anything was written.
 pub fn flush(ctx: &DocContext, force: bool) -> bool {
+    // A change made outside Blocksatz waits for a decision (`diskwatch.rs`):
+    // writing now would destroy it.
+    if let Some(watch) = crate::diskwatch::current().filter(|w| w.blocks_writing()) {
+        watch.refused_write();
+        return false;
+    }
+    write(ctx, force)
+}
+
+fn write(ctx: &DocContext, force: bool) -> bool {
     let body = ctx.buffer.text(&ctx.buffer.start_iter(), &ctx.buffer.end_iter(), false).to_string();
     let doc = Document { frontmatter: ctx.frontmatter.borrow().clone(), body };
     let root = library::root();
@@ -74,6 +84,9 @@ pub fn flush(ctx: &DocContext, force: bool) -> bool {
     if let Err(err) = std::fs::write(&path, &serialized) {
         return report(ctx, &err);
     }
+    if let Some(watch) = crate::diskwatch::current() {
+        watch.record_write(&path, &serialized);
+    }
     *ctx.written.borrow_mut() = serialized;
     *ctx.saved_text.borrow_mut() = doc.body;
     LAST_ERROR.with(|last| last.borrow_mut().clear());
@@ -109,7 +122,18 @@ pub fn wire(window: &adw::ApplicationWindow, ctx: &DocContext) {
     {
         let ctx = ctx.clone();
         glib::timeout_add_local(INTERVAL, move || {
-            flush(&ctx, false);
+            // First look whether the file changed outside, then write.
+            match crate::diskwatch::current() {
+                Some(watch) => {
+                    watch.check();
+                    if !watch.blocks_writing() {
+                        write(&ctx, false);
+                    }
+                }
+                None => {
+                    write(&ctx, false);
+                }
+            }
             glib::ControlFlow::Continue
         });
     }

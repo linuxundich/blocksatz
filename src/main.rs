@@ -24,6 +24,7 @@ mod counterpart;
 mod compare;
 mod connection;
 mod default_prompt;
+mod diskwatch;
 mod document;
 mod editor;
 mod export;
@@ -105,7 +106,11 @@ fn main() -> glib::ExitCode {
     // so double-clicking a `.md` file (or "Open With" → Blocksatz) in
     // Nautilus launches with a file argument - without this flag GTK
     // refuses that outright ("This application can not open files").
-    let app = adw::Application::builder().application_id(APP_ID).flags(gio::ApplicationFlags::HANDLES_OPEN).build();
+    // A debug build can run next to the installed app under another id
+    // (`BLOCKSATZ_APP_ID=de.linuxundich.Blocksatz.Devel`); with the same id
+    // its launch would just be handed to the running instance.
+    let app_id = if cfg!(debug_assertions) { std::env::var("BLOCKSATZ_APP_ID").ok().filter(|id| gio::Application::id_is_valid(id)) } else { None };
+    let app = adw::Application::builder().application_id(app_id.as_deref().unwrap_or(APP_ID)).flags(gio::ApplicationFlags::HANDLES_OPEN).build();
 
     app.set_accels_for_action("win.new", &["<Ctrl>n"]);
     app.set_accels_for_action("win.new-page", &["<Ctrl><Alt>n"]);

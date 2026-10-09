@@ -18,6 +18,7 @@ src/chatsettings.rs
 src/compare.rs
 src/connection.rs
 src/counterpart.rs
+src/diskwatch.rs
 src/document.rs
 src/export.rs
 src/firstrun.rs

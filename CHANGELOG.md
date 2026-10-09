@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Local videos in the preview stayed a black box with a crossed-out
+  play symbol, whatever their format: GStreamer opens them inside
+  WebKit's sandboxed web process, which couldn't see the article folder.
+  The documents folder (and the folder of a file opened from elsewhere)
+  is now readable for it, so the preview shows a real player with the
+  video's first frame as its thumbnail, at most 70% of the window high.
+  A video that still can't play gets a placeholder card with its file
+  name, like YouTube and Vimeo embeds.
 - Images uploaded by Blocksatz showed up in WordPress's block editor as
   "Dieser Block enthält unerwarteten oder ungültigen Inhalt", and
   "Wiederherstellung versuchen" turned them into resized images with a

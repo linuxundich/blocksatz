@@ -148,6 +148,7 @@ fn main() -> glib::ExitCode {
         // `Ctrl+N` still gets to a blank document in one step, same as
         // always.
         let initial_path = recentfiles::load().into_iter().next();
+        preview::allow_local_media(initial_path.as_deref().and_then(std::path::Path::parent));
         let win = window::build(app, initial_path);
         win.present();
         if firstrun::should_show() {
@@ -172,6 +173,7 @@ fn main() -> glib::ExitCode {
         }
         appearance::apply_saved_color_scheme();
         load_chat_bubble_css();
+        preview::allow_local_media(path.parent());
         let win = window::build(app, Some(path));
         win.present();
         if firstrun::should_show() {

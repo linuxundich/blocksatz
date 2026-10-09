@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-07 21:38+0200\n"
+"POT-Creation-Date: 2026-10-09 08:11+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -2179,7 +2179,7 @@ msgstr "Classic content"
 msgid "Shortcode"
 msgstr "Shortcode"
 
-#: src/markdowncheck.rs:103 src/preview.rs:1538
+#: src/markdowncheck.rs:103 src/preview.rs:1575
 msgid "Abfrage-Loop"
 msgstr "Query loop"
 
@@ -2821,7 +2821,7 @@ msgstr "Could not create the article: {err}"
 msgid "Schlagwörter"
 msgstr "Tags"
 
-#: src/newarticle.rs:702 src/preview.rs:1540 src/taxonomy.rs:33
+#: src/newarticle.rs:702 src/preview.rs:1577 src/taxonomy.rs:33
 #: src/translatedialog.rs:704
 msgid "Kategorien"
 msgstr "Categories"
@@ -2908,139 +2908,143 @@ msgstr "Edit Image…"
 msgid "Wiedergabeliste – die Titel erzeugt das Blog"
 msgstr "Playlist – the blog renders its tracks"
 
-#: src/preview.rs:1504
+#: src/preview.rs:1470
+msgid "Video lässt sich in der Vorschau nicht abspielen"
+msgstr "The video can't be played in the preview"
+
+#: src/preview.rs:1541
 msgid "Seitenumbruch"
 msgstr "Page break"
 
-#: src/preview.rs:1536
+#: src/preview.rs:1573
 msgid "Neueste Beiträge"
 msgstr "Latest posts"
 
-#: src/preview.rs:1537
+#: src/preview.rs:1574
 msgid "Neueste Kommentare"
 msgstr "Latest comments"
 
-#: src/preview.rs:1539
+#: src/preview.rs:1576
 msgid "Archive"
 msgstr "Archives"
 
-#: src/preview.rs:1541
+#: src/preview.rs:1578
 msgid "Schlagwörter-Wolke"
 msgstr "Tag cloud"
 
-#: src/preview.rs:1542
+#: src/preview.rs:1579
 msgid "Kalender"
 msgstr "Calendar"
 
-#: src/preview.rs:1543
+#: src/preview.rs:1580
 msgid "Suche"
 msgstr "Search"
 
-#: src/preview.rs:1544
+#: src/preview.rs:1581
 msgid "Seitenliste"
 msgstr "Page list"
 
-#: src/preview.rs:1545
+#: src/preview.rs:1582
 msgid "Social-Media-Links"
 msgstr "Social links"
 
-#: src/preview.rs:1546
+#: src/preview.rs:1583
 msgid "RSS-Feed"
 msgstr "RSS feed"
 
-#: src/preview.rs:1547
+#: src/preview.rs:1584
 msgid "Synchronisiertes Muster"
 msgstr "Synced pattern"
 
-#: src/preview.rs:1548
+#: src/preview.rs:1585
 msgid "Inhaltsverzeichnis"
 msgstr "Table of contents"
 
-#: src/preview.rs:1549
+#: src/preview.rs:1586
 msgid "Werbeplatz"
 msgstr "Ad slot"
 
-#: src/preview.rs:1550
+#: src/preview.rs:1587
 msgid "Symbol"
 msgstr "Icon"
 
-#: src/preview.rs:1551
+#: src/preview.rs:1588
 msgid "Anmelden/Abmelden"
 msgstr "Log in/out"
 
-#: src/preview.rs:1552
+#: src/preview.rs:1589
 msgid "Lesezeit"
 msgstr "Reading time"
 
-#: src/preview.rs:1553 src/properties.rs:447
+#: src/preview.rs:1590 src/properties.rs:447
 msgid "Autor"
 msgstr "Author"
 
-#: src/preview.rs:1554
+#: src/preview.rs:1591
 msgid "Kategorien und Schlagwörter"
 msgstr "Categories and tags"
 
-#: src/preview.rs:1555
+#: src/preview.rs:1592
 msgid "Datum"
 msgstr "Date"
 
-#: src/preview.rs:1556
+#: src/preview.rs:1593
 msgid "Avatar"
 msgstr "Avatar"
 
-#: src/preview.rs:1557
+#: src/preview.rs:1594
 msgid "Brotkrümelnavigation"
 msgstr "Breadcrumbs"
 
-#: src/preview.rs:1558
+#: src/preview.rs:1595
 msgid "Navigation"
 msgstr "Navigation"
 
-#: src/preview.rs:1559 src/properties.rs:559
+#: src/preview.rs:1596 src/properties.rs:559
 msgid "Kommentare"
 msgstr "Comments"
 
-#: src/preview.rs:1564 src/preview.rs:1602
+#: src/preview.rs:1601 src/preview.rs:1639
 msgid "{name} – wird vom Blog erzeugt"
 msgstr "{name} – rendered by the blog"
 
-#: src/preview.rs:1601
+#: src/preview.rs:1638
 msgid "Shortcode [{name}]"
 msgstr "Shortcode [{name}]"
 
-#: src/preview.rs:1608
+#: src/preview.rs:1645
 msgid "Weiterlesen"
 msgstr "Read more"
 
-#: src/preview.rs:1622
+#: src/preview.rs:1659
 msgid "Fußnoten"
 msgstr "Footnotes"
 
-#: src/preview.rs:1637
+#: src/preview.rs:1674
 msgid "YouTube-Video"
 msgstr "YouTube video"
 
-#: src/preview.rs:1638
+#: src/preview.rs:1675
 msgid "Vimeo-Video"
 msgstr "Vimeo video"
 
-#: src/preview.rs:1643
+#: src/preview.rs:1680
 msgid "Eingebetteter Inhalt"
 msgstr "Embedded content"
 
-#: src/preview.rs:1856
+#: src/preview.rs:1893
 msgid "Bereits zu WordPress hochgeladen"
 msgstr "Already uploaded to WordPress"
 
-#: src/preview.rs:1863 src/preview.rs:1864
+#: src/preview.rs:1900 src/preview.rs:1901
 msgid "Alt"
 msgstr "Alt"
 
-#: src/preview.rs:1864
+#: src/preview.rs:1901
 msgid "Bewusst ohne Alternativtext (dekoratives Bild)"
 msgstr "Deliberately without alt text (decorative image)"
 
-#: src/preview.rs:1868
+#: src/preview.rs:1905
 msgid "Bildformat"
 msgstr "Image format"
 

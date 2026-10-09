@@ -1446,6 +1446,7 @@ fn rewrite_media_tags(html: &str) -> String {
         let tag = &rest[start..tag_end];
         let src = extract_attr(tag, "src").unwrap_or_default();
         match media_tag_for(&src) {
+            Some("video") => out.push_str(&local_video_html(&src)),
             Some(media_tag) => out.push_str(&format!("<{media_tag} controls src=\"{src}\"></{media_tag}>")),
             None => out.push_str(tag),
         }
@@ -1453,6 +1454,39 @@ fn rewrite_media_tags(html: &str) -> String {
     }
     out.push_str(rest);
     out
+}
+
+/// A local video as a player: `preload="metadata"` plus a jump to 0.1s
+/// (media fragment) so WebKit draws the first frame as its thumbnail
+/// instead of a black box. Should it still not play (a codec the system
+/// lacks, a file outside the folders WebKit's sandbox may read - see
+/// `allow_local_media`), `onerror` swaps it for a card in the style of
+/// the embed placeholders, with the file name.
+fn local_video_html(src: &str) -> String {
+    let name = src.rsplit('/').next().unwrap_or(src);
+    format!(
+        "<span class=\"local-video\"><video controls preload=\"metadata\" playsinline src=\"{src}#t=0.1\" onerror=\"this.hidden=true;this.nextElementSibling.hidden=false\"></video>\
+         <span class=\"embed-placeholder\" hidden><span class=\"embed-icon\">▶</span><span class=\"embed-label\">{}</span><span class=\"embed-url\">{name}</span></span></span>",
+        glib::markup_escape_text(&tr("Video lässt sich in der Vorschau nicht abspielen"))
+    )
+}
+
+/// Lets WebKit's web process read local media. Images reach the preview
+/// through WebKit's network process, which sees every file; a `<video>` or
+/// `<audio>` is opened by GStreamer inside the sandboxed web process,
+/// which by default sees none of the article folders - so every local
+/// video stayed a black box. The documents folder (the library lives
+/// there) and the folder of a file opened from elsewhere are made
+/// readable. Must run before the first web view loads anything: the
+/// sandbox is set up when the web process starts.
+pub fn allow_local_media(extra_dir: Option<&std::path::Path>) {
+    let Some(context) = webkit6::WebContext::default() else { return };
+    if let Some(documents) = glib::user_special_dir(glib::UserDirectory::Documents) {
+        context.add_path_to_sandbox(&documents, true);
+    }
+    if let Some(dir) = extra_dir.filter(|dir| dir.is_dir()) {
+        context.add_path_to_sandbox(dir, true);
+    }
 }
 
 /// The HTML tag a media `src` should become - `None` means "not
@@ -1470,6 +1504,9 @@ const EMBED_CSS: &str = ".embed-placeholder { display: flex; flex-direction: col
 .embed-placeholder .embed-label { font-weight: 600; opacity: .85; }
 .embed-placeholder .embed-url { font-size: .8em; opacity: .55; word-break: break-all; max-width: 90%; }
 .embed-placeholder.dynamic-placeholder { aspect-ratio: auto; min-height: 5rem; border-style: dashed; }
+.local-video { display: block; }
+.local-video video { display: block; max-width: 100%; max-height: 70vh; margin: 1rem auto; border-radius: 8px; background: #000; }
+.local-video .embed-placeholder[hidden] { display: none; }
 .marker-line { display: flex; align-items: center; gap: 1em; margin: 1.5em 0; font-size: .8em; text-transform: uppercase; letter-spacing: .08em; opacity: .55; }
 .marker-line::before, .marker-line::after { content: \"\"; flex: 1; border-top: 1px dashed currentColor; }
 .wp-block-footnotes { font-size: .875em; border-top: 1px solid rgba(127,127,127,.3); padding-top: 1em; }";
@@ -2317,7 +2354,9 @@ mod tests {
     #[test]
     fn rewrite_media_tags_turns_a_video_img_into_a_real_video_tag() {
         let html = "<p><img src=\"clip.mp4\" alt=\"\" /></p>";
-        assert_eq!(rewrite_media_tags(html), "<p><video controls src=\"clip.mp4\"></video></p>");
+        let out = rewrite_media_tags(html);
+        assert!(out.starts_with("<p><span class=\"local-video\"><video controls preload=\"metadata\" playsinline src=\"clip.mp4#t=0.1\""), "{out}");
+        assert!(out.contains("<span class=\"embed-url\">clip.mp4</span>"), "{out}");
     }
 
     #[test]

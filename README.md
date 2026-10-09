@@ -301,6 +301,13 @@ blocks. Implemented so far:
   and when the window closes, so there is no unsaved state to lose.
   Markdown files from elsewhere still open in place; they are only
   written once actually edited (or with Ctrl+S).
+- **Changes made outside Blocksatz** — when another editor, a sync tool or
+  `git` changes the open file, autosave stops writing to it and a banner
+  offers "Neu laden". If you kept writing here in the meantime, it's a
+  conflict: keep your version, load the file's version (yours is kept as
+  `artikel.md.lokal-<time>` next to it) or compare both line by line
+  first. A file deleted or moved outside is not quietly recreated
+  ("Wieder speichern").
 - **Editing existing posts** — the blog archive (Ctrl+Shift+O opens the
   drafts) opens any post or page as Markdown: `crates/gutenberg`'s reverse
   converter turns its Gutenberg block HTML back into Markdown,
@@ -514,6 +521,13 @@ showing its original German source strings.
 ```sh
 cargo build
 cargo run
+```
+
+A debug build started while the installed Flatpak runs would just hand
+its window over to that instance (same application id). Give it its own:
+
+```sh
+BLOCKSATZ_APP_ID=de.linuxundich.Blocksatz.Devel cargo run
 ```
 
 ## Testing

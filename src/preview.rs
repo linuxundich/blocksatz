@@ -239,6 +239,7 @@ impl PreviewPane {
                     show_header.get(),
                     appearance::current_scheme_colors(),
                 );
+                let html = with_gallery_ratios(&html, doc_dir.borrow().as_deref());
                 web_view.load_html(&html, base_uri(doc_dir.borrow().as_deref()).as_deref());
             });
         }
@@ -604,6 +605,7 @@ impl PreviewPane {
             self.show_header.get(),
             appearance::current_scheme_colors(),
         );
+        let html = with_gallery_ratios(&html, self.doc_dir.borrow().as_deref());
         self.web_view.load_html(&html, base_uri(self.doc_dir.borrow().as_deref()).as_deref());
     }
 
@@ -628,6 +630,7 @@ impl PreviewPane {
             let restore = result.map(|value| ScrollRestore::from_state_json(&value.to_str())).unwrap_or(ScrollRestore::Top);
             let dark = adw::StyleManager::default().is_dark();
             let html = render_html(&last_markdown.borrow(), style, dark, &last_media.borrow(), restore, &last_frontmatter.borrow(), show_header, appearance::current_scheme_colors());
+            let html = with_gallery_ratios(&html, doc_dir.as_deref());
             web_view.load_html(&html, base_uri(doc_dir.as_deref()).as_deref());
         });
     }
@@ -869,14 +872,21 @@ object.wp-block-file__embed {{ display: none; }}
 .wp-block-group {{ margin-bottom: var(--wp--style--block-gap, 1em); }}
 .wp-block-group[style*="display:flex"] > *, .wp-block-group[style*="display:grid"] > *, .wp-block-buttons > * {{ margin-top: 0; margin-bottom: 0; }}
 .wp-block-gallery.has-nested-images {{ display: flex; flex-wrap: wrap; gap: 1rem; align-items: normal; }}
-.wp-block-gallery.has-nested-images figure.wp-block-image {{ margin: 0; flex-grow: 1; width: calc(33.33% - .67rem); box-sizing: border-box; display: flex; flex-direction: column; }}
+.wp-block-gallery.has-nested-images figure.wp-block-image {{ margin: 0; flex-grow: 0; width: calc(33.33% - .67rem); box-sizing: border-box; display: flex; flex-direction: column; }}
+.wp-block-gallery.has-nested-images.columns-default figure.wp-block-image:first-of-type:nth-last-of-type(2),
+.wp-block-gallery.has-nested-images.columns-default figure.wp-block-image:first-of-type:nth-last-of-type(2) ~ figure.wp-block-image {{ width: calc(50% - .5rem); }}
+.wp-block-gallery.has-nested-images.columns-default figure.wp-block-image:only-of-type {{ width: 100%; }}
 .wp-block-gallery.has-nested-images.columns-1 figure.wp-block-image {{ width: 100%; }}
 .wp-block-gallery.has-nested-images.columns-2 figure.wp-block-image {{ width: calc(50% - .5rem); }}
 .wp-block-gallery.has-nested-images.columns-4 figure.wp-block-image {{ width: calc(25% - .75rem); }}
 .wp-block-gallery.has-nested-images.columns-5 figure.wp-block-image {{ width: calc(20% - .8rem); }}
 .wp-block-gallery.has-nested-images.columns-6 figure.wp-block-image {{ width: calc(16.66% - .84rem); }}
 .wp-block-gallery.has-nested-images > figcaption {{ flex-basis: 100%; flex-grow: 1; text-align: center; }}
-.wp-block-gallery.has-nested-images figure.wp-block-image img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
+/* One format for every tile of a gallery (`with_gallery_ratios`), so the
+   rows line up and nothing moves while the images load. */
+.wp-block-gallery.has-nested-images figure.wp-block-image .img-wrap {{ display: block; width: 100%; }}
+.wp-block-gallery.has-nested-images figure.wp-block-image img {{ width: 100%; height: auto; aspect-ratio: var(--gallery-ratio, 4 / 3); object-fit: cover; display: block; }}
+.wp-block-gallery.has-nested-images:not(.is-cropped) figure.wp-block-image img {{ object-fit: contain; }}
 .wp-block-pullquote {{ text-align: center; margin: 2rem 0; padding: 1.5rem 0; border-top: 3px solid currentColor; border-bottom: 3px solid currentColor; }}
 .wp-block-pullquote blockquote {{ margin: 0; font-size: 1.5rem; font-style: italic; }}
 .wp-block-pullquote cite {{ display: block; margin-top: .75rem; font-size: 1rem; font-style: normal; }}
@@ -1851,6 +1861,80 @@ fn wrap_images_with_badges(html: &str, media: &[MediaItem]) -> String {
     out
 }
 
+/// Gives every gallery one aspect ratio for all its tiles: the most common
+/// one among its images (the first on a tie), read from the image files'
+/// headers - before the page loads, so the tiles have their final size
+/// from the start instead of jumping as each image arrives. Images the
+/// app can't read (remote URLs) don't vote; a gallery without any falls
+/// back to 4:3 in the CSS.
+fn with_gallery_ratios(html: &str, doc_dir: Option<&std::path::Path>) -> String {
+    const OPEN: &str = "<figure class=\"wp-block-gallery";
+    let mut out = String::with_capacity(html.len() + 64);
+    let mut rest = html;
+    while let Some(start) = rest.find(OPEN) {
+        out.push_str(&rest[..start]);
+        let gallery = &rest[start..];
+        // The gallery's own `</figure>`, past its nested image figures.
+        let mut depth = 0usize;
+        let mut end = gallery.len();
+        let mut i = 0;
+        while i < gallery.len() {
+            if gallery[i..].starts_with("<figure") {
+                depth += 1;
+            } else if gallery[i..].starts_with("</figure>") {
+                depth -= 1;
+                if depth == 0 {
+                    end = i + "</figure>".len();
+                    break;
+                }
+            }
+            i += gallery[i..].chars().next().map_or(1, char::len_utf8);
+        }
+        let segment = &gallery[..end];
+        match gallery_ratio(segment, doc_dir) {
+            Some((w, h)) => {
+                let tag_end = segment.find('>').unwrap_or(segment.len());
+                out.push_str(&segment[..tag_end]);
+                out.push_str(&format!(" style=\"--gallery-ratio: {w} / {h}\""));
+                out.push_str(&segment[tag_end..]);
+            }
+            None => out.push_str(segment),
+        }
+        rest = &gallery[end..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Width and height of the most common aspect ratio among a gallery's
+/// local images.
+fn gallery_ratio(segment: &str, doc_dir: Option<&std::path::Path>) -> Option<(i32, i32)> {
+    let dir = doc_dir?;
+    let mut counts: Vec<((i32, i32), i64, usize)> = Vec::new();
+    let mut rest = segment;
+    while let Some(start) = rest.find("<img ") {
+        let tag_end = rest[start..].find('>').map_or(rest.len(), |e| start + e + 1);
+        let tag = &rest[start..tag_end];
+        rest = &rest[tag_end..];
+        let Some(src) = extract_attr(tag, "src").map(|s| unescape_html_attr(&s)) else { continue };
+        if src.contains("://") {
+            continue;
+        }
+        let Some((_, w, h)) = gdk_pixbuf::Pixbuf::file_info(dir.join(&src)) else { continue };
+        if w <= 0 || h <= 0 {
+            continue;
+        }
+        // Ratios a hair apart (a 1px crop) count as the same format.
+        let key = (f64::from(w) / f64::from(h) * 100.0).round() as i64;
+        match counts.iter_mut().find(|(_, k, _)| *k == key) {
+            Some(entry) => entry.2 += 1,
+            None => counts.push(((w, h), key, 1)),
+        }
+    }
+    let best = counts.iter().map(|(_, _, n)| *n).max()?;
+    counts.into_iter().find(|(_, _, n)| *n == best).map(|(size, _, _)| size)
+}
+
 /// `tag` with its `attr="value"` removed (double-quoted, as pulldown-cmark
 /// writes it).
 fn without_attr(tag: &str, attr: &str) -> String {
@@ -2349,6 +2433,24 @@ mod tests {
         assert_eq!(media_tag_for("song.mp3"), Some("audio"));
         assert_eq!(media_tag_for("song.mp3?ver=2"), Some("audio"));
         assert_eq!(media_tag_for("photo.png"), None);
+    }
+
+    #[test]
+    fn galleries_get_the_most_common_ratio_of_their_images() {
+        let dir = std::env::temp_dir().join(format!("blocksatz-gallery-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for (name, w, h) in [("quer-a.png", 300, 200), ("hoch.png", 100, 200), ("quer-b.png", 600, 400)] {
+            let pixbuf = gdk_pixbuf::Pixbuf::new(gdk_pixbuf::Colorspace::Rgb, false, 8, w, h).unwrap();
+            pixbuf.savev(dir.join(name), "png", &[]).unwrap();
+        }
+        let html = "<p>x</p><figure class=\"wp-block-gallery has-nested-images is-cropped\"><figure class=\"wp-block-image\"><img src=\"hoch.png\"></figure>\
+                    <figure class=\"wp-block-image\"><img src=\"quer-a.png\"></figure><figure class=\"wp-block-image\"><img src=\"quer-b.png\"></figure></figure><p>y</p>";
+        let out = with_gallery_ratios(html, Some(&dir));
+        assert!(out.contains("<figure class=\"wp-block-gallery has-nested-images is-cropped\" style=\"--gallery-ratio: 300 / 200\">"), "{out}");
+        assert!(out.ends_with("</figure></figure><p>y</p>"), "{out}");
+        // Without readable images the markup stays as it was.
+        assert_eq!(with_gallery_ratios(html, None), html);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

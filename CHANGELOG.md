@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Changes to the open file made outside Blocksatz** are noticed: autosave
+  stops writing to it and a banner offers to reload. If you kept writing
+  in Blocksatz meanwhile, a conflict dialog lets you keep your version,
+  load the file's (yours stays next to it as `<file>.lokal-<time>`) or
+  compare both first. A file deleted or moved outside is not silently
+  recreated.
+- Debug builds take their application id from `BLOCKSATZ_APP_ID`, so they
+  can run next to the installed Flatpak.
+
+### Changed
+
+- **Galleries in the preview keep one format**: every tile of a gallery
+  gets the same aspect ratio (the most common among its images, read from
+  the files before the page loads, so nothing jumps while they arrive),
+  and tiles keep their column width - a lone image in the last row no
+  longer stretches across the whole width. Uncropped galleries letterbox
+  instead of cropping.
+
 ### Fixed
 
 - Local videos in the preview stayed a black box with a crossed-out

@@ -25,6 +25,12 @@
   <url type="homepage">https://github.com/linuxundich/blocksatz</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksatz</url>
   <releases>
+    <release version="0.70.0" date="2026-10-11">
+      <description>
+        <p>Übersetzungen laden die Bilder des Originals nicht mehr ein zweites Mal in ihr eigenes Blog hoch, sondern verweisen auf die Uploads des Originals; das Beitragsbild übernimmt das Zielblog. Eigene Bilder der Übersetzung werden weiter hochgeladen.</p>
+        <p>Links in der Vorschau öffnen sich in einem eigenen kleinen Browser, ein Knopf lädt die Vorschau samt Bildern neu. Die Blockgestaltung hat einen eigenen Reiter „Block“ neben „Beitrag“, und „Im Blog“ erscheint erst, wenn der Artikel im Blog liegt.</p>
+      </description>
+    </release>
     <release version="0.69.0" date="2026-10-09">
       <description>
         <p>Ändert ein anderes Programm die offene Datei, merkt Blocksatz das und bietet „Neu laden“ an, statt sie zu überschreiben. Hat man inzwischen selbst weitergeschrieben, entscheidet man im Konfliktdialog, welche Fassung gilt, auf Wunsch nach einem Zeilenvergleich.</p>

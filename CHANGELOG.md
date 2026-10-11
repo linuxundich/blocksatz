@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   uses - the article's `wp_site`, or for a library article not yet on
   a blog, the blog of its language.
 
+## [0.70.0] - 2026-10-11
+
 ### Added
 
 - **Links in the preview open in a popup browser**: browse on from there,
@@ -2441,7 +2443,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.69.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.70.0...HEAD
+[0.70.0]: https://github.com/linuxundich/blocksatz/compare/v0.69.0...v0.70.0
 [0.69.0]: https://github.com/linuxundich/blocksatz/compare/v0.68.0...v0.69.0
 [0.68.0]: https://github.com/linuxundich/blocksatz/compare/v0.67.0...v0.68.0
 [0.67.0]: https://github.com/linuxundich/blocksatz/compare/v0.66.0...v0.67.0

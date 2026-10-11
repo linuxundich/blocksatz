@@ -54,6 +54,27 @@ impl Sites {
         self.sites.iter().find(|s| s.site_id() == self.active).or_else(|| self.sites.first()).cloned().unwrap_or_default()
     }
 
+    /// The blog with this id, else the active one.
+    pub fn for_site_id(&self, site_id: Option<&str>) -> SiteConfig {
+        site_id.and_then(|id| self.sites.iter().find(|s| s.site_id() == id).cloned()).unwrap_or_else(|| self.active_site())
+    }
+
+    /// The blog for language `lang` - `None` meaning the original
+    /// language, i.e. the first blog without a language path.
+    pub fn for_lang(&self, lang: Option<&str>) -> Option<SiteConfig> {
+        self.sites.iter().find(|s| site_lang(s).as_deref() == lang).cloned()
+    }
+
+    /// The blog a document belongs to: its `wp_site`, else the blog of
+    /// `library_lang` (the language of a library article, `None` for any
+    /// other file), else the active blog.
+    pub fn for_document(&self, wp_site: Option<&str>, library_lang: Option<Option<&str>>) -> SiteConfig {
+        if wp_site.is_some() {
+            return self.for_site_id(wp_site);
+        }
+        library_lang.and_then(|lang| self.for_lang(lang)).unwrap_or_else(|| self.active_site())
+    }
+
     /// Adds `site`, or replaces the blog with the same id; makes it active.
     pub fn upsert(&mut self, site: SiteConfig) {
         let id = site.site_id();
@@ -113,8 +134,7 @@ pub fn load() -> SiteConfig {
 
 /// The blog with this id (a working copy's `wp_site`), else the active one.
 pub fn for_site_id(site_id: Option<&str>) -> SiteConfig {
-    let sites = load_all();
-    site_id.and_then(|id| sites.sites.iter().find(|s| s.site_id() == id).cloned()).unwrap_or_else(|| sites.active_site())
+    load_all().for_site_id(site_id)
 }
 
 /// The language a blog's address names (`https://example.org/en` →
@@ -130,20 +150,14 @@ pub fn site_lang(site: &SiteConfig) -> Option<String> {
 /// The blog for language `lang` - `None` meaning the original language,
 /// i.e. the first blog without a language path.
 pub fn for_lang(lang: Option<&str>) -> Option<SiteConfig> {
-    load_all().sites.into_iter().find(|s| site_lang(s).as_deref() == lang)
+    load_all().for_lang(lang)
 }
 
 /// The blog a document belongs to: its `wp_site`, else - for a library
 /// article - the blog of its language, else the active blog.
 pub fn for_document(path: Option<&Path>, wp_site: Option<&str>) -> SiteConfig {
-    if wp_site.is_some() {
-        return for_site_id(wp_site);
-    }
     let lang = path.filter(|p| crate::library::contains(&crate::library::root(), p)).and_then(crate::library::file_lang);
-    match lang {
-        Some(lang) => for_lang(lang.as_deref()).unwrap_or_else(load),
-        None => load(),
-    }
+    load_all().for_document(wp_site, lang.as_ref().map(Option::as_deref))
 }
 
 /// Saves `config` (adding it or updating the blog with the same id) and
@@ -261,5 +275,25 @@ mod tests {
         assert_eq!(site_lang(&site("https://example.org/blog/pt-br/")), Some("pt-br".into()));
         assert_eq!(site_lang(&site("https://linuxundich.de")), None);
         assert_eq!(site_lang(&site("https://example.org/blog")), None);
+    }
+
+    /// The German blog active, an English translation open: the
+    /// translation still resolves to /en (its `wp_site`, or for a library
+    /// article without one yet, its language).
+    #[test]
+    fn a_document_resolves_to_its_own_blog_not_the_active_one() {
+        let sites = Sites { sites: vec![site("https://linuxundich.de", "de"), site("https://linuxundich.de/en", "en")], active: "linuxundich.de".into() };
+        assert_eq!(sites.for_document(Some("linuxundich.de/en"), None).username, "en");
+        assert_eq!(sites.for_document(Some("linuxundich.de/en"), Some(None)).username, "en");
+        assert_eq!(sites.for_document(None, Some(Some("en"))).username, "en");
+        assert_eq!(sites.for_document(None, Some(None)).username, "de");
+        // Not a library article, or a blog no longer configured: the active one.
+        assert_eq!(sites.for_document(None, None).username, "de");
+        assert_eq!(sites.for_document(Some("gone.example"), None).username, "de");
+        assert_eq!(sites.for_document(None, Some(Some("fr"))).username, "de");
+
+        let en_active = Sites { active: "linuxundich.de/en".into(), ..sites };
+        assert_eq!(en_active.for_document(Some("linuxundich.de"), None).username, "de");
+        assert_eq!(en_active.for_document(None, Some(None)).username, "de");
     }
 }

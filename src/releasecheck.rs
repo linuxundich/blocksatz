@@ -327,8 +327,8 @@ fn check_row(c: &Check, dialog: &adw::Dialog, nav: &adw::NavigationView, ctx: &D
             row.add_suffix(&button);
         }
         Fix::Media => {
-            let doc_dir = ctx.current_path.borrow().as_deref().and_then(std::path::Path::parent).map(std::path::Path::to_path_buf);
-            let content = mediapanel::build_content(ctx.frontmatter.clone(), &doc.body, doc_dir, ctx.preview_pane.clone());
+            let doc_path = ctx.current_path.borrow().clone();
+            let content = mediapanel::build_content(ctx.frontmatter.clone(), &doc.body, doc_path, ctx.preview_pane.clone());
             add_subpage(&row, nav, &tr("Bilder"), content);
         }
         Fix::Links => {

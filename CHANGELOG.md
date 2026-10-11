@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Uploads from Medienverwaltung (an image's own upload button, the
+  featured image's and "Alle hochladen") went to whichever blog was
+  active, not to the article's own: with the German blog active, the
+  images of an English translation landed in linuxundich.de's media
+  library instead of /en's. They now go to the same blog publishing
+  uses - the article's `wp_site`, or for a library article not yet on
+  a blog, the blog of its language.
+
 ### Added
 
 - **Links in the preview open in a popup browser**: browse on from there,

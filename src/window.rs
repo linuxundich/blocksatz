@@ -1977,8 +1977,8 @@ fn wire_media_action(
             return;
         };
         let body = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
-        let doc_dir = current_path.borrow().as_ref().and_then(|p| p.parent().map(Path::to_path_buf));
-        mediapanel::open(&window, body, frontmatter.clone(), doc_dir, preview_pane.clone());
+        let doc_path = current_path.borrow().clone();
+        mediapanel::open(&window, body, frontmatter.clone(), doc_path, preview_pane.clone());
     });
     window.add_action(&action);
 }

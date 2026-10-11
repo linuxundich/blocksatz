@@ -11,7 +11,7 @@
 //! succeeds.
 
 use std::cell::RefCell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::mpsc;
 use std::time::Duration;
@@ -28,10 +28,10 @@ pub fn open(
     parent: &adw::ApplicationWindow,
     body: String,
     frontmatter: Rc<RefCell<Frontmatter>>,
-    doc_dir: Option<PathBuf>,
+    doc_path: Option<PathBuf>,
     preview_pane: Rc<preview::PreviewPane>,
 ) {
-    let content = build_content(frontmatter, &body, doc_dir, preview_pane);
+    let content = build_content(frontmatter, &body, doc_path, preview_pane);
 
     let header = adw::HeaderBar::new();
     let toolbar_view = adw::ToolbarView::new();
@@ -53,7 +53,8 @@ pub fn open(
 /// `export.rs`, which embeds this same content as a tab in the publish
 /// dialog so alt text/captions/uploads can be checked right before
 /// publishing, not just from a separate dialog.
-pub fn build_content(frontmatter: Rc<RefCell<Frontmatter>>, body: &str, doc_dir: Option<PathBuf>, preview_pane: Rc<preview::PreviewPane>) -> gtk4::Widget {
+pub fn build_content(frontmatter: Rc<RefCell<Frontmatter>>, body: &str, doc_path: Option<PathBuf>, preview_pane: Rc<preview::PreviewPane>) -> gtk4::Widget {
+    let doc_dir = doc_dir_of(doc_path.as_deref());
     // Re-scan so images added/removed since the last reconcile (a save, or
     // opening this panel before) are reflected immediately - metadata for
     // still-referenced images is preserved (see `media::reconcile`).
@@ -88,17 +89,17 @@ pub fn build_content(frontmatter: Rc<RefCell<Frontmatter>>, body: &str, doc_dir:
     // below) but shown as the list's first row anyway so there's one place
     // to check and trigger every WordPress image upload for the article.
     let featured_shared = frontmatter.borrow().featured_image.is_some() && !uploads_featured(&shared, &frontmatter.borrow());
-    let featured_handles = build_featured_image_row(frontmatter.clone(), doc_dir.clone(), preview_pane.clone(), featured_shared);
+    let featured_handles = build_featured_image_row(frontmatter.clone(), doc_path.clone(), preview_pane.clone(), featured_shared);
     list_box.append(&featured_handles.row);
     let mut row_handles = Vec::with_capacity(item_count);
     for index in 0..item_count {
         let from_original = shared.as_ref().as_ref().is_some_and(|shared| shared.covers(&frontmatter.borrow().media[index].source));
-        let handles = build_row(index, frontmatter.clone(), doc_dir.clone(), status_label.clone(), preview_pane.clone(), from_original);
+        let handles = build_row(index, frontmatter.clone(), doc_path.clone(), status_label.clone(), preview_pane.clone(), from_original);
         list_box.append(&handles.expander);
         row_handles.push(handles);
     }
 
-    let bulk_upload_section = build_bulk_upload_section(frontmatter.clone(), doc_dir.clone(), status_label.clone(), preview_pane.clone(), row_handles, featured_handles, shared);
+    let bulk_upload_section = build_bulk_upload_section(frontmatter.clone(), doc_path, status_label.clone(), preview_pane.clone(), row_handles, featured_handles, shared);
 
     let scroller = gtk4::ScrolledWindow::builder().child(&list_box).vexpand(true).min_content_height(360).build();
 
@@ -135,7 +136,7 @@ enum BulkTarget {
 /// broken image never blocks every other one from getting uploaded.
 fn build_bulk_upload_section(
     frontmatter: Rc<RefCell<Frontmatter>>,
-    doc_dir: Option<PathBuf>,
+    doc_path: Option<PathBuf>,
     status_label: gtk4::Label,
     preview_pane: Rc<preview::PreviewPane>,
     row_handles: Vec<MediaRowHandles>,
@@ -199,8 +200,8 @@ fn build_bulk_upload_section(
         progress_bar.set_text(Some(&tr("0 von {total} hochgeladen").replace("{total}", &total.to_string())));
         bulk_status_label.set_label(&tr("Wird hochgeladen …"));
 
-        let site = wpsite::load();
-        let doc_dir_for_thread = doc_dir.clone();
+        let site = document_site(&frontmatter.borrow(), doc_path.as_deref());
+        let doc_dir_for_thread = doc_dir_of(doc_path.as_deref());
         let (tx, rx) = mpsc::channel::<BulkUploadEvent>();
         std::thread::spawn(move || {
             let password = match futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username)) {
@@ -371,6 +372,18 @@ enum BulkUploadEvent {
 /// fragments concatenated at runtime) precisely so a translation can use
 /// its own language's plural/verb agreement instead of inheriting German's -
 /// see `po/README.md`'s note on pluralization for why.
+/// The blog uploads from here go to: the document's own (its `wp_site`,
+/// or a library article's language), the same one publishing uses - not
+/// whichever blog happens to be active.
+fn document_site(frontmatter: &Frontmatter, doc_path: Option<&Path>) -> wpsite::SiteConfig {
+    wpsite::for_document(doc_path, frontmatter.wp_site.as_deref())
+}
+
+/// The folder a document's relative image paths start from.
+fn doc_dir_of(doc_path: Option<&Path>) -> Option<PathBuf> {
+    doc_path.and_then(Path::parent).map(Path::to_path_buf)
+}
+
 fn summary_text(frontmatter: &Rc<RefCell<Frontmatter>>) -> String {
     let fm = frontmatter.borrow();
     let total = fm.media.len();
@@ -443,7 +456,7 @@ struct FeaturedRowHandles {
 ///
 /// `from_original`: a translation's featured image that is its original's -
 /// not uploaded, the target blog takes the original's over itself.
-fn build_featured_image_row(frontmatter: Rc<RefCell<Frontmatter>>, doc_dir: Option<PathBuf>, preview_pane: Rc<preview::PreviewPane>, from_original: bool) -> FeaturedRowHandles {
+fn build_featured_image_row(frontmatter: Rc<RefCell<Frontmatter>>, doc_path: Option<PathBuf>, preview_pane: Rc<preview::PreviewPane>, from_original: bool) -> FeaturedRowHandles {
     let row = adw::ActionRow::builder().title(tr("Aufmacherbild")).use_markup(false).build();
     row.set_subtitle(&if from_original { tr("Das des Originals – der Ziel-Blog übernimmt es selbst.") } else { featured_image_status_text(&frontmatter.borrow()) });
 
@@ -509,8 +522,8 @@ fn build_featured_image_row(frontmatter: Rc<RefCell<Frontmatter>>, doc_dir: Opti
             upload_button_for_click.set_sensitive(false);
             row.set_subtitle(&tr("Wird hochgeladen …"));
 
-            let site = wpsite::load();
-            let doc_dir = doc_dir.clone();
+            let site = document_site(&frontmatter.borrow(), doc_path.as_deref());
+            let doc_dir = doc_dir_of(doc_path.as_deref());
             let (tx, rx) = mpsc::channel::<Result<wpclient::MediaResult, String>>();
             std::thread::spawn(move || {
                 let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
@@ -592,7 +605,7 @@ fn update_alt_length_warning(icon: &gtk4::Image, text: &str) {
 fn build_row(
     index: usize,
     frontmatter: Rc<RefCell<Frontmatter>>,
-    doc_dir: Option<PathBuf>,
+    doc_path: Option<PathBuf>,
     status_label: gtk4::Label,
     preview_pane: Rc<preview::PreviewPane>,
     from_original: bool,
@@ -717,8 +730,8 @@ fn build_row(
             upload_status_label.set_label(&tr("Wird hochgeladen …"));
             expander.set_subtitle(&upload_status_text(&UploadStatus::Uploading));
 
-            let site = wpsite::load();
-            let doc_dir = doc_dir.clone();
+            let site = document_site(&frontmatter.borrow(), doc_path.as_deref());
+            let doc_dir = doc_dir_of(doc_path.as_deref());
             let (tx, rx) = mpsc::channel::<Result<(wpclient::MediaResult, String), String>>();
             std::thread::spawn(move || {
                 let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))

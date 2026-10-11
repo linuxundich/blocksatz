@@ -29,6 +29,7 @@
       <description>
         <p>Übersetzungen laden die Bilder des Originals nicht mehr ein zweites Mal in ihr eigenes Blog hoch, sondern verweisen auf die Uploads des Originals; das Beitragsbild übernimmt das Zielblog. Eigene Bilder der Übersetzung werden weiter hochgeladen.</p>
         <p>Links in der Vorschau öffnen sich in einem eigenen kleinen Browser, ein Knopf lädt die Vorschau samt Bildern neu. Die Blockgestaltung hat einen eigenen Reiter „Block“ neben „Beitrag“, und „Im Blog“ erscheint erst, wenn der Artikel im Blog liegt.</p>
+        <p>Behoben: Uploads aus der Medienverwaltung landeten im gerade aktiven Blog statt im Blog des Artikels, etwa die Bilder einer englischen Übersetzung im deutschen Blog.</p>
       </description>
     </release>
     <release version="0.69.0" date="2026-10-09">

@@ -7,16 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Fixed
-
-- Uploads from Medienverwaltung (an image's own upload button, the
-  featured image's and "Alle hochladen") went to whichever blog was
-  active, not to the article's own: with the German blog active, the
-  images of an English translation landed in linuxundich.de's media
-  library instead of /en's. They now go to the same blog publishing
-  uses - the article's `wp_site`, or for a library article not yet on
-  a blog, the blog of its language.
-
 ## [0.70.0] - 2026-10-11
 
 ### Added
@@ -48,6 +38,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   a draft or opened from there).
 - The preview's context menu no longer offers "Neu laden", which reloaded
   nothing.
+
+### Fixed
+
+- Uploads from Medienverwaltung (an image's own upload button, the
+  featured image's and "Alle hochladen") went to whichever blog was
+  active, not to the article's own: with the German blog active, the
+  images of an English translation landed in linuxundich.de's media
+  library instead of /en's. They now go to the same blog publishing
+  uses - the article's `wp_site`, or for a library article not yet on
+  a blog, the blog of its language.
 
 ## [0.69.0] - 2026-10-09
 

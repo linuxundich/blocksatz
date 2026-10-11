@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Blocksatz 0.68.0\n"
+"Project-Id-Version: Blocksatz 0.69.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-09 08:45+0200\n"
+"POT-Creation-Date: 2026-10-11 04:09+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -445,7 +445,7 @@ msgstr ""
 msgid "Auf Systemschrift zurücksetzen"
 msgstr ""
 
-#: src/appearance.rs:736 src/window.rs:114
+#: src/appearance.rs:736 src/window.rs:116
 msgid "Vorschau"
 msgstr ""
 
@@ -487,7 +487,7 @@ msgstr ""
 msgid "Zitat"
 msgstr ""
 
-#: src/blockinspector.rs:58 src/window.rs:121
+#: src/blockinspector.rs:58 src/window.rs:123
 msgid "Code"
 msgstr ""
 
@@ -536,7 +536,7 @@ msgid "Hervorgehobenes Zitat"
 msgstr ""
 
 #: src/blockinspector.rs:70 src/mainaction.rs:272 src/markdowncheck.rs:84
-#: src/postpane.rs:58
+#: src/postpane.rs:62
 msgid "Details"
 msgstr ""
 
@@ -580,7 +580,7 @@ msgstr ""
 msgid "Keine"
 msgstr ""
 
-#: src/blockinspector.rs:232
+#: src/blockinspector.rs:232 src/window.rs:116
 msgid "Block"
 msgstr ""
 
@@ -740,7 +740,7 @@ msgstr ""
 msgid "In den Papierkorb"
 msgstr ""
 
-#: src/blogposts.rs:372 src/window.rs:1451
+#: src/blogposts.rs:372 src/window.rs:1504
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr ""
 
@@ -796,7 +796,7 @@ msgstr ""
 msgid "Blockiert bekannte Werbe- und Tracking-Domains, wie GNOME Web es tut."
 msgstr ""
 
-#: src/browsersettings.rs:23 src/browsersettings.rs:29 src/window.rs:117
+#: src/browsersettings.rs:23 src/browsersettings.rs:29 src/window.rs:119
 msgid "Browser"
 msgstr ""
 
@@ -1419,7 +1419,7 @@ msgid "Volle Größe"
 msgstr ""
 
 #: src/gallerydialog.rs:148 src/settings.rs:62 src/settings.rs:67
-#: src/settings.rs:77 src/shortcuts.rs:54 src/window.rs:396
+#: src/settings.rs:77 src/shortcuts.rs:54 src/window.rs:420
 msgid "Einstellungen"
 msgstr ""
 
@@ -1488,7 +1488,7 @@ msgstr ""
 msgid "Interner Fehler: Lade-Thread hat kein Ergebnis geliefert."
 msgstr ""
 
-#: src/imagealt.rs:66 src/preview.rs:358
+#: src/imagealt.rs:66 src/preview.rs:362
 msgid "Bildbeschriftung bearbeiten…"
 msgstr ""
 
@@ -1502,7 +1502,7 @@ msgid ""
 "einem Bild (![Beschreibung](bild.png)) klicken."
 msgstr ""
 
-#: src/imagealt.rs:240 src/imageedit.rs:355 src/translatedialog.rs:149
+#: src/imagealt.rs:240 src/imageedit.rs:359 src/translatedialog.rs:149
 msgid "OK"
 msgstr ""
 
@@ -1547,19 +1547,19 @@ msgstr ""
 msgid "Bild konnte nicht skaliert werden."
 msgstr ""
 
-#: src/imageedit.rs:221 src/imageedit.rs:363
+#: src/imageedit.rs:221 src/imageedit.rs:367
 msgid "Format"
 msgstr ""
 
-#: src/imageedit.rs:223 src/imageedit.rs:364
+#: src/imageedit.rs:223 src/imageedit.rs:368
 msgid "Breite (px)"
 msgstr ""
 
-#: src/imageedit.rs:224 src/imageedit.rs:365
+#: src/imageedit.rs:224 src/imageedit.rs:369
 msgid "Höhe (px)"
 msgstr ""
 
-#: src/imageedit.rs:225 src/imageedit.rs:366
+#: src/imageedit.rs:225 src/imageedit.rs:370
 msgid "Seitenverhältnis beibehalten"
 msgstr ""
 
@@ -1575,49 +1575,49 @@ msgstr ""
 msgid "Interner Fehler: Bildbearbeitungs-Thread hat kein Ergebnis geliefert."
 msgstr ""
 
-#: src/imageedit.rs:354 src/postpane.rs:173
+#: src/imageedit.rs:358 src/postpane.rs:185
 msgid "Keine Bilder"
 msgstr ""
 
-#: src/imageedit.rs:354
+#: src/imageedit.rs:358
 msgid "Der Artikel enthält keine lokalen Bilder."
 msgstr ""
 
-#: src/imageedit.rs:360
+#: src/imageedit.rs:364
 msgid "Unverändert"
 msgstr ""
 
-#: src/imageedit.rs:367
+#: src/imageedit.rs:371
 msgid "Kleinere Bilder nicht vergrößern"
 msgstr ""
 
-#: src/imageedit.rs:369
+#: src/imageedit.rs:373
 msgid "1 Bild im Artikel"
 msgstr ""
 
-#: src/imageedit.rs:369
+#: src/imageedit.rs:373
 msgid "{n} Bilder im Artikel"
 msgstr ""
 
-#: src/imageedit.rs:372
+#: src/imageedit.rs:376
 msgid ""
 "Jedes Bild wird als neue Datei „…-bearbeitet“ neben dem Original "
 "gespeichert, der Artikel verweist danach darauf."
 msgstr ""
 
-#: src/imageedit.rs:390
+#: src/imageedit.rs:394
 msgid "Alle bearbeiten"
 msgstr ""
 
-#: src/imageedit.rs:398
+#: src/imageedit.rs:402
 msgid "Alle Bilder bearbeiten"
 msgstr ""
 
-#: src/imageedit.rs:482
+#: src/imageedit.rs:486
 msgid "Bild {i} von {n} …"
 msgstr ""
 
-#: src/imageedit.rs:505
+#: src/imageedit.rs:509
 msgid ""
 "{k} von {n} Bildern bearbeitet. Fehler:\n"
 "{errors}"
@@ -1643,7 +1643,7 @@ msgstr ""
 msgid "Aus Bibliothek entfernen"
 msgstr ""
 
-#: src/librarysidebar.rs:64 src/window.rs:121
+#: src/librarysidebar.rs:64 src/window.rs:123
 msgid "Im Blog"
 msgstr ""
 
@@ -1715,8 +1715,8 @@ msgstr ""
 msgid "{site} · nicht erreichbar"
 msgstr ""
 
-#: src/librarysidebar.rs:497 src/mainaction.rs:225 src/window.rs:370
-#: src/window.rs:830 src/window.rs:1116
+#: src/librarysidebar.rs:497 src/mainaction.rs:225 src/window.rs:394
+#: src/window.rs:883 src/window.rs:1169
 msgid "Unbenannt"
 msgstr ""
 
@@ -1808,6 +1808,26 @@ msgstr ""
 msgid "{n} Artikel gefunden."
 msgstr ""
 
+#: src/linkpopup.rs:17 src/linkpopup.rs:36 src/linkpopup.rs:43
+msgid "Link"
+msgstr ""
+
+#: src/linkpopup.rs:18
+msgid "Adresse kopieren"
+msgstr ""
+
+#: src/linkpopup.rs:20
+msgid "Die Adresse der gerade geöffneten Seite in die Zwischenablage kopieren"
+msgstr ""
+
+#: src/linkpopup.rs:22
+msgid "Im Webbrowser öffnen"
+msgstr ""
+
+#: src/linkpopup.rs:53
+msgid "Adresse kopiert: {uri}"
+msgstr ""
+
 #: src/llm.rs:182
 msgid "Nicht geprüft"
 msgstr ""
@@ -1890,8 +1910,8 @@ msgstr ""
 msgid "Veröffentlichen …"
 msgstr ""
 
-#: src/mainaction.rs:146 src/mainaction.rs:162 src/postpane.rs:54
-#: src/postpane.rs:168
+#: src/mainaction.rs:146 src/mainaction.rs:162 src/postpane.rs:58
+#: src/postpane.rs:180
 msgid "Blog-Vorschau öffnen"
 msgstr ""
 
@@ -1936,7 +1956,7 @@ msgstr ""
 msgid "Änderungen verwerfen …"
 msgstr ""
 
-#: src/mainaction.rs:174 src/postpane.rs:168
+#: src/mainaction.rs:174 src/postpane.rs:180
 msgid "Im Blog ansehen"
 msgstr ""
 
@@ -2225,7 +2245,7 @@ msgstr ""
 msgid "Shortcode"
 msgstr ""
 
-#: src/markdowncheck.rs:103 src/preview.rs:1595
+#: src/markdowncheck.rs:103 src/preview.rs:1616
 msgid "Abfrage-Loop"
 msgstr ""
 
@@ -2283,7 +2303,7 @@ msgstr ""
 msgid "Dieser Beitrag nutzt viele Gutenberg-Funktionen"
 msgstr ""
 
-#: src/markdowncheck.rs:162 src/postpane.rs:55
+#: src/markdowncheck.rs:162 src/postpane.rs:59
 msgid "In wp-admin bearbeiten"
 msgstr ""
 
@@ -2295,7 +2315,7 @@ msgstr ""
 msgid "Gutenberg-Funktionen in diesem Beitrag"
 msgstr ""
 
-#: src/markdowncheck.rs:177 src/postpane.rs:164
+#: src/markdowncheck.rs:177 src/postpane.rs:176
 msgid "Markdown-Nähe: {level}"
 msgstr ""
 
@@ -2309,7 +2329,7 @@ msgstr ""
 
 #: src/mediabrowser.rs:34 src/newarticle.rs:194 src/newarticle.rs:412
 #: src/properties.rs:820 src/releasecheck.rs:97 src/releasecheck.rs:100
-#: src/releasecheck.rs:328 src/window.rs:1552
+#: src/releasecheck.rs:328 src/window.rs:1605
 msgid "Bilder"
 msgstr ""
 
@@ -2325,7 +2345,7 @@ msgstr ""
 msgid "Aktualisieren"
 msgstr ""
 
-#: src/mediabrowser.rs:222 src/shortcuts.rs:37 src/window.rs:391
+#: src/mediabrowser.rs:222 src/shortcuts.rs:37 src/window.rs:415
 msgid "WordPress-Mediathek"
 msgstr ""
 
@@ -2432,7 +2452,7 @@ msgstr ""
 msgid "{n} Bilder gefunden."
 msgstr ""
 
-#: src/mediapanel.rs:42 src/postpane.rs:76 src/shortcuts.rs:36
+#: src/mediapanel.rs:42 src/postpane.rs:80 src/shortcuts.rs:36
 msgid "Medienverwaltung"
 msgstr ""
 
@@ -2677,7 +2697,7 @@ msgstr ""
 msgid "Text übernehmen"
 msgstr ""
 
-#: src/newarticle.rs:128 src/window.rs:114
+#: src/newarticle.rs:128 src/window.rs:116
 msgid "Beitrag"
 msgstr ""
 
@@ -2847,7 +2867,7 @@ msgstr ""
 msgid "Schlagwörter"
 msgstr ""
 
-#: src/newarticle.rs:702 src/preview.rs:1597 src/taxonomy.rs:33
+#: src/newarticle.rs:702 src/preview.rs:1618 src/taxonomy.rs:33
 #: src/translatedialog.rs:704
 msgid "Kategorien"
 msgstr ""
@@ -2886,27 +2906,27 @@ msgstr ""
 msgid "Fokus-Schlüsselwort"
 msgstr ""
 
-#: src/postpane.rs:78
+#: src/postpane.rs:82
 msgid "Medien"
 msgstr ""
 
-#: src/postpane.rs:81
+#: src/postpane.rs:85
 msgid "Statistik"
 msgstr ""
 
-#: src/postpane.rs:156
+#: src/postpane.rs:168
 msgid "Zuletzt abgeglichen: {at}"
 msgstr ""
 
-#: src/postpane.rs:157
+#: src/postpane.rs:169
 msgid "Noch nicht im Blog."
 msgstr ""
 
-#: src/postpane.rs:174
+#: src/postpane.rs:186
 msgid "1 Bild"
 msgstr ""
 
-#: src/postpane.rs:175
+#: src/postpane.rs:187
 msgid "{n} Bilder"
 msgstr ""
 
@@ -2922,155 +2942,155 @@ msgstr ""
 msgid "Sepia"
 msgstr ""
 
-#: src/preview.rs:403
+#: src/preview.rs:407
 msgid "Bild bearbeiten…"
 msgstr ""
 
-#: src/preview.rs:415 src/window.rs:393
+#: src/preview.rs:419 src/window.rs:417
 msgid "Alle Bilder bearbeiten…"
 msgstr ""
 
-#: src/preview.rs:806
+#: src/preview.rs:827
 msgid "Wiedergabeliste – die Titel erzeugt das Blog"
 msgstr ""
 
-#: src/preview.rs:1490
+#: src/preview.rs:1511
 msgid "Video lässt sich in der Vorschau nicht abspielen"
 msgstr ""
 
-#: src/preview.rs:1561
+#: src/preview.rs:1582
 msgid "Seitenumbruch"
 msgstr ""
 
-#: src/preview.rs:1593
+#: src/preview.rs:1614
 msgid "Neueste Beiträge"
 msgstr ""
 
-#: src/preview.rs:1594
+#: src/preview.rs:1615
 msgid "Neueste Kommentare"
 msgstr ""
 
-#: src/preview.rs:1596
+#: src/preview.rs:1617
 msgid "Archive"
 msgstr ""
 
-#: src/preview.rs:1598
+#: src/preview.rs:1619
 msgid "Schlagwörter-Wolke"
 msgstr ""
 
-#: src/preview.rs:1599
+#: src/preview.rs:1620
 msgid "Kalender"
 msgstr ""
 
-#: src/preview.rs:1600
+#: src/preview.rs:1621
 msgid "Suche"
 msgstr ""
 
-#: src/preview.rs:1601
+#: src/preview.rs:1622
 msgid "Seitenliste"
 msgstr ""
 
-#: src/preview.rs:1602
+#: src/preview.rs:1623
 msgid "Social-Media-Links"
 msgstr ""
 
-#: src/preview.rs:1603
+#: src/preview.rs:1624
 msgid "RSS-Feed"
 msgstr ""
 
-#: src/preview.rs:1604
+#: src/preview.rs:1625
 msgid "Synchronisiertes Muster"
 msgstr ""
 
-#: src/preview.rs:1605
+#: src/preview.rs:1626
 msgid "Inhaltsverzeichnis"
 msgstr ""
 
-#: src/preview.rs:1606
+#: src/preview.rs:1627
 msgid "Werbeplatz"
 msgstr ""
 
-#: src/preview.rs:1607
+#: src/preview.rs:1628
 msgid "Symbol"
 msgstr ""
 
-#: src/preview.rs:1608
+#: src/preview.rs:1629
 msgid "Anmelden/Abmelden"
 msgstr ""
 
-#: src/preview.rs:1609
+#: src/preview.rs:1630
 msgid "Lesezeit"
 msgstr ""
 
-#: src/preview.rs:1610 src/properties.rs:447
+#: src/preview.rs:1631 src/properties.rs:447
 msgid "Autor"
 msgstr ""
 
-#: src/preview.rs:1611
+#: src/preview.rs:1632
 msgid "Kategorien und Schlagwörter"
 msgstr ""
 
-#: src/preview.rs:1612
+#: src/preview.rs:1633
 msgid "Datum"
 msgstr ""
 
-#: src/preview.rs:1613
+#: src/preview.rs:1634
 msgid "Avatar"
 msgstr ""
 
-#: src/preview.rs:1614
+#: src/preview.rs:1635
 msgid "Brotkrümelnavigation"
 msgstr ""
 
-#: src/preview.rs:1615
+#: src/preview.rs:1636
 msgid "Navigation"
 msgstr ""
 
-#: src/preview.rs:1616 src/properties.rs:559
+#: src/preview.rs:1637 src/properties.rs:559
 msgid "Kommentare"
 msgstr ""
 
-#: src/preview.rs:1621 src/preview.rs:1659
+#: src/preview.rs:1642 src/preview.rs:1680
 msgid "{name} – wird vom Blog erzeugt"
 msgstr ""
 
-#: src/preview.rs:1658
+#: src/preview.rs:1679
 msgid "Shortcode [{name}]"
 msgstr ""
 
-#: src/preview.rs:1665
+#: src/preview.rs:1686
 msgid "Weiterlesen"
 msgstr ""
 
-#: src/preview.rs:1679
+#: src/preview.rs:1700
 msgid "Fußnoten"
 msgstr ""
 
-#: src/preview.rs:1694
+#: src/preview.rs:1715
 msgid "YouTube-Video"
 msgstr ""
 
-#: src/preview.rs:1695
+#: src/preview.rs:1716
 msgid "Vimeo-Video"
 msgstr ""
 
-#: src/preview.rs:1700
+#: src/preview.rs:1721
 msgid "Eingebetteter Inhalt"
 msgstr ""
 
-#: src/preview.rs:1974
+#: src/preview.rs:1995
 msgid "Bereits zu WordPress hochgeladen"
 msgstr ""
 
-#: src/preview.rs:1981 src/preview.rs:1982
+#: src/preview.rs:2002 src/preview.rs:2003
 msgid "Alt"
 msgstr ""
 
-#: src/preview.rs:1982
+#: src/preview.rs:2003
 msgid "Bewusst ohne Alternativtext (dekoratives Bild)"
 msgstr ""
 
-#: src/preview.rs:1986
+#: src/preview.rs:2007
 msgid "Bildformat"
 msgstr ""
 
@@ -3471,7 +3491,7 @@ msgstr ""
 msgid "Originalsprache"
 msgstr ""
 
-#: src/shortcuts.rs:43 src/window.rs:318 src/window.rs:455
+#: src/shortcuts.rs:43 src/window.rs:342 src/window.rs:479
 msgid "Editor"
 msgstr ""
 
@@ -3495,7 +3515,7 @@ msgstr ""
 msgid "Suchen und Ersetzen"
 msgstr ""
 
-#: src/shortcuts.rs:54 src/window.rs:397
+#: src/shortcuts.rs:54 src/window.rs:421
 msgid "Tastenkürzel"
 msgstr ""
 
@@ -4138,107 +4158,111 @@ msgid ""
 "Namen bleiben gleich."
 msgstr ""
 
-#: src/window.rs:114
+#: src/window.rs:116
 msgid "Assistent"
 msgstr ""
 
-#: src/window.rs:121
+#: src/window.rs:123
 msgid "Gerendert"
 msgstr ""
 
-#: src/window.rs:122
+#: src/window.rs:124
 msgid "Chat"
 msgstr ""
 
-#: src/window.rs:122
+#: src/window.rs:124
 msgid "Bewertung"
 msgstr ""
 
-#: src/window.rs:133
+#: src/window.rs:135
 msgid "Artikel-Kopf in der Vorschau ein-/ausblenden"
 msgstr ""
 
-#: src/window.rs:319
+#: src/window.rs:150
+msgid "Vorschau neu laden"
+msgstr ""
+
+#: src/window.rs:343
 msgid "Seitenbereich"
 msgstr ""
 
-#: src/window.rs:376
+#: src/window.rs:400
 msgid "Seitenleiste ein-/ausblenden"
 msgstr ""
 
-#: src/window.rs:392
+#: src/window.rs:416
 msgid "Galerie einfügen…"
 msgstr ""
 
-#: src/window.rs:398
+#: src/window.rs:422
 msgid "Über Blocksatz"
 msgstr ""
 
-#: src/window.rs:402
+#: src/window.rs:426
 msgid "Seitenbereich ein-/ausblenden (F9)"
 msgstr ""
 
-#: src/window.rs:410
+#: src/window.rs:434
 msgid "Fokus-Schreibmodus (Strg+Umschalt+F)"
 msgstr ""
 
-#: src/window.rs:420
+#: src/window.rs:444
 msgid "Terminal ein-/ausblenden (F12)"
 msgstr ""
 
-#: src/window.rs:1117
+#: src/window.rs:1170
 msgid "Unbenannte Seite"
 msgstr ""
 
-#: src/window.rs:1175
+#: src/window.rs:1228
 msgid "{n} Übersetzungen in den Ordner ihres Originals verschoben."
 msgstr ""
 
-#: src/window.rs:1246
+#: src/window.rs:1299
 msgid "Vorhandene Arbeitskopie geöffnet."
 msgstr ""
 
-#: src/window.rs:1290
+#: src/window.rs:1343
 msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
 msgstr ""
 
-#: src/window.rs:1395
+#: src/window.rs:1448
 msgid "Markdown-Datei öffnen"
 msgstr ""
 
-#: src/window.rs:1556
+#: src/window.rs:1609
 msgid "Bild einfügen"
 msgstr ""
 
-#: src/window.rs:1591
+#: src/window.rs:1644
 msgid "Video/Audio einfügen"
 msgstr ""
 
-#: src/window.rs:1685
+#: src/window.rs:1738
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr ""
 
-#: src/window.rs:1792
+#: src/window.rs:1845
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr ""
 
-#: src/window.rs:1801
+#: src/window.rs:1854
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1807
+#: src/window.rs:1860
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr ""
 
-#: src/window.rs:1821 src/window.rs:1835
+#: src/window.rs:1874 src/window.rs:1888
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr ""
 
-#: src/window.rs:1839
+#: src/window.rs:1892
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr ""
 
-#: src/window.rs:1844
+#: src/window.rs:1897
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr ""
 

@@ -39,6 +39,7 @@ mod imageedit;
 mod importer;
 mod langswitch;
 mod library;
+mod linkpopup;
 mod librarysidebar;
 mod linkcheck;
 mod linkpicker;

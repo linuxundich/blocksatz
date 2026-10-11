@@ -202,6 +202,10 @@ impl PreviewPane {
                     webkit6::ContextMenuAction::GoBack
                         | webkit6::ContextMenuAction::GoForward
                         | webkit6::ContextMenuAction::Stop
+                        // Reloads the HTML string as it was loaded, which
+                        // changes nothing - the pane has its own reload
+                        // button (`reload`).
+                        | webkit6::ContextMenuAction::Reload
                         | webkit6::ContextMenuAction::OpenImageInNewWindow
                         | webkit6::ContextMenuAction::DownloadImageToDisk
                         | webkit6::ContextMenuAction::CopyImageToClipboard
@@ -602,6 +606,23 @@ impl PreviewPane {
     /// owned by `appearance.rs`, not this pane.
     pub fn refresh(&self) {
         self.rerender();
+    }
+
+    /// The pane's reload button: drops WebKit's cached images and media
+    /// first, so a picture changed outside Blocksatz under the same name
+    /// shows its new content, then renders the article again.
+    pub fn reload(self: &Rc<Self>) {
+        if let Some(manager) = webkit6::NetworkSession::default().and_then(|session| session.website_data_manager()) {
+            manager.clear(webkit6::WebsiteDataTypes::MEMORY_CACHE | webkit6::WebsiteDataTypes::DISK_CACHE, glib::TimeSpan::from_seconds(0), gio::Cancellable::NONE, |_| {});
+        }
+        // The clearing finishes asynchronously (its callback has to be
+        // `Send`, so it can't hold the pane) - a moment later is enough.
+        let weak = Rc::downgrade(self);
+        glib::timeout_add_local_once(std::time::Duration::from_millis(250), move || {
+            if let Some(pane) = weak.upgrade() {
+                pane.rerender_preserving_scroll();
+            }
+        });
     }
 
     fn rerender(&self) {

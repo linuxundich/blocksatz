@@ -90,6 +90,8 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     view_stack.add_named(&browser_view.widget, Some("browser"));
     let post_slot = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).build();
     view_stack.add_named(&post_slot, Some("post"));
+    let block_slot = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).build();
+    view_stack.add_named(&block_slot, Some("block"));
     view_stack.add_named(&chat_view.widget, Some("chat"));
     view_stack.add_named(&evaluate_view.widget, Some("evaluate"));
     {
@@ -111,7 +113,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         }
         group
     };
-    let section_toggles = toggle_group(&[("preview", tr("Vorschau")), ("post", tr("Beitrag")), ("assistant", tr("Assistent"))]);
+    let section_toggles = toggle_group(&[("preview", tr("Vorschau")), ("post", tr("Beitrag")), ("block", tr("Block")), ("assistant", tr("Assistent"))]);
     section_toggles.set_hexpand(true);
     // The free browser, switchable in Einstellungen → Browser.
     let browser_toggle = adw::Toggle::builder().name("browser").label(tr("Browser")).build();
@@ -143,9 +145,27 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
 
     let section_bar = gtk4::Box::builder().margin_top(6).margin_bottom(6).margin_start(6).margin_end(6).build();
     section_bar.append(&section_toggles);
+    // Renders the article again from scratch (images re-read from disk),
+    // or reloads the blog's page under "Im Blog".
+    let reload_button = gtk4::Button::builder().icon_name("view-refresh-symbolic").tooltip_text(tr("Vorschau neu laden")).build();
+    reload_button.add_css_class("flat");
+    {
+        let preview_pane = preview_pane.clone();
+        let blog_view = blog_view.clone();
+        let view_stack = view_stack.clone();
+        reload_button.connect_clicked(move |_| {
+            if view_stack.visible_child_name().as_deref() == Some("blog") {
+                blog_view.reload();
+            } else {
+                preview_pane.reload();
+            }
+        });
+    }
+
     let sub_bar = gtk4::Box::builder().spacing(6).margin_bottom(6).margin_start(6).margin_end(6).build();
     sub_bar.append(&preview_toggles);
     sub_bar.append(&assistant_toggles);
+    sub_bar.append(&reload_button);
     sub_bar.append(&header_toggle_button);
 
     // Which page each section last showed, to return to it.
@@ -160,6 +180,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let preview_toggles = preview_toggles.clone();
         let assistant_toggles = assistant_toggles.clone();
         let header_toggle_button = header_toggle_button.clone();
+        let reload_button = reload_button.clone();
         let sub_bar = sub_bar.clone();
         let last_preview_page = last_preview_page.clone();
         let last_assistant_page = last_assistant_page.clone();
@@ -167,6 +188,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
             syncing.set(true);
             let section = match page {
                 "post" => "post",
+                "block" => "block",
                 "browser" => "browser",
                 counterpart::PAGE => counterpart::PAGE,
                 "chat" | "evaluate" => "assistant",
@@ -177,6 +199,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
             assistant_toggles.set_visible(section == "assistant");
             sub_bar.set_visible(section == "preview" || section == "assistant");
             header_toggle_button.set_visible(page == "preview");
+            reload_button.set_visible(section == "preview");
             match section {
                 "preview" => {
                     preview_toggles.set_active_name(Some(page));
@@ -202,6 +225,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         section_toggles.connect_active_name_notify(move |group| {
             let page = match group.active_name().as_deref() {
                 Some("post") => "post".to_string(),
+                Some("block") => "block".to_string(),
                 Some("browser") => "browser".to_string(),
                 Some(counterpart::PAGE) => counterpart::PAGE.to_string(),
                 Some("assistant") => last_assistant_page.borrow().clone(),
@@ -666,8 +690,13 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         })
     };
     {
-        let open_in_browser = open_in_browser.clone();
-        preview_pane.connect_link_clicked(move |uri| open_in_browser(uri.to_string()));
+        // A link in the preview opens in a popup browser (`linkpopup.rs`).
+        let window = window.downgrade();
+        preview_pane.connect_link_clicked(move |uri| {
+            if let Some(window) = window.upgrade() {
+                crate::linkpopup::open(&window, &uri);
+            }
+        });
     }
     let ai_menu_handles = aimenu::install(&view, &buffer, &view_stack, chat_view.clone(), &spelling_menu, image_alt_menu.upcast_ref(), inplace_bar.clone());
 
@@ -715,6 +744,30 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     };
     let post_pane = postpane::PostPane::new(&window, &doc_ctx, &term_caches, &stats_view.widget, open_in_browser.clone());
     post_slot.append(&post_pane.widget);
+    block_slot.append(&post_pane.block_widget);
+    // "Im Blog" only once the article is on the blog - uploaded as a draft
+    // or opened from there; before that there's nothing it could show.
+    {
+        let blog_toggle = preview_toggles.toggle_by_name("blog");
+        let preview_toggles = preview_toggles.clone();
+        let view_stack = view_stack.clone();
+        let frontmatter = frontmatter.clone();
+        let update: Rc<dyn Fn()> = Rc::new(move || {
+            let Some(blog_toggle) = blog_toggle.as_ref() else { return };
+            let on_blog = frontmatter.borrow().wp_post_id.is_some();
+            let shown = preview_toggles.toggle_by_name("blog").is_some();
+            if on_blog && !shown {
+                preview_toggles.add(blog_toggle.clone());
+            } else if !on_blog && shown {
+                if view_stack.visible_child_name().as_deref() == Some("blog") {
+                    view_stack.set_visible_child_name("preview");
+                }
+                preview_toggles.remove(blog_toggle);
+            }
+        });
+        update();
+        doc_ctx.add_library_listener(Rc::new(move |_| update()));
+    }
     let main_action = mainaction::MainAction::new(
         &window,
         &doc_ctx,

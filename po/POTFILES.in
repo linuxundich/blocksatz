@@ -31,6 +31,7 @@ src/langswitch.rs
 src/librarysidebar.rs
 src/linkcheck.rs
 src/linkpicker.rs
+src/linkpopup.rs
 src/llm.rs
 src/mainaction.rs
 src/markdowncheck.rs

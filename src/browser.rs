@@ -188,6 +188,20 @@ impl BrowserView {
         self.web_view.load_uri(uri);
     }
 
+    pub fn reload(&self) {
+        self.web_view.reload();
+    }
+
+    /// The address shown right now, after any links followed inside.
+    pub fn current_uri(&self) -> Option<String> {
+        self.web_view.uri().map(|uri| uri.to_string())
+    }
+
+    /// Calls `f` with the page title whenever it changes.
+    pub fn connect_title_changed(&self, f: impl Fn(Option<String>) + 'static) {
+        self.web_view.connect_title_notify(move |web_view| f(web_view.title().map(|t| t.to_string())));
+    }
+
     /// Runs `script` in the page once the next load has finished - for a
     /// step that needs this view's own (logged-in) session, like creating
     /// the autosave behind "Vorschau im Blog" (`mainaction.rs`). Call it

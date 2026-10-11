@@ -69,11 +69,15 @@ blocks. Implemented so far:
     diff and an "Erledigt" button each. The AI translation is there as an
     option: section by section, code and markup untouched, and only
     published once you've reviewed it.
-  - The **right-hand pane** (F9) has four views: Vorschau (rendered /
+  - The **right-hand pane** (F9) has five views: Vorschau (rendered /
     Gutenberg code / "Im Blog" - the open article as the blog itself shows
-    it, draft preview or live post), Beitrag (state, all post properties,
-    media, statistics), Assistent (chat / evaluation) and a Browser of its
-    own (switchable in Einstellungen → Browser).
+    it, draft preview or live post; offered once the article is on the
+    blog - plus a reload button that re-reads images from disk), Beitrag
+    (state, all post properties, media, statistics), Block (the design of
+    the block the cursor is in, as in WordPress's own sidebar), Assistent
+    (chat / evaluation) and a Browser of its own (switchable in
+    Einstellungen → Browser). A link clicked in the preview opens in a
+    popup browser: browse on and copy the address of whatever page is open.
 - **Fold-out terminal** (F12, header-bar toggle) — a terminal below
   editor and pane, starting your own shell in the article's folder (on the
   host when running as a Flatpak, via `flatpak-spawn --host`, with the

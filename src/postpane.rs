@@ -23,6 +23,10 @@ use crate::{blockinspector, mainaction, properties, termcache, wpsite};
 
 pub struct PostPane {
     pub widget: gtk4::Widget,
+    /// The "Block" tab (`blockinspector.rs`): the design of the block the
+    /// cursor is in. Its own tab next to "Beitrag" - as in WordPress's
+    /// sidebar - since it belongs to one paragraph, not to the article.
+    pub block_widget: gtk4::Widget,
     state_label: gtk4::Label,
     detail_label: gtk4::Label,
     /// "Markdown-Nähe: mittel/gering" - only for articles with more than
@@ -85,7 +89,6 @@ impl PostPane {
 
         let column = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(24).margin_top(12).margin_bottom(24).margin_start(12).margin_end(12).build();
         column.append(&card);
-        column.append(&inspector.widget);
         column.append(&properties_slot);
         column.append(&media_group);
         column.append(&stats_group);
@@ -95,8 +98,17 @@ impl PostPane {
             .child(&adw::Clamp::builder().maximum_size(640).child(&column).build())
             .build();
 
+        let block_column = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).margin_top(12).margin_bottom(24).margin_start(12).margin_end(12).build();
+        block_column.append(&inspector.widget);
+        let block_scrolled = gtk4::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk4::PolicyType::Never)
+            .vexpand(true)
+            .child(&adw::Clamp::builder().maximum_size(640).child(&block_column).build())
+            .build();
+
         let this = Rc::new_cyclic(|weak| PostPane {
             widget: scrolled.upcast(),
+            block_widget: block_scrolled.upcast(),
             state_label,
             detail_label,
             closeness_row,

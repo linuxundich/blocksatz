@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Links in the preview open in a popup browser**: browse on from there,
+  "Adresse kopieren" puts the open page's address on the clipboard.
+- **Reload button for the preview**: renders the article again with
+  images re-read from disk (WebKit's cache cleared), or reloads the blog
+  page under "Im Blog".
+
+### Changed
+
+- **"Block" is its own tab** next to "Beitrag", as in WordPress's
+  sidebar: the design of the block the cursor is in no longer sits
+  between the article's own settings.
+- "Im Blog" is only offered once the article is on the blog (uploaded as
+  a draft or opened from there).
+- The preview's context menu no longer offers "Neu laden", which reloaded
+  nothing.
+
 ## [0.69.0] - 2026-10-09
 
 ### Added

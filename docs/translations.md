@@ -45,8 +45,9 @@ translation is one option among others and can be switched off.
 
 Switching to a language without a file yet shows a start page in place
 of the editor. "Fassung anlegen" creates `artikel.en.md`, linked to the
-original and its blog, with categories (mapped, see below), tags and the
-featured image taken over, and starts it with one of:
+original and its blog, with categories (mapped, see below) and tags
+taken over (the featured image stays the original's, see "Files and
+metadata"), and starts it with one of:
 
 - **Original als Vorlage** (default): the original's text, title and
   excerpt. Images, code blocks, containers and links are already in
@@ -166,15 +167,36 @@ translated_at: "2026-10-03"
 translation_reviewed: true
 ```
 
-Images already uploaded with the original point at their WordPress URLs,
-so the second blog doesn't get the same files again. Images not uploaded
-yet and the featured image are shared from the pair's folder and uploaded
-to the target blog like any local image. (Only an original outside the
-library gets a translation in a new folder of its own, with copies of its
-local images.) If the original only
-knows its featured image as a media id of its blog (because it was opened
-from the blog), the translation gets that image's URL from the blog's public
-REST API, and the upload copies the file into the target blog.
+Images and the featured image stay in the original's media library - a
+translation never uploads them to its own blog again:
+
+- **Body images the original has** go out pointing at the original
+  blog's upload, in the size the original uses (typically "large"), and
+  without an attachment id (`"id"`, `wp-image-…`) - ids belong to the
+  other blog's library. A translation made from an uploaded original has
+  those URLs in its text already; one whose text still names the local
+  file (made before the original's images were uploaded, or by hand) gets
+  them at upload time from the original's media list next to it. An
+  upload ref of the translation's own from before is dropped, the
+  attachment itself is left alone on the blog. An image the original has
+  but hasn't uploaded yet stops the upload ("erst das Original
+  aktualisieren").
+- **Images only the translation has** (an English screenshot) upload to
+  the target blog like any local image.
+- **The featured image** is left unset: a new translation doesn't take
+  it over, and one that still names the original's file (or a URL of it)
+  doesn't send it. The target blog's plugin copies the original's
+  featured image itself (when the post is saved with `lui_source_id`).
+  The release check doesn't ask for one. A featured image of the
+  translation's own (another file) uploads as before.
+- Medienverwaltung marks the original's images "Aus dem Original" and
+  leaves them out of "Alle hochladen".
+
+The target blog renders the original's image URLs with `srcset`, `sizes`,
+width and height from the original's attachment metadata
+(lui-translations 1.6.0 or later). (Only an original outside the library
+gets a translation in a new folder of its own, with copies of its local
+images.)
 
 On upload the link goes along as post meta:
 

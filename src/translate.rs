@@ -744,6 +744,62 @@ pub fn local_media(doc: &Document) -> Vec<String> {
         .collect()
 }
 
+/// What a translation takes from its original's blog instead of uploading
+/// it to its own: the target blog (with the lui-translations plugin) shows
+/// images straight from the original's uploads and copies the original's
+/// featured image itself, so a translation never fills the second media
+/// library with copies of the same files.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SharedMedia {
+    /// Local image source -> the original blog's URL of it (the size the
+    /// original's post uses).
+    pub images: std::collections::HashMap<String, String>,
+    /// Local images of the original not uploaded with it yet - they belong
+    /// to the original's blog too, so the translation waits for them.
+    pub pending: std::collections::HashSet<String>,
+    /// The original's featured image as a local file, if it has one.
+    pub featured_image: Option<String>,
+}
+
+impl SharedMedia {
+    /// From the original of a translation (its media list as uploaded).
+    pub fn from_original(original: &Document) -> SharedMedia {
+        let mut shared = SharedMedia { featured_image: original.frontmatter.featured_image.clone().filter(|f| !is_remote(f)), ..SharedMedia::default() };
+        for item in &original.frontmatter.media {
+            if item.source.is_empty() || is_remote(&item.source) {
+                continue;
+            }
+            match &item.wordpress {
+                Some(wp) if !wp.url.is_empty() => {
+                    shared.images.insert(item.source.clone(), wp.url.clone());
+                }
+                _ => {
+                    shared.pending.insert(item.source.clone());
+                }
+            }
+        }
+        shared
+    }
+
+    /// Whether a body image of the translation stays off the target blog:
+    /// one the original has (uploaded or not yet), or one that is already
+    /// a URL. Only an image of the translation's own is uploaded.
+    pub fn covers(&self, source: &str) -> bool {
+        is_remote(source) || self.images.contains_key(source) || self.pending.contains(source)
+    }
+
+    /// Whether the translation's `featured_image` is the original's (or a
+    /// URL of it): left unset on the target blog, which takes the
+    /// original's featured image over itself.
+    pub fn covers_featured(&self, featured_image: &str) -> bool {
+        is_remote(featured_image) || self.featured_image.as_deref() == Some(featured_image)
+    }
+}
+
+fn is_remote(source: &str) -> bool {
+    source.starts_with("http://") || source.starts_with("https://")
+}
+
 fn strip_wrapper(reply: &str) -> String {
     let t = reply.trim();
     if t.starts_with("```") && t.ends_with("```") && t.len() > 6 {
@@ -953,7 +1009,9 @@ pub fn translate(source: &Document, previous: Option<&Document>, opts: &Options,
                 categories: match_known(&map_categories(&src.categories, &opts.category_map), &opts.known_categories),
                 tags: match_known(&meta.tags, &opts.known_tags),
                 excerpt: (!meta.excerpt.is_empty()).then_some(meta.excerpt),
-                featured_image: src.featured_image.clone(),
+                // Left unset: the target blog takes the original's featured
+                // image over itself (lui-translations), no second upload.
+                featured_image: None,
                 featured_image_alt: (!meta.featured_image_alt.is_empty()).then_some(meta.featured_image_alt),
                 comment_status: src.comment_status,
                 translation: Some(link),
@@ -1297,6 +1355,34 @@ mod tests {
             let masked = last.split_once("\n\n").unwrap().1;
             Ok(masked.replace("Intro mit", "Intro with").replace("Teil", "Part"))
         }
+    }
+
+    #[test]
+    fn a_translation_leaves_the_featured_image_to_the_target_blog() {
+        let calls = RefCell::new(0);
+        let send = fake(&calls);
+        let mut source = source_doc();
+        source.frontmatter.featured_image = Some("aufmacher.png".into());
+        source.frontmatter.featured_media_id = Some(7);
+        let out = translate(&source, None, &opts(), "sys", &send, &|_, _| {}).unwrap();
+        assert_eq!(out.document.frontmatter.featured_image, None);
+        assert_eq!(out.document.frontmatter.featured_media_id, None);
+    }
+
+    #[test]
+    fn shared_media_lists_what_the_original_has_on_its_blog() {
+        let mut original = document::parse("![A](a.png)\n![B](b.png)\n![C](https://example.org/c.png)\n");
+        original.frontmatter.featured_image = Some("aufmacher.png".into());
+        original.frontmatter.media = crate::media::reconcile(&[], &original.body);
+        original.frontmatter.media[0].wordpress = Some(crate::media::WordPressMediaRef { media_id: 5, url: "https://example.org/a-1280x800.png".into(), content_hash: String::new(), width: 1280, height: 800, size_slug: Some("large".into()) });
+        let shared = SharedMedia::from_original(&original);
+        assert_eq!(shared.images.get("a.png").map(String::as_str), Some("https://example.org/a-1280x800.png"));
+        assert!(shared.pending.contains("b.png") && shared.pending.len() == 1);
+        assert!(shared.covers("a.png") && shared.covers("b.png") && shared.covers("https://example.org/a-1280x800.png"));
+        // An image only the translation has is its own.
+        assert!(!shared.covers("screenshot-en.png"));
+        assert!(shared.covers_featured("aufmacher.png") && shared.covers_featured("https://example.org/aufmacher.png"));
+        assert!(!shared.covers_featured("aufmacher-en.png"));
     }
 
     #[test]

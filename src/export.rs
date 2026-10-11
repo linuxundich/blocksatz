@@ -20,7 +20,7 @@ use gtk4::glib;
 
 use crate::document::{self, Document, Frontmatter, PostStatus, PostType};
 use crate::i18n::tr;
-use crate::{media, notify, secrets, syncstate, wpclient, wpsite};
+use crate::{media, notify, secrets, syncstate, translate, wpclient, wpsite};
 
 /// UI feedback hooks for the publish/delete flow (`wire_publish_button`,
 /// `start_export`, `wire_delete_button`) - lets that shared logic report
@@ -282,13 +282,16 @@ pub(crate) fn start_export(
     let sent_body = body.clone();
     let site_id = site.site_id();
     let doc_dir = doc_dir.clone();
+    // A translation links the images of its original instead of uploading
+    // them to its own blog.
+    let shared = crate::translatedialog::shared_media_for(&current_fm, doc_dir.as_deref());
 
     let (tx, rx) = mpsc::channel::<Result<(wpclient::PostResult, Vec<media::MediaItem>, Option<String>), String>>();
     std::thread::spawn(move || {
         let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
             .map_err(|err| err.to_string())
             .and_then(|maybe_password| maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden.")))
-            .and_then(|password| run_export(&site, &password, &mut current_fm, target_status, &body, doc_dir.as_deref()))
+            .and_then(|password| run_export(&site, &password, &mut current_fm, target_status, &body, doc_dir.as_deref(), shared.as_ref()))
             .map(|post| (post, current_fm.media, current_fm.wp_content_hash));
         let _ = tx.send(outcome);
     });
@@ -351,6 +354,7 @@ fn run_export(
     target_status: Option<PostStatus>,
     body: &str,
     doc_dir: Option<&Path>,
+    shared: Option<&translate::SharedMedia>,
 ) -> Result<wpclient::PostResult, String> {
     // WordPress only actually schedules a post if its `date` is genuinely
     // in the future - given a missing or past date, it silently publishes
@@ -375,7 +379,7 @@ fn run_export(
     };
 
     frontmatter.media = media::reconcile(&frontmatter.media, body);
-    let uploaded_urls = media::sync_uploads(&client, &mut frontmatter.media, doc_dir)?;
+    let uploaded_urls = media::sync_uploads(&client, &mut frontmatter.media, doc_dir, shared)?;
 
     let (body, footnotes) = with_footnotes(body);
     let mut blocks = gutenberg::parse_markdown(&body);
@@ -467,7 +471,7 @@ fn run_export(
             payload["date"] = serde_json::Value::String(scheduled_at.clone());
         }
     }
-    if let Some(path) = &frontmatter.featured_image {
+    if let Some(path) = featured_image_to_upload(frontmatter, shared) {
         // Normally already uploaded via Medienverwaltung's own "Aufmacherbild"
         // row (`mediapanel::build_featured_image_row`) before publishing gets
         // this far, which clears `featured_image` in favor of
@@ -481,6 +485,9 @@ fn run_export(
         let media = upload_image_file(&client, path, doc_dir).map_err(|err| err.to_string())?;
         payload["featured_media"] = serde_json::json!(media.id);
     } else if let Some(id) = frontmatter.featured_media_id {
+        // (A translation's featured image that is the original's is left
+        // out instead: the target blog takes the original's over itself,
+        // see `translate::SharedMedia`.)
         // Nothing new was set, but the document carries an existing
         // featured image from importing this post (see `importer.rs`) -
         // keep it rather than silently clearing it on re-export.
@@ -576,6 +583,13 @@ pub(crate) fn footnotes_meta(notes: &[gutenberg::footnotes::Footnote], kept: Opt
     } else {
         Some(gutenberg::footnotes::meta_json(notes))
     }
+}
+
+/// The featured image `run_export` uploads: `featured_image`, unless the
+/// document is a translation and that is its original's (or a URL of it) -
+/// the target blog takes the original's featured image over itself.
+fn featured_image_to_upload<'a>(frontmatter: &'a Frontmatter, shared: Option<&translate::SharedMedia>) -> Option<&'a str> {
+    frontmatter.featured_image.as_deref().filter(|path| !shared.is_some_and(|shared| shared.covers_featured(path)))
 }
 
 /// Overlays each image block's alt text/caption with the corresponding
@@ -881,6 +895,81 @@ mod tests {
         assert!(out.contains("<figure class=\"wp-block-image size-large\">"), "{out}");
         assert!(out.contains("src=\"https://example.org/bild-1280x800.png\" alt=\"Alternativtext\" class=\"wp-image-42\"/>"), "{out}");
         assert!(out.contains("<figcaption class=\"wp-element-caption\">Bildunterschrift</figcaption>"), "{out}");
+    }
+
+    fn uploaded(media_id: u64, url: &str) -> Option<media::WordPressMediaRef> {
+        Some(media::WordPressMediaRef { media_id, url: url.into(), content_hash: "hash".into(), width: 1280, height: 689, size_slug: Some("large".into()) })
+    }
+
+    /// What `run_export` sends for a translation: images of the original
+    /// point at the original blog's upload, without the attachment id of
+    /// either blog; an image only the translation has stays to upload.
+    fn translation_content(md: &str, translation_media: &[media::MediaItem], shared: &translate::SharedMedia) -> (String, Vec<media::MediaItem>, std::collections::HashMap<String, String>) {
+        let mut media = media::reconcile(translation_media, md);
+        let urls = media::link_shared(&mut media, Some(shared)).expect("nothing pending");
+        let mut blocks = gutenberg::parse_markdown(md);
+        apply_media_metadata(&mut blocks, &media);
+        rewrite_image_urls(&mut blocks, &urls);
+        (gutenberg::render_blocks(&blocks), media, urls)
+    }
+
+    #[test]
+    fn a_translation_links_the_images_of_its_original_instead_of_uploading_them() {
+        let de_url = "https://linuxundich.de/wp-content/uploads/2026/10/bild-1280x689.webp";
+        let mut original = Document { frontmatter: Frontmatter::default(), body: "![Bild](bild.png)\n".into() };
+        original.frontmatter.media = media::reconcile(&[], &original.body);
+        original.frontmatter.media[0].wordpress = uploaded(47968, de_url);
+        let shared = translate::SharedMedia::from_original(&original);
+
+        // The translation had uploaded its own copy before (EN id 184).
+        let md = "![Picture](bild.png)\n\n![English only](screenshot-en.png)\n";
+        let mut before = media::reconcile(&[], md);
+        before[0].wordpress = uploaded(184, "https://linuxundich.de/en/wp-content/uploads/2026/10/bild-1024x551.webp");
+        let (out, media, urls) = translation_content(md, &before, &shared);
+
+        assert!(out.contains(&format!("src=\"{de_url}\"")), "{out}");
+        assert!(!out.contains("\"id\":") && !out.contains("wp-image-"), "{out}");
+        assert!(!out.contains("/en/wp-content"), "{out}");
+        // The translation's own copy is no longer used.
+        assert_eq!(media[0].wordpress, None);
+        // `sync_uploads` skips what `link_shared` mapped; the English-only
+        // screenshot is the one image left to upload.
+        assert_eq!(urls.len(), 1);
+        assert!(!urls.contains_key("screenshot-en.png") && !shared.covers("screenshot-en.png"));
+    }
+
+    #[test]
+    fn a_translation_with_the_originals_url_in_its_body_sends_it_without_an_id() {
+        let de_url = "https://linuxundich.de/wp-content/uploads/2026/10/bild-1280x689.webp";
+        let md = format!("![Picture]({de_url} \"Alt\")\n");
+        let (out, media, urls) = translation_content(&md, &[], &translate::SharedMedia::default());
+        assert!(out.contains(&format!("src=\"{de_url}\"")), "{out}");
+        assert!(!out.contains("\"id\":") && !out.contains("wp-image-"), "{out}");
+        assert!(urls.is_empty() && media[0].wordpress.is_none());
+        assert!(translate::SharedMedia::default().covers(de_url));
+    }
+
+    #[test]
+    fn a_translation_waits_for_images_the_original_has_not_uploaded_yet() {
+        let original = Document { frontmatter: Frontmatter { media: media::reconcile(&[], "![Bild](neu.png)\n"), ..Frontmatter::default() }, body: "![Bild](neu.png)\n".into() };
+        let shared = translate::SharedMedia::from_original(&original);
+        let mut media = media::reconcile(&[], "![Picture](neu.png)\n");
+        let err = media::link_shared(&mut media, Some(&shared)).unwrap_err();
+        assert!(err.contains("neu.png"), "{err}");
+        // Not a translation: nothing is linked, everything uploads as before.
+        assert!(media::link_shared(&mut media, None).unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_translation_does_not_upload_the_featured_image_of_its_original() {
+        let shared = translate::SharedMedia { featured_image: Some("aufmacher.png".into()), ..Default::default() };
+        let fm = |path: &str| Frontmatter { featured_image: Some(path.into()), ..Frontmatter::default() };
+        assert_eq!(featured_image_to_upload(&fm("aufmacher.png"), Some(&shared)), None);
+        assert_eq!(featured_image_to_upload(&fm("https://linuxundich.de/wp-content/uploads/aufmacher.png"), Some(&shared)), None);
+        // A featured image of the translation's own still goes up.
+        assert_eq!(featured_image_to_upload(&fm("aufmacher-en.png"), Some(&shared)), Some("aufmacher-en.png"));
+        // Any other article: as before.
+        assert_eq!(featured_image_to_upload(&fm("aufmacher.png"), None), Some("aufmacher.png"));
     }
 
     /// A cover's or media-text's local `image=` is uploaded like any other
@@ -1193,12 +1282,12 @@ mod tests {
             media: Vec::new(),
         };
 
-        let created = run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, None).expect("draft export failed");
+        let created = run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, None, None).expect("draft export failed");
         assert_eq!(client.get_post(created.id).expect("get_post failed").status, "draft");
 
         frontmatter.wp_post_id = Some(created.id);
         let updated =
-            run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Publish), body, None).expect("publish export failed");
+            run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Publish), body, None, None).expect("publish export failed");
         assert_eq!(updated.id, created.id, "updating status must reuse the same post, not create a new one");
         assert_eq!(client.get_post(updated.id).expect("get_post failed").status, "publish");
 
@@ -1256,11 +1345,11 @@ mod tests {
             media: Vec::new(),
         };
 
-        let created = run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, None).expect("draft export failed");
+        let created = run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, None, None).expect("draft export failed");
         assert_eq!(client.get_post(created.id).expect("get_post failed").status, "draft");
 
         frontmatter.wp_post_id = Some(created.id);
-        let updated = run_export(&site, &password, &mut frontmatter, None, body, None).expect("status-less update failed");
+        let updated = run_export(&site, &password, &mut frontmatter, None, body, None, None).expect("status-less update failed");
         assert_eq!(updated.id, created.id, "updating content must reuse the same post, not create a new one");
         assert_eq!(client.get_post(updated.id).expect("get_post failed").status, "draft", "a status-less update must not change the post's status");
 
@@ -1318,12 +1407,12 @@ mod tests {
             media: Vec::new(),
         };
 
-        let created = run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, None).expect("draft export failed");
+        let created = run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, None, None).expect("draft export failed");
         assert!(client.get_post(created.id).expect("get_post failed").vgwort_ignored, "expected the post to come back marked as VG-Wort-ignored");
 
         frontmatter.wp_post_id = Some(created.id);
         frontmatter.vgwort_ignored = false;
-        run_export(&site, &password, &mut frontmatter, None, body, None).expect("update failed");
+        run_export(&site, &password, &mut frontmatter, None, body, None, None).expect("update failed");
         assert!(!client.get_post(created.id).expect("get_post failed").vgwort_ignored, "expected the post to come back no longer VG-Wort-ignored");
 
         client.delete_post(created.id).expect("cleanup delete_post failed");
@@ -1379,12 +1468,12 @@ mod tests {
             media: Vec::new(),
         };
 
-        let created = run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, None).expect("draft export failed");
+        let created = run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, None, None).expect("draft export failed");
         assert_eq!(client.get_post(created.id).expect("get_post failed").comment_status, "closed");
 
         frontmatter.wp_post_id = Some(created.id);
         frontmatter.comment_status = Some(true);
-        run_export(&site, &password, &mut frontmatter, None, body, None).expect("update failed");
+        run_export(&site, &password, &mut frontmatter, None, body, None, None).expect("update failed");
         assert_eq!(client.get_post(created.id).expect("get_post failed").comment_status, "open");
 
         client.delete_post(created.id).expect("cleanup delete_post failed");
@@ -1444,7 +1533,7 @@ mod tests {
         };
 
         let created =
-            run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, Some(&doc_dir)).expect("run_export failed");
+            run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, Some(&doc_dir), None).expect("run_export failed");
         assert!(created.id > 0);
 
         // `run_export` reconciles + uploads media as a side effect - confirm
@@ -1513,14 +1602,14 @@ mod tests {
         };
 
         let first =
-            run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, Some(&doc_dir)).expect("first run_export failed");
+            run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, Some(&doc_dir), None).expect("first run_export failed");
         let first_media_id = frontmatter.media[0].wordpress.clone().expect("expected an upload on the first export").media_id;
 
         // Re-export the identical body/frontmatter (as an update, since
         // `wp_post_id` now carries over) - the image content hasn't
         // changed, so this must NOT create a second media attachment.
         frontmatter.wp_post_id = Some(first.id);
-        let _second = run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, Some(&doc_dir))
+        let _second = run_export(&site, &password, &mut frontmatter, Some(crate::document::PostStatus::Draft), body, Some(&doc_dir), None)
             .expect("second run_export failed");
         let second_media_id = frontmatter.media[0].wordpress.clone().expect("expected the ref to survive re-export").media_id;
 

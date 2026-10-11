@@ -452,15 +452,24 @@ pub fn hash_local_file(source: &str, doc_dir: Option<&Path>) -> std::io::Result<
 /// republished. That delete is best-effort: it runs after the new upload
 /// has already succeeded, so a failure to delete the old one is not itself
 /// treated as an export failure.
+///
+/// For a translation, `shared` is what its original already has on its
+/// own blog: those images are linked there (their URL goes into the map)
+/// and never uploaded to the translation's blog - an upload ref of the
+/// translation's own from before is dropped, so no attachment id of it
+/// reaches the post either. An image the original has but hasn't uploaded
+/// yet stops the upload with an error, rather than landing in the wrong
+/// media library.
 pub fn sync_uploads(
     client: &crate::wpclient::Client,
     items: &mut [MediaItem],
     doc_dir: Option<&Path>,
+    shared: Option<&crate::translate::SharedMedia>,
 ) -> Result<HashMap<String, String>, String> {
-    let mut urls = HashMap::new();
+    let mut urls = link_shared(items, shared)?;
 
     for item in items.iter_mut() {
-        if item.source.starts_with("http://") || item.source.starts_with("https://") {
+        if item.source.starts_with("http://") || item.source.starts_with("https://") || urls.contains_key(&item.source) {
             continue;
         }
 
@@ -497,6 +506,22 @@ pub fn sync_uploads(
         item.wordpress = Some(reference);
     }
 
+    Ok(urls)
+}
+
+/// The part of `sync_uploads` that needs no blog: a translation's images
+/// its original has, linked to the original's uploads (see there).
+pub(crate) fn link_shared(items: &mut [MediaItem], shared: Option<&crate::translate::SharedMedia>) -> Result<HashMap<String, String>, String> {
+    let mut urls = HashMap::new();
+    let Some(shared) = shared else { return Ok(urls) };
+    for item in items.iter_mut() {
+        if let Some(url) = shared.images.get(&item.source) {
+            item.wordpress = None;
+            urls.insert(item.source.clone(), url.clone());
+        } else if shared.pending.contains(&item.source) {
+            return Err(tr("Das Bild {file} gehört zum Original, ist dort aber noch nicht hochgeladen. Bitte zuerst das Original aktualisieren.").replace("{file}", &item.source));
+        }
+    }
     Ok(urls)
 }
 

@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Translations no longer upload the original's images to their own
+  blog.** Body images the original has go out pointing at the original
+  blog's upload (the size its post uses), without an attachment id of
+  either blog; the featured image is left unset, and the target blog
+  (lui-translations 1.6.0) takes the original's over. This also holds
+  when updating a translation and for translations whose text still
+  names the local files. Images only the translation has upload as
+  before. Medienverwaltung shows the original's images as "Aus dem
+  Original" and leaves them out of "Alle hochladen"; the release check
+  no longer asks a translation for a featured image. Before, every
+  translated post got its own copies of all images in the target blog's
+  media library.
 - **"Block" is its own tab** next to "Beitrag", as in WordPress's
   sidebar: the design of the block the cursor is in no longer sits
   between the article's own settings.

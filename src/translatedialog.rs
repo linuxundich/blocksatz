@@ -64,6 +64,17 @@ pub fn find_original(translation: &Document, path: Option<&Path>) -> Option<(Pat
     Some((path, doc))
 }
 
+/// What a translation in `doc_dir` takes from its original instead of
+/// uploading it (`translate::SharedMedia`) - `None` when `frontmatter`
+/// isn't a translation. Without the original in the library, only images
+/// that are already URLs count as shared.
+pub fn shared_media_for(frontmatter: &document::Frontmatter, doc_dir: Option<&Path>) -> Option<translate::SharedMedia> {
+    let link = frontmatter.translation.as_ref()?;
+    let doc = Document { frontmatter: frontmatter.clone(), body: String::new() };
+    let path = doc_dir.map(|dir| dir.join(library::article_file(Some(&link.lang))));
+    Some(find_original(&doc, path.as_deref()).map(|(_, original)| translate::SharedMedia::from_original(&original)).unwrap_or_default())
+}
+
 /// Whether the original changed since `translation` was made - `None` when
 /// it isn't a translation or the original isn't in the library.
 pub fn original_changed(translation: &Document, path: Option<&Path>) -> Option<bool> {
@@ -225,7 +236,8 @@ pub fn create_version(ctx: &DocContext, lang: &str, content: Content) -> Result<
         status: document::PostStatus::Draft,
         categories: translate::map_categories(&src.categories, &aiprompts::load_text_or(translate::CATEGORY_MAP_ID, "")),
         tags: src.tags.clone(),
-        featured_image: src.featured_image.clone(),
+        // No featured image of its own: the target blog takes the
+        // original's over (lui-translations), nothing is uploaded twice.
         comment_status: src.comment_status,
         wp_site: site,
         translation: Some(link),
@@ -763,7 +775,6 @@ fn build_form(prep: Prep, window: &adw::ApplicationWindow, ctx: &DocContext, on_
         let (tx, rx) = mpsc::channel::<Msg>();
         let source_doc = (*source).clone();
         let previous_doc = previous.as_ref().as_ref().map(|(_, d)| d.clone());
-        let source_url = wpsite::load_all().sites.into_iter().find(|s| s.site_id() == source_site).map(|s| s.url);
         std::thread::spawn(move || {
             // The target blog's terms, so translated ones match existing
             // spellings. Without them (offline, no password) it still works.
@@ -789,19 +800,6 @@ fn build_form(prep: Prep, window: &adw::ApplicationWindow, ctx: &DocContext, on_
                 };
                 translate::translate(&source_doc, previous_doc.as_ref(), &opts, &system, &send, &report)
                     .map_err(|message| api_error.take().unwrap_or(llm::ApiError { message, status: llm::ModelStatus::Other }))
-            });
-            // An original imported from the blog has its featured image
-            // only as a media id of that blog. The translation gets the
-            // file URL instead, which the upload then copies into the
-            // target blog like any other featured image.
-            let result = result.map(|mut outcome| {
-                let fm = &mut outcome.value.document.frontmatter;
-                if previous_doc.is_none() && fm.featured_image.is_none() {
-                    if let (Some(id), Some(url)) = (source_doc.frontmatter.featured_media_id, source_url.as_deref()) {
-                        fm.featured_image = wpclient::public_media_url(url, id).ok();
-                    }
-                }
-                outcome
             });
             let _ = tx.send(Msg::Done(Box::new(result)));
         });

@@ -68,7 +68,10 @@ blocks. Implemented so far:
     the original changes, its view marks the changed sections with a word
     diff and an "Erledigt" button each. The AI translation is there as an
     option: section by section, code and markup untouched, and only
-    published once you've reviewed it.
+    published once you've reviewed it. A translation uploads no images
+    the original already has: its body links the original blog's
+    uploads, and the featured image is left to the target blog, which
+    takes the original's over (with the lui-translations plugin).
   - The **right-hand pane** (F9) has five views: Vorschau (rendered /
     Gutenberg code / "Im Blog" - the open article as the blog itself shows
     it, draft preview or live post; offered once the article is on the

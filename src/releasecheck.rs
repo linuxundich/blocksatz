@@ -83,7 +83,11 @@ pub fn checks(doc: &Document) -> Vec<Check> {
 
     let has_featured = fm.featured_image.is_some() || fm.featured_media_id.is_some();
     let featured_alt_missing = fm.featured_image.is_some() && fm.featured_image_alt.as_deref().is_none_or(|alt| alt.trim().is_empty());
+    // A translation without a featured image of its own gets its
+    // original's: the target blog takes it over (lui-translations).
+    let inherits_featured = !has_featured && fm.translation.is_some();
     out.push(match (has_featured, featured_alt_missing) {
+        (false, _) if inherits_featured => check(tr("Beitragsbild"), tr("Wird vom Original übernommen."), Severity::Ok, Fix::Properties),
         (false, _) => check(tr("Beitragsbild"), tr("Kein Beitragsbild gesetzt."), Severity::Warning, Fix::Properties),
         (true, true) => check(tr("Beitragsbild"), tr("Das Beitragsbild hat keinen Alternativtext."), Severity::Warning, Fix::Properties),
         (true, false) => check(tr("Beitragsbild"), tr("Gesetzt"), Severity::Ok, Fix::Properties),
@@ -437,6 +441,16 @@ mod tests {
         assert_eq!(severity_of(&all, "Beitragsbild"), Some(Severity::Warning));
         assert_eq!(severity_of(&all, "Bilder"), Some(Severity::Warning));
         assert_eq!(severity_of(&all, "Links"), Some(Severity::Hint));
+    }
+
+    #[test]
+    fn a_translation_inherits_the_featured_image_of_its_original() {
+        let fm = Frontmatter { title: "Title".into(), translation: Some(crate::document::TranslationLink { reviewed: true, source_id: 1, ..Default::default() }), ..Frontmatter::default() };
+        let all = checks(&Document { frontmatter: fm, body: "Body.\n".into() });
+        assert_eq!(severity_of(&all, "Beitragsbild"), Some(Severity::Ok));
+        // An article of its own still wants one.
+        let all = checks(&Document { frontmatter: Frontmatter { title: "Titel".into(), ..Frontmatter::default() }, body: "Text.\n".into() });
+        assert_eq!(severity_of(&all, "Beitragsbild"), Some(Severity::Warning));
     }
 
     #[test]

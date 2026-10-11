@@ -22,7 +22,7 @@ use gtk4::glib;
 use crate::document::Frontmatter;
 use crate::i18n::tr;
 use crate::media::{self, AltText, UploadStatus};
-use crate::{export, medialibrary, notify, preview, secrets, wpclient, wpsite};
+use crate::{export, medialibrary, notify, preview, secrets, translate, wpclient, wpsite};
 
 pub fn open(
     parent: &adw::ApplicationWindow,
@@ -63,6 +63,9 @@ pub fn build_content(frontmatter: Rc<RefCell<Frontmatter>>, body: &str, doc_dir:
     }
     let item_count = frontmatter.borrow().media.len();
     preview_pane.refresh_media(&frontmatter.borrow().media);
+    // A translation takes what its original has from the original's blog
+    // instead of uploading it (`translate::SharedMedia`).
+    let shared = Rc::new(crate::translatedialog::shared_media_for(&frontmatter.borrow(), doc_dir.as_deref()));
 
     let content_box = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Vertical)
@@ -84,16 +87,18 @@ pub fn build_content(frontmatter: Rc<RefCell<Frontmatter>>, body: &str, doc_dir:
     // properties dialog, never scanned from the body like the images
     // below) but shown as the list's first row anyway so there's one place
     // to check and trigger every WordPress image upload for the article.
-    let featured_handles = build_featured_image_row(frontmatter.clone(), doc_dir.clone(), preview_pane.clone());
+    let featured_shared = frontmatter.borrow().featured_image.is_some() && !uploads_featured(&shared, &frontmatter.borrow());
+    let featured_handles = build_featured_image_row(frontmatter.clone(), doc_dir.clone(), preview_pane.clone(), featured_shared);
     list_box.append(&featured_handles.row);
     let mut row_handles = Vec::with_capacity(item_count);
     for index in 0..item_count {
-        let handles = build_row(index, frontmatter.clone(), doc_dir.clone(), status_label.clone(), preview_pane.clone());
+        let from_original = shared.as_ref().as_ref().is_some_and(|shared| shared.covers(&frontmatter.borrow().media[index].source));
+        let handles = build_row(index, frontmatter.clone(), doc_dir.clone(), status_label.clone(), preview_pane.clone(), from_original);
         list_box.append(&handles.expander);
         row_handles.push(handles);
     }
 
-    let bulk_upload_section = build_bulk_upload_section(frontmatter.clone(), doc_dir.clone(), status_label.clone(), preview_pane.clone(), row_handles, featured_handles);
+    let bulk_upload_section = build_bulk_upload_section(frontmatter.clone(), doc_dir.clone(), status_label.clone(), preview_pane.clone(), row_handles, featured_handles, shared);
 
     let scroller = gtk4::ScrolledWindow::builder().child(&list_box).vexpand(true).min_content_height(360).build();
 
@@ -135,6 +140,7 @@ fn build_bulk_upload_section(
     preview_pane: Rc<preview::PreviewPane>,
     row_handles: Vec<MediaRowHandles>,
     featured: FeaturedRowHandles,
+    shared: Rc<Option<translate::SharedMedia>>,
 ) -> gtk4::Widget {
     let section = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(6).build();
 
@@ -155,7 +161,7 @@ fn build_bulk_upload_section(
 
     let (pending_count, total_count) = {
         let fm = frontmatter.borrow();
-        let pending = fm.media.iter().filter(|item| item.wordpress.is_none()).count() + usize::from(fm.featured_image.is_some());
+        let pending = fm.media.iter().filter(|item| uploads_body_image(&shared, item)).count() + usize::from(uploads_featured(&shared, &fm));
         let total = fm.media.len() + usize::from(fm.featured_image.is_some() || fm.featured_media_id.is_some());
         (pending, total)
     };
@@ -173,12 +179,12 @@ fn build_bulk_upload_section(
             .media
             .iter()
             .enumerate()
-            .filter(|(_, item)| item.wordpress.is_none())
+            .filter(|(_, item)| uploads_body_image(&shared, item))
             .map(|(index, item)| (BulkTarget::Media(index), item.source.clone(), item.alt.as_wordpress_value().map(str::to_string), item.caption.clone()))
             .collect();
         {
             let fm = frontmatter.borrow();
-            if let Some(source) = fm.featured_image.clone() {
+            if let Some(source) = fm.featured_image.clone().filter(|_| uploads_featured(&shared, &fm)) {
                 pending.push((BulkTarget::Featured, source, fm.featured_image_alt.clone(), None));
             }
         }
@@ -244,6 +250,7 @@ fn build_bulk_upload_section(
         let progress_bar = progress_bar.clone();
         let row_handles = row_handles.clone();
         let featured = featured.clone();
+        let shared = shared.clone();
         let mut completed = 0;
         glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
             Ok(BulkUploadEvent::Progress { target, filename, result }) => {
@@ -310,7 +317,7 @@ fn build_bulk_upload_section(
                 });
                 let remaining_pending = {
                     let fm = frontmatter.borrow();
-                    fm.media.iter().filter(|item| item.wordpress.is_none()).count() + usize::from(fm.featured_image.is_some())
+                    fm.media.iter().filter(|item| uploads_body_image(&shared, item)).count() + usize::from(uploads_featured(&shared, &fm))
                 };
                 bulk_button.set_sensitive(remaining_pending > 0);
                 if failed == 0 {
@@ -386,6 +393,18 @@ fn summary_text(frontmatter: &Rc<RefCell<Frontmatter>>) -> String {
     }
 }
 
+/// Whether "Alle hochladen" takes this body image: not on WordPress yet,
+/// and - in a translation - not one the original has on its own blog.
+fn uploads_body_image(shared: &Option<translate::SharedMedia>, item: &media::MediaItem) -> bool {
+    item.wordpress.is_none() && !shared.as_ref().is_some_and(|shared| shared.covers(&item.source))
+}
+
+/// Whether the featured image is still to upload - a translation's that is
+/// its original's isn't (the target blog takes that one over itself).
+fn uploads_featured(shared: &Option<translate::SharedMedia>, frontmatter: &Frontmatter) -> bool {
+    frontmatter.featured_image.as_deref().is_some_and(|path| !shared.as_ref().is_some_and(|shared| shared.covers_featured(path)))
+}
+
 fn upload_status_text(status: &UploadStatus) -> String {
     match status {
         UploadStatus::NotUploaded => tr("Noch nicht zu WordPress hochgeladen"),
@@ -421,13 +440,16 @@ struct FeaturedRowHandles {
 /// `featured_image` (the pending local path) is cleared in favor of
 /// `featured_media_id` (the resulting WordPress id), so `export.rs`'s own
 /// automatic upload-on-publish never re-uploads it a second time.
-fn build_featured_image_row(frontmatter: Rc<RefCell<Frontmatter>>, doc_dir: Option<PathBuf>, preview_pane: Rc<preview::PreviewPane>) -> FeaturedRowHandles {
+///
+/// `from_original`: a translation's featured image that is its original's -
+/// not uploaded, the target blog takes the original's over itself.
+fn build_featured_image_row(frontmatter: Rc<RefCell<Frontmatter>>, doc_dir: Option<PathBuf>, preview_pane: Rc<preview::PreviewPane>, from_original: bool) -> FeaturedRowHandles {
     let row = adw::ActionRow::builder().title(tr("Aufmacherbild")).use_markup(false).build();
-    row.set_subtitle(&featured_image_status_text(&frontmatter.borrow()));
+    row.set_subtitle(&if from_original { tr("Das des Originals – der Ziel-Blog übernimmt es selbst.") } else { featured_image_status_text(&frontmatter.borrow()) });
 
     let upload_button = gtk4::Button::with_label(&tr("Zu WordPress hochladen"));
     upload_button.set_valign(gtk4::Align::Center);
-    upload_button.set_visible(frontmatter.borrow().featured_image.is_some());
+    upload_button.set_visible(!from_original && frontmatter.borrow().featured_image.is_some());
     row.add_suffix(&upload_button);
 
     // Always visible (unlike `upload_button` above, which only makes sense
@@ -573,11 +595,12 @@ fn build_row(
     doc_dir: Option<PathBuf>,
     status_label: gtk4::Label,
     preview_pane: Rc<preview::PreviewPane>,
+    from_original: bool,
 ) -> MediaRowHandles {
     let item = frontmatter.borrow().media[index].clone();
 
     let expander = adw::ExpanderRow::builder().title(item.filename.clone()).use_markup(false).build();
-    expander.set_subtitle(&upload_status_text(&item.upload_status()));
+    expander.set_subtitle(&if from_original { tr("Aus dem Original – im Blog des Originals verlinkt, nicht erneut hochgeladen") } else { upload_status_text(&item.upload_status()) });
 
     let alt_switch_row = adw::SwitchRow::builder()
         .title(tr("Alternativtext definieren"))
@@ -764,6 +787,8 @@ fn build_row(
     expander.add_row(&alt_switch_row);
     expander.add_row(&alt_entry_row);
     expander.add_row(&caption_row);
+    // A translation links the original's upload; nothing to upload here.
+    upload_row.set_visible(!from_original);
     expander.add_row(&upload_row);
     MediaRowHandles { expander, upload_button, upload_status_label }
 }

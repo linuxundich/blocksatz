@@ -819,6 +819,7 @@ pub fn render_html(markdown: &str, style: PreviewStyle, dark: bool, media: &[Med
     let footnotes = crate::export::footnotes_meta(&notes, frontmatter.wp_footnotes.as_deref());
     let body = render_body(&markdown, media, footnotes.as_deref());
     let header = if show_header { render_header(frontmatter) } else { String::new() };
+    let lang_badge = render_lang_badge(frontmatter);
     let css = style_css(style, dark);
     let code_css = code_block_css(code_colors.as_ref().map(|(background, foreground)| (background.as_str(), foreground.as_str())));
     // The blog theme's color/gradient/font-size presets, for attribute
@@ -994,7 +995,8 @@ figure.wp-block-table {{ margin: 1.5em 0; overflow-x: auto; }}
 {BADGE_CSS}
 {EMBED_CSS}
 {HEADER_CSS}
-</style></head><body>{header}{body}<script>
+{LANG_BADGE_CSS}
+</style></head><body>{lang_badge}{header}{body}<script>
 // Scroll-sync (see `window.rs::wire_scroll_sync`). Positions are mapped
 // through *fractional* source lines, interpolated between the
 // `[data-line]` anchors: line 12.5 sits halfway between where line 12's
@@ -1762,6 +1764,19 @@ const HEADER_CSS: &str = ".article-header { margin: 0 0 2.5rem 0; padding-bottom
 /// look as a teaser" summary of that dialog. Empty for a document with no
 /// title yet (a brand new, still-untitled article) rather than an
 /// empty-looking box with nothing but a status chip in it.
+/// The language label in the preview's corner ("DE", "EN"): the language
+/// of the file (`lang:` in its frontmatter), the original's - `None` - being
+/// German, the language Blocksatz's library pairs start from.
+fn lang_label(frontmatter: &Frontmatter) -> String {
+    frontmatter.lang.as_deref().map_or_else(|| "DE".to_string(), str::to_uppercase)
+}
+
+fn render_lang_badge(frontmatter: &Frontmatter) -> String {
+    format!("<div class=\"lang-badge\" title=\"{}\">{}</div>", glib::markup_escape_text(&tr("Sprache dieser Fassung")), glib::markup_escape_text(&lang_label(frontmatter)))
+}
+
+const LANG_BADGE_CSS: &str = ".lang-badge { position: fixed; top: .6rem; right: .8rem; z-index: 50; padding: .1rem .55rem; border-radius: 999px; font: 600 .72rem/1.5 sans-serif; letter-spacing: .06em; background: rgba(128,128,128,.22); color: inherit; opacity: .85; pointer-events: none; }";
+
 fn render_header(frontmatter: &Frontmatter) -> String {
     if frontmatter.title.trim().is_empty() {
         return String::new();
@@ -2686,6 +2701,13 @@ mod tests {
             assert!(!style_css(style, true).is_empty());
             assert_ne!(style_css(style, false), style_css(style, true));
         }
+    }
+
+    #[test]
+    fn the_preview_labels_the_language_of_the_file() {
+        assert_eq!(lang_label(&Frontmatter::default()), "DE");
+        assert_eq!(lang_label(&Frontmatter { lang: Some("en".into()), ..Frontmatter::default() }), "EN");
+        assert!(render_lang_badge(&Frontmatter { lang: Some("en".into()), ..Frontmatter::default() }).contains(">EN<"));
     }
 
     #[test]

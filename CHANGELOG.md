@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Images and videos in German and English without uploading twice.**
+  Naming convention `name.de.webp` / `name.en.webp` (no mark = the same
+  in every language). A translation shares everything not marked for its
+  language with the original and only uploads its own images. New
+  "Bilder dieser Fassung …" in the translation's menu lists them and
+  switches each one between the original's and its own, picking up
+  `name.en.*` files already in the folder; a new language version starts
+  with such files in place. See `docs/translations.md`.
+- **Language label in the preview**: "DE" / "EN" in the upper right corner
+  (also in the other-language pane).
+
 ## [0.70.0] - 2026-10-11
 
 ### Added

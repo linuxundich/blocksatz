@@ -4425,3 +4425,48 @@ msgstr "No post ID in the response"
 #: src/wpclient.rs:1079
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr "No term ID received for \"{name}\""
+
+msgid "Sprache dieser Fassung"
+msgstr "Language of this version"
+
+msgid "Das gibt es nur in einer Sprachfassung, nicht im Original."
+msgstr "This only exists in a language version, not in the original."
+
+msgid "Bilder und Videos"
+msgstr "Images and videos"
+
+msgid "Mit der Sprache im Dateinamen: bild.de.webp für Deutsch, bild.en.webp für Englisch, bild.webp für beide. Was nicht auf {lang} endet, kommt aus dem Blog des Originals und wird nicht noch einmal hochgeladen."
+msgstr "With the language in the file name: image.de.webp for German, image.en.webp for English, image.webp for both. Anything not ending in {lang} comes from the original's blog and is not uploaded again."
+
+msgid "Bilder dieser Fassung"
+msgstr "Images of this version"
+
+msgid "Bilder dieser Fassung …"
+msgstr "Images of this version …"
+
+msgid "Diese Fassung hat keine Bilder oder Videos."
+msgstr "This version has no images or videos."
+
+msgid "Wie im Original – aus dessen Blog, kein neuer Upload"
+msgstr "Same as the original – from its blog, no new upload"
+
+msgid "Eigene Fassung – wird in den Blog dieser Sprache hochgeladen"
+msgstr "Own version – uploaded to this language's blog"
+
+msgid "{file} nehmen"
+msgstr "Use {file}"
+
+msgid "Eigene Fassung wählen …"
+msgstr "Choose own version …"
+
+msgid "Wie im Original"
+msgstr "Same as the original"
+
+msgid "Das Original hat keine Datei dazu (gleicher Name ohne .{lang})"
+msgstr "The original has no file for it (same name without .{lang})"
+
+msgid "Bild für diese Sprache wählen"
+msgstr "Choose the image for this language"
+
+msgid "Ungültiger Dateiname."
+msgstr "Invalid file name."

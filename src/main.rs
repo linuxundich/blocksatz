@@ -37,6 +37,7 @@ mod imagealt;
 mod imagecompress;
 mod imageedit;
 mod importer;
+mod langmedia;
 mod langswitch;
 mod library;
 mod linkpopup;

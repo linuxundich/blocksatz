@@ -152,6 +152,43 @@ once the original is on its blog.
 "Kategorien zuordnen" under Einstellungen → Übersetzung maps category
 names for every way of starting, one per line: `Allgemein = General`.
 
+## Images and videos in both languages
+
+The article is written in German first, so a translation starts out with
+the original's images - and every image it shares with the original is
+**not uploaded again**: it is linked from the original's blog. Only an
+image made for the translation is uploaded to its blog.
+
+**Naming on disk:** the language sits before the extension, like the
+article's own (`artikel.en.md`).
+
+| File | Meaning |
+|---|---|
+| `bild.de.webp` | the German image |
+| `bild.en.webp` | the English image (a screenshot of the English desktop, say) |
+| `bild.webp` | no language mark - the same in every language, shared |
+
+A translation that points at a file not marked `.en` shares it with the
+original; one that points at `bild.en.webp` has an image of its own. The
+format may differ (`bild.en.png` as the source of `bild.en.webp`).
+
+**Workflow:**
+
+1. Write the German article with `name.de.webp` images.
+2. "Fassung anlegen" with *Original als Vorlage*: images stay shared; any
+   `name.en.*` already lying in the folder is used right away.
+3. For the images that need an English version, make the screenshots and
+   save them as `name.en.png` / `.webp` in the article's folder.
+4. **Bilder dieser Fassung …** (main action's menu in the translation)
+   lists every image and video of the translation: "Wie im Original" or
+   "Eigene Fassung". *{file} nehmen* switches to a file that exists
+   already, *Eigene Fassung wählen …* picks one (copied next to the article
+   as `name.en.ext` if it is called otherwise), *Wie im Original* goes
+   back. Each step is one undo.
+
+The preview shows the language of the open file ("DE", "EN") as a label
+in its upper right corner.
+
 ## Files and metadata
 
 A translation's frontmatter:

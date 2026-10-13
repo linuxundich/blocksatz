@@ -224,7 +224,12 @@ pub fn create_version(ctx: &DocContext, lang: &str, content: Content) -> Result<
         reviewed: true,
     };
     let (title, excerpt, body) = match content {
-        Content::Template => (src.title.clone(), src.excerpt.clone(), source_body.clone()),
+        Content::Template => {
+            // Images the original has in this language already
+            // (`a.en.webp` next to `a.de.webp`, `langmedia.rs`) come along.
+            let body = path.parent().map_or_else(|| source_body.clone(), |dir| crate::langmedia::use_existing_variants(&source_body, lang, &source, dir));
+            (src.title.clone(), src.excerpt.clone(), body)
+        }
         Content::Pasted(pasted) => (pasted.title.unwrap_or_default(), pasted.excerpt, pasted.body),
         Content::Empty => (String::new(), None, String::new()),
     };

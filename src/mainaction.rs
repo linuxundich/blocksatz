@@ -191,6 +191,7 @@ impl MainAction {
             translation_menu.append(Some(&tr("Abschnitt des Originals kopieren")), Some("main.copy-original-section"));
             translation_menu.append(Some(&tr("Übersetzung einfügen")), Some("main.paste-translation"));
             translation_menu.append(Some(&tr("Prüfen …")), Some("main.review"));
+            translation_menu.append(Some(&tr("Bilder dieser Fassung …")), Some("main.language-images"));
             translation_menu.append(Some(&tr("Als aktuell markieren")), Some("main.mark-current"));
             if ai {
                 ai_menu.append(Some(&tr("Per KI aktualisieren …")), Some("main.translate"));
@@ -312,6 +313,11 @@ impl MainAction {
         add("paste-translation", |this| {
             if let Some(window) = this.window.upgrade() {
                 crate::translatedialog::paste_translation(&window, &this.ctx);
+            }
+        });
+        add("language-images", |this| {
+            if let Some(window) = this.window.upgrade() {
+                crate::langmedia::open(&window, &this.ctx);
             }
         });
         add("open-original", |this| {

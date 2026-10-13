@@ -25,6 +25,13 @@
   <url type="homepage">https://github.com/linuxundich/blocksatz</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksatz</url>
   <releases>
+    <release version="0.71.0" date="2026-10-13">
+      <description>
+        <p>Bilder und Videos in Deutsch und Englisch: Dateien mit der Sprache im Namen (bild.de.webp, bild.en.webp; ohne Kürzel gilt für beide). Eine Übersetzung übernimmt, was nicht für ihre Sprache markiert ist, aus dem Blog des Originals und lädt nur eigene Bilder hoch. „Bilder dieser Fassung …“ schaltet jedes Bild zwischen beiden um.</p>
+        <p>Die Vorschau zeigt die Sprache der Fassung als Label (DE, EN).</p>
+        <p>Behoben: Hochgeladene Bilder und das Beitragsbild werden dem Beitrag zugeordnet, statt in der Mediathek ohne Verknüpfung zu stehen. Ein Beitragsbild, das nur als Datei eingetragen war, wurde bei jedem Aktualisieren erneut hochgeladen.</p>
+      </description>
+    </release>
     <release version="0.70.0" date="2026-10-11">
       <description>
         <p>Übersetzungen laden die Bilder des Originals nicht mehr ein zweites Mal in ihr eigenes Blog hoch, sondern verweisen auf die Uploads des Originals; das Beitragsbild übernimmt das Zielblog. Eigene Bilder der Übersetzung werden weiter hochgeladen.</p>

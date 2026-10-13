@@ -286,13 +286,13 @@ pub(crate) fn start_export(
     // them to its own blog.
     let shared = crate::translatedialog::shared_media_for(&current_fm, doc_dir.as_deref());
 
-    let (tx, rx) = mpsc::channel::<Result<(wpclient::PostResult, Vec<media::MediaItem>, Option<String>), String>>();
+    let (tx, rx) = mpsc::channel::<Result<(wpclient::PostResult, Vec<media::MediaItem>, Option<String>, (Option<String>, Option<u64>)), String>>();
     std::thread::spawn(move || {
         let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
             .map_err(|err| err.to_string())
             .and_then(|maybe_password| maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden.")))
             .and_then(|password| run_export(&site, &password, &mut current_fm, target_status, &body, doc_dir.as_deref(), shared.as_ref()))
-            .map(|post| (post, current_fm.media, current_fm.wp_content_hash));
+            .map(|post| (post, current_fm.media, current_fm.wp_content_hash, (current_fm.featured_image, current_fm.featured_media_id)));
         let _ = tx.send(outcome);
     });
 
@@ -301,11 +301,13 @@ pub(crate) fn start_export(
     let set_busy = set_busy.clone();
     let save_document = save_document.clone();
     glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
-        Ok(Ok((post, media, content_hash))) => {
+        Ok(Ok((post, media, content_hash, (featured_image, featured_media_id)))) => {
             let (title, final_status) = {
                 let mut fm = frontmatter.borrow_mut();
                 fm.wp_post_id = Some(post.id);
                 fm.media = media;
+                fm.featured_image = featured_image;
+                fm.featured_media_id = featured_media_id;
                 if let Some(target_status) = target_status {
                     fm.status = target_status;
                 }
@@ -486,6 +488,11 @@ fn run_export(
         let media = upload_image_file(&client, path, doc_dir).map_err(|err| err.to_string())?;
         payload["featured_media"] = serde_json::json!(media.id);
         featured_uploaded = Some(media.id);
+        // Remembered like Medienverwaltung's own upload does it: without
+        // this the next update uploaded the same featured image again
+        // ("name-1.webp", "name-2.webp" ... in the media library).
+        frontmatter.featured_image = None;
+        frontmatter.featured_media_id = Some(media.id);
     } else if let Some(id) = frontmatter.featured_media_id {
         // (A translation's featured image that is the original's is left
         // out instead: the target blog takes the original's over itself,

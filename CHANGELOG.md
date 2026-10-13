@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The featured image was uploaded again with every update.** A
+  featured image set in the article but never uploaded by hand through
+  Medienverwaltung went to the media library on each upload or update
+  (`name.webp`, `name-1.webp`, ...). The upload is now remembered (its
+  media id replaces the local file in the frontmatter, as Medienverwaltung
+  does), so the next update reuses it.
 - **Uploaded images are attached to their post.** They were uploaded
   before the post existed and showed as "(Unattached)" in the media
   library; after every upload or update the article's images and featured

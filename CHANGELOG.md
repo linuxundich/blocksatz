@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Uploaded images are attached to their post.** They were uploaded
+  before the post existed and showed as "(Unattached)" in the media
+  library; after every upload or update the article's images and featured
+  image are now tied to the post ("Uploaded to"). A file already attached
+  to another post is left alone. Images uploaded earlier are attached the
+  next time the article is updated.
+
 ### Added
 
 - **Images and videos in German and English without uploading twice.**

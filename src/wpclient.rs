@@ -513,6 +513,32 @@ impl Client {
         Ok(())
     }
 
+    /// Ties an uploaded media item to the post it is used in (the media
+    /// library's "Uploaded to" column). An upload happens before the post
+    /// exists, so it starts out unattached; this is the follow-up. An item
+    /// already attached to some post is left alone - it may be a picture
+    /// picked from the library that belongs to another article. Returns
+    /// whether it was attached now.
+    pub fn attach_media(&self, media_id: u64, post_id: u64) -> Result<bool> {
+        let url = format!("{}?_fields=id,post", self.endpoint(&format!("media/{media_id}")));
+        let current = self.get_json(&url)?;
+        if current.get("post").and_then(Value::as_u64).unwrap_or(0) != 0 {
+            return Ok(false);
+        }
+        let mut response = self
+            .agent
+            .post(self.endpoint(&format!("media/{media_id}")))
+            .header("Authorization", self.auth_header.as_str())
+            .send_json(&serde_json::json!({ "post": post_id }))
+            .map_err(network_error)?;
+        let status = response.status().as_u16();
+        if !(200..300).contains(&status) {
+            let body_text = response.body_mut().read_to_string().unwrap_or_default();
+            return Err(error_from_body(status, &body_text));
+        }
+        Ok(true)
+    }
+
     /// Fetches a media item's current alt text/caption back from the server
     /// (`context=edit` for the raw, untranslated `caption.raw` rather than
     /// the display-filtered `caption.rendered`) - used to verify an upload's

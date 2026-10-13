@@ -471,6 +471,7 @@ fn run_export(
             payload["date"] = serde_json::Value::String(scheduled_at.clone());
         }
     }
+    let mut featured_uploaded: Option<u64> = None;
     if let Some(path) = featured_image_to_upload(frontmatter, shared) {
         // Normally already uploaded via Medienverwaltung's own "Aufmacherbild"
         // row (`mediapanel::build_featured_image_row`) before publishing gets
@@ -484,6 +485,7 @@ fn run_export(
         // so it has no tracked content hash to compare against.
         let media = upload_image_file(&client, path, doc_dir).map_err(|err| err.to_string())?;
         payload["featured_media"] = serde_json::json!(media.id);
+        featured_uploaded = Some(media.id);
     } else if let Some(id) = frontmatter.featured_media_id {
         // (A translation's featured image that is the original's is left
         // out instead: the target blog takes the original's over itself,
@@ -542,6 +544,13 @@ fn run_export(
     // fresh fetch against a baseline that's actually still in sync, instead
     // of against a stale one from whenever this document was last opened.
     frontmatter.wp_content_hash = Some(document::content_hash(&content));
+    // The uploads happened before the post existed: tie them to it now, so
+    // the media library shows where each one is used. Best effort - a
+    // failure here is no reason to fail a post that is already saved.
+    let ids = frontmatter.media.iter().filter_map(|item| item.wordpress.as_ref().map(|wp| wp.media_id)).chain(featured_uploaded).chain(frontmatter.featured_media_id);
+    for id in ids.collect::<std::collections::BTreeSet<u64>>() {
+        let _ = client.attach_media(id, result.id);
+    }
     Ok(result)
 }
 

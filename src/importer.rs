@@ -82,6 +82,10 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
     // its id is kept below regardless, just without a cached title.
     let parent_name = (detail.parent != 0).then(|| client.get_item(post_type.rest_base(), detail.parent).ok().map(|d| d.title)).flatten();
 
+    // Best-effort as well: the featured image's alt text, so the next upload
+    // sends it back unchanged instead of leaving the field empty.
+    let featured_alt = (detail.featured_media != 0).then(|| client.get_media(detail.featured_media).ok()).flatten().map(|m| m.alt_text).filter(|a| !a.is_empty());
+
     let mut body = gutenberg::gutenberg_to_markdown(&detail.content);
     // Footnotes become `[^1]` with their definitions at the end - unless
     // they don't add up, then the meta travels on as it is.
@@ -113,7 +117,7 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
         wp_footnotes: kept_footnotes,
         markdown_hint: false,
         featured_image: None,
-        featured_image_alt: None,
+        featured_image_alt: featured_alt,
         wp_post_id: Some(detail.id),
         // The just-fetched content is, by definition, in sync with the
         // server right now - establishes a baseline so `export.rs`'s

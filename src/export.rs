@@ -289,6 +289,9 @@ pub(crate) fn start_export(
     // A translation links the images of its original instead of uploading
     // them to its own blog.
     let shared = crate::translatedialog::shared_media_for(&current_fm, doc_dir.as_deref());
+    // Links to originals whose translation is online on this blog point
+    // there instead (only in what is sent; the file keeps its text).
+    let body = crate::translate::localized_links(&body, &current_fm, &site);
 
     let (tx, rx) = mpsc::channel::<Result<(wpclient::PostResult, Vec<media::MediaItem>, Option<String>, (Option<String>, Option<u64>)), String>>();
     std::thread::spawn(move || {

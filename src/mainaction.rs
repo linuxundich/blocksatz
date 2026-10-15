@@ -372,7 +372,11 @@ impl MainAction {
         // to the top of the blog, the old date is only kept in the dialog.
         add("republish", |this| {
             let fm = this.ctx.frontmatter.borrow().clone();
-            let before = fm.wp_published_at.as_deref().map(crate::postpane::format_site_date);
+            let remote_date = match this.ctx.remote_for(&fm) {
+                Remote::Present { date, .. } if !date.is_empty() => Some(date),
+                _ => None,
+            };
+            let before = fm.wp_published_at.clone().or(remote_date).as_deref().map(crate::postpane::format_site_date);
             let mut body = match &before {
                 Some(date) => tr("Der Beitrag bekommt das aktuelle Datum und steht im Blog wieder oben. Bisher veröffentlicht am {date}.").replace("{date}", date),
                 None => tr("Der Beitrag bekommt das aktuelle Datum und steht im Blog wieder oben."),
@@ -637,7 +641,13 @@ impl MainAction {
         let Some(window) = self.window.upgrade() else { return };
         let site = self.site();
         let expected = wpsite::site_lang(&site).unwrap_or_else(|| "de".to_string());
-        let found = crate::translate::detect_language(&self.ctx.current_document().body);
+        let doc = self.ctx.current_document();
+        let path = self.ctx.current_path.borrow().clone();
+        // A language version that still holds the original's text is in the
+        // original's language, however short it is.
+        let untranslated = doc.frontmatter.translation.is_some()
+            && crate::translatedialog::find_original(&doc, path.as_deref()).is_some_and(|(_, original)| crate::translate::still_original_text(&doc, &original));
+        let found = if untranslated { Some("de") } else { crate::translate::detect_language(&doc.body) };
         let Some(found) = found.filter(|found| *found != expected) else {
             self.confirm_new_categories(target, preview_after);
             return;
@@ -773,7 +783,7 @@ impl MainAction {
                     let Some(this) = weak.upgrade() else { return };
                     blogsync::record_upload(&this.ctx, post, status);
                     let scheduled = this.ctx.frontmatter.borrow().scheduled_at.clone();
-                    let mut message = upload_message(status, requested, scheduled.as_deref());
+                    let mut message = upload_message(status, requested, scheduled.as_deref(), post.date.as_deref());
                     for note in &post.notes {
                         message.push(' ');
                         message.push_str(note);
@@ -979,7 +989,7 @@ impl MainAction {
                 Some(Remote::Present { link, .. }) => link.clone(),
                 _ => String::new(),
             };
-            remote.insert(key, Remote::Present { modified_gmt: fetched, status: imported.frontmatter.status, link });
+            remote.insert(key, Remote::Present { modified_gmt: fetched, status: imported.frontmatter.status, link, date: imported.frontmatter.wp_published_at.clone().unwrap_or_default() });
         }
         self.ctx.buffer.set_text(&imported.body);
         // The blog doesn't know a translation's link to its original
@@ -1205,10 +1215,15 @@ fn pending_change_action(change: PostStatus) -> (&'static str, String, bool, Vec
 
 /// The toast after an upload, from what WordPress actually stored. When
 /// that isn't what was asked for, it says so - a "publish" that came back
-/// scheduled must not read as "Veröffentlicht".
-fn upload_message(stored: PostStatus, requested: Option<PostStatus>, scheduled_at: Option<&str>) -> String {
+/// scheduled must not read as "Veröffentlicht". A date in the past for
+/// "Geplant" is WordPress's way of backdating: it says that instead.
+fn upload_message(stored: PostStatus, requested: Option<PostStatus>, scheduled_at: Option<&str>, stored_date: Option<&str>) -> String {
     let when = || scheduled_at.map(crate::document::format_scheduled_at_for_display).unwrap_or_default();
     match requested {
+        Some(PostStatus::Future) if matches!(stored, PostStatus::Publish | PostStatus::Private) => match stored_date.filter(|d| !d.is_empty()) {
+            Some(date) => tr("Rückdatiert: veröffentlicht am {date}.").replace("{date}", &crate::postpane::format_site_date(date)),
+            None => tr("Rückdatiert."),
+        },
         Some(requested) if requested != stored => {
             let base = tr("Hochgeladen, aber WordPress hat den Beitrag als „{stored}“ gespeichert, nicht als „{requested}“.")
                 .replace("{stored}", &stored.label())
@@ -1234,11 +1249,12 @@ mod tests {
 
     #[test]
     fn a_publish_that_came_back_scheduled_does_not_read_as_published() {
-        let message = upload_message(PostStatus::Future, Some(PostStatus::Publish), Some("2026-12-24T10:00:00"));
+        let message = upload_message(PostStatus::Future, Some(PostStatus::Publish), Some("2026-12-24T10:00:00"), None);
         assert!(message.contains("nicht als"), "{message}");
         assert!(message.contains("2026-12-24 10:00"), "{message}");
-        assert_eq!(upload_message(PostStatus::Publish, Some(PostStatus::Publish), None), tr("Veröffentlicht."));
-        assert_eq!(upload_message(PostStatus::Draft, None, None), tr("Aktualisiert."));
+        assert_eq!(upload_message(PostStatus::Publish, Some(PostStatus::Publish), None, None), tr("Veröffentlicht."));
+        assert_eq!(upload_message(PostStatus::Publish, Some(PostStatus::Future), Some("2025-01-15T10:00:00"), Some("2025-01-15T10:00:00")), tr("Rückdatiert: veröffentlicht am {date}.").replace("{date}", "15.01.2025, 10:00"));
+        assert_eq!(upload_message(PostStatus::Draft, None, None, None), tr("Aktualisiert."));
     }
 
     #[test]

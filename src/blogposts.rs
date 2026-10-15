@@ -250,7 +250,14 @@ impl BlogPostsPage {
                 state.page = 1;
                 state.total_pages = 1;
                 state.posts.clear();
-                state.in_library = library::scan(&library::root()).iter().filter_map(|entry| entry.document.frontmatter.wp_post_id).collect();
+                // Only this blog's ids: the DE and EN blogs number their
+                // posts independently.
+                let site_id = site.site_id();
+                state.in_library = library::scan(&library::root())
+                    .iter()
+                    .filter(|entry| entry.document.frontmatter.wp_site.as_deref().is_none_or(|s| s == site_id))
+                    .filter_map(|entry| entry.document.frontmatter.wp_post_id)
+                    .collect();
             }
             state.loading = true;
             (state.filter, state.page, state.generation)
@@ -285,7 +292,7 @@ impl BlogPostsPage {
                 match outcome {
                     Ok(result) => this.append(result, reset),
                     Err(err) if reset => {
-                        this.show_status("network-error-symbolic", &tr("Beiträge konnten nicht geladen werden"), &err);
+                        this.show_status("network-error-symbolic", &if filter == BlogFilter::Pages { tr("Seiten konnten nicht geladen werden") } else { tr("Beiträge konnten nicht geladen werden") }, &err);
                         this.retry.set_visible(true);
                     }
                     Err(err) => (this.on_error)(&tr("Fehler beim Laden: {err}").replace("{err}", &err)),

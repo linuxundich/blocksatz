@@ -59,6 +59,7 @@ pub fn build_status_row(frontmatter: &Rc<RefCell<Frontmatter>>) -> (adw::ComboRo
 
     let scheduled_row = adw::EntryRow::builder()
         .title(tr("Veröffentlichungstermin (JJJJ-MM-TT HH:MM)"))
+        .tooltip_text(tr("Ein Datum in der Vergangenheit datiert den Beitrag zurück; er bleibt bzw. geht online."))
         .text(current.scheduled_at.as_deref().map(document::format_scheduled_at_for_display).unwrap_or_default().as_str())
         .build();
     scheduled_row.set_visible(current.status == PostStatus::Future);

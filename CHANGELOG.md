@@ -28,6 +28,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   it into the same folder.
 - **AI translation keeps Via & Quelle.** A new translation made by AI takes
   over the original's Via and Quelle, as the template path already did.
+- **Internal links in language versions.** When a language version is
+  uploaded, links to articles of the main blog whose language version for
+  that language is published on the target blog point to that version
+  (pairs from the library; only the uploaded text changes).
+- **Backdating reads as backdating.** A date in the past under "Geplant"
+  ends with "Rückdatiert: veröffentlicht am …" instead of a warning that
+  WordPress stored a different status; the date field says what a past date
+  does.
+- **Language check for short texts.** Four marker words are enough when
+  the other language has hardly any, and a language version that still
+  holds its original's text counts as the original's language.
+- **The featured image's alt text comes along** when a post is opened from
+  the blog.
+- **Publish date for older working copies** is taken from the last sync
+  check until the next upload stores it.
+- **The blog list marks only its own blog's posts** as in the library (the
+  DE and EN blogs number posts independently), and the pages list's error
+  says "Seiten".
+- **Typographic quotes in AI translations.** The default translation prompt
+  asks for the target language's quotation marks (a prompt of your own
+  stays as it is).
 - **Deleted language versions are noticed with any blog active.** The sync
   check asks every blog that has working copies, not only the active one -
   a trashed English post shows its banner while the German blog is active.

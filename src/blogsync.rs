@@ -101,14 +101,14 @@ pub fn refresh_if_stale(ctx: &DocContext) {
 /// next check.
 pub fn record_upload(ctx: &DocContext, post: &wpclient::PostResult, status: PostStatus) {
     let site = ctx.frontmatter.borrow().wp_site.clone().unwrap_or_else(|| wpsite::load().site_id());
-    ctx.remote.borrow_mut().insert((site, post.id), Remote::Present { modified_gmt: post.modified_gmt.clone(), status, link: post.link.clone() });
+    ctx.remote.borrow_mut().insert((site, post.id), Remote::Present { modified_gmt: post.modified_gmt.clone(), status, link: post.link.clone(), date: post.date.clone().unwrap_or_default() });
 }
 
 fn to_remote(post: &wpclient::PostSummary) -> Remote {
     if post.status == "trash" {
         Remote::Gone
     } else {
-        Remote::Present { modified_gmt: post.modified_gmt.clone(), status: PostStatus::from_str(&post.status), link: post.link.clone() }
+        Remote::Present { modified_gmt: post.modified_gmt.clone(), status: PostStatus::from_str(&post.status), link: post.link.clone(), date: post.date.clone() }
     }
 }
 

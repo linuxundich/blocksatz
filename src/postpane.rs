@@ -168,7 +168,13 @@ impl PostPane {
             (Some(at), Some(_)) => tr("Zuletzt abgeglichen: {at}").replace("{at}", &format_timestamp(at)),
             _ => tr("Noch nicht im Blog."),
         };
-        let published_at = doc.frontmatter.wp_published_at.as_deref().filter(|_| matches!(doc.frontmatter.wp_status, Some(PostStatus::Publish | PostStatus::Private)));
+        // Older working copies have no date yet: the last sync check knows it.
+        let remote_date = match &remote {
+            Remote::Present { date, status: PostStatus::Publish | PostStatus::Private, .. } if !date.is_empty() => Some(date.clone()),
+            _ => None,
+        };
+        let published_at = doc.frontmatter.wp_published_at.clone().filter(|_| matches!(doc.frontmatter.wp_status, Some(PostStatus::Publish | PostStatus::Private))).or(remote_date);
+        let published_at = published_at.as_deref();
         let detail = match published_at {
             Some(date) => format!("{}\n{detail}", tr("Veröffentlicht am {date}").replace("{date}", &format_site_date(date))),
             None => detail,

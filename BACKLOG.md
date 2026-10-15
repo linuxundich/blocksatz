@@ -94,15 +94,17 @@ Updating existing posts is safe (ID, slug, date, metadata kept); open:
   checks the active blog only.
 - [x] **Publish date not kept or shown (P2, gap)** - no "re-publish now"
   for published posts; the original date is lost after C3.
-- [ ] Smaller (P3): backdating only via "Geplant" with a misleading toast,
+- [x] Smaller (P3): backdating only via "Geplant" with a misleading toast,
   internal links stay on the DE URL in EN, „…“ becomes "…", language check
-  needs 8 marker words.
-- [ ] Found while fixing the P2s (P3): the blog list's "in the library"
-  mark compares post ids only (the DE and EN blogs number independently);
-  a folder made for a translation keeps its English name when the original
-  joins it; working copies from before this fix show the publish date only
-  after their next upload or reopening; the list's error says "Beiträge"
-  on the pages list too.
+  needs 8 marker words, featured image alt text not read on import.
+- [x] Found while fixing the P2s (P3): the blog list's "in the library"
+  mark compares post ids only; older working copies show no publish date;
+  the list's error says "Beiträge" on the pages list too.
+- [ ] A folder made for a translation keeps its English name when the
+  original joins it (renaming would move an open file).
+- [ ] Blog search finds „Ü“ only as „Ü“, not as „Ue“ (WordPress search;
+  optional).
+- [ ] A separate publish-date field instead of backdating via "Geplant".
 
 ## Next up (after 0.66.0)
 

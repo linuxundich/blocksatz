@@ -93,8 +93,9 @@ pub enum Remote {
     /// Not fetched (yet), or the site is unreachable - judge from local
     /// data alone.
     Unknown,
-    /// The post exists; its current `modified_gmt`, status and permalink.
-    Present { modified_gmt: String, status: PostStatus, link: String },
+    /// The post exists; its current `modified_gmt`, status, permalink and
+    /// post date (site time).
+    Present { modified_gmt: String, status: PostStatus, link: String, date: String },
     /// Deleted or moved to the trash on the server.
     Gone,
 }
@@ -189,7 +190,7 @@ mod tests {
     }
 
     fn present(modified_gmt: &str, status: PostStatus) -> Remote {
-        Remote::Present { modified_gmt: modified_gmt.into(), status, link: String::new() }
+        Remote::Present { modified_gmt: modified_gmt.into(), status, link: String::new(), date: String::new() }
     }
 
     #[test]

@@ -33,7 +33,7 @@ Rules:
 2. Keep the Markdown structure: headings, lists, tables, quotes, blank lines. Translate the human-readable text of image captions, alt texts (the quoted title after an image URL) and link texts.
 3. Do not add facts, version numbers, dates, links or opinions. Do not update outdated statements.
 4. Carry jokes, irony and the strength of judgements over with the same effect. Address the reader the way the original does.
-5. Use the target language's conventions for dates, numbers and quotation marks outside of code.
+5. Use the target language's conventions for dates, numbers and quotation marks outside of code: typographic quotes, never straight ones in running text (English “…” and ‘…’, German „…“ and ‚…‘). The straight quotes around an image title stay Markdown syntax.
 6. Output only the translation - no preface, no notes, no code fence around it.";
 
 pub fn language_name(code: &str) -> &'static str {
@@ -211,6 +211,53 @@ pub fn word_diff(old: &str, new: &str) -> Vec<(Change, String)> {
         } else {
             push(Change::Inserted, b[j]);
             j += 1;
+        }
+    }
+    out
+}
+
+/// `body` for upload to `target` (a language blog): links to an original
+/// on the main blog whose language version for this language is published
+/// on `target` point to that version. Pairs come from the library (slugs
+/// of both files); anything not found there stays as it is.
+pub fn localized_links(body: &str, frontmatter: &document::Frontmatter, target: &crate::wpsite::SiteConfig) -> String {
+    let Some(lang) = frontmatter.translation.as_ref().map(|l| l.lang.clone()).or_else(|| frontmatter.lang.clone()) else { return body.to_string() };
+    let Some(main) = crate::wpsite::for_lang(None) else { return body.to_string() };
+    let (main_id, target_id) = (main.site_id(), target.site_id());
+    if main_id == target_id {
+        return body.to_string();
+    }
+    let pairs: Vec<(String, String)> = crate::library::scan_pairs(&crate::library::root())
+        .iter()
+        .filter_map(|pair| {
+            let original = &pair.original()?.document.frontmatter;
+            let version = &pair.get(Some(&lang))?.document.frontmatter;
+            let online = version.wp_post_id.is_some() && version.wp_status == Some(PostStatus::Publish) && version.wp_site.as_deref() == Some(target_id.as_str());
+            let from_main = original.wp_site.as_deref().is_none_or(|s| s == main_id);
+            (online && from_main && !original.slug.is_empty() && !version.slug.is_empty()).then(|| (original.slug.clone(), version.slug.clone()))
+        })
+        .collect();
+    rewrite_links(body, &main.url, &target.url, &pairs)
+}
+
+/// Replaces links `<from>/<slug>/` (also without the closing slash, or
+/// with an anchor) by `<to>/<new slug>/`, for each `(slug, new slug)`.
+/// Both `http` and `https` spellings of `from` match.
+pub fn rewrite_links(body: &str, from: &str, to: &str, pairs: &[(String, String)]) -> String {
+    let from = from.trim_end_matches('/');
+    let to = to.trim_end_matches('/');
+    let bare = from.split_once("://").map_or(from, |(_, rest)| rest);
+    let mut out = body.to_string();
+    for scheme in ["https://", "http://"] {
+        let base = format!("{scheme}{bare}/");
+        for (slug, new_slug) in pairs {
+            for end in ['/', ')', '#', '"', ' '] {
+                let old = format!("{base}{slug}{end}");
+                if out.contains(&old) {
+                    let end = if end == ')' || end == '"' || end == ' ' { format!("/{end}") } else { end.to_string() };
+                    out = out.replace(&old, &format!("{to}/{new_slug}{end}"));
+                }
+            }
         }
     }
     out
@@ -589,13 +636,23 @@ pub fn detect_language(body: &str) -> Option<&'static str> {
             en += 1;
         }
     }
-    if de >= 8 && de >= en * 3 {
+    // A few marker words already tell a short text when the other
+    // language has (almost) none.
+    if de >= 4 && de >= en * 3 {
         Some("de")
-    } else if en >= 8 && en >= de * 3 {
+    } else if en >= 4 && en >= de * 3 {
         Some("en")
     } else {
         None
     }
+}
+
+/// Whether `doc` is still its original's text: every non-empty section
+/// of it appears unchanged in `original` (a template not translated yet).
+pub fn still_original_text(doc: &Document, original: &Document) -> bool {
+    let theirs: Vec<String> = split_sections(&original.body).iter().map(|s| section_hash(s)).collect();
+    let ours: Vec<String> = split_sections(&doc.body).iter().filter(|s| !s.trim().is_empty()).map(|s| section_hash(s)).collect();
+    !ours.is_empty() && ours.iter().all(|h| theirs.contains(h))
 }
 
 /// Words in `text` (with placeholders, i.e. without code) that look like
@@ -1482,6 +1539,24 @@ mod tests {
         let same = translate(&source_doc(), Some(&previous), &opts(), "sys", &send, &|_, _| {}).unwrap();
         assert_eq!(*calls.borrow(), 0);
         assert!(same.document.frontmatter.translation.as_ref().unwrap().reviewed);
+    }
+
+    #[test]
+    fn a_short_untranslated_template_is_still_german() {
+        let original = document::parse("---\ntitle: \"x\"\n---\nEin Text für den Test, der nicht übersetzt ist.\n\n## Teil\nMit einem Satz.\n");
+        let mut copy = original.clone();
+        assert!(still_original_text(&copy, &original));
+        copy.body = "An English text for the test.\n\n## Part\nWith one sentence.\n".into();
+        assert!(!still_original_text(&copy, &original));
+        assert_eq!(detect_language("Ein Text für den Test, der nicht übersetzt ist und auch kurz."), Some("de"));
+    }
+
+    #[test]
+    fn links_to_translated_originals_point_to_the_language_version() {
+        let pairs = vec![("ein-artikel".to_string(), "an-article".to_string())];
+        let body = "Siehe [hier](https://blog.example/ein-artikel/), [dort](http://blog.example/ein-artikel#teil), [kurz](https://blog.example/ein-artikel) und [anders](https://blog.example/ein-artikel-zwei/).";
+        let out = rewrite_links(body, "https://blog.example", "https://blog.example/en", &pairs);
+        assert_eq!(out, "Siehe [hier](https://blog.example/en/an-article/), [dort](https://blog.example/en/an-article#teil), [kurz](https://blog.example/en/an-article/) und [anders](https://blog.example/ein-artikel-zwei/).");
     }
 
     #[test]

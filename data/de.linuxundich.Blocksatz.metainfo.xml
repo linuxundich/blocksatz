@@ -25,6 +25,13 @@
   <url type="homepage">https://github.com/linuxundich/blocksatz</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksatz</url>
   <releases>
+    <release version="0.72.0" date="2026-10-15">
+      <description>
+        <p>Neu: Felder für „Via“ und „Quelle“ unter dem Artikel. Eigene Zeilen im Kopf der Datei bleiben beim Speichern erhalten. „Per KI aktualisieren“ behält Abschnitte der Übersetzung, die du selbst bearbeitet hast.</p>
+        <p>Behoben: Blocksatz zeigt den Status, den WordPress gespeichert hat. „Jetzt veröffentlichen“, Termine und ein im Beitrag geänderter Status kommen im Blog an. Alternativtexte und Bildunterschriften folgen dem Markdown, auch in der Mediathek, und Übersetzungen veröffentlichen keine deutschen Bildtexte mehr. KI-Alternativtexte, Bildunterschriften und Tags kommen in der Sprache des Artikels. Der Alternativtext des Beitragsbilds wird gespeichert.</p>
+        <p>SEO-Felder erscheinen nur, wenn Rank Math aktiv ist. Vor neuen Kategorien fragt Blocksatz nach. Die Entwurfsvorschau führt zur Anmeldung statt zu einer 404-Seite, geprüfte Zugangsdaten werden gleich gespeichert.</p>
+      </description>
+    </release>
     <release version="0.71.0" date="2026-10-13">
       <description>
         <p>Bilder und Videos in Deutsch und Englisch: Dateien mit der Sprache im Namen (bild.de.webp, bild.en.webp; ohne Kürzel gilt für beide). Eine Übersetzung übernimmt, was nicht für ihre Sprache markiert ist, aus dem Blog des Originals und lädt nur eigene Bilder hoch. „Bilder dieser Fassung …“ schaltet jedes Bild zwischen beiden um.</p>

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.72.0] - 2026-10-15
+
 Fixes from the QA audit of 0.71.0 (bilingual DE → EN workflow, tested in
 an Ubuntu 26.04 VM against the test blog).
 
@@ -2569,7 +2571,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.71.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.72.0...HEAD
+[0.72.0]: https://github.com/linuxundich/blocksatz/compare/v0.71.0...v0.72.0
 [0.71.0]: https://github.com/linuxundich/blocksatz/compare/v0.70.0...v0.71.0
 [0.70.0]: https://github.com/linuxundich/blocksatz/compare/v0.69.0...v0.70.0
 [0.69.0]: https://github.com/linuxundich/blocksatz/compare/v0.68.0...v0.69.0

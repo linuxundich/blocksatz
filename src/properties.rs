@@ -658,6 +658,30 @@ pub fn build(
     image_group.add(&featured_image_row);
     image_group.add(&featured_image_alt_row);
 
+    // The theme's "Via" and "Quelle" lines under the article - posts only
+    // (the meta is registered for posts).
+    let source_group = adw::PreferencesGroup::builder().title(glib::markup_escape_text(&tr("Via & Quelle")).as_str()).build();
+    source_group.set_description(Some(&tr("Erscheinen unter dem Artikel. Leer lassen, wenn es keine gibt.")));
+    for (title, field) in [
+        (tr("Via – Name"), SourceField::ViaLabel),
+        (tr("Via – Adresse"), SourceField::ViaUrl),
+        (tr("Quelle – Name"), SourceField::SourceLabel),
+        (tr("Quelle – Adresse"), SourceField::SourceUrl),
+    ] {
+        let row = adw::EntryRow::builder().title(title).text(field.get(&current).unwrap_or_default().as_str()).build();
+        let frontmatter = frontmatter.clone();
+        row.connect_changed(move |row| {
+            let text = row.text().trim().to_string();
+            let mut fm = frontmatter.borrow_mut();
+            // Empty stays "unknown" unless the field had a value: then it
+            // is a deliberate clearing that has to reach the blog.
+            let value = if text.is_empty() && field.get(&fm).is_none() { None } else { Some(text) };
+            field.set(&mut fm, value);
+        });
+        source_group.add(&row);
+    }
+    source_group.set_visible(current.post_type == PostType::Post);
+
     // Same "only matters on a site with RankMath active" reasoning as
     // before for keeping these visually/organizationally distinct - now
     // additionally covers the URL-length hint, which is SEO-flavored
@@ -669,12 +693,25 @@ pub fn build(
     seo_group.add(&seo_title_row);
     seo_group.add(&seo_description_row);
     seo_group.add(&focus_keyword_row);
+    // Only offered where Rank Math is active - elsewhere WordPress drops
+    // these fields silently. Values a working copy already carries stay
+    // visible, with a note that they don't reach the blog.
+    {
+        let seo_group = seo_group.clone();
+        let has_values = [&current.rank_math_title, &current.rank_math_description, &current.rank_math_focus_keyword].iter().any(|v| v.as_deref().is_some_and(|v| !v.trim().is_empty()));
+        crate::siteinfo::probe(&wpsite::for_site_id(current.wp_site.as_deref()), move |active| {
+            seo_group.set_visible(active || has_values);
+            if !active {
+                seo_group.set_description(Some(&tr("Rank Math ist auf diesem Blog nicht aktiv – diese Felder werden nicht gespeichert. Als Meta-Beschreibung dient der Auszug.")));
+            }
+        });
+    }
 
     // Pages have no categories/tags (see `PostType`), so the group is
     // hidden for one rather than offering fields export would ignore.
     taxonomy_group.set_visible(current.post_type == PostType::Post);
     let content = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(24).build();
-    for group in [&general_group, &publishing_group, &taxonomy_group, &image_group, &seo_group] {
+    for group in [&general_group, &publishing_group, &taxonomy_group, &image_group, &source_group, &seo_group] {
         group.set_vexpand(false);
         content.append(group);
     }
@@ -898,6 +935,35 @@ pub fn build(
     refresh_url_length_row(&url_length_row, &url_length_icon, &site.url, &frontmatter, &category_slugs);
 
     content.upcast()
+}
+
+/// One of the four "Via & Quelle" fields of `Frontmatter`.
+#[derive(Clone, Copy)]
+enum SourceField {
+    ViaLabel,
+    ViaUrl,
+    SourceLabel,
+    SourceUrl,
+}
+
+impl SourceField {
+    fn get(self, fm: &Frontmatter) -> Option<String> {
+        match self {
+            SourceField::ViaLabel => fm.via_label.clone(),
+            SourceField::ViaUrl => fm.via_url.clone(),
+            SourceField::SourceLabel => fm.source_label.clone(),
+            SourceField::SourceUrl => fm.source_url.clone(),
+        }
+    }
+
+    fn set(self, fm: &mut Frontmatter, value: Option<String>) {
+        match self {
+            SourceField::ViaLabel => fm.via_label = value,
+            SourceField::ViaUrl => fm.via_url = value,
+            SourceField::SourceLabel => fm.source_label = value,
+            SourceField::SourceUrl => fm.source_url = value,
+        }
+    }
 }
 
 #[cfg(test)]

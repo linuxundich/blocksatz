@@ -116,10 +116,15 @@ pub fn checks(doc: &Document) -> Vec<Check> {
         out.push(check(tr("Übersetzung"), tr("KI-Übersetzung noch nicht gegengelesen – im Menü „Gegenlesen …“ bestätigen."), Severity::Error, Fix::Translation));
     }
 
-    out.push(match fm.rank_math_focus_keyword.as_deref().map(str::trim).filter(|k| !k.is_empty()) {
-        Some(keyword) => check(tr("Fokus-Keyword"), keyword.to_string(), Severity::Ok, Fix::Properties),
-        None => check(tr("Fokus-Keyword"), tr("Optional, für RankMath."), Severity::Hint, Fix::Properties),
-    });
+    // Only where Rank Math is known to be active: elsewhere the keyword
+    // has nowhere to go.
+    let rank_math = crate::siteinfo::rank_math_active(&crate::wpsite::for_site_id(fm.wp_site.as_deref()).url) == Some(true);
+    if rank_math {
+        out.push(match fm.rank_math_focus_keyword.as_deref().map(str::trim).filter(|k| !k.is_empty()) {
+            Some(keyword) => check(tr("Fokus-Keyword"), keyword.to_string(), Severity::Ok, Fix::Properties),
+            None => check(tr("Fokus-Keyword"), tr("Optional, für RankMath."), Severity::Hint, Fix::Properties),
+        });
+    }
 
     out
 }

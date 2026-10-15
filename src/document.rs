@@ -156,6 +156,18 @@ pub struct Frontmatter {
     pub rank_math_title: Option<String>,
     pub rank_math_description: Option<String>,
     pub rank_math_focus_keyword: Option<String>,
+    /// "Via" and "Quelle" of the article - the theme's post meta
+    /// `lui_via_label`/`lui_via_url`/`lui_source_label`/`lui_source_url`,
+    /// shown under the article. `Some` (even empty) once known or edited,
+    /// so clearing a field reaches WordPress; `None` leaves the blog's
+    /// value alone.
+    pub via_label: Option<String>,
+    pub via_url: Option<String>,
+    pub source_label: Option<String>,
+    pub source_url: Option<String>,
+    /// Header lines Blocksatz doesn't know, as `(key, raw value)` - kept and
+    /// written back unchanged instead of being dropped on the next save.
+    pub extra: Vec<(String, String)>,
     /// The post's footnote texts - WordPress keeps them in the `footnotes`
     /// post meta (a JSON array), not in the content, which only holds the
     /// `<sup data-fn>` markers and the `wp:footnotes` block. Carried along
@@ -312,6 +324,11 @@ pub struct TranslationLink {
     pub translated_at: String,
     /// Reviewed by a person - only then may it be published and linked.
     pub reviewed: bool,
+    /// `translate::section_hash` of each section of *this* translation as
+    /// it came out of the translation (or the template) - a section that
+    /// differs now was edited by hand, and an AI update asks before
+    /// replacing it. Empty for translations made before this was kept.
+    pub target_sections: Vec<String>,
 }
 
 impl Frontmatter {
@@ -454,7 +471,15 @@ pub fn parse(input: &str) -> Document {
             "translation_sections" => translation.source_sections = parse_list(value),
             "translated_at" => translation.translated_at = unquote(value),
             "translation_reviewed" => translation.reviewed = value.trim() == "true",
-            _ => {}
+            "translation_target_sections" => translation.target_sections = parse_list(value),
+            "via_label" => frontmatter.via_label = Some(unquote(value)),
+            "via_url" => frontmatter.via_url = Some(unquote(value)),
+            "source_label" => frontmatter.source_label = Some(unquote(value)),
+            "source_url" => frontmatter.source_url = Some(unquote(value)),
+            // Short forms someone writes by hand: the address.
+            "via" if frontmatter.via_url.is_none() => frontmatter.via_url = Some(unquote(value)),
+            "quelle" | "source" if frontmatter.source_url.is_none() => frontmatter.source_url = Some(unquote(value)),
+            _ => frontmatter.extra.push((key.to_string(), value.to_string())),
         }
     }
     if let Some((site, id)) = translation_of {
@@ -514,6 +539,11 @@ pub fn serialize(doc: &Document) -> String {
     if let Some(keyword) = &fm.rank_math_focus_keyword {
         out.push_str(&format!("rank_math_focus_keyword: \"{}\"\n", escape(keyword)));
     }
+    for (key, value) in [("via_label", &fm.via_label), ("via_url", &fm.via_url), ("source_label", &fm.source_label), ("source_url", &fm.source_url)] {
+        if let Some(value) = value {
+            out.push_str(&format!("{key}: \"{}\"\n", escape(value)));
+        }
+    }
     if let Some(img) = &fm.featured_image {
         out.push_str(&format!("featured_image: \"{}\"\n", escape(img)));
     }
@@ -572,6 +602,12 @@ pub fn serialize(doc: &Document) -> String {
         if t.reviewed {
             out.push_str("translation_reviewed: true\n");
         }
+        if !t.target_sections.is_empty() {
+            out.push_str(&format!("translation_target_sections: {}\n", render_list(&t.target_sections)));
+        }
+    }
+    for (key, value) in &fm.extra {
+        out.push_str(&format!("{key}: {value}\n"));
     }
     out.push_str("---\n\n");
     out.push_str(&doc.body);
@@ -810,6 +846,34 @@ pub fn media_reference_kind(source: &str) -> MediaReferenceKind {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn via_and_source_round_trip_and_an_empty_value_stays_known() {
+        let input = "---\ntitle: \"T\"\nvia_label: \"Heise\"\nvia_url: \"https://heise.de/x\"\nsource_url: \"\"\n---\n\nText\n";
+        let doc = parse(input);
+        assert_eq!(doc.frontmatter.via_label.as_deref(), Some("Heise"));
+        assert_eq!(doc.frontmatter.via_url.as_deref(), Some("https://heise.de/x"));
+        assert_eq!(doc.frontmatter.source_url.as_deref(), Some(""), "an emptied field is a clearing to send");
+        assert_eq!(doc.frontmatter.source_label, None);
+        assert_eq!(parse(&serialize(&doc)), doc);
+    }
+
+    #[test]
+    fn via_and_quelle_short_forms_become_the_addresses() {
+        let doc = parse("---\ntitle: \"T\"\nvia: \"https://a.example\"\nquelle: \"https://b.example\"\n---\n\nText\n");
+        assert_eq!(doc.frontmatter.via_url.as_deref(), Some("https://a.example"));
+        assert_eq!(doc.frontmatter.source_url.as_deref(), Some("https://b.example"));
+        assert!(doc.frontmatter.extra.is_empty());
+    }
+
+    #[test]
+    fn unknown_header_lines_survive_saving() {
+        let doc = parse("---\ntitle: \"T\"\nmein_feld: \"Wert\"\nnotiz: frei\n---\n\nText\n");
+        assert_eq!(doc.frontmatter.extra, vec![("mein_feld".to_string(), "\"Wert\"".to_string()), ("notiz".to_string(), "frei".to_string())]);
+        let saved = serialize(&doc);
+        assert!(saved.contains("mein_feld: \"Wert\"\n") && saved.contains("notiz: frei\n"), "{saved}");
+        assert_eq!(parse(&saved), doc);
+    }
 
     #[test]
     fn markdown_hint_round_trips_and_is_omitted_when_off() {
@@ -1084,6 +1148,7 @@ mod tests {
                     source_sections: vec!["11111111".to_string(), "22222222".to_string()],
                     translated_at: "2026-10-03".to_string(),
                     reviewed: true,
+                    target_sections: vec!["33333333".to_string(), "44444444".to_string()],
                 }),
                 ..Frontmatter::default()
             },
@@ -1138,6 +1203,11 @@ mod tests {
                 wp_pending_create: None,
                 wp_status: None,
                 wp_scheduled_at: None,
+                via_label: None,
+                via_url: None,
+                source_label: None,
+                source_url: None,
+                extra: Vec::new(),
                 lang: None,
                 translation: None,
                 featured_media_id: Some(99),

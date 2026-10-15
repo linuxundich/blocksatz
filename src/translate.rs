@@ -671,6 +671,29 @@ pub struct Options {
     /// ignoring case, so "Tuxedo" isn't created again as "TUXEDO".
     pub known_tags: Vec<String>,
     pub known_categories: Vec<String>,
+    /// Sections (by index) of the previous translation to keep as they
+    /// are although their original changed - edited by hand
+    /// (`hand_edited_at_risk`). They keep the old original's hash, so
+    /// they still show as changed in the original.
+    pub keep_sections: Vec<usize>,
+}
+
+/// Sections of `previous` (a translation) that were edited by hand since
+/// they were translated and that an update from `source` would replace -
+/// by index. Empty when it can't be told (no recorded `target_sections`,
+/// or the section structure changed).
+pub fn hand_edited_at_risk(source: &Document, previous: &Document) -> Vec<usize> {
+    let Some(link) = &previous.frontmatter.translation else { return Vec::new() };
+    let prev_sections = split_sections(&previous.body);
+    let new_hashes: Vec<String> = split_sections(&body_with_uploaded_images(source)).iter().map(|s| section_hash(s)).collect();
+    if link.target_sections.len() != prev_sections.len() || link.source_sections.len() != prev_sections.len() || new_hashes.len() != prev_sections.len() {
+        return Vec::new();
+    }
+    (0..prev_sections.len())
+        .filter(|&i| !prev_sections[i].trim().is_empty())
+        .filter(|&i| !link.source_sections.contains(&new_hashes[i]))
+        .filter(|&i| section_hash(&prev_sections[i]) != link.target_sections[i])
+        .collect()
 }
 
 /// `names` with each one replaced by the spelling of a `known` name it
@@ -934,17 +957,23 @@ pub fn translate(source: &Document, previous: Option<&Document>, opts: &Options,
     // Reusable translated sections from `previous`, by the hash of the
     // original section they came from.
     let mut reuse: Vec<(String, String)> = Vec::new();
+    // Positional view of the previous translation, for `keep_sections`.
+    let mut kept_from: Vec<(String, String)> = Vec::new();
     if let Some(prev) = previous {
         if let Some(link) = &prev.frontmatter.translation {
             let prev_sections = split_sections(&prev.body);
             if prev_sections.len() == link.source_sections.len() {
                 reuse = link.source_sections.iter().cloned().zip(prev_sections).collect();
+                if reuse.len() == sections.len() {
+                    kept_from = reuse.clone();
+                }
             }
         }
     }
+    let keep = |index: usize| opts.keep_sections.contains(&index).then(|| kept_from.get(index)).flatten();
 
     let needs_meta = previous.is_none();
-    let to_send = sections.iter().zip(&hashes).filter(|(s, h)| !s.trim().is_empty() && !reuse.iter().any(|(rh, _)| rh == *h)).count() + usize::from(needs_meta);
+    let to_send = sections.iter().zip(&hashes).enumerate().filter(|(i, (s, h))| !s.trim().is_empty() && !reuse.iter().any(|(rh, _)| rh == *h) && keep(*i).is_none()).count() + usize::from(needs_meta);
     let mut done = 0;
     progress(done, to_send);
 
@@ -960,9 +989,25 @@ pub fn translate(source: &Document, previous: Option<&Document>, opts: &Options,
     let mut body = String::new();
     let mut issues = Vec::new();
     let (mut translated, mut reused) = (0, 0);
+    let mut source_hashes = hashes.clone();
+    let mut target_hashes = Vec::with_capacity(sections.len());
     for (index, (section, hash)) in sections.iter().zip(&hashes).enumerate() {
+        if let Some((old_hash, text)) = keep(index) {
+            // Kept by request: still marked as changed in the original.
+            body.push_str(text);
+            source_hashes[index] = old_hash.clone();
+            target_hashes.push(previous.and_then(|p| p.frontmatter.translation.as_ref()).and_then(|l| l.target_sections.get(index).cloned()).unwrap_or_default());
+            reused += 1;
+            continue;
+        }
         if let Some((_, text)) = reuse.iter().find(|(rh, _)| rh == hash) {
             body.push_str(text);
+            // An unchanged section keeps its baseline: hand edits in it
+            // stay recognizable.
+            let baseline = previous
+                .and_then(|p| p.frontmatter.translation.as_ref())
+                .and_then(|l| l.source_sections.iter().position(|h| h == hash).and_then(|i| l.target_sections.get(i).cloned()));
+            target_hashes.push(baseline.unwrap_or_else(|| section_hash(text)));
             reused += 1;
             continue;
         }
@@ -978,6 +1023,7 @@ pub fn translate(source: &Document, previous: Option<&Document>, opts: &Options,
         for note in notes {
             issues.push(Issue { section: Some(index), message: tr("Hinweis des Modells: {note}").replace("{note}", &note) });
         }
+        target_hashes.push(section_hash(&text));
         body.push_str(&text);
     }
     issues.extend(check(&source_body, &body, &opts.source_lang));
@@ -987,9 +1033,10 @@ pub fn translate(source: &Document, previous: Option<&Document>, opts: &Options,
         source_site: opts.source_site.clone(),
         source_id: source.frontmatter.wp_post_id.unwrap_or_default(),
         source_hash: syncstate::fingerprint(source),
-        source_sections: hashes,
+        source_sections: source_hashes,
         translated_at: opts.today.clone(),
         reviewed: previous.and_then(|p| p.frontmatter.translation.as_ref()).is_some_and(|t| t.reviewed) && translated == 0,
+        target_sections: target_hashes,
     };
 
     let document = match (previous, meta) {
@@ -1340,6 +1387,7 @@ mod tests {
             category_map: "Allgemein = General".into(),
             known_tags: Vec::new(),
             known_categories: Vec::new(),
+            keep_sections: Vec::new(),
         }
     }
 
@@ -1428,6 +1476,45 @@ mod tests {
         let same = translate(&source_doc(), Some(&previous), &opts(), "sys", &send, &|_, _| {}).unwrap();
         assert_eq!(*calls.borrow(), 0);
         assert!(same.document.frontmatter.translation.as_ref().unwrap().reviewed);
+    }
+
+    #[test]
+    fn a_hand_edited_section_is_named_and_can_be_kept() {
+        let calls = RefCell::new(0);
+        let send = fake(&calls);
+        let first = translate(&source_doc(), None, &opts(), "sys", &send, &|_, _| {}).unwrap();
+        let mut previous = first.document.clone();
+        let sections = split_sections(&previous.body);
+        let last = sections.len() - 1;
+        // The editor adds a sentence of their own to the last section.
+        previous.body = format!("{}{}Own sentence.\n", sections[..last].concat(), sections[last]);
+
+        let mut changed = source_doc();
+        changed.body = changed.body.replace("Text.", "Neuer Text.");
+        let at_risk = hand_edited_at_risk(&changed, &previous);
+        assert_eq!(at_risk, vec![last], "the edited section whose original changed");
+
+        let keep = Options { keep_sections: at_risk.clone(), ..opts() };
+        *calls.borrow_mut() = 0;
+        let out = translate(&changed, Some(&previous), &keep, "sys", &send, &|_, _| {}).unwrap();
+        assert_eq!(*calls.borrow(), 0, "nothing sent for the kept section");
+        assert!(out.document.body.contains("Own sentence."));
+        assert_eq!(changed_sections(&changed, &out.document.frontmatter.translation.as_ref().unwrap().source_sections).len(), 1, "still shows as changed in the original");
+
+        let out = translate(&changed, Some(&previous), &opts(), "sys", &send, &|_, _| {}).unwrap();
+        assert!(!out.document.body.contains("Own sentence."), "replaced when not kept");
+    }
+
+    #[test]
+    fn without_a_baseline_nothing_counts_as_hand_edited() {
+        let calls = RefCell::new(0);
+        let send = fake(&calls);
+        let mut previous = translate(&source_doc(), None, &opts(), "sys", &send, &|_, _| {}).unwrap().document;
+        previous.frontmatter.translation.as_mut().unwrap().target_sections.clear();
+        previous.body.push_str("Own sentence.\n");
+        let mut changed = source_doc();
+        changed.body = changed.body.replace("Text.", "Neuer Text.");
+        assert!(hand_edited_at_risk(&changed, &previous).is_empty());
     }
 
     /// Round trip over the real library (read only):

@@ -483,7 +483,7 @@ impl MainAction {
         let expected = wpsite::site_lang(&site).unwrap_or_else(|| "de".to_string());
         let found = crate::translate::detect_language(&self.ctx.current_document().body);
         let Some(found) = found.filter(|found| *found != expected) else {
-            self.upload_now(target, preview_after);
+            self.confirm_new_categories(target, preview_after);
             return;
         };
         let name = |lang: &str| match lang {
@@ -509,11 +509,75 @@ impl MainAction {
         alert.connect_response(None, move |_, response| {
             if response == "upload" {
                 if let Some(this) = weak.upgrade() {
-                    this.upload_now(target, preview_after);
+                    this.confirm_new_categories(target, preview_after);
                 }
             }
         });
         alert.present(Some(&window));
+    }
+
+    /// Asks before an upload creates categories the target blog doesn't
+    /// have - typically a German category name in an English language
+    /// version, which WordPress would otherwise silently add to the English
+    /// blog. Names the mapping setting that avoids it. Without a connection
+    /// (or any error) the upload goes ahead as before; the upload itself
+    /// reports real problems.
+    fn confirm_new_categories(&self, target: TargetStatus, preview_after: bool) {
+        let fm = self.ctx.frontmatter.borrow().clone();
+        if fm.post_type != document::PostType::Post || fm.categories.is_empty() {
+            self.upload_now(target, preview_after);
+            return;
+        }
+        let site = self.site();
+        let names = fm.categories.clone();
+        let (tx, rx) = std::sync::mpsc::channel::<Vec<String>>();
+        std::thread::spawn(move || {
+            let missing = futures_lite::future::block_on(crate::secrets::load_app_password(&site.url, &site.username))
+                .ok()
+                .flatten()
+                .map(|password| {
+                    let client = wpclient::Client::new(&site.url, &site.username, &password);
+                    names.into_iter().filter(|name| matches!(client.find_term("categories", name), Ok(None))).collect()
+                })
+                .unwrap_or_default();
+            let _ = tx.send(missing);
+        });
+        let weak = self.weak.clone();
+        glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
+            let missing = match rx.try_recv() {
+                Ok(missing) => missing,
+                Err(std::sync::mpsc::TryRecvError::Empty) => return glib::ControlFlow::Continue,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => Vec::new(),
+            };
+            let Some(this) = weak.upgrade() else { return glib::ControlFlow::Break };
+            if missing.is_empty() {
+                this.upload_now(target, preview_after);
+                return glib::ControlFlow::Break;
+            }
+            let Some(window) = this.window.upgrade() else { return glib::ControlFlow::Break };
+            let mut body = tr("Diese Kategorien gibt es in {site} noch nicht und würden neu angelegt: {names}.")
+                .replace("{site}", &this.site().site_id())
+                .replace("{names}", &missing.join(", "));
+            if this.ctx.frontmatter.borrow().translation.is_some() {
+                body.push_str("\n\n");
+                body.push_str(&tr("Für Übersetzungen lassen sich Kategorien unter Einstellungen › Übersetzung › „Kategorien zuordnen“ übertragen."));
+            }
+            let alert = adw::AlertDialog::builder().heading(tr("Neue Kategorien anlegen?")).body(body).build();
+            alert.add_response("cancel", &tr("Abbrechen"));
+            alert.add_response("create", &tr("Anlegen und hochladen"));
+            alert.set_default_response(Some("cancel"));
+            alert.set_close_response("cancel");
+            let weak = this.weak.clone();
+            alert.connect_response(None, move |_, response| {
+                if response == "create" {
+                    if let Some(this) = weak.upgrade() {
+                        this.upload_now(target, preview_after);
+                    }
+                }
+            });
+            alert.present(Some(&window));
+            glib::ControlFlow::Break
+        });
     }
 
     fn upload_now(&self, target: TargetStatus, preview_after: bool) {

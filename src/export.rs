@@ -452,6 +452,16 @@ fn run_export(
     if let Some(keyword) = &frontmatter.rank_math_focus_keyword {
         meta.insert("rank_math_focus_keyword".to_string(), serde_json::Value::String(keyword.clone()));
     }
+    // The theme's "Via"/"Quelle" (registered for posts on both blogs);
+    // only what is known here, so an older working copy doesn't clear
+    // values set in the block editor.
+    if frontmatter.post_type == PostType::Post {
+        for (key, value) in [("lui_via_label", &frontmatter.via_label), ("lui_via_url", &frontmatter.via_url), ("lui_source_label", &frontmatter.source_label), ("lui_source_url", &frontmatter.source_url)] {
+            if let Some(value) = value {
+                meta.insert(key.to_string(), serde_json::Value::String(value.trim().to_string()));
+            }
+        }
+    }
     // Footnotes written in Markdown, or the ones an opened post brought
     // along unconverted.
     if let Some(footnotes) = footnotes_meta(&footnotes, frontmatter.wp_footnotes.as_deref()) {
@@ -555,6 +565,12 @@ fn run_export(
     let ids = frontmatter.media.iter().filter_map(|item| item.wordpress.as_ref().map(|wp| wp.media_id)).chain(featured_uploaded).chain(frontmatter.featured_media_id);
     for id in ids.collect::<std::collections::BTreeSet<u64>>() {
         let _ = client.attach_media(id, result.id);
+    }
+    // SEO fields sent to a blog without Rank Math are dropped by WordPress -
+    // said instead of reporting a plain success.
+    let has_seo = [&frontmatter.rank_math_title, &frontmatter.rank_math_description, &frontmatter.rank_math_focus_keyword].iter().any(|v| v.as_deref().is_some_and(|v| !v.trim().is_empty()));
+    if has_seo && crate::siteinfo::rank_math_active(&site.url) == Some(false) {
+        result.notes.push(tr("SEO-Titel/-Beschreibung nicht gespeichert: Rank Math ist auf diesem Blog nicht aktiv."));
     }
     // The featured image's alt text lives on its attachment, not the post:
     // set on every upload, so an edit after the first one arrives too. A
@@ -1413,6 +1429,11 @@ mod tests {
             wp_pending_create: None,
             wp_status: None,
             wp_scheduled_at: None,
+            via_label: None,
+            via_url: None,
+            source_label: None,
+            source_url: None,
+            extra: Vec::new(),
             lang: None,
             translation: None,
             featured_media_id: None,
@@ -1478,6 +1499,11 @@ mod tests {
             wp_pending_create: None,
             wp_status: None,
             wp_scheduled_at: None,
+            via_label: None,
+            via_url: None,
+            source_label: None,
+            source_url: None,
+            extra: Vec::new(),
             lang: None,
             translation: None,
             featured_media_id: None,
@@ -1542,6 +1568,11 @@ mod tests {
             wp_pending_create: None,
             wp_status: None,
             wp_scheduled_at: None,
+            via_label: None,
+            via_url: None,
+            source_label: None,
+            source_url: None,
+            extra: Vec::new(),
             lang: None,
             translation: None,
             featured_media_id: None,
@@ -1605,6 +1636,11 @@ mod tests {
             wp_pending_create: None,
             wp_status: None,
             wp_scheduled_at: None,
+            via_label: None,
+            via_url: None,
+            source_label: None,
+            source_url: None,
+            extra: Vec::new(),
             lang: None,
             translation: None,
             featured_media_id: None,
@@ -1671,6 +1707,11 @@ mod tests {
             wp_pending_create: None,
             wp_status: None,
             wp_scheduled_at: None,
+            via_label: None,
+            via_url: None,
+            source_label: None,
+            source_url: None,
+            extra: Vec::new(),
             lang: None,
             translation: None,
             featured_media_id: None,
@@ -1742,6 +1783,11 @@ mod tests {
             wp_pending_create: None,
             wp_status: None,
             wp_scheduled_at: None,
+            via_label: None,
+            via_url: None,
+            source_label: None,
+            source_url: None,
+            extra: Vec::new(),
             lang: None,
             translation: None,
             featured_media_id: None,

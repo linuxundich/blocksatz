@@ -55,6 +55,35 @@ an Ubuntu 26.04 VM against the test blog).
   original's. The AI button stays available after the upload and reads
   the image from the blog. A failure is reported with the success message
   instead of being swallowed.
+- **Unknown header lines are kept.** A line Blocksatz doesn't know
+  (`via:`, `quelle:`, anything of your own) was dropped on the next save;
+  it is now written back unchanged.
+- **SEO fields only where Rank Math is active.** Rank Math is checked once
+  per blog (its REST namespace). Without it the "RankMath SEO" group is
+  hidden - WordPress dropped those fields silently while the upload
+  reported success. Values a working copy already carries stay visible
+  with a note, an upload with them says they weren't saved, and the
+  release check only offers the focus keyword where it has an effect.
+- **No German categories created silently in the English blog.** Before
+  an upload creates categories the target blog doesn't have, Blocksatz
+  names them and asks; for a translation it points to the category
+  mapping (Einstellungen › Übersetzung).
+- **"Per KI aktualisieren" keeps your own edits.** A language version now
+  remembers each section as it came out of the translation
+  (`translation_target_sections`). Sections about to be re-translated that
+  were edited by hand since are named, and kept unless you switch "Eigene
+  Änderungen behalten" off - they stay marked as changed in the original.
+  Translations made before this have no record yet and are updated as
+  before.
+
+### Added
+
+- **Via & Quelle.** Four fields in the Beitrag tab for the theme's "Via"
+  and "Quelle" lines (`lui_via_label`, `lui_via_url`, `lui_source_label`,
+  `lui_source_url`): read when opening a post, sent on upload (posts only;
+  emptying a field clears it on the blog), taken over into a new language
+  version. Header keys `via_label`, `via_url`, `source_label`, `source_url`;
+  `via:` and `quelle:` are read as the addresses.
 
 ## [0.71.0] - 2026-10-13
 

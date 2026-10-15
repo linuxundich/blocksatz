@@ -14,7 +14,7 @@ what's already shipped.
 Bilingual DE → EN workflow tested in an Ubuntu 26.04 VM against the test
 blog. Full report (German, local only, not in git):
 `qa/2026-10-15/QA-BERICHT.md`. The six P1/P2 items checked below are fixed
-in [Unreleased] and re-tested in the VM (R-01 to R-09). Still open: the
+in [Unreleased] and re-tested in the VM (R-01 to R-13). Still open: the
 media library attachment of an already uploaded body image keeps its old
 alt text (only `<img alt>` in the post follows the Markdown), and the
 items below.
@@ -46,16 +46,16 @@ items below.
   metadata step); path is cleared after upload, so the field and the AI
   button go dead. Decide how EN gets its own alt for the shared image
   (lui-translations). (P1)
-- [ ] **Via & Quelle fields** - `lui_via_label/url`, `lui_source_label/url`
+- [x] **Via & Quelle fields** - `lui_via_label/url`, `lui_source_label/url`
   are registered with `show_in_rest` on both blogs; add them, and keep
   unknown frontmatter keys instead of dropping them (`document.rs:430`). (P2)
-- [ ] **RankMath group only when Rank Math is active** - it is inactive on
+- [x] **RankMath group only when Rank Math is active** - it is inactive on
   test and live; the fields are silently discarded while the upload reports
   success. The theme uses the excerpt as meta description. (P2)
-- [ ] **Category mapping DE → EN as a setting** - categories are copied 1:1,
+- [x] **Category mapping DE → EN as a setting** - categories are copied 1:1,
   the EN blog silently got a new "Spaß" category; ask before creating terms.
   (P2)
-- [ ] **"Per KI aktualisieren" keeps EN-only edits** - replaced sections drop
+- [x] **"Per KI aktualisieren" keeps EN-only edits** - replaced sections drop
   sentences added only in English, without a warning. (P2)
 - [ ] **Preview** - draft preview is a 404 when the built-in browser isn't
   logged in (no hint); "Im Blog" keeps the other language after Alt+1/2. (P2)

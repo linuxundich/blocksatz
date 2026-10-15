@@ -313,6 +313,12 @@ pub struct PostDetail {
     pub rank_math_title: String,
     pub rank_math_description: String,
     pub rank_math_focus_keyword: String,
+    /// The theme's "Via"/"Quelle" meta (`lui_via_*`, `lui_source_label`/
+    /// `_url`), `None` when the blog doesn't register them.
+    pub via_label: Option<String>,
+    pub via_url: Option<String>,
+    pub source_label: Option<String>,
+    pub source_url: Option<String>,
     /// The `footnotes` post meta (JSON), empty if the post has none.
     pub footnotes: String,
     /// `0` means no featured image is set.
@@ -404,6 +410,13 @@ impl Client {
 
     fn endpoint(&self, path: &str) -> String {
         format!("{}/wp-json/wp/v2/{path}", self.base_url)
+    }
+
+    /// The REST namespaces the blog offers (`/wp-json/` index) - tells
+    /// which plugins with an API are active, e.g. `rankmath/v1`.
+    pub fn namespaces(&self) -> Result<Vec<String>> {
+        let value = self.get_json(&format!("{}/wp-json/?_fields=namespaces", self.base_url))?;
+        Ok(value.get("namespaces").and_then(Value::as_array).map(|list| list.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default())
     }
 
     fn get_json(&self, url: &str) -> Result<Value> {
@@ -954,6 +967,8 @@ impl Client {
         // active on the site at all, since WordPress's REST API always
         // includes `meta` as an object, just without unregistered keys.
         let meta_str = |key: &str| -> String { value.get("meta").and_then(|m| m.get(key)).and_then(Value::as_str).unwrap_or_default().to_string() };
+        // Present (even empty) only where the blog registers the key.
+        let meta_opt = |key: &str| -> Option<String> { value.get("meta").and_then(|m| m.get(key)).and_then(Value::as_str).map(str::to_string) };
         Ok(PostDetail {
             id,
             title: post_title(&value),
@@ -962,6 +977,10 @@ impl Client {
             rank_math_title: meta_str("rank_math_title"),
             rank_math_description: meta_str("rank_math_description"),
             rank_math_focus_keyword: meta_str("rank_math_focus_keyword"),
+            via_label: meta_opt("lui_via_label"),
+            via_url: meta_opt("lui_via_url"),
+            source_label: meta_opt("lui_source_label"),
+            source_url: meta_opt("lui_source_url"),
             footnotes: meta_str("footnotes"),
             status: value.get("status").and_then(Value::as_str).unwrap_or("draft").to_string(),
             slug: value.get("slug").and_then(Value::as_str).unwrap_or_default().to_string(),
@@ -1081,6 +1100,15 @@ impl Client {
     /// Resolves a category/tag name to its term id, creating the term if no
     /// exact match exists yet. WordPress's REST API wants term ids, not
     /// names, in a post's `categories`/`tags` arrays.
+    /// The id of an existing category/tag called `name` (case-insensitive,
+    /// as WordPress compares) - `None` when the blog has none, i.e. an
+    /// upload would create it.
+    pub fn find_term(&self, taxonomy: &str, name: &str) -> Result<Option<u64>> {
+        let search_url = format!("{}?search={}", self.endpoint(taxonomy), percent_encode(name));
+        let value = self.get_json(&search_url)?;
+        Ok(value.as_array().and_then(|items| matching_term_id(items, name)))
+    }
+
     pub fn resolve_or_create_term(&self, taxonomy: &str, name: &str) -> Result<u64> {
         let search_url = format!("{}?search={}", self.endpoint(taxonomy), percent_encode(name));
         let mut response = self

@@ -222,6 +222,7 @@ pub fn create_version(ctx: &DocContext, lang: &str, content: Content) -> Result<
         source_sections: translate::split_sections(&source_body).iter().map(|s| translate::section_hash(s)).collect(),
         translated_at: today(),
         reviewed: true,
+        target_sections: Vec::new(),
     };
     let (title, excerpt, body) = match content {
         Content::Template => {
@@ -244,10 +245,22 @@ pub fn create_version(ctx: &DocContext, lang: &str, content: Content) -> Result<
         // No featured image of its own: the target blog takes the
         // original's over (lui-translations), nothing is uploaded twice.
         comment_status: src.comment_status,
+        // Via and Quelle point to the same sources; the labels can be
+        // adapted in the language version.
+        via_label: src.via_label.clone(),
+        via_url: src.via_url.clone(),
+        source_label: src.source_label.clone(),
+        source_url: src.source_url.clone(),
         wp_site: site,
         translation: Some(link),
         ..document::Frontmatter::default()
     };
+    let mut frontmatter = frontmatter;
+    // The starting point of the language version: a section that differs
+    // from it later was written by hand (`translate::hand_edited_at_risk`).
+    if let Some(link) = frontmatter.translation.as_mut() {
+        link.target_sections = translate::split_sections(&body).iter().map(|s| translate::section_hash(s)).collect();
+    }
     document::write(&target, &Document { frontmatter, body }).map_err(|err| err.to_string())?;
     remember_basis(&target, &source);
     Ok(target)
@@ -713,6 +726,21 @@ fn build_form(prep: Prep, window: &adw::ApplicationWindow, ctx: &DocContext, on_
             .replace("{c}", &code_blocks.to_string()),
     };
     list.append(&adw::ActionRow::builder().title(tr("Umfang")).subtitle(scope).subtitle_lines(3).build());
+    // Sections about to be replaced that were edited by hand since: named,
+    // and kept unless the switch is turned off.
+    let at_risk = previous.as_ref().map(|(_, prev)| translate::hand_edited_at_risk(&source, prev)).unwrap_or_default();
+    let keep_row = adw::SwitchRow::builder()
+        .title(tr("Eigene Änderungen behalten"))
+        .subtitle(
+            tr("In {n} der geänderten Abschnitte hast du die Übersetzung selbst bearbeitet (Abschnitt {list}). Bleiben sie, sind sie weiter als „Original geändert“ markiert.")
+                .replace("{n}", &at_risk.len().to_string())
+                .replace("{list}", &at_risk.iter().map(|i| (i + 1).to_string()).collect::<Vec<_>>().join(", ")),
+        )
+        .subtitle_lines(4)
+        .active(true)
+        .visible(!at_risk.is_empty())
+        .build();
+    list.append(&keep_row);
     if previous.is_none() {
         let category_map = aiprompts::load_text_or(translate::CATEGORY_MAP_ID, "");
         let categories = translate::map_categories(&source.frontmatter.categories, &category_map);
@@ -768,6 +796,7 @@ fn build_form(prep: Prep, window: &adw::ApplicationWindow, ctx: &DocContext, on_
             category_map: aiprompts::load_text_or(translate::CATEGORY_MAP_ID, ""),
             known_tags: Vec::new(),
             known_categories: Vec::new(),
+            keep_sections: if keep_row.is_active() { at_risk.clone() } else { Vec::new() },
         };
         let system = aiprompts::load_text_or(translate::PROMPT_ID, translate::DEFAULT_PROMPT);
 
@@ -1076,7 +1105,7 @@ mod tests {
         let article = std::env::var("BLOCKSATZ_LIVE_ARTICLE").expect("BLOCKSATZ_LIVE_ARTICLE");
         let source = document::read(Path::new(&article)).expect("article");
         let system = std::env::var("BLOCKSATZ_PROMPT_FILE").ok().and_then(|p| std::fs::read_to_string(p).ok()).unwrap_or_else(|| translate::DEFAULT_PROMPT.to_string());
-        let opts = Options { source_lang: "de".into(), target_lang: "en".into(), source_site: source_site_of(&source), today: "2026-10-03".into(), translate_tags: true, category_map: "Allgemein = General".into(), known_tags: Vec::new(), known_categories: Vec::new() };
+        let opts = Options { source_lang: "de".into(), target_lang: "en".into(), source_site: source_site_of(&source), today: "2026-10-03".into(), translate_tags: true, category_map: "Allgemein = General".into(), known_tags: Vec::new(), known_categories: Vec::new(), keep_sections: Vec::new() };
         let routed = aitasks::run(AiTask::Translation, |client| {
             let send = |system: &str, history: &[ChatMessage]| client.send_with(system, history, &llm::SendOptions::bulk_text()).map_err(|e| e.message);
             translate::translate(&source, None, &opts, &system, &send, &|d, t| eprintln!("{d}/{t}")).map_err(|message| llm::ApiError { message, status: llm::ModelStatus::Other })

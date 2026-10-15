@@ -67,6 +67,7 @@ mod releasecheck;
 mod richtext;
 mod searchbar;
 mod secrets;
+mod siteinfo;
 mod settings;
 mod shortcuts;
 mod stats;

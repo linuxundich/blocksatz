@@ -91,6 +91,13 @@ impl DetailLevel {
     }
 }
 
+/// The detail level's prompt, pinned to the document's language
+/// (`ailang`) - the prompts are German, and without this an English
+/// language version got German alt text.
+fn build_prompt(level: DetailLevel, lang: &str) -> String {
+    format!("{}{}", level.prompt(), crate::ailang::instruction(lang))
+}
+
 fn config_dir() -> PathBuf {
     let mut dir = glib::user_config_dir();
     dir.push(crate::APP_DIR);
@@ -127,7 +134,7 @@ fn save_detail_level(level: DetailLevel) {
 /// [index].alt`) and the featured image (`properties.rs`, writing into
 /// `Frontmatter.featured_image_alt`), which isn't a `MediaItem` and has
 /// no index into that list.
-pub fn open(window: &gtk4::Window, title: String, source: String, doc_dir: Option<PathBuf>, on_apply: impl Fn(String) + 'static) {
+pub fn open(window: &gtk4::Window, title: String, source: String, doc_dir: Option<PathBuf>, lang: String, on_apply: impl Fn(String) + 'static) {
     let level_labels: Vec<String> = DetailLevel::ALL.iter().map(DetailLevel::label).collect();
     let level_label_refs: Vec<&str> = level_labels.iter().map(String::as_str).collect();
     let selected_level = DetailLevel::ALL.iter().position(|l| *l == load_detail_level()).unwrap_or(0) as u32;
@@ -143,8 +150,11 @@ pub fn open(window: &gtk4::Window, title: String, source: String, doc_dir: Optio
     let generate_button = gtk4::Button::with_label(&tr("Text generieren"));
     generate_button.add_css_class("suggested-action");
 
-    let status_label = gtk4::Label::builder().wrap(true).xalign(0.0).build();
-    status_label.set_visible(false);
+    // The hint lives in the status line, not as text in the buffer: the
+    // buffer is what "Übernehmen" applies, and a placeholder there ended up
+    // as the alt text (German, even in an English article).
+    let status_label = gtk4::Label::builder().wrap(true).xalign(0.0).label(tr("Noch kein Text generiert - auf „Text generieren“ klicken.")).build();
+    status_label.add_css_class("dim-label");
 
     let text_view = gtk4::TextView::builder()
         .wrap_mode(gtk4::WrapMode::WordChar)
@@ -154,7 +164,6 @@ pub fn open(window: &gtk4::Window, title: String, source: String, doc_dir: Optio
         .right_margin(8)
         .build();
     let text_buffer = text_view.buffer();
-    text_buffer.set_text(&tr("Noch kein Text generiert - auf „Text generieren“ klicken."));
 
     let frame = gtk4::Frame::new(None);
     frame.set_child(Some(&text_view));
@@ -181,6 +190,14 @@ pub fn open(window: &gtk4::Window, title: String, source: String, doc_dir: Optio
 
     let apply_button = gtk4::Button::with_label(&tr("Übernehmen"));
     apply_button.add_css_class("suggested-action");
+    // Only with a text to apply - generated, or typed in by hand.
+    apply_button.set_sensitive(false);
+    {
+        let apply_button = apply_button.clone();
+        text_buffer.connect_changed(move |buffer| {
+            apply_button.set_sensitive(!buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).trim().is_empty());
+        });
+    }
 
     let header = adw::HeaderBar::new();
     header.pack_end(&apply_button);
@@ -194,17 +211,22 @@ pub fn open(window: &gtk4::Window, title: String, source: String, doc_dir: Optio
     {
         let source = source.clone();
         let doc_dir = doc_dir.clone();
+        let lang = lang.clone();
         let generate_button_for_click = generate_button.clone();
         let status_label = status_label.clone();
         let text_buffer = text_buffer.clone();
+        let apply_button = apply_button.clone();
         generate_button.connect_clicked(move |_| {
             generate_button_for_click.set_sensitive(false);
+            // Nothing half-finished can be applied while the answer is out.
+            apply_button.set_sensitive(false);
             status_label.set_label(&tr("Wird generiert …"));
             status_label.set_visible(true);
             let generate_button_for_click = generate_button_for_click.clone();
             let status_label = status_label.clone();
             let text_buffer = text_buffer.clone();
-            generate(&source, doc_dir.clone(), move |result| {
+            let apply_button = apply_button.clone();
+            generate(&source, doc_dir.clone(), &lang, move |result| {
                 match result {
                     Ok(text) => {
                         text_buffer.set_text(&text);
@@ -212,6 +234,7 @@ pub fn open(window: &gtk4::Window, title: String, source: String, doc_dir: Optio
                     }
                     Err(err) => status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err)),
                 }
+                apply_button.set_sensitive(!text_buffer.text(&text_buffer.start_iter(), &text_buffer.end_iter(), false).trim().is_empty());
                 generate_button_for_click.set_sensitive(true);
             });
         });
@@ -241,11 +264,11 @@ pub fn open(window: &gtk4::Window, title: String, source: String, doc_dir: Optio
 /// (`imagealt.rs`, for a body image) build their own UI feedback around,
 /// instead of each re-implementing the same background-thread-plus-polling
 /// plumbing.
-pub fn generate(source: &str, doc_dir: Option<PathBuf>, on_result: impl Fn(Result<String, String>) + 'static) {
+pub fn generate(source: &str, doc_dir: Option<PathBuf>, lang: &str, on_result: impl Fn(Result<String, String>) + 'static) {
     let level = load_detail_level();
     let source = source.to_string();
     let mime_type = export::mime_from_extension(&source);
-    let prompt = level.prompt().to_string();
+    let prompt = build_prompt(level, lang);
     let (tx, rx) = mpsc::channel::<Result<aitasks::Routed<String>, String>>();
     std::thread::spawn(move || {
         let outcome = export::read_image_bytes(&source, doc_dir.as_deref())
@@ -300,5 +323,13 @@ mod tests {
     fn from_id_falls_back_to_standard_for_garbage() {
         assert_eq!(DetailLevel::from_id("not-a-level"), DetailLevel::Standard);
         assert_eq!(DetailLevel::from_id(""), DetailLevel::Standard);
+    }
+
+    #[test]
+    fn the_alt_text_prompt_follows_the_article_language() {
+        for level in [DetailLevel::Standard, DetailLevel::Detailed, DetailLevel::Precise] {
+            assert!(build_prompt(level, "en").contains("in English only"));
+            assert!(!build_prompt(level, "de").contains("English"));
+        }
     }
 }

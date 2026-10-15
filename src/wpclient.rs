@@ -46,6 +46,20 @@ pub struct PostResult {
     /// this write - kept in `Frontmatter::wp_modified_gmt` so a later list
     /// fetch can tell cheaply whether the post changed on the server since.
     pub modified_gmt: String,
+    /// The status WordPress actually stored - not necessarily the one
+    /// requested: "publish" with a date in the future comes back as
+    /// "future". `None` if the answer didn't say.
+    pub status: Option<String>,
+    /// The post date as WordPress stored it (site time,
+    /// `YYYY-MM-DDTHH:MM:SS`).
+    pub date: Option<String>,
+    /// The post's featured image as WordPress has it - for a translation
+    /// also the attachment lui-translations set up from the original's.
+    pub featured_media: Option<u64>,
+    /// Things that went wrong after the post itself was saved (filled in
+    /// by `export::run_export`), reported with the success message instead
+    /// of being swallowed.
+    pub notes: Vec<String>,
 }
 
 /// The user an Application Password belongs to (`Client::current_user`).
@@ -107,12 +121,11 @@ pub struct MediaResult {
     pub height: u64,
 }
 
-/// Only used to verify uploads in integration tests (`get_media`/
-/// `delete_media` below) - the app itself only ever needs a
-/// `media::WordPressMediaRef` (id + URL), read back from the locally saved
-/// document, not a live re-fetch from the server.
-#[cfg(test)]
+/// A media item as the server has it now (`get_media`) - the app reads
+/// `source_url` for an uploaded featured image; the other fields verify
+/// uploads in integration tests.
 #[derive(Debug, Clone)]
+#[cfg_attr(not(test), allow(dead_code))]
 pub struct MediaDetail {
     pub id: u64,
     pub source_url: String,
@@ -542,8 +555,9 @@ impl Client {
     /// Fetches a media item's current alt text/caption back from the server
     /// (`context=edit` for the raw, untranslated `caption.raw` rather than
     /// the display-filtered `caption.rendered`) - used to verify an upload's
-    /// metadata actually landed, not just that the `POST` returned 2xx.
-    #[cfg(test)]
+    /// metadata actually landed, not just that the `POST` returned 2xx -
+    /// and, outside tests, for an uploaded featured image's URL
+    /// (`properties.rs`, AI alt text).
     pub fn get_media(&self, media_id: u64) -> Result<MediaDetail> {
         let url = format!("{}?context=edit", self.endpoint(&format!("media/{media_id}")));
         let value = self.get_json(&url)?;
@@ -1058,7 +1072,10 @@ impl Client {
             .ok_or_else(|| ApiError { status, message: tr("Keine Post-ID in der Antwort") })?;
         let link = value.get("link").and_then(Value::as_str).unwrap_or_default().to_string();
         let modified_gmt = value.get("modified_gmt").and_then(Value::as_str).unwrap_or_default().to_string();
-        Ok(PostResult { id, link, modified_gmt })
+        let status = value.get("status").and_then(Value::as_str).map(str::to_string);
+        let date = value.get("date").and_then(Value::as_str).map(str::to_string);
+        let featured_media = value.get("featured_media").and_then(Value::as_u64).filter(|id| *id != 0);
+        Ok(PostResult { id, link, modified_gmt, status, date, featured_media, notes: Vec::new() })
     }
 
     /// Resolves a category/tag name to its term id, creating the term if no

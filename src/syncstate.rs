@@ -43,6 +43,8 @@ pub fn fingerprint(doc: &Document) -> String {
         wp_synced_hash: None,
         wp_synced_at: None,
         wp_pending_create: None,
+        wp_status: None,
+        wp_scheduled_at: None,
         lang: None,
         featured_media_id: None,
         media: Vec::new(),
@@ -63,6 +65,10 @@ pub fn fingerprint(doc: &Document) -> String {
 /// an import and after every successful upload, with the server's own
 /// `modified_gmt` from that same response.
 pub fn mark_synced(doc: &mut Document, site_id: &str, modified_gmt: &str, now_rfc3339: &str) {
+    // Callers have just set `status`/`scheduled_at` to what the server
+    // reported - that is now the baseline a later status edit is told from.
+    doc.frontmatter.wp_status = Some(doc.frontmatter.status);
+    doc.frontmatter.wp_scheduled_at = (doc.frontmatter.status == PostStatus::Future).then(|| doc.frontmatter.scheduled_at.clone()).flatten();
     doc.frontmatter.wp_site = Some(site_id.to_string());
     doc.frontmatter.wp_modified_gmt = (!modified_gmt.is_empty()).then(|| modified_gmt.to_string());
     doc.frontmatter.wp_synced_at = Some(now_rfc3339.to_string());
@@ -181,6 +187,21 @@ mod tests {
     }
 
     #[test]
+    fn syncing_records_the_status_and_date_as_baseline() {
+        let mut d = doc("Text");
+        d.frontmatter.wp_post_id = Some(7);
+        d.frontmatter.status = PostStatus::Future;
+        d.frontmatter.scheduled_at = Some("2026-12-24T10:00:00".into());
+        mark_synced(&mut d, "example.org", "2026-10-01T10:00:00", "2026-10-01T10:00:05Z");
+        assert_eq!(d.frontmatter.wp_status, Some(PostStatus::Future));
+        assert_eq!(d.frontmatter.wp_scheduled_at.as_deref(), Some("2026-12-24T10:00:00"));
+        assert_eq!(d.frontmatter.pending_status_change(), None);
+        assert!(!has_local_changes(&d));
+        d.frontmatter.status = PostStatus::Draft;
+        assert_eq!(d.frontmatter.pending_status_change(), Some(PostStatus::Draft));
+    }
+
+    #[test]
     fn never_uploaded_is_local_only() {
         assert_eq!(state(&doc("Text"), &Remote::Unknown), PostState { status: None, sync: SyncState::LocalOnly });
     }
@@ -215,6 +236,7 @@ mod tests {
             caption: None,
             wordpress: None,
             last_markdown_caption: None,
+            last_markdown_alt: None,
         }];
         mark_synced(&mut d, "example.org", "2026-10-01T10:00:00", "2026-10-01T10:00:05Z");
         d.frontmatter.wp_content_hash = Some("anders".into());

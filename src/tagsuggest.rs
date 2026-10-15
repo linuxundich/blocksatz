@@ -44,7 +44,7 @@ const SYSTEM_PROMPT: &str = "Du schlägst passende Tags (Schlagwörter) für ein
 ///
 /// Nothing is generated on open - every run costs tokens, so it only
 /// happens on an explicit click.
-pub fn open(window: &gtk4::Window, article_title: String, body: String, existing_tags: Vec<String>, current_tags: Vec<String>, on_apply: impl Fn(Vec<String>) + 'static) {
+pub fn open(window: &gtk4::Window, article_title: String, body: String, existing_tags: Vec<String>, current_tags: Vec<String>, lang: String, on_apply: impl Fn(Vec<String>) + 'static) {
     let stack = gtk4::Stack::builder().transition_type(gtk4::StackTransitionType::Crossfade).vexpand(true).build();
 
     // Start page: what this does, and the one button that does it.
@@ -99,7 +99,7 @@ pub fn open(window: &gtk4::Window, article_title: String, body: String, existing
     let dialog = adw::Dialog::builder().title(tr("KI-Tags vorschlagen")).content_width(480).content_height(520).child(&toolbar_view).build();
 
     let ui = Rc::new(Ui { stack, message_page, suggestions_group, apply_button: apply_button.clone(), rows: RefCell::new(Vec::new()) });
-    let request = Rc::new(Request { article_title, body, existing_tags, current_tags });
+    let request = Rc::new(Request { article_title, body, existing_tags, current_tags, lang });
     // Handlers hold `ui` weakly (its widgets own them); the dialog keeps
     // the one strong reference until it closes.
     for button in [&generate_button, &retry_button, &regenerate_button] {
@@ -153,6 +153,8 @@ struct Request {
     body: String,
     existing_tags: Vec<String>,
     current_tags: Vec<String>,
+    /// The article's language (`ailang`) - new tags in it, not in German.
+    lang: String,
 }
 
 struct Ui {
@@ -210,7 +212,7 @@ fn run_generation(request: &Request, ui: &Rc<Ui>) {
     ui.apply_button.set_sensitive(false);
     ui.stack.set_visible_child_name("loading");
 
-    let prompt = build_prompt(&request.article_title, &request.body, &request.existing_tags);
+    let prompt = build_prompt(&request.article_title, &request.body, &request.existing_tags, &request.lang);
     let current_tags = request.current_tags.clone();
     let existing_tags = request.existing_tags.clone();
 
@@ -251,7 +253,7 @@ fn run_generation(request: &Request, ui: &Rc<Ui>) {
 /// need, since an image is bounded by its own byte size already).
 const MAX_BODY_CHARS: usize = 6000;
 
-fn build_prompt(article_title: &str, body: &str, existing_tags: &[String]) -> String {
+fn build_prompt(article_title: &str, body: &str, existing_tags: &[String], lang: &str) -> String {
     let truncated_body: String = body.chars().take(MAX_BODY_CHARS).collect();
     let mut prompt = String::new();
     if !article_title.is_empty() {
@@ -262,6 +264,11 @@ fn build_prompt(article_title: &str, body: &str, existing_tags: &[String]) -> St
     }
     prompt.push_str("Artikeltext:\n");
     prompt.push_str(&truncated_body);
+    // Existing tags keep their names; only new ones follow the language.
+    if lang != "de" {
+        prompt.push_str(&format!("\n\nNeue Tags (die noch nicht existieren) schreibst du auf {}.", crate::translate::language_name(lang)));
+    }
+    prompt.push_str(&crate::ailang::instruction(lang));
     prompt
 }
 
@@ -298,7 +305,7 @@ mod tests {
 
     #[test]
     fn build_prompt_includes_title_existing_tags_and_body() {
-        let prompt = build_prompt("Mein Titel", "Der Artikeltext.", &["Terminal".to_string()]);
+        let prompt = build_prompt("Mein Titel", "Der Artikeltext.", &["Terminal".to_string()], "de");
         assert!(prompt.contains("Mein Titel"));
         assert!(prompt.contains("Terminal"));
         assert!(prompt.contains("Der Artikeltext."));
@@ -307,7 +314,7 @@ mod tests {
     #[test]
     fn build_prompt_truncates_a_very_long_body() {
         let long_body = "a".repeat(MAX_BODY_CHARS * 2);
-        let prompt = build_prompt("", &long_body, &[]);
+        let prompt = build_prompt("", &long_body, &[], "de");
         assert!(prompt.len() < long_body.len());
     }
 }

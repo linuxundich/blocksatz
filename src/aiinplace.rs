@@ -38,7 +38,9 @@ use crate::aitasks;
 use crate::i18n::tr;
 use crate::llm::{ChatMessage, Role};
 
-const SYSTEM_PROMPT: &str = "Du überarbeitest Textabschnitte für einen deutschsprachigen Blog. Gib IMMER nur den überarbeiteten Text aus - keine Erklärung, keine Einleitung, keine Zusammenfassung, keinen Code-Block.";
+// The text keeps its language: the blog is bilingual, and an English
+// language version must not come back in German.
+const SYSTEM_PROMPT: &str = "Du überarbeitest Textabschnitte für einen Blog. Antworte immer in der Sprache des Textes - einen englischen Text überarbeitest du auf Englisch, einen deutschen auf Deutsch, und übersetzt nie. Gib IMMER nur den überarbeiteten Text aus - keine Erklärung, keine Einleitung, keine Zusammenfassung, keinen Code-Block.";
 
 /// The instruction sent alongside the selected text for each in-place
 /// action - `None` for an unknown id, or for `"length"` without an

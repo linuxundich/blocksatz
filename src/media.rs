@@ -162,7 +162,18 @@ pub struct MediaItem {
     /// (bracket changed since last time - adopt it) from "the bracket is
     /// merely unchanged" (keep a caption set in Medienverwaltung, which
     /// only ever writes `caption`, never the Markdown).
+    ///
+    /// Persisted in `media_json` (`markdownCaption`), so an edit made while
+    /// the file wasn't open - a pasted or AI-translated body - is still
+    /// told apart from an unchanged bracket.
     pub last_markdown_caption: Option<String>,
+    /// The Markdown title text (this app's alt-text slot) as of the last
+    /// `reconcile`, persisted as `markdownAlt` - the same three-way
+    /// comparison as `last_markdown_caption`: a title changed since then
+    /// wins, an unchanged one keeps an alt text set in Medienverwaltung.
+    /// Without it a translation kept its original's alt text forever,
+    /// whatever its own Markdown said.
+    pub last_markdown_alt: Option<String>,
 }
 
 impl MediaItem {
@@ -391,15 +402,20 @@ pub fn reconcile(existing: &[MediaItem], markdown: &str) -> Vec<MediaItem> {
                     // Edited directly in the editor since the last scan -
                     // the Markdown wins, including clearing it.
                     Some(_) => item.caption = (!markdown_bracket.is_empty()).then(|| markdown_bracket.clone()),
-                    // First scan since loading: keep a stored caption, but
-                    // fill in one that only ever reached the Markdown.
+                    // No recorded baseline (a working copy from before
+                    // `markdownCaption` was kept): a non-empty bracket wins
+                    // once, like the alt text in `reconciled_alt` - that
+                    // repairs translations that inherited their original's
+                    // captions; an empty one keeps what is stored.
                     None => {
-                        if item.caption.is_none() && !markdown_bracket.is_empty() {
+                        if !markdown_bracket.is_empty() {
                             item.caption = Some(markdown_bracket.clone());
                         }
                     }
                 }
                 item.last_markdown_caption = Some(markdown_bracket);
+                item.alt = reconciled_alt(&found.alt, found.last_markdown_alt.as_deref(), &markdown_title);
+                item.last_markdown_alt = Some(markdown_title);
                 item
             } else {
                 let filename = source.rsplit(['/', '\\']).next().unwrap_or(&source).to_string();
@@ -410,13 +426,34 @@ pub fn reconcile(existing: &[MediaItem], markdown: &str) -> Vec<MediaItem> {
                 // `![]()`) becomes the caption, and the title (the part
                 // most people never bother with) becomes the alt text.
                 let caption = (!markdown_bracket.is_empty()).then(|| markdown_bracket.clone());
-                let alt = if markdown_title.is_empty() { AltText::Undefined } else { AltText::Text(markdown_title) };
+                let alt = if markdown_title.is_empty() { AltText::Undefined } else { AltText::Text(markdown_title.clone()) };
                 let id = format!("media-{next_serial:03}");
                 next_serial += 1;
-                MediaItem { id, filename, source, alt, caption, wordpress: None, last_markdown_caption: Some(markdown_bracket) }
+                MediaItem { id, filename, source, alt, caption, wordpress: None, last_markdown_caption: Some(markdown_bracket), last_markdown_alt: Some(markdown_title) }
             }
         })
         .collect()
+}
+
+/// An existing item's alt text after a re-scan: the Markdown title wins
+/// when it changed since the last scan (edited, pasted over, translated);
+/// an unchanged title keeps what Medienverwaltung set. A title removed
+/// keeps a deliberate "decorative" (`Empty`), anything else becomes
+/// undecided. With no recorded baseline (a working copy from before
+/// `last_markdown_alt` was kept) a non-empty title wins once - that
+/// repairs translations that inherited their original's alt texts.
+fn reconciled_alt(current: &AltText, previous_title: Option<&str>, title: &str) -> AltText {
+    let from_title = || match (title.is_empty(), current) {
+        (false, _) => AltText::Text(title.to_string()),
+        (true, AltText::Empty) => AltText::Empty,
+        (true, _) => AltText::Undefined,
+    };
+    match previous_title {
+        Some(previous) if previous == title => current.clone(),
+        Some(_) => from_title(),
+        None if !title.is_empty() => AltText::Text(title.to_string()),
+        None => current.clone(),
+    }
 }
 
 fn hash_bytes(bytes: &[u8]) -> String {
@@ -541,6 +578,12 @@ pub fn to_json(items: &[MediaItem]) -> Value {
                 if let Some(caption) = &item.caption {
                     object["caption"] = Value::String(caption.clone());
                 }
+                if let Some(bracket) = &item.last_markdown_caption {
+                    object["markdownCaption"] = Value::String(bracket.clone());
+                }
+                if let Some(title) = &item.last_markdown_alt {
+                    object["markdownAlt"] = Value::String(title.clone());
+                }
                 if let Some(wp) = &item.wordpress {
                     object["wordpress"] = serde_json::json!({ "mediaId": wp.media_id, "url": wp.url, "contentHash": wp.content_hash, "width": wp.width, "height": wp.height });
                     if let Some(size) = &wp.size_slug {
@@ -590,7 +633,8 @@ pub fn from_json(value: &Value) -> Vec<MediaItem> {
                         alt: AltText::from_json_pair(alt_defined, alt_text),
                         caption,
                         wordpress,
-                        last_markdown_caption: None,
+                        last_markdown_caption: item.get("markdownCaption").and_then(Value::as_str).map(str::to_string),
+                        last_markdown_alt: item.get("markdownAlt").and_then(Value::as_str).map(str::to_string),
                     })
                 })
                 .collect()
@@ -799,18 +843,20 @@ mod tests {
     }
 
     #[test]
-    fn reconcile_does_not_overwrite_an_existing_item_caption_from_markdown_title() {
+    fn reconcile_does_not_overwrite_an_edited_caption_while_the_markdown_is_unchanged() {
         let existing = vec![MediaItem {
             id: "media-001".to_string(),
             filename: "barn.jpg".to_string(),
             source: "barn.jpg".to_string(),
-            alt: AltText::Text("a red barn".to_string()),
+            alt: AltText::Text("Edited alt".to_string()),
             caption: Some("User-edited caption".to_string()),
             wordpress: None,
-            last_markdown_caption: None,
+            last_markdown_caption: Some("a red barn".to_string()),
+            last_markdown_alt: Some("a different markdown title".to_string()),
         }];
         let updated = reconcile(&existing, "![a red barn](barn.jpg \"a different markdown title\")\n");
         assert_eq!(updated[0].caption, Some("User-edited caption".to_string()));
+        assert_eq!(updated[0].alt, AltText::Text("Edited alt".to_string()));
     }
 
     #[test]
@@ -830,10 +876,13 @@ mod tests {
                 size_slug: None,
             }),
             last_markdown_caption: None,
+            last_markdown_alt: None,
         }];
         let updated = reconcile(&existing, "![something else entirely](cat.png)\n");
-        let expected = vec![MediaItem { last_markdown_caption: Some("something else entirely".to_string()), ..existing[0].clone() }];
-        assert_eq!(updated, expected, "metadata for an image matched by source must survive re-scanning, even if the markdown alt text differs");
+        // Upload reference and alt text survive; without a recorded baseline
+        // the bracket text replaces the stored caption once.
+        let expected = vec![MediaItem { caption: Some("something else entirely".to_string()), last_markdown_caption: Some("something else entirely".to_string()), last_markdown_alt: Some(String::new()), ..existing[0].clone() }];
+        assert_eq!(updated, expected, "metadata for an image matched by source must survive re-scanning");
     }
 
     #[test]
@@ -848,6 +897,52 @@ mod tests {
         assert_eq!(items[0].caption, Some("Endgültig".to_string()));
         let items = reconcile(&items, "![](x.png)\n");
         assert_eq!(items[0].caption, None, "clearing the bracket in the editor clears the caption too");
+    }
+
+    #[test]
+    fn reconcile_follows_an_alt_text_edited_in_the_markdown_title() {
+        let items = reconcile(&[], "![Tasse](x.png \"Orange Tasse\")\n");
+        assert_eq!(items[0].alt, AltText::Text("Orange Tasse".into()));
+        let items = reconcile(&items, "![Mug](x.png \"Orange mug\")\n");
+        assert_eq!(items[0].alt, AltText::Text("Orange mug".into()), "a translated or edited title replaces the old alt text");
+        assert_eq!(items[0].caption, Some("Mug".into()));
+    }
+
+    #[test]
+    fn reconcile_keeps_a_medienverwaltung_alt_text_while_the_title_is_unchanged() {
+        let mut items = reconcile(&[], "![Tasse](x.png \"Orange Tasse\")\n");
+        items[0].alt = AltText::Text("Set in Medienverwaltung".into());
+        let items = reconcile(&items, "![Tasse](x.png \"Orange Tasse\")\n\nMore text.\n");
+        assert_eq!(items[0].alt, AltText::Text("Set in Medienverwaltung".into()));
+    }
+
+    #[test]
+    fn reconcile_keeps_decorative_when_the_title_is_removed() {
+        let mut items = reconcile(&[], "![](x.png \"Alt\")\n");
+        items[0].alt = AltText::Empty;
+        let items = reconcile(&items, "![](x.png)\n");
+        assert_eq!(items[0].alt, AltText::Empty);
+    }
+
+    #[test]
+    fn reconcile_repairs_an_inherited_alt_text_without_a_baseline_once() {
+        // A translation saved before the baseline was kept: German alt in
+        // media_json, English title in the Markdown.
+        let inherited = vec![MediaItem { id: "media-001".into(), filename: "x.png".into(), source: "x.png".into(), alt: AltText::Text("Orange Tasse".into()), caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None }];
+        let items = reconcile(&inherited, "![Mug](x.png \"Orange mug\")\n");
+        assert_eq!(items[0].alt, AltText::Text("Orange mug".into()));
+    }
+
+    #[test]
+    fn the_markdown_baselines_survive_saving_and_loading() {
+        let items = reconcile(&[], "![Mug](x.png \"Orange mug\")\n");
+        let loaded = from_json_str(&to_json_string(&items));
+        assert_eq!(loaded[0].last_markdown_alt.as_deref(), Some("Orange mug"));
+        assert_eq!(loaded[0].last_markdown_caption.as_deref(), Some("Mug"));
+        // Edited while the file was closed (e.g. an AI translation):
+        let items = reconcile(&loaded, "![Becher](x.png \"Oranger Becher\")\n");
+        assert_eq!(items[0].alt, AltText::Text("Oranger Becher".into()));
+        assert_eq!(items[0].caption, Some("Becher".into()));
     }
 
     #[test]
@@ -875,6 +970,7 @@ mod tests {
             caption: None,
             wordpress: None,
             last_markdown_caption: None,
+            last_markdown_alt: None,
         }];
         let updated = reconcile(&existing, "No images here anymore.\n");
         assert!(updated.is_empty());
@@ -890,6 +986,7 @@ mod tests {
             caption: None,
             wordpress: None,
             last_markdown_caption: None,
+            last_markdown_alt: None,
         }];
         let updated = reconcile(&existing, "![](a.png)\n\n![](b.png)\n");
         assert_eq!(updated[0].id, "media-005");
@@ -917,8 +1014,8 @@ mod tests {
     #[test]
     fn json_round_trips_all_three_alt_states() {
         let items = vec![
-            MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: AltText::Undefined, caption: None, wordpress: None, last_markdown_caption: None },
-            MediaItem { id: "media-002".into(), filename: "b.png".into(), source: "b.png".into(), alt: AltText::Empty, caption: None, wordpress: None, last_markdown_caption: None },
+            MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: AltText::Undefined, caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None },
+            MediaItem { id: "media-002".into(), filename: "b.png".into(), source: "b.png".into(), alt: AltText::Empty, caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None },
             MediaItem {
                 id: "media-003".into(),
                 filename: "c.png".into(),
@@ -927,6 +1024,7 @@ mod tests {
                 caption: Some("A caption".into()),
                 wordpress: Some(WordPressMediaRef { media_id: 7, url: "https://example.com/c.png".into(), content_hash: "abc123".into(), width: 0, height: 0, size_slug: None }),
                 last_markdown_caption: None,
+                last_markdown_alt: None,
             },
         ];
         let round_tripped = from_json_str(&to_json_string(&items));
@@ -936,8 +1034,8 @@ mod tests {
     #[test]
     fn deliberately_empty_alt_is_distinct_from_undefined_after_a_round_trip() {
         let items = vec![
-            MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: AltText::Undefined, caption: None, wordpress: None, last_markdown_caption: None },
-            MediaItem { id: "media-002".into(), filename: "b.png".into(), source: "b.png".into(), alt: AltText::Empty, caption: None, wordpress: None, last_markdown_caption: None },
+            MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: AltText::Undefined, caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None },
+            MediaItem { id: "media-002".into(), filename: "b.png".into(), source: "b.png".into(), alt: AltText::Empty, caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None },
         ];
         let round_tripped = from_json_str(&to_json_string(&items));
         assert!(round_tripped[0].alt.is_undefined());

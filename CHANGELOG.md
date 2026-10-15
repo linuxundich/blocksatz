@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Fixes from the QA audit of 0.71.0 (bilingual DE → EN workflow, tested in
+an Ubuntu 26.04 VM against the test blog).
+
+### Fixed
+
+- **The shown status is the one WordPress stored.** After an upload
+  Blocksatz took over the status it had *asked for*; a post that WordPress
+  kept scheduled read "Veröffentlicht", drafts and published posts read
+  "Geplant". Status and date now come from the server's answer, and when
+  they differ from the request the message says so ("… gespeichert, nicht
+  als …").
+- **"Jetzt veröffentlichen" publishes now.** A post that had once been
+  scheduled kept its future date, so WordPress turned the publish back
+  into "scheduled" - also after "Auf Entwurf zurücksetzen". Publishing,
+  reverting to draft and submitting for review now reset the post date.
+- **A status or date changed in the Beitrag tab is uploaded.** Choosing
+  "Geplant" with a date (or "Termin ändern …" on a scheduled post) and
+  then updating left WordPress unchanged. The last synced status and date
+  are now kept (`wp_status`, `wp_scheduled_at`); a change against them is
+  sent with the next upload, and the main button says what it will do
+  ("Termin hochladen", "Veröffentlichen …", "Auf Entwurf zurücksetzen …",
+  with "Status im Blog lassen" to undo the change).
+- **Alt text and caption follow the Markdown.** An image's alt text (the
+  `"title"` of `![caption](image "alt")`) changed in the text never reached
+  WordPress - the value stored in `media_json` won. Language versions
+  inherited their original's German alt texts and captions this way and
+  published them under English text. `media_json` now remembers the
+  Markdown of the last scan (`markdownAlt`, `markdownCaption`), so an edit
+  in the text - typed, pasted or AI-translated - wins, while a change made
+  in Medienverwaltung stays as long as the text is unchanged. Older working
+  copies take a differing alt text from the Markdown once.
+- **AI alt text, captions and tags in the article's language.** The
+  prompts were German and got no document language, so an English
+  language version received German alt text. A new `ailang` helper pins
+  the answer to the document's language for alt text, captions and tag
+  suggestions; in-place edits keep the language of the text. Captions no
+  longer invent a story around the image.
+- **The AI alt-text dialog no longer applies its hint.** "Übernehmen"
+  without a generated text wrote "Noch kein Text generiert …" into the
+  alt text. The hint is in the status line now, and "Übernehmen" only
+  works once there is text, not while it is being generated.
+- **The featured image's alt text reaches WordPress.** It was never sent:
+  the featured image's attachment now gets it with every upload, so later
+  edits arrive too. A translation's alt text goes onto its own attachment
+  (the one lui-translations creates from the original's), not the
+  original's. The AI button stays available after the upload and reads
+  the image from the blog. A failure is reported with the success message
+  instead of being swallowed.
+
 ## [0.71.0] - 2026-10-13
 
 ### Fixed

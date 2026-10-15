@@ -32,7 +32,9 @@ use crate::{media, notify, secrets, syncstate, translate, wpclient, wpsite};
 /// itself is always built by the shared logic, not by a callback - a
 /// callback only ever renders whatever string it's given, so wording stays
 /// centralized in one place regardless of how many UIs call into it.
-type OnPublishSuccess = Rc<dyn Fn(&wpclient::PostResult, PostStatus)>;
+/// Gets the post, the status WordPress actually stored and the one that
+/// was requested (`None` for an update that left the status alone).
+type OnPublishSuccess = Rc<dyn Fn(&wpclient::PostResult, PostStatus, Option<PostStatus>)>;
 
 /// Reads the article body/doc-dir to send, at the moment a publish button
 /// is actually clicked rather than when it was wired up - the wizard's own
@@ -119,7 +121,9 @@ pub(crate) enum TargetStatus {
     /// Always send this status ("Als Entwurf hochladen", "Terminieren", ...).
     Set(PostStatus),
     /// "Veröffentlichen" for a post that doesn't exist on WordPress yet,
-    /// "Aktualisieren" (status left untouched) once it does.
+    /// "Aktualisieren" once it does: the status is left untouched, unless
+    /// it (or a scheduled date) was changed here in the properties since
+    /// the last sync - then that change is what gets sent.
     PublishOrKeep,
 }
 
@@ -127,7 +131,7 @@ impl TargetStatus {
     pub(crate) fn resolve(self, frontmatter: &Frontmatter) -> Option<PostStatus> {
         match self {
             TargetStatus::Set(status) => Some(status),
-            TargetStatus::PublishOrKeep if frontmatter.wp_post_id.is_some() => None,
+            TargetStatus::PublishOrKeep if frontmatter.wp_post_id.is_some() => frontmatter.pending_status_change(),
             TargetStatus::PublishOrKeep => Some(PostStatus::Publish),
         }
     }
@@ -308,9 +312,7 @@ pub(crate) fn start_export(
                 fm.media = media;
                 fm.featured_image = featured_image;
                 fm.featured_media_id = featured_media_id;
-                if let Some(target_status) = target_status {
-                    fm.status = target_status;
-                }
+                apply_stored_status(&mut fm, &post, target_status);
                 fm.wp_content_hash = content_hash;
                 fm.wp_pending_create = None;
                 // Fingerprinted against the body as it was *sent*: anything
@@ -325,12 +327,12 @@ pub(crate) fn start_export(
             // block would panic.
             save_document();
             set_busy(false);
-            (feedback.on_success)(&post, final_status);
+            (feedback.on_success)(&post, final_status, target_status);
             // Reflects what actually happened rather than always claiming
             // "Veröffentlicht" - `target_status` being `None` means the
             // status was deliberately left untouched (see `TargetStatus`),
             // so the notification says "Aktualisiert" instead.
-            let action_label = target_status.map(|s| s.label()).unwrap_or_else(|| tr("Aktualisiert"));
+            let action_label = target_status.map(|_| final_status.label()).unwrap_or_else(|| tr("Aktualisiert"));
             notify::send("export", &action_label, &tr("„{title}“ wurde erfolgreich gesendet.").replace("{title}", &title));
             glib::ControlFlow::Break
         }
@@ -468,11 +470,7 @@ fn run_export(
     if !meta.is_empty() {
         payload["meta"] = serde_json::Value::Object(meta);
     }
-    if target_status == Some(PostStatus::Future) {
-        if let Some(scheduled_at) = &frontmatter.scheduled_at {
-            payload["date"] = serde_json::Value::String(scheduled_at.clone());
-        }
-    }
+    set_date_for_status(&mut payload, target_status, frontmatter.scheduled_at.as_deref());
     let mut featured_uploaded: Option<u64> = None;
     if let Some(path) = featured_image_to_upload(frontmatter, shared) {
         // Normally already uploaded via Medienverwaltung's own "Aufmacherbild"
@@ -539,7 +537,7 @@ fn run_export(
             }
         }
     }
-    let result = match frontmatter.wp_post_id {
+    let mut result = match frontmatter.wp_post_id {
         Some(id) => client.update_item(rest_base, id, &payload),
         None => client.create_item(rest_base, &payload),
     }
@@ -557,6 +555,18 @@ fn run_export(
     let ids = frontmatter.media.iter().filter_map(|item| item.wordpress.as_ref().map(|wp| wp.media_id)).chain(featured_uploaded).chain(frontmatter.featured_media_id);
     for id in ids.collect::<std::collections::BTreeSet<u64>>() {
         let _ = client.attach_media(id, result.id);
+    }
+    // The featured image's alt text lives on its attachment, not the post:
+    // set on every upload, so an edit after the first one arrives too. A
+    // translation's own alt text goes onto its own attachment (the one
+    // lui-translations made from the original's), which shares only the
+    // file - the original's alt text stays as it is.
+    if let Some(alt) = frontmatter.featured_image_alt.as_deref().map(str::trim).filter(|alt| !alt.is_empty()) {
+        if let Some(id) = featured_alt_target(featured_uploaded, frontmatter.featured_media_id, result.featured_media) {
+            if let Err(err) = client.update_media_metadata(id, Some(alt), None) {
+                result.notes.push(tr("Alt-Text des Aufmacherbilds nicht gesetzt: {err}").replace("{err}", &err.to_string()));
+            }
+        }
     }
     Ok(result)
 }
@@ -598,6 +608,47 @@ pub(crate) fn footnotes_meta(notes: &[gutenberg::footnotes::Footnote], kept: Opt
         kept.map(str::to_string)
     } else {
         Some(gutenberg::footnotes::meta_json(notes))
+    }
+}
+
+/// Takes over what WordPress reports after an upload - its status and,
+/// for a scheduled post, its date - instead of trusting the request: a
+/// "publish" can come back as "future", and the working copy has to show
+/// what the blog really has. Without a status in the answer the requested
+/// one is kept.
+fn apply_stored_status(fm: &mut Frontmatter, post: &wpclient::PostResult, requested: Option<PostStatus>) {
+    if let Some(status) = post.status.as_deref().map(PostStatus::from_str).or(requested) {
+        fm.status = status;
+    }
+    if fm.status == PostStatus::Future {
+        if let Some(date) = post.date.as_deref().filter(|date| !date.is_empty()) {
+            fm.scheduled_at = Some(date.to_string());
+        }
+    }
+}
+
+/// The attachment that gets the featured image's alt text: one just
+/// uploaded, else the one the document knows, else the one WordPress
+/// reports for the post (a translation's shared featured image).
+fn featured_alt_target(uploaded: Option<u64>, known: Option<u64>, reported: Option<u64>) -> Option<u64> {
+    uploaded.or(known).or(reported)
+}
+
+/// The post date that goes with a status change. A scheduled post gets
+/// its date; publishing, a draft or a review request reset the date
+/// (`date_gmt: null`) - otherwise a post that was once scheduled keeps
+/// its future date, and WordPress turns "publish" back into "future" and
+/// a draft into one with a fixed date. Without a status change the date
+/// is left alone.
+fn set_date_for_status(payload: &mut serde_json::Value, target_status: Option<PostStatus>, scheduled_at: Option<&str>) {
+    match target_status {
+        Some(PostStatus::Future) => {
+            if let Some(scheduled_at) = scheduled_at {
+                payload["date"] = serde_json::Value::String(scheduled_at.to_string());
+            }
+        }
+        Some(PostStatus::Publish | PostStatus::Draft | PostStatus::Pending) => payload["date_gmt"] = serde_json::Value::Null,
+        Some(PostStatus::Private) | None => {}
     }
 }
 
@@ -890,6 +941,76 @@ pub(crate) fn mime_from_extension(filename: &str) -> &'static str {
 mod tests {
     use super::*;
 
+    fn post_result(status: Option<&str>, date: Option<&str>) -> wpclient::PostResult {
+        wpclient::PostResult { id: 1, link: String::new(), modified_gmt: String::new(), status: status.map(str::to_string), date: date.map(str::to_string), featured_media: None, notes: Vec::new() }
+    }
+
+    #[test]
+    fn an_update_sends_a_status_changed_in_the_properties() {
+        let mut fm = Frontmatter { wp_post_id: Some(7), status: PostStatus::Draft, wp_status: Some(PostStatus::Draft), ..Frontmatter::default() };
+        assert_eq!(TargetStatus::PublishOrKeep.resolve(&fm), None);
+        fm.status = PostStatus::Future;
+        fm.scheduled_at = Some("2026-12-24T10:00:00".into());
+        assert_eq!(TargetStatus::PublishOrKeep.resolve(&fm), Some(PostStatus::Future));
+    }
+
+    #[test]
+    fn a_new_date_for_a_scheduled_post_is_a_change_too() {
+        let mut fm = Frontmatter {
+            wp_post_id: Some(7),
+            status: PostStatus::Future,
+            scheduled_at: Some("2026-12-24T10:00:00".into()),
+            wp_status: Some(PostStatus::Future),
+            wp_scheduled_at: Some("2026-12-24T10:00:00".into()),
+            ..Frontmatter::default()
+        };
+        assert_eq!(TargetStatus::PublishOrKeep.resolve(&fm), None);
+        fm.scheduled_at = Some("2026-12-25T09:00:00".into());
+        assert_eq!(TargetStatus::PublishOrKeep.resolve(&fm), Some(PostStatus::Future));
+    }
+
+    #[test]
+    fn without_a_synced_status_an_update_keeps_the_status() {
+        let fm = Frontmatter { wp_post_id: Some(7), status: PostStatus::Future, scheduled_at: Some("2026-12-24T10:00:00".into()), ..Frontmatter::default() };
+        assert_eq!(TargetStatus::PublishOrKeep.resolve(&fm), None);
+    }
+
+    #[test]
+    fn publishing_and_drafts_reset_the_date_scheduling_sets_it() {
+        let mut payload = serde_json::json!({});
+        set_date_for_status(&mut payload, Some(PostStatus::Publish), Some("2026-12-24T10:00:00"));
+        assert_eq!(payload, serde_json::json!({ "date_gmt": null }));
+        let mut payload = serde_json::json!({});
+        set_date_for_status(&mut payload, Some(PostStatus::Draft), None);
+        assert_eq!(payload, serde_json::json!({ "date_gmt": null }));
+        let mut payload = serde_json::json!({});
+        set_date_for_status(&mut payload, Some(PostStatus::Future), Some("2026-12-24T10:00:00"));
+        assert_eq!(payload, serde_json::json!({ "date": "2026-12-24T10:00:00" }));
+        let mut payload = serde_json::json!({});
+        set_date_for_status(&mut payload, None, Some("2026-12-24T10:00:00"));
+        assert_eq!(payload, serde_json::json!({}));
+    }
+
+    #[test]
+    fn the_featured_alt_text_goes_to_the_newest_known_attachment() {
+        assert_eq!(featured_alt_target(Some(3), Some(2), Some(1)), Some(3));
+        assert_eq!(featured_alt_target(None, Some(2), Some(1)), Some(2));
+        assert_eq!(featured_alt_target(None, None, Some(1)), Some(1), "a translation's shared featured image");
+        assert_eq!(featured_alt_target(None, None, None), None);
+    }
+
+    #[test]
+    fn the_stored_status_wins_over_the_requested_one() {
+        let mut fm = Frontmatter { status: PostStatus::Draft, ..Frontmatter::default() };
+        apply_stored_status(&mut fm, &post_result(Some("future"), Some("2026-12-24T10:00:00")), Some(PostStatus::Publish));
+        assert_eq!(fm.status, PostStatus::Future);
+        assert_eq!(fm.scheduled_at.as_deref(), Some("2026-12-24T10:00:00"));
+        apply_stored_status(&mut fm, &post_result(Some("publish"), Some("2026-10-15T20:00:00")), None);
+        assert_eq!(fm.status, PostStatus::Publish);
+        apply_stored_status(&mut fm, &post_result(None, None), Some(PostStatus::Draft));
+        assert_eq!(fm.status, PostStatus::Draft);
+    }
+
     /// The standard workflow: `![BU](bild.png "Alt")`, uploaded - goes to
     /// WordPress in the "large" size, like an image added in the block
     /// editor.
@@ -1059,7 +1180,7 @@ mod tests {
 
     #[test]
     fn an_image_used_twice_keeps_its_own_caption_at_each_place() {
-        let item = media::MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: media::AltText::Text("Alt aus der Galerie".into()), caption: Some("Bild 1".into()), wordpress: None, last_markdown_caption: None };
+        let item = media::MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: media::AltText::Text("Alt aus der Galerie".into()), caption: Some("Bild 1".into()), wordpress: None, last_markdown_caption: None, last_markdown_alt: None };
         let mut blocks = gutenberg::parse_markdown("```gallery\n![Bild 1](a.png)\n```\n\n![](a.png)\n");
         apply_media_metadata(&mut blocks, std::slice::from_ref(&item));
         let gutenberg::Block::Image { title, alt, .. } = &blocks[1] else { panic!("expected image") };
@@ -1188,6 +1309,7 @@ mod tests {
             caption: Some("Our cat, sleeping".to_string()),
             wordpress: None,
             last_markdown_caption: None,
+            last_markdown_alt: None,
         }];
         let html = gutenberg_preview_html("![a red cat](cat.png)", &media);
         assert!(html.contains("<figcaption class=\"wp-element-caption\">Our cat, sleeping</figcaption>"), "{html}");
@@ -1203,6 +1325,7 @@ mod tests {
             caption: Some("Our cat, sleeping".to_string()),
             wordpress: None,
             last_markdown_caption: None,
+            last_markdown_alt: None,
         }];
         let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0, link: None }];
         apply_media_metadata(&mut blocks, &media);
@@ -1221,6 +1344,7 @@ mod tests {
             caption: None,
             wordpress: None,
             last_markdown_caption: None,
+            last_markdown_alt: None,
         }];
         let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: "from the markdown source".to_string(), title: None, media_id: None, width: 0, height: 0, link: None }];
         apply_media_metadata(&mut blocks, &media);
@@ -1238,6 +1362,7 @@ mod tests {
             caption: None,
             wordpress: Some(media::WordPressMediaRef { media_id: 123, url: "https://example.com/cat.png".to_string(), content_hash: "abc".to_string(), width: 640, height: 480, size_slug: None }),
             last_markdown_caption: None,
+            last_markdown_alt: None,
         }];
         let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0, link: None }];
         apply_media_metadata(&mut blocks, &media);
@@ -1286,6 +1411,8 @@ mod tests {
             wp_synced_hash: None,
             wp_synced_at: None,
             wp_pending_create: None,
+            wp_status: None,
+            wp_scheduled_at: None,
             lang: None,
             translation: None,
             featured_media_id: None,
@@ -1349,6 +1476,8 @@ mod tests {
             wp_synced_hash: None,
             wp_synced_at: None,
             wp_pending_create: None,
+            wp_status: None,
+            wp_scheduled_at: None,
             lang: None,
             translation: None,
             featured_media_id: None,
@@ -1411,6 +1540,8 @@ mod tests {
             wp_synced_hash: None,
             wp_synced_at: None,
             wp_pending_create: None,
+            wp_status: None,
+            wp_scheduled_at: None,
             lang: None,
             translation: None,
             featured_media_id: None,
@@ -1472,6 +1603,8 @@ mod tests {
             wp_synced_hash: None,
             wp_synced_at: None,
             wp_pending_create: None,
+            wp_status: None,
+            wp_scheduled_at: None,
             lang: None,
             translation: None,
             featured_media_id: None,
@@ -1536,6 +1669,8 @@ mod tests {
             wp_synced_hash: None,
             wp_synced_at: None,
             wp_pending_create: None,
+            wp_status: None,
+            wp_scheduled_at: None,
             lang: None,
             translation: None,
             featured_media_id: None,
@@ -1605,6 +1740,8 @@ mod tests {
             wp_synced_hash: None,
             wp_synced_at: None,
             wp_pending_create: None,
+            wp_status: None,
+            wp_scheduled_at: None,
             lang: None,
             translation: None,
             featured_media_id: None,

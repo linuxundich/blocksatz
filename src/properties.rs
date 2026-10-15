@@ -417,7 +417,8 @@ pub fn build(
     featured_image_ai_button.set_tooltip_text(Some(&tr("KI-Alternativtext generieren…")));
     featured_image_ai_button.set_valign(gtk4::Align::Center);
     featured_image_ai_button.add_css_class("flat");
-    featured_image_ai_button.set_visible(current.featured_image.is_some());
+    // Also once uploaded: then the image comes from the blog.
+    featured_image_ai_button.set_visible(current.featured_image.is_some() || current.featured_media_id.is_some());
     featured_image_alt_row.add_suffix(&featured_image_ai_button);
     // Non-blocking hint for an unusually long alt text (see
     // `media::alt_text_length_warning`) - a suffix icon with a tooltip,
@@ -759,12 +760,14 @@ pub fn build(
         let title_row = title_row.clone();
         let tags_row = tags_row.clone();
         let tag_terms = tag_terms.clone();
+        let frontmatter = frontmatter.clone();
         tags_suggest_button.connect_clicked(move |_| {
             let article_title = title_row.text().to_string();
             let current_tags = parse_list(&tags_row.text());
             let existing_tags = tag_terms.borrow().clone();
             let tags_row = tags_row.clone();
-            tagsuggest::open(parent.upcast_ref::<gtk4::Window>(), article_title, body.clone(), existing_tags, current_tags, move |accepted| {
+            let lang = crate::ailang::of(&frontmatter.borrow());
+            tagsuggest::open(parent.upcast_ref::<gtk4::Window>(), article_title, body.clone(), existing_tags, current_tags, lang, move |accepted| {
                 let mut tags = parse_list(&tags_row.text());
                 for tag in accepted {
                     if !tags.iter().any(|existing| existing.eq_ignore_ascii_case(&tag)) {
@@ -781,7 +784,7 @@ pub fn build(
         let featured_image_ai_button = featured_image_ai_button.clone();
         featured_image_row.connect_changed(move |row| {
             let text = row.text().to_string();
-            featured_image_ai_button.set_visible(!text.is_empty());
+            featured_image_ai_button.set_visible(!text.is_empty() || frontmatter.borrow().featured_media_id.is_some());
             frontmatter.borrow_mut().featured_image = (!text.is_empty()).then_some(text);
         });
     }
@@ -799,16 +802,59 @@ pub fn build(
         let frontmatter = frontmatter.clone();
         let doc_dir = doc_dir.clone();
         let featured_image_alt_row = featured_image_alt_row.clone();
-        featured_image_ai_button.connect_clicked(move |_| {
-            let Some(source) = frontmatter.borrow().featured_image.clone() else { return };
+        featured_image_ai_button.connect_clicked(move |button| {
+            let (path, media_id, site_id) = {
+                let fm = frontmatter.borrow();
+                (fm.featured_image.clone(), fm.featured_media_id, fm.wp_site.clone())
+            };
+            let lang = crate::ailang::of(&frontmatter.borrow());
             let featured_image_alt_row = featured_image_alt_row.clone();
-            aialt::open(parent.upcast_ref::<gtk4::Window>(), tr("Aufmacherbild"), source, doc_dir.clone(), move |text| {
-                // Triggers the `connect_changed` handler above, which
-                // persists it and refreshes the length-warning icon - same
-                // "set text, let the existing handler do the rest" pattern
-                // `featured_image_picker_button`'s own callback uses.
-                featured_image_alt_row.set_text(&text);
-            });
+            let parent = parent.clone();
+            let doc_dir = doc_dir.clone();
+            // Triggers the `connect_changed` handler above, which persists
+            // it and refreshes the length-warning icon - same "set text,
+            // let the existing handler do the rest" pattern
+            // `featured_image_picker_button`'s own callback uses.
+            let open = move |source: String| {
+                let featured_image_alt_row = featured_image_alt_row.clone();
+                aialt::open(parent.upcast_ref::<gtk4::Window>(), tr("Aufmacherbild"), source, doc_dir.clone(), lang.clone(), move |text| featured_image_alt_row.set_text(&text));
+            };
+            match (path, media_id) {
+                (Some(path), _) => open(path),
+                // Already uploaded: the local path is gone, the image is
+                // read from its URL in the blog.
+                (None, Some(media_id)) => {
+                    button.set_sensitive(false);
+                    let site = wpsite::for_site_id(site_id.as_deref());
+                    let (tx, rx) = mpsc::channel::<Result<String, String>>();
+                    std::thread::spawn(move || {
+                        let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
+                            .map_err(|err| err.to_string())
+                            .and_then(|password| password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden.")))
+                            .and_then(|password| wpclient::Client::new(&site.url, &site.username, &password).get_media(media_id).map_err(|err| err.to_string()))
+                            .map(|media| media.source_url);
+                        let _ = tx.send(outcome);
+                    });
+                    let button = button.clone();
+                    glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
+                        Ok(outcome) => {
+                            button.set_sensitive(true);
+                            match outcome {
+                                Ok(url) if !url.is_empty() => open(url),
+                                Ok(_) => button.set_tooltip_text(Some(&tr("Bild im Blog nicht gefunden"))),
+                                Err(err) => button.set_tooltip_text(Some(&tr("Bild nicht geladen: {err}").replace("{err}", &err))),
+                            }
+                            glib::ControlFlow::Break
+                        }
+                        Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+                        Err(mpsc::TryRecvError::Disconnected) => {
+                            button.set_sensitive(true);
+                            glib::ControlFlow::Break
+                        }
+                    });
+                }
+                (None, None) => {}
+            }
         });
     }
     {

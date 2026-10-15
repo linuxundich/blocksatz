@@ -121,6 +121,8 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
         wp_synced_hash: None,
         wp_synced_at: None,
         wp_pending_create: None,
+        wp_status: None,
+        wp_scheduled_at: None,
         lang: None,
         translation: None,
         featured_media_id: (detail.featured_media != 0).then_some(detail.featured_media),

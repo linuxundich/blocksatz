@@ -1461,6 +1461,7 @@ mod tests {
             caption: None,
             wordpress: Some(crate::media::WordPressMediaRef { media_id: 5, url: "https://example.org/foto.webp".into(), content_hash: String::new(), width: 0, height: 0, size_slug: None }),
             last_markdown_caption: None,
+            last_markdown_alt: None,
         }];
         assert_eq!(body_with_uploaded_images(&doc), "![Bild](https://example.org/foto.webp \"Alt\")\n");
         assert!(local_media(&doc).is_empty());

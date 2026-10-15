@@ -432,6 +432,7 @@ mod tests {
             caption: None,
             wordpress: None,
             last_markdown_caption: None,
+            last_markdown_alt: None,
         }];
         let doc = Document { frontmatter: fm, body: "![](a.png)\n\n[Link](https://example.org)\n".into() };
         let all = checks(&doc);

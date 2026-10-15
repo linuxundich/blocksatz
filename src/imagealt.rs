@@ -292,6 +292,8 @@ pub fn open_dialog_for_index(window: &gtk4::Window, frontmatter: &Rc<RefCell<Fro
     let markdown = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
     let (markdown_caption, markdown_alt) = media::markdown_image_text_for(&markdown, &item.source);
     let is_image = document::media_reference_kind(&item.source) == document::MediaReferenceKind::Image;
+    // Alt text and caption are written in the article's language (`ailang`).
+    let lang = crate::ailang::of(&frontmatter.borrow());
 
     let content = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(18).margin_top(18).margin_bottom(18).margin_start(18).margin_end(18).build();
 
@@ -385,6 +387,7 @@ pub fn open_dialog_for_index(window: &gtk4::Window, frontmatter: &Rc<RefCell<Fro
 
         let source = item.source.clone();
         let doc_dir = doc_dir.clone();
+        let lang = lang.clone();
         let ai_alt_button_for_click = ai_alt_button.clone();
         let alt_switch_row = alt_switch_row.clone();
         let alt_entry_row = alt_entry_row.clone();
@@ -397,7 +400,7 @@ pub fn open_dialog_for_index(window: &gtk4::Window, frontmatter: &Rc<RefCell<Fro
             let alt_switch_row = alt_switch_row.clone();
             let alt_entry_row = alt_entry_row.clone();
             let ai_status_label = ai_status_label.clone();
-            aialt::generate(&source, doc_dir.clone(), move |result| {
+            aialt::generate(&source, doc_dir.clone(), &lang, move |result| {
                 match result {
                     Ok(text) => {
                         alt_switch_row.set_active(true);
@@ -490,6 +493,7 @@ pub fn open_dialog_for_index(window: &gtk4::Window, frontmatter: &Rc<RefCell<Fro
         let source = item.source.clone();
         let context = surrounding_context(&markdown, &item.source);
         let doc_dir = doc_dir.clone();
+        let lang = lang.clone();
         let ai_caption_button_for_click = ai_caption_button.clone();
         let caption_row_for_result = caption_row.clone();
         let ai_status_label = ai_status_label.clone();
@@ -500,7 +504,7 @@ pub fn open_dialog_for_index(window: &gtk4::Window, frontmatter: &Rc<RefCell<Fro
             let ai_caption_button_for_click = ai_caption_button_for_click.clone();
             let caption_row_for_result = caption_row_for_result.clone();
             let ai_status_label = ai_status_label.clone();
-            aicaption::generate(&source, &context, doc_dir.clone(), move |result| {
+            aicaption::generate(&source, &context, doc_dir.clone(), &lang, move |result| {
                 match result {
                     Ok(text) => {
                         caption_row_for_result.set_text(&text);

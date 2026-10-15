@@ -24,18 +24,20 @@ use crate::{aitasks, export};
 /// The user's own captions typically run 20-25 words - stated explicitly in
 /// the prompt rather than left to the model's own judgment of "a caption's
 /// usual length".
-fn build_prompt(context: &str) -> String {
+fn build_prompt(context: &str, lang: &str) -> String {
     let mut prompt = String::from(
         "Du schreibst eine Bildunterschrift (Caption) für ein Bild in einem Blogartikel, im \
          redaktionellen Stil des Artikels - nicht nur eine reine Bildbeschreibung, sondern ein \
          Satz, der das Bild inhaltlich in den Artikel einordnet. Ziel-Länge: 20 bis 25 Wörter. \
          Antworte ausschließlich mit der Bildunterschrift selbst, ohne Anführungszeichen, ohne \
-         Erklärung, ohne Zeilenumbrüche.",
+         Erklärung, ohne Zeilenumbrüche. Erfinde nichts dazu: nur was auf dem Bild zu sehen ist \
+         oder im Kontext steht, keine ausgedachte Handlung.",
     );
     if !context.trim().is_empty() {
         prompt.push_str("\n\nKontext aus dem Artikeltext direkt vor und nach dem Bild:\n");
         prompt.push_str(context.trim());
     }
+    prompt.push_str(&crate::ailang::instruction(lang));
     prompt
 }
 
@@ -44,10 +46,10 @@ fn build_prompt(context: &str) -> String {
 /// text or an error message. `context` is the surrounding article text
 /// (`imagealt::surrounding_context`); passing an empty string is fine,
 /// `build_prompt` just omits that part of the request.
-pub fn generate(source: &str, context: &str, doc_dir: Option<PathBuf>, on_result: impl Fn(Result<String, String>) + 'static) {
+pub fn generate(source: &str, context: &str, doc_dir: Option<PathBuf>, lang: &str, on_result: impl Fn(Result<String, String>) + 'static) {
     let source = source.to_string();
     let mime_type = export::mime_from_extension(&source);
-    let prompt = build_prompt(context);
+    let prompt = build_prompt(context, lang);
     let (tx, rx) = mpsc::channel::<Result<aitasks::Routed<String>, String>>();
     std::thread::spawn(move || {
         let outcome = export::read_image_bytes(&source, doc_dir.as_deref())
@@ -78,25 +80,36 @@ mod tests {
 
     #[test]
     fn build_prompt_states_the_target_word_count() {
-        let prompt = build_prompt("");
+        let prompt = build_prompt("", "de");
         assert!(prompt.contains("20 bis 25 Wörter"), "{prompt}");
     }
 
     #[test]
     fn build_prompt_includes_the_surrounding_context_when_given() {
-        let prompt = build_prompt("Der Autor testet ein neues Gerät.");
+        let prompt = build_prompt("Der Autor testet ein neues Gerät.", "de");
         assert!(prompt.contains("Der Autor testet ein neues Gerät."), "{prompt}");
     }
 
     #[test]
     fn build_prompt_omits_the_context_section_when_empty() {
-        let prompt = build_prompt("");
+        let prompt = build_prompt("", "de");
         assert!(!prompt.contains("Kontext aus dem Artikeltext"), "{prompt}");
     }
 
     #[test]
     fn build_prompt_omits_the_context_section_when_only_whitespace() {
-        let prompt = build_prompt("   \n  ");
+        let prompt = build_prompt("   \n  ", "de");
         assert!(!prompt.contains("Kontext aus dem Artikeltext"), "{prompt}");
+    }
+
+    #[test]
+    fn build_prompt_pins_the_article_language() {
+        assert!(build_prompt("Some context.", "en").contains("in English only"));
+        assert!(build_prompt("", "de").contains("Antworte auf Deutsch."));
+    }
+
+    #[test]
+    fn build_prompt_forbids_invented_narrative() {
+        assert!(build_prompt("", "de").contains("Erfinde nichts"));
     }
 }

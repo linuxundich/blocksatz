@@ -216,6 +216,15 @@ pub struct Frontmatter {
     /// after WordPress had already created the post; `export.rs` then
     /// looks for that post before creating another one.
     pub wp_pending_create: Option<String>,
+    /// The post's status on WordPress as of the last sync (import or
+    /// upload, taken from the server's answer). A `status` different from
+    /// it is a change made here - in the properties' status field - that
+    /// the next upload sends (`pending_status_change`).
+    pub wp_status: Option<PostStatus>,
+    /// The scheduled date on WordPress as of the last sync, for a post
+    /// that was `Future` then - lets "Termin ändern" tell a new date from
+    /// the one already on the server.
+    pub wp_scheduled_at: Option<String>,
     /// Language of this file of a language pair, e.g. `en` - `None` for
     /// the original in the blog's own language (`library.rs`). The upload
     /// checks it against the target blog.
@@ -309,6 +318,22 @@ impl Frontmatter {
     pub fn has_metadata(&self) -> bool {
         self != &Frontmatter::default()
     }
+
+    /// The status an update has to send because it was changed here since
+    /// the last sync - a new status, or a new date for a scheduled post.
+    /// `None` when nothing changed, or when the synced status isn't known
+    /// (working copies from before `wp_status`): then an update leaves the
+    /// status alone, as it always did.
+    pub fn pending_status_change(&self) -> Option<PostStatus> {
+        let synced = self.wp_status?;
+        if self.status != synced {
+            return Some(self.status);
+        }
+        if self.status == PostStatus::Future && self.scheduled_at.is_some() && self.scheduled_at != self.wp_scheduled_at {
+            return Some(PostStatus::Future);
+        }
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -401,6 +426,8 @@ pub fn parse(input: &str) -> Document {
             "wp_synced_hash" => frontmatter.wp_synced_hash = (!value.is_empty()).then(|| unquote(value)),
             "wp_synced_at" => frontmatter.wp_synced_at = (!value.is_empty()).then(|| unquote(value)),
             "wp_pending_create" => frontmatter.wp_pending_create = (!value.is_empty()).then(|| unquote(value)),
+            "wp_status" => frontmatter.wp_status = (!value.is_empty()).then(|| PostStatus::from_str(&unquote(value))),
+            "wp_scheduled_at" => frontmatter.wp_scheduled_at = (!value.is_empty()).then(|| unquote(value)),
             "wp_featured_media_id" => frontmatter.featured_media_id = value.parse::<u64>().ok(),
             "author_id" => frontmatter.author_id = value.parse::<u64>().ok(),
             "author_name" => {
@@ -505,6 +532,8 @@ pub fn serialize(doc: &Document) -> String {
         ("wp_synced_hash", &fm.wp_synced_hash),
         ("wp_synced_at", &fm.wp_synced_at),
         ("wp_pending_create", &fm.wp_pending_create),
+        ("wp_status", &fm.wp_status.map(|status| status.as_str().to_string())),
+        ("wp_scheduled_at", &fm.wp_scheduled_at),
     ] {
         if let Some(value) = value {
             out.push_str(&format!("{key}: \"{}\"\n", escape(value)));
@@ -823,6 +852,7 @@ mod tests {
                 size_slug: None,
             }),
             last_markdown_caption: None,
+            last_markdown_alt: None,
         };
         let doc = Document {
             frontmatter: Frontmatter {
@@ -1106,6 +1136,8 @@ mod tests {
                 wp_synced_hash: Some("cafe".to_string()),
                 wp_synced_at: Some("2026-10-01T10:00:05Z".to_string()),
                 wp_pending_create: None,
+                wp_status: None,
+                wp_scheduled_at: None,
                 lang: None,
                 translation: None,
                 featured_media_id: Some(99),
@@ -1130,6 +1162,7 @@ mod tests {
                         size_slug: None,
                     }),
                     last_markdown_caption: None,
+                    last_markdown_alt: None,
                 }],
             },
             body: "Some **body**.\n".to_string(),
@@ -1191,6 +1224,7 @@ mod tests {
                     caption: None,
                     wordpress: None,
                     last_markdown_caption: None,
+                    last_markdown_alt: None,
                 }],
                 ..Frontmatter::default()
             },

@@ -9,6 +9,65 @@ listed as open). Not a commitment or a schedule, just a prioritized list
 to pick from in a future session. See [CHANGELOG.md](CHANGELOG.md) for
 what's already shipped.
 
+## QA audit 0.71.0 (2026-10-15)
+
+Bilingual DE → EN workflow tested in an Ubuntu 26.04 VM against the test
+blog. Full report (German, local only, not in git):
+`qa/2026-10-15/QA-BERICHT.md`. The six P1/P2 items checked below are fixed
+in [Unreleased] and re-tested in the VM (R-01 to R-09). Still open: the
+media library attachment of an already uploaded body image keeps its old
+alt text (only `<img alt>` in the post follows the Markdown), and the
+items below.
+
+- [x] **Status from the server response** - after every upload take `status`,
+  `date`, `modified_gmt` from the REST reply instead of the requested target
+  (`export.rs:279/312`); warn when they differ. Today the header showed
+  "Veröffentlicht" for a post WordPress kept scheduled, and "Geplant" for
+  drafts and published posts. (P1)
+- [x] **Dates on publish-now / revert-draft / reschedule** - "Jetzt
+  veröffentlichen" sends `publish` without `date`, so a post that was once
+  scheduled stays `future`; "Auf Entwurf zurücksetzen" keeps the date;
+  "Termin ändern" + "Änderungen hochladen" never sends the new date. The
+  status dropdown in the Beitrag tab changes only the local file
+  (`PublishOrKeep`). (P1)
+- [x] **One source for image alt/caption** - `media::reconcile` follows
+  caption edits from the Markdown but never alt edits; translations inherit
+  the original's `media_json`, so the EN post was published with a German
+  `alt` and a German `<figcaption>` while the editor showed English. (P1)
+- [x] **Language-aware AI prompts** - alt text, caption, tags, in-place
+  edits, evaluation and writer prompts are hard-coded German and get no
+  document language (`aialt.rs:64-91`); add one `ai_language(doc)` helper.
+  Reproduced: EN featured image → German alt text. Caption also invents
+  narrative. (P1)
+- [x] **Alt-text dialog placeholder** - "Übernehmen" applies "Noch kein Text
+  generiert …" as alt text (`aialt.rs:157`, `223`); enable only after a
+  result. AI buttons in the image dialog overwrite without preview. (P2)
+- [x] **Featured image alt text** - never sent (`upload_image_file` has no
+  metadata step); path is cleared after upload, so the field and the AI
+  button go dead. Decide how EN gets its own alt for the shared image
+  (lui-translations). (P1)
+- [ ] **Via & Quelle fields** - `lui_via_label/url`, `lui_source_label/url`
+  are registered with `show_in_rest` on both blogs; add them, and keep
+  unknown frontmatter keys instead of dropping them (`document.rs:430`). (P2)
+- [ ] **RankMath group only when Rank Math is active** - it is inactive on
+  test and live; the fields are silently discarded while the upload reports
+  success. The theme uses the excerpt as meta description. (P2)
+- [ ] **Category mapping DE → EN as a setting** - categories are copied 1:1,
+  the EN blog silently got a new "Spaß" category; ask before creating terms.
+  (P2)
+- [ ] **"Per KI aktualisieren" keeps EN-only edits** - replaced sections drop
+  sentences added only in English, without a warning. (P2)
+- [ ] **Preview** - draft preview is a 404 when the built-in browser isn't
+  logged in (no hint); "Im Blog" keeps the other language after Alt+1/2. (P2)
+- [ ] **Credentials dialog** - "Prüfen" doesn't save, "Speichern" is far
+  away and also switches the active blog; AI key is dropped without Enter;
+  "Blogs verwalten …" opens "Erscheinungsbild". (P2)
+- [ ] Smaller items (P3): slug transliteration ö→o (WP de_DE: oe), URL-length
+  check assumes `/category/` on DE, technical network-error toast, no
+  confirmation when quitting during upload, right pane clipped below ~900 px,
+  GTK context menu in English, release check doesn't mention the other
+  language, EN featured image from a local path is uploaded as a duplicate.
+
 ## Next up (after 0.66.0)
 
 The short list from the 0.65.0 review (2026-10-02), roughly by value.

@@ -132,7 +132,14 @@ impl MainAction {
         let empty = doc.body.trim().is_empty() && fm.title.trim().is_empty();
 
         // (primary action, label, suggested, menu entries)
-        let (action, label, suggested, menu): (&str, String, bool, Vec<(String, &str)>) = match (state.status, state.sync) {
+        // A status or date chosen in the properties since the last sync is
+        // what the next upload sends - the button says so instead of
+        // offering a plain update that would leave it unsent.
+        let pending = fm.pending_status_change().filter(|_| fm.wp_post_id.is_some() && state.sync != SyncState::RemoteGone);
+        let (action, label, suggested, menu): (&str, String, bool, Vec<(String, &str)>) = if let Some(change) = pending {
+            pending_change_action(change)
+        } else {
+            match (state.status, state.sync) {
             (None, _) => (
                 "main.upload-draft",
                 tr("Als Entwurf hochladen"),
@@ -175,6 +182,7 @@ impl MainAction {
                 false,
                 vec![(tr("Auf Entwurf zurücksetzen …"), "main.revert-draft")],
             ),
+            }
         };
         let menu_model = gio::Menu::new();
         for (entry, entry_action) in menu {
@@ -248,6 +256,12 @@ impl MainAction {
             (_, SyncState::RemoteGone) => (BannerKind::Gone, tr("Dieser Beitrag wurde im Blog gelöscht oder in den Papierkorb verschoben."), tr("Verknüpfung lösen")),
             (_, SyncState::Conflict) => (BannerKind::Conflict, tr("Dieser Beitrag wurde im Blog geändert, während du hier weitergeschrieben hast."), tr("Auflösen …")),
             (_, SyncState::RemoteChanged) => (BannerKind::RemoteChanged, tr("Dieser Beitrag wurde im Blog geändert."), tr("Blog-Fassung laden")),
+            // The button already says what goes up ("Termin hochladen" ...).
+            _ if pending.is_some() => (
+                BannerKind::PublishedChanges,
+                tr("Status oder Termin geändert - geht erst mit „{action}“ an den Blog.").replace("{action}", &label),
+                String::new(),
+            ),
             (Some(PostStatus::Publish | PostStatus::Private), SyncState::LocalChanges) => (
                 BannerKind::PublishedChanges,
                 tr("Veröffentlichter Beitrag: Deine Änderungen gehen erst mit „Änderungen veröffentlichen“ online."),
@@ -343,6 +357,21 @@ impl MainAction {
             this.confirm(&tr("Jetzt veröffentlichen?"), &tr("Der geplante Termin entfällt, der Beitrag geht sofort online."), &tr("Veröffentlichen"), false, |this| {
                 this.upload(TargetStatus::Set(PostStatus::Publish), false)
             })
+        });
+        add("keep-status", |this| {
+            {
+                let mut fm = this.ctx.frontmatter.borrow_mut();
+                if let Some(status) = fm.wp_status {
+                    fm.status = status;
+                    if status == PostStatus::Future {
+                        fm.scheduled_at = fm.wp_scheduled_at.clone();
+                    }
+                }
+            }
+            // The properties show the restored status again.
+            this.ctx.bump_generation();
+            worksave::flush(&this.ctx, true);
+            this.refresh();
         });
         add("revert-draft", |this| {
             this.confirm(&tr("Auf Entwurf zurücksetzen?"), &tr("Der Beitrag ist danach nicht mehr öffentlich sichtbar."), &tr("Auf Entwurf zurücksetzen"), true, |this| {
@@ -520,16 +549,15 @@ impl MainAction {
             let toast_overlay = ctx.toast_overlay.clone();
             PublishFeedback {
                 on_progress: Rc::new(|_| {}),
-                on_success: Rc::new(move |post: &wpclient::PostResult, status: PostStatus| {
+                on_success: Rc::new(move |post: &wpclient::PostResult, status: PostStatus, requested: Option<PostStatus>| {
                     let Some(this) = weak.upgrade() else { return };
                     blogsync::record_upload(&this.ctx, post, status);
-                    let message = match target {
-                        TargetStatus::Set(PostStatus::Draft) => tr("Als Entwurf hochgeladen."),
-                        TargetStatus::Set(PostStatus::Pending) => tr("Zur Prüfung eingereicht."),
-                        TargetStatus::Set(PostStatus::Publish) => tr("Veröffentlicht."),
-                        TargetStatus::Set(PostStatus::Future) => tr("Geplant."),
-                        _ => tr("Aktualisiert."),
-                    };
+                    let scheduled = this.ctx.frontmatter.borrow().scheduled_at.clone();
+                    let mut message = upload_message(status, requested, scheduled.as_deref());
+                    for note in &post.notes {
+                        message.push(' ');
+                        message.push_str(note);
+                    }
                     window::show_toast(&this.ctx.toast_overlay, &message);
                     // Status and media ids changed under the property fields.
                     this.ctx.bump_generation();
@@ -861,5 +889,58 @@ pub(crate) fn state_text(doc: &Document, state: PostState) -> String {
     match detail {
         Some(detail) => format!("{status} · {detail}"),
         None => status,
+    }
+}
+
+/// The main action for a status changed in the properties: scheduling or
+/// a new date goes up as an update (which now sends it), publishing goes
+/// through the release check, back to draft through its confirmation.
+fn pending_change_action(change: PostStatus) -> (&'static str, String, bool, Vec<(String, &'static str)>) {
+    let back = vec![(tr("Status im Blog lassen"), "main.keep-status")];
+    match change {
+        PostStatus::Future => ("main.update", tr("Termin hochladen"), true, back),
+        PostStatus::Publish => ("main.publish", tr("Veröffentlichen …"), true, back),
+        PostStatus::Draft => ("main.revert-draft", tr("Auf Entwurf zurücksetzen …"), true, back),
+        PostStatus::Pending => ("main.update", tr("Zur Prüfung einreichen"), true, back),
+        PostStatus::Private => ("main.update", tr("Privat veröffentlichen"), true, back),
+    }
+}
+
+/// The toast after an upload, from what WordPress actually stored. When
+/// that isn't what was asked for, it says so - a "publish" that came back
+/// scheduled must not read as "Veröffentlicht".
+fn upload_message(stored: PostStatus, requested: Option<PostStatus>, scheduled_at: Option<&str>) -> String {
+    let when = || scheduled_at.map(crate::document::format_scheduled_at_for_display).unwrap_or_default();
+    match requested {
+        Some(requested) if requested != stored => {
+            let base = tr("Hochgeladen, aber WordPress hat den Beitrag als „{stored}“ gespeichert, nicht als „{requested}“.")
+                .replace("{stored}", &stored.label())
+                .replace("{requested}", &requested.label());
+            if stored == PostStatus::Future {
+                format!("{base} {}", tr("Termin: {when}").replace("{when}", &when()))
+            } else {
+                base
+            }
+        }
+        Some(PostStatus::Draft) => tr("Als Entwurf hochgeladen."),
+        Some(PostStatus::Pending) => tr("Zur Prüfung eingereicht."),
+        Some(PostStatus::Publish) => tr("Veröffentlicht."),
+        Some(PostStatus::Future) => tr("Geplant für {when}.").replace("{when}", &when()),
+        Some(PostStatus::Private) => tr("Privat veröffentlicht."),
+        None => tr("Aktualisiert."),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_publish_that_came_back_scheduled_does_not_read_as_published() {
+        let message = upload_message(PostStatus::Future, Some(PostStatus::Publish), Some("2026-12-24T10:00:00"));
+        assert!(message.contains("nicht als"), "{message}");
+        assert!(message.contains("2026-12-24 10:00"), "{message}");
+        assert_eq!(upload_message(PostStatus::Publish, Some(PostStatus::Publish), None), tr("Veröffentlicht."));
+        assert_eq!(upload_message(PostStatus::Draft, None, None), tr("Aktualisiert."));
     }
 }

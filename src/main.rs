@@ -1,6 +1,7 @@
 mod about;
 mod adblock;
 mod aialt;
+mod ailang;
 mod aicaption;
 mod aievaluate;
 mod aiinplace;

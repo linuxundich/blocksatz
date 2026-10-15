@@ -186,7 +186,11 @@ impl MainAction {
                 "main.open-preview",
                 tr("Im Blog ansehen"),
                 false,
-                vec![(tr("Auf Entwurf zurücksetzen …"), "main.revert-draft")],
+                if state.status == Some(PostStatus::Publish) {
+                    vec![(tr("Neu veröffentlichen (Datum: jetzt) …"), "main.republish"), (tr("Auf Entwurf zurücksetzen …"), "main.revert-draft")]
+                } else {
+                    vec![(tr("Auf Entwurf zurücksetzen …"), "main.revert-draft")]
+                },
             ),
             }
         };
@@ -363,6 +367,21 @@ impl MainAction {
             this.confirm(&tr("Jetzt veröffentlichen?"), &tr("Der geplante Termin entfällt, der Beitrag geht sofort online."), &tr("Veröffentlichen"), false, |this| {
                 this.upload(TargetStatus::Set(PostStatus::Publish), false)
             })
+        });
+        // A deliberate new date for a post that is already online: it moves
+        // to the top of the blog, the old date is only kept in the dialog.
+        add("republish", |this| {
+            let fm = this.ctx.frontmatter.borrow().clone();
+            let before = fm.wp_published_at.as_deref().map(crate::postpane::format_site_date);
+            let mut body = match &before {
+                Some(date) => tr("Der Beitrag bekommt das aktuelle Datum und steht im Blog wieder oben. Bisher veröffentlicht am {date}.").replace("{date}", date),
+                None => tr("Der Beitrag bekommt das aktuelle Datum und steht im Blog wieder oben."),
+            };
+            if this.state().1.sync == SyncState::LocalChanges {
+                body.push(' ');
+                body.push_str(&tr("Deine lokalen Änderungen gehen mit online."));
+            }
+            this.confirm(&tr("Neu veröffentlichen?"), &body, &tr("Neu veröffentlichen"), false, |this| this.upload(TargetStatus::Set(PostStatus::Publish), false))
         });
         add("keep-status", |this| {
             {
@@ -953,12 +972,14 @@ impl MainAction {
     fn apply_blog_version(&self, post_id: u64, imported: importer::ImportedPost) {
         // What we just fetched is the server state now.
         if let Some(fetched) = imported.frontmatter.wp_modified_gmt.clone() {
+            let site = self.ctx.frontmatter.borrow().wp_site.clone().unwrap_or_else(|| wpsite::load().site_id());
+            let key = (site, post_id);
             let mut remote = self.ctx.remote.borrow_mut();
-            let link = match remote.get(&post_id) {
+            let link = match remote.get(&key) {
                 Some(Remote::Present { link, .. }) => link.clone(),
                 _ => String::new(),
             };
-            remote.insert(post_id, Remote::Present { modified_gmt: fetched, status: imported.frontmatter.status, link });
+            remote.insert(key, Remote::Present { modified_gmt: fetched, status: imported.frontmatter.status, link });
         }
         self.ctx.buffer.set_text(&imported.body);
         // The blog doesn't know a translation's link to its original
@@ -1060,9 +1081,10 @@ impl MainAction {
     fn unlink(&self) {
         {
             let mut fm = self.ctx.frontmatter.borrow_mut();
-            if let Some(id) = fm.wp_post_id.take() {
-                self.ctx.remote.borrow_mut().remove(&id);
+            if let Some(key) = window::remote_key(&fm) {
+                self.ctx.remote.borrow_mut().remove(&key);
             }
+            fm.wp_post_id = None;
             fm.wp_content_hash = None;
             fm.wp_site = None;
             fm.wp_modified_gmt = None;

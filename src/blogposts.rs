@@ -108,6 +108,7 @@ pub struct BlogPostsPage {
     list: gtk4::ListBox,
     stack: gtk4::Stack,
     status_page: adw::StatusPage,
+    retry: gtk4::Button,
     more_spinner: adw::Spinner,
     state: RefCell<State>,
     /// The search the list currently shows. `search-changed` arrives with
@@ -148,6 +149,9 @@ impl BlogPostsPage {
 
         let loading = adw::Spinner::builder().width_request(32).height_request(32).halign(gtk4::Align::Center).valign(gtk4::Align::Center).build();
         let status_page = adw::StatusPage::new();
+        // Only on a failed load: the list stays empty until it works again.
+        let retry = gtk4::Button::builder().label(tr("Erneut versuchen")).halign(gtk4::Align::Center).css_classes(["pill", "suggested-action"]).visible(false).build();
+        status_page.set_child(Some(&retry));
         let stack = gtk4::Stack::new();
         stack.add_named(&scrolled, Some("list"));
         stack.add_named(&loading, Some("loading"));
@@ -166,6 +170,7 @@ impl BlogPostsPage {
             list: list.clone(),
             stack,
             status_page,
+            retry: retry.clone(),
             more_spinner,
             state: RefCell::new(State {
                 filter: BlogFilter::Drafts,
@@ -183,6 +188,12 @@ impl BlogPostsPage {
             weak: weak.clone(),
         });
 
+        let weak = Rc::downgrade(&this);
+        retry.connect_clicked(move |_| {
+            if let Some(this) = weak.upgrade() {
+                this.load(true);
+            }
+        });
         let weak = Rc::downgrade(&this);
         search.connect_search_changed(move |entry| {
             if let Some(this) = weak.upgrade().filter(|this| *this.shown_search.borrow() != entry.text().as_str()) {
@@ -273,7 +284,10 @@ impl BlogPostsPage {
                 this.more_spinner.set_visible(false);
                 match outcome {
                     Ok(result) => this.append(result, reset),
-                    Err(err) if reset => this.show_status("dialog-error-symbolic", &tr("Beiträge konnten nicht geladen werden"), &err),
+                    Err(err) if reset => {
+                        this.show_status("network-error-symbolic", &tr("Beiträge konnten nicht geladen werden"), &err);
+                        this.retry.set_visible(true);
+                    }
                     Err(err) => (this.on_error)(&tr("Fehler beim Laden: {err}").replace("{err}", &err)),
                 }
             },
@@ -431,6 +445,7 @@ impl BlogPostsPage {
         self.status_page.set_icon_name(Some(icon));
         self.status_page.set_title(title);
         self.status_page.set_description((!description.is_empty()).then_some(description));
+        self.retry.set_visible(false);
         self.stack.set_visible_child_name("status");
     }
 

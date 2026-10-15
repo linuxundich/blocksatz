@@ -92,12 +92,14 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
     }
     let detail_content_ids = gutenberg::image_media_ids(&detail.content);
     let is_future = detail.status == "future";
+    let lang = wpsite::site_lang(site);
+    let translation = translation_link(lang.as_deref(), (detail.source_id, &detail.source_hash, &detail.source_translated, detail.source_reviewed), &body);
     let frontmatter = Frontmatter {
         title: detail.title,
         post_type,
         slug: detail.slug,
         status: PostStatus::from_str(&detail.status),
-        scheduled_at: is_future.then_some(detail.date).filter(|d| !d.is_empty()),
+        scheduled_at: is_future.then(|| detail.date.clone()).filter(|d| !d.is_empty()),
         categories,
         tags,
         excerpt: (!detail.excerpt.is_empty()).then_some(detail.excerpt),
@@ -127,9 +129,10 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
         wp_pending_create: None,
         wp_status: None,
         wp_scheduled_at: None,
+        wp_published_at: matches!(detail.status.as_str(), "publish" | "private").then(|| detail.date.clone()).filter(|d| !d.is_empty()),
         extra: Vec::new(),
-        lang: None,
-        translation: None,
+        lang,
+        translation,
         featured_media_id: (detail.featured_media != 0).then_some(detail.featured_media),
         author_id: (detail.author != 0).then_some(detail.author),
         author_name,
@@ -144,6 +147,30 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
     keep_media_ids(&mut doc.frontmatter.media, &detail_content_ids);
     syncstate::mark_synced(&mut doc, &site.site_id(), &detail.modified_gmt, &syncstate::now_rfc3339());
     Ok(ImportedPost { frontmatter: doc.frontmatter, body: doc.body })
+}
+
+/// A post from a language blog that lui-translations links to its
+/// original becomes a translation of it again. `source_sections` stay
+/// empty: which version of the original it was made from is only known
+/// once the original is in the library (`window::link_to_original`).
+/// `source` is the post's `(lui_source_id, _hash, _translated, _reviewed)`.
+fn translation_link(lang: Option<&str>, source: (u64, &str, &str, bool), body: &str) -> Option<document::TranslationLink> {
+    let lang = lang?;
+    let (source_id, source_hash, translated_at, reviewed) = source;
+    if source_id == 0 {
+        return None;
+    }
+    let source_site = wpsite::for_lang(None)?.site_id();
+    Some(document::TranslationLink {
+        lang: lang.to_string(),
+        source_site,
+        source_id,
+        source_hash: source_hash.to_string(),
+        source_sections: Vec::new(),
+        translated_at: translated_at.to_string(),
+        reviewed,
+        target_sections: crate::translate::split_sections(body).iter().map(|s| crate::translate::section_hash(s)).collect(),
+    })
 }
 
 /// The attachment ids the post's images already have on the blog, as

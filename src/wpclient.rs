@@ -30,6 +30,10 @@ pub struct ApiError {
 
 impl std::fmt::Display for ApiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.status == 0 {
+            // Never reached the blog: offline, wrong address, timeout.
+            return write!(f, "{}", tr("Keine Verbindung zum Blog ({err})").replace("{err}", &self.message));
+        }
         write!(f, "HTTP {}: {}", self.status, self.message)
     }
 }
@@ -392,6 +396,12 @@ pub struct PostDetail {
     /// current content, given a logged-in, authorized session - see
     /// `export.rs`'s "Vorschau öffnen" button.
     pub link: String,
+    /// lui-translations' link to the original (`lui_source_id` and
+    /// friends) - `0`/empty on an original or a blog without the plugin.
+    pub source_id: u64,
+    pub source_hash: String,
+    pub source_translated: String,
+    pub source_reviewed: bool,
 }
 
 fn network_error(err: ureq::Error) -> ApiError {
@@ -1040,6 +1050,10 @@ impl Client {
             link: value.get("link").and_then(Value::as_str).unwrap_or_default().to_string(),
             parent: value.get("parent").and_then(Value::as_u64).unwrap_or(0),
             modified_gmt: value.get("modified_gmt").and_then(Value::as_str).unwrap_or_default().to_string(),
+            source_id: value.get("meta").and_then(|m| m.get("lui_source_id")).and_then(|v| v.as_u64().or_else(|| v.as_str().and_then(|s| s.trim().parse().ok()))).unwrap_or(0),
+            source_hash: meta_str("lui_source_hash"),
+            source_translated: meta_str("lui_source_translated"),
+            source_reviewed: value.get("meta").and_then(|m| m.get("lui_source_reviewed")).is_some_and(|v| v.as_bool().unwrap_or_else(|| matches!(v.as_str(), Some("1" | "true")) || v.as_u64() == Some(1))),
         })
     }
 

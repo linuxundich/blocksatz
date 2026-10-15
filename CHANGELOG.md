@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Publish date and "Neu veröffentlichen".** The post pane shows when a
+  published post went online ("Veröffentlicht am …"), kept from opening
+  and every upload. For a published post the main action's menu offers
+  "Neu veröffentlichen (Datum: jetzt) …": after a confirmation naming the
+  old date, the post gets the current date and moves to the top again.
+- **"Erneut versuchen" in the blog list.** Without a connection the list
+  shows "Keine Verbindung zum Blog" with a retry button instead of staying
+  empty; connection errors read that way everywhere instead of "HTTP 0".
+
+### Fixed
+
+- **English posts open as translations.** A post opened from a language
+  blog keeps its language and, where lui-translations links it to an
+  original, becomes a translation of it again (status, review flag, "Original
+  geändert"). It goes next to its original in the library
+  (`artikel.en.md`); if the original isn't there yet, opening it later puts
+  it into the same folder.
+- **AI translation keeps Via & Quelle.** A new translation made by AI takes
+  over the original's Via and Quelle, as the template path already did.
+- **Deleted language versions are noticed with any blog active.** The sync
+  check asks every blog that has working copies, not only the active one -
+  a trashed English post shows its banner while the German blog is active.
+
 ## [0.72.1] - 2026-10-15
 
 Fixes from a second QA pass: opening posts from the blog, translating

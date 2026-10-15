@@ -1332,17 +1332,99 @@ pub(crate) fn open_imported_post(ctx: &DocContext, imported: importer::ImportedP
     create_working_copy(ctx, imported);
 }
 
-/// A new library folder for a post fetched from the blog, opened.
+/// A library file for a post fetched from the blog, opened: a language
+/// version goes next to its original (`artikel.en.md`), an original into
+/// the folder that already holds its translation; anything else gets a
+/// new folder.
 fn create_working_copy(ctx: &DocContext, imported: importer::ImportedPost) {
     let root = library::root();
-    let doc = Document { frontmatter: imported.frontmatter, body: imported.body };
-    let title = (!doc.frontmatter.title.is_empty()).then_some(doc.frontmatter.title.as_str());
-    let written = library::create_entry(&root, title, &library::untitled_name()).and_then(|path| document::write(&path, &doc).map(|()| path));
-    match written {
-        Ok(path) => open_document_at_path(path, ctx),
+    let mut doc = Document { frontmatter: imported.frontmatter, body: imported.body };
+    let (path, note) = match import_target(&root, &mut doc) {
+        Some(found) => found,
+        None => {
+            let title = (!doc.frontmatter.title.is_empty()).then_some(doc.frontmatter.title.as_str());
+            let lang = doc.frontmatter.translation.as_ref().map(|link| link.lang.clone()).or_else(|| doc.frontmatter.lang.clone());
+            let note = doc.frontmatter.translation.is_some().then(|| tr("Original nicht in der Bibliothek – öffne es aus dem Originalblog, dann landet es im selben Ordner."));
+            match library::create_entry(&root, title, &library::untitled_name()) {
+                Ok(path) => (library::sibling(&path, lang.as_deref()).unwrap_or(path), note),
+                Err(err) => {
+                    show_toast(&ctx.toast_overlay, &tr("Arbeitskopie konnte nicht angelegt werden: {err}").replace("{err}", &err.to_string()));
+                    return;
+                }
+            }
+        }
+    };
+    match document::write(&path, &doc) {
+        Ok(()) => {
+            open_document_at_path(path, ctx);
+            if let Some(note) = note {
+                show_toast(&ctx.toast_overlay, &note);
+            }
+        }
         Err(err) => show_toast(&ctx.toast_overlay, &tr("Arbeitskopie konnte nicht angelegt werden: {err}").replace("{err}", &err.to_string())),
     }
 }
+
+/// Where an opened post belongs in the library, if beside a file already
+/// there: a translation next to its original, an original next to a
+/// translation that is waiting for it. Fills in the translation's
+/// `source_sections` when the local original is the version it was made
+/// from, so "Original geändert" can tell the sections apart.
+fn import_target(root: &Path, doc: &mut Document) -> Option<(PathBuf, Option<String>)> {
+    if let Some(link) = doc.frontmatter.translation.clone() {
+        let original_path = library::find_by_post_id(root, &link.source_site, link.source_id)?;
+        let target = library::sibling(&original_path, Some(&link.lang))?;
+        if target.exists() {
+            return None;
+        }
+        if let Ok(original) = document::read(&original_path) {
+            link_to_original(doc, &original);
+        }
+        return Some((target, Some(tr("Neben dem Original abgelegt."))));
+    }
+    if doc.frontmatter.lang.is_some() {
+        return None;
+    }
+    let site = doc.frontmatter.wp_site.clone()?;
+    let id = doc.frontmatter.wp_post_id?;
+    let pair = library::scan_pairs(root).into_iter().find(|pair| {
+        pair.original().is_none() && pair.files.iter().any(|entry| entry.document.frontmatter.translation.as_ref().is_some_and(|l| l.source_site == site && l.source_id == id))
+    })?;
+    let target = pair.dir.join(library::article_file(None));
+    for entry in &pair.files {
+        let mut translation = entry.document.clone();
+        if translation.frontmatter.translation.as_ref().is_some_and(|l| l.source_sections.is_empty()) {
+            link_to_original(&mut translation, doc);
+            let _ = document::write(&entry.path, &translation);
+        }
+    }
+    Some((target, Some(tr("Zur vorhandenen Übersetzung gelegt."))))
+}
+
+/// Records the original's section hashes in a translation's link, but
+/// only if `original` is the version the translation was made from.
+fn link_to_original(translation: &mut Document, original: &Document) {
+    let Some(link) = translation.frontmatter.translation.as_mut() else { return };
+    if link.source_hash.is_empty() || link.source_hash != crate::syncstate::fingerprint(original) {
+        return;
+    }
+    link.source_sections = crate::translate::split_sections(&crate::translate::body_with_uploaded_images(original)).iter().map(|s| crate::translate::section_hash(s)).collect();
+}
+
+/// Which blog's post a sync answer is about: `(site id, post id)`.
+pub(crate) type RemoteKey = (String, u64);
+
+/// The `RemoteKey` of a working copy - its own blog, or the active one for
+/// copies from before `wp_site` was recorded.
+pub(crate) fn remote_key(frontmatter: &Frontmatter) -> Option<RemoteKey> {
+    let id = frontmatter.wp_post_id?;
+    Some((frontmatter.wp_site.clone().unwrap_or_else(|| crate::wpsite::load().site_id()), id))
+}
+
+/// Called with `structural` - see `DocContext::notify_library`.
+pub(crate) type LibraryListener = Rc<dyn Fn(bool)>;
+/// See `DocContext::notify_blog`.
+pub(crate) type BlogListener = Rc<dyn Fn()>;
 
 /// The handles almost every "open something new into the editor" action
 /// needs, bundled purely to keep those functions' parameter counts down
@@ -1350,11 +1432,6 @@ fn create_working_copy(ctx: &DocContext, imported: importer::ImportedPost) {
 /// `RecentFilesWidgets`. All fields are reference-counted/GObject handles,
 /// so cloning the whole bundle is as cheap as cloning any one field.
 /// `pub(crate)` so the library sidebar and `worksave.rs` share it.
-/// Called with `structural` - see `DocContext::notify_library`.
-pub(crate) type LibraryListener = Rc<dyn Fn(bool)>;
-/// See `DocContext::notify_blog`.
-pub(crate) type BlogListener = Rc<dyn Fn()>;
-
 #[derive(Clone)]
 pub(crate) struct DocContext {
     pub(crate) buffer: sourceview5::Buffer,
@@ -1371,8 +1448,9 @@ pub(crate) struct DocContext {
     /// action); see `notify_library`.
     pub(crate) library_listeners: Rc<RefCell<Vec<LibraryListener>>>,
     /// What the last sync check (`blogsync.rs`) found on the server, by
-    /// post id.
-    pub(crate) remote: Rc<RefCell<HashMap<u64, syncstate::Remote>>>,
+    /// blog and post id: the German and the English blog number their
+    /// posts independently.
+    pub(crate) remote: Rc<RefCell<HashMap<RemoteKey, syncstate::Remote>>>,
     /// Called after something changed on the blog itself (an upload, a
     /// post trashed or restored) - the sidebar's counters reload.
     pub(crate) blog_listeners: Rc<RefCell<Vec<BlogListener>>>,
@@ -1420,7 +1498,7 @@ impl DocContext {
 
     /// The server state last seen for the post behind `frontmatter`.
     pub(crate) fn remote_for(&self, frontmatter: &Frontmatter) -> syncstate::Remote {
-        frontmatter.wp_post_id.and_then(|id| self.remote.borrow().get(&id).cloned()).unwrap_or(syncstate::Remote::Unknown)
+        remote_key(frontmatter).and_then(|key| self.remote.borrow().get(&key).cloned()).unwrap_or(syncstate::Remote::Unknown)
     }
 
     /// The open article as it is in the editor right now.
@@ -1992,4 +2070,75 @@ fn wire_media_action(
         mediapanel::open(&window, body, frontmatter.clone(), doc_path, preview_pane.clone());
     });
     window.add_action(&action);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::document::TranslationLink;
+
+    fn root(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("blocksatz-window-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn original(id: u64) -> Document {
+        Document {
+            frontmatter: Frontmatter { title: "Original".into(), wp_post_id: Some(id), wp_site: Some("blog.example".into()), ..Frontmatter::default() },
+            body: "Intro.\n\n## Eins\nText.\n".into(),
+        }
+    }
+
+    fn translation(id: u64, source_id: u64, source_hash: String) -> Document {
+        Document {
+            frontmatter: Frontmatter {
+                title: "Translation".into(),
+                wp_post_id: Some(id),
+                wp_site: Some("blog.example/en".into()),
+                lang: Some("en".into()),
+                translation: Some(TranslationLink { lang: "en".into(), source_site: "blog.example".into(), source_id, source_hash, ..TranslationLink::default() }),
+                ..Frontmatter::default()
+            },
+            body: "Intro.\n\n## One\nText.\n".into(),
+        }
+    }
+
+    #[test]
+    fn an_opened_translation_goes_next_to_its_original() {
+        let root = root("beside-original");
+        let dir = root.join("original");
+        std::fs::create_dir_all(&dir).unwrap();
+        let de = original(7);
+        document::write(&dir.join("artikel.md"), &de).unwrap();
+        let mut en = translation(3, 7, crate::syncstate::fingerprint(&document::read(&dir.join("artikel.md")).unwrap()));
+        let (path, _) = import_target(&root, &mut en).expect("placed beside the original");
+        assert_eq!(path, dir.join("artikel.en.md"));
+        assert_eq!(en.frontmatter.translation.unwrap().source_sections.len(), 2, "sections of the matching original recorded");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn an_opened_original_joins_its_waiting_translation() {
+        let root = root("original-joins");
+        let dir = root.join("translation");
+        std::fs::create_dir_all(&dir).unwrap();
+        let de = original(7);
+        document::write(&dir.join("artikel.en.md"), &translation(3, 7, crate::syncstate::fingerprint(&de))).unwrap();
+        let mut de = de;
+        let (path, _) = import_target(&root, &mut de).expect("placed beside the translation");
+        assert_eq!(path, dir.join("artikel.md"));
+        let other = original(8);
+        let mut other = other;
+        assert!(import_target(&root, &mut other).is_none(), "an unrelated original gets a folder of its own");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_translation_without_local_original_gets_a_folder_of_its_own() {
+        let root = root("no-original");
+        assert!(import_target(&root, &mut translation(3, 7, String::new())).is_none());
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }

@@ -1061,6 +1061,12 @@ pub fn translate(source: &Document, previous: Option<&Document>, opts: &Options,
                 featured_image: None,
                 featured_image_alt: (!meta.featured_image_alt.is_empty()).then_some(meta.featured_image_alt),
                 comment_status: src.comment_status,
+                // Via and Quelle point to the same sources (as in a
+                // language version made from the template).
+                via_label: src.via_label.clone(),
+                via_url: src.via_url.clone(),
+                source_label: src.source_label.clone(),
+                source_url: src.source_url.clone(),
                 translation: Some(link),
                 ..document::Frontmatter::default()
             };
@@ -1476,6 +1482,18 @@ mod tests {
         let same = translate(&source_doc(), Some(&previous), &opts(), "sys", &send, &|_, _| {}).unwrap();
         assert_eq!(*calls.borrow(), 0);
         assert!(same.document.frontmatter.translation.as_ref().unwrap().reviewed);
+    }
+
+    #[test]
+    fn a_new_translation_keeps_via_and_quelle() {
+        let calls = RefCell::new(0);
+        let send = fake(&calls);
+        let mut source = source_doc();
+        source.frontmatter.via_url = Some("https://example.org/via".into());
+        source.frontmatter.source_label = Some("Quelle".into());
+        let out = translate(&source, None, &opts(), "sys", &send, &|_, _| {}).unwrap();
+        assert_eq!(out.document.frontmatter.via_url.as_deref(), Some("https://example.org/via"));
+        assert_eq!(out.document.frontmatter.source_label.as_deref(), Some("Quelle"));
     }
 
     #[test]

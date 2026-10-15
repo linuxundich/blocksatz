@@ -85,18 +85,24 @@ Updating existing posts is safe (ID, slug, date, metadata kept); open:
   regression in 0.72.0)** - `media::sync_metadata` also touches images an
   imported post only references (`importer::keep_media_ids`); limit it to
   uploads Blocksatz made itself.
-- [ ] **EN posts imported as German originals (P2)** - importer sets no
+- [x] **EN posts imported as German originals (P2)** - importer sets no
   `lang` and ignores `lui_source_*`.
-- [ ] **AI translation drops Via & Quelle (P2)** - only the template path
+- [x] **AI translation drops Via & Quelle (P2)** - only the template path
   copies them.
-- [ ] **Blog list shows nothing when offline (P2)**, no error or retry.
-- [ ] **Deleted EN post not noticed while DE is active (P2)** - `blogsync`
+- [x] **Blog list shows nothing when offline (P2)**, no error or retry.
+- [x] **Deleted EN post not noticed while DE is active (P2)** - `blogsync`
   checks the active blog only.
-- [ ] **Publish date not kept or shown (P2, gap)** - no "re-publish now"
+- [x] **Publish date not kept or shown (P2, gap)** - no "re-publish now"
   for published posts; the original date is lost after C3.
 - [ ] Smaller (P3): backdating only via "Geplant" with a misleading toast,
   internal links stay on the DE URL in EN, „…“ becomes "…", language check
   needs 8 marker words.
+- [ ] Found while fixing the P2s (P3): the blog list's "in the library"
+  mark compares post ids only (the DE and EN blogs number independently);
+  a folder made for a translation keeps its English name when the original
+  joins it; working copies from before this fix show the publish date only
+  after their next upload or reopening; the list's error says "Beiträge"
+  on the pages list too.
 
 ## Next up (after 0.66.0)
 

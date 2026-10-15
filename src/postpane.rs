@@ -168,6 +168,11 @@ impl PostPane {
             (Some(at), Some(_)) => tr("Zuletzt abgeglichen: {at}").replace("{at}", &format_timestamp(at)),
             _ => tr("Noch nicht im Blog."),
         };
+        let published_at = doc.frontmatter.wp_published_at.as_deref().filter(|_| matches!(doc.frontmatter.wp_status, Some(PostStatus::Publish | PostStatus::Private)));
+        let detail = match published_at {
+            Some(date) => format!("{}\n{detail}", tr("Veröffentlicht am {date}").replace("{date}", &format_site_date(date))),
+            None => detail,
+        };
         self.detail_label.set_label(&detail);
         let assessment = crate::markdowncheck::assess(&doc.body);
         let designed = assessment.closeness != gutenberg::Closeness::Plain;
@@ -221,6 +226,16 @@ impl PostPane {
 }
 
 /// `2026-10-01T20:40:19.51Z` → `01.10.2026, 22:40` (local time).
+/// A WordPress post date (site time, `YYYY-MM-DDTHH:MM:SS`) as
+/// `01.03.2025, 10:00`; anything else unchanged.
+pub(crate) fn format_site_date(date: &str) -> String {
+    let parts = (date.get(0..4), date.get(5..7), date.get(8..10), date.get(11..16));
+    match parts {
+        (Some(year), Some(month), Some(day), Some(time)) => format!("{day}.{month}.{year}, {time}"),
+        _ => date.to_string(),
+    }
+}
+
 fn format_timestamp(rfc3339: &str) -> String {
     glib::DateTime::from_iso8601(rfc3339, None)
         .and_then(|dt| dt.to_local())

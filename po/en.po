@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-11 22:57+0200\n"
+"POT-Creation-Date: 2026-10-15 23:07+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -34,40 +34,40 @@ msgstr "Detailed"
 msgid "Hohe Genauigkeit"
 msgstr "High accuracy"
 
-#: src/aialt.rs:135
+#: src/aialt.rs:142
 msgid "Detailgrad"
 msgstr "Detail level"
 
-#: src/aialt.rs:143
+#: src/aialt.rs:150
 msgid "Text generieren"
 msgstr "Generate Text"
 
-#: src/aialt.rs:157
+#: src/aialt.rs:156
 msgid "Noch kein Text generiert - auf „Text generieren“ klicken."
 msgstr "No text generated yet - click “Generate Text”."
 
-#: src/aialt.rs:182 src/aiinplace.rs:102 src/tagsuggest.rs:87
+#: src/aialt.rs:191 src/aiinplace.rs:104 src/tagsuggest.rs:87
 msgid "Übernehmen"
 msgstr "Apply"
 
-#: src/aialt.rs:192
+#: src/aialt.rs:209
 msgid "KI-Alternativtext"
 msgstr "AI Alt Text"
 
-#: src/aialt.rs:202 src/aiwriter.rs:438 src/imagealt.rs:394 src/imagealt.rs:498
+#: src/aialt.rs:223 src/aiwriter.rs:438 src/imagealt.rs:402 src/imagealt.rs:518
 #: src/tagsuggest.rs:62
 msgid "Wird generiert …"
 msgstr "Generating …"
 
-#: src/aialt.rs:213 src/aievaluate.rs:225 src/aiinplace.rs:206
-#: src/aiwriter.rs:403 src/aiwriter.rs:472 src/blogposts.rs:424 src/chat.rs:181
-#: src/export.rs:337 src/gallerydialog.rs:509 src/imagealt.rs:407
-#: src/imagealt.rs:509 src/imageedit.rs:311 src/mediabrowser.rs:500
-#: src/mediabrowser.rs:589 src/mediapanel.rs:292 src/mediapanel.rs:772
+#: src/aialt.rs:235 src/aievaluate.rs:225 src/aiinplace.rs:208
+#: src/aiwriter.rs:403 src/aiwriter.rs:472 src/blogposts.rs:438 src/chat.rs:181
+#: src/export.rs:341 src/gallerydialog.rs:509 src/imagealt.rs:424
+#: src/imagealt.rs:535 src/imageedit.rs:311 src/mediabrowser.rs:500
+#: src/mediabrowser.rs:589 src/mediapanel.rs:293 src/mediapanel.rs:785
 msgid "Fehler: {err}"
 msgstr "Error: {err}"
 
-#: src/aialt.rs:267 src/aicaption.rs:69 src/tagsuggest.rs:241
+#: src/aialt.rs:290 src/aicaption.rs:71 src/tagsuggest.rs:243
 msgid "Interner Fehler: Generierungs-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the generation thread returned no result."
 
@@ -120,43 +120,43 @@ msgstr "1 finding - click it to jump there."
 msgid "{n} Befunde - zum Aufrufen anklicken."
 msgstr "{n} findings - click one to jump there."
 
-#: src/aiinplace.rs:104 src/mainaction.rs:347
+#: src/aiinplace.rs:106 src/mainaction.rs:407
 msgid "Verwerfen"
 msgstr "Discard"
 
-#: src/aiinplace.rs:107 src/markdowncheck.rs:186
+#: src/aiinplace.rs:109 src/markdowncheck.rs:186
 msgid "Schließen"
 msgstr "Close"
 
-#: src/aiinplace.rs:217
+#: src/aiinplace.rs:219
 msgid "Interner Fehler: keine Antwort erhalten."
 msgstr "Internal error: no response received."
 
-#: src/aiinplace.rs:226
+#: src/aiinplace.rs:228
 msgid "Die KI hat keinen Text zurückgegeben."
 msgstr "The AI returned no text."
 
-#: src/aiinplace.rs:237
+#: src/aiinplace.rs:239
 msgid "übernehmen oder verwerfen?"
 msgstr "apply or discard?"
 
-#: src/aiinplace.rs:267
+#: src/aiinplace.rs:269
 msgid "Stil korrigieren"
 msgstr "Fix Style"
 
-#: src/aiinplace.rs:268
+#: src/aiinplace.rs:270
 msgid "Rechtschreibung korrigieren"
 msgstr "Fix Spelling"
 
-#: src/aiinplace.rs:269
+#: src/aiinplace.rs:271
 msgid "Zeichensetzung korrigieren"
 msgstr "Fix Punctuation"
 
-#: src/aiinplace.rs:270 src/aimenu.rs:185 src/aimenu.rs:228 src/aiprompts.rs:58
+#: src/aiinplace.rs:272 src/aimenu.rs:185 src/aimenu.rs:228 src/aiprompts.rs:58
 msgid "Länge anpassen"
 msgstr "Adjust Length"
 
-#: src/aiinplace.rs:271 src/aiinplace.rs:319 src/aiprompts.rs:59
+#: src/aiinplace.rs:273 src/aiinplace.rs:321 src/aiprompts.rs:59
 msgid "KI-Aktion"
 msgstr "AI Action"
 
@@ -176,10 +176,11 @@ msgstr ""
 "How should the selection (or the whole article, if nothing is selected) be "
 "adjusted?"
 
-#: src/aimenu.rs:188 src/blogposts.rs:385 src/diskwatch.rs:223
-#: src/export.rs:202 src/gallerydialog.rs:154 src/mainaction.rs:468
-#: src/mainaction.rs:759 src/mainaction.rs:815 src/markdowncheck.rs:162
-#: src/mediabrowser.rs:554 src/newarticle.rs:209 src/releasecheck.rs:234
+#: src/aimenu.rs:188 src/blogposts.rs:399 src/diskwatch.rs:223
+#: src/export.rs:206 src/gallerydialog.rs:154 src/mainaction.rs:525
+#: src/mainaction.rs:582 src/mainaction.rs:659 src/mainaction.rs:722
+#: src/mainaction.rs:1046 src/mainaction.rs:1103 src/markdowncheck.rs:162
+#: src/mediabrowser.rs:554 src/newarticle.rs:209 src/releasecheck.rs:239
 #: src/tagsuggest.rs:86 src/taxonomy.rs:352 src/taxonomy.rs:666
 msgid "Abbrechen"
 msgstr "Cancel"
@@ -237,7 +238,7 @@ msgid "Texterstellung"
 msgstr "Text generation"
 
 #: src/aitasks.rs:57 src/promptsettings.rs:70 src/releasecheck.rs:116
-#: src/releasecheck.rs:467 src/shortcuts.rs:39 src/translatedialog.rs:977
+#: src/releasecheck.rs:473 src/shortcuts.rs:39 src/translatedialog.rs:1011
 #: src/translationsettings.rs:99 src/translationsettings.rs:140
 msgid "Übersetzung"
 msgstr "Translation"
@@ -297,13 +298,13 @@ msgid ""
 "Für den eigenen Schreibstil muss eine WordPress-Verbindung eingerichtet sein."
 msgstr "Imitating your own writing style requires a WordPress connection."
 
-#: src/aiwriter.rs:145 src/aiwriter.rs:160 src/export.rs:172 src/export.rs:293
+#: src/aiwriter.rs:145 src/aiwriter.rs:160 src/export.rs:176 src/export.rs:297
 #: src/gallerydialog.rs:599 src/importer.rs:35 src/linkpicker.rs:97
-#: src/mediabrowser.rs:134 src/medialibrary.rs:135 src/mediapanel.rs:209
-#: src/mediapanel.rs:519 src/mediapanel.rs:727 src/properties.rs:245
-#: src/properties.rs:467 src/taxonomy.rs:75 src/taxonomy.rs:223
-#: src/taxonomy.rs:296 src/taxonomy.rs:376 src/taxonomy.rs:481
-#: src/taxonomy.rs:610 src/taxonomy.rs:690
+#: src/mediabrowser.rs:134 src/medialibrary.rs:135 src/mediapanel.rs:210
+#: src/mediapanel.rs:532 src/mediapanel.rs:740 src/properties.rs:245
+#: src/properties.rs:468 src/properties.rs:870 src/taxonomy.rs:75
+#: src/taxonomy.rs:223 src/taxonomy.rs:296 src/taxonomy.rs:376
+#: src/taxonomy.rs:481 src/taxonomy.rs:610 src/taxonomy.rs:690
 msgid "Kein Application Password im Schlüsselbund gefunden."
 msgstr "No Application Password found in the keyring."
 
@@ -548,7 +549,7 @@ msgstr "Gallery"
 msgid "Hervorgehobenes Zitat"
 msgstr "Pullquote"
 
-#: src/blockinspector.rs:70 src/mainaction.rs:272 src/markdowncheck.rs:84
+#: src/blockinspector.rs:70 src/mainaction.rs:297 src/markdowncheck.rs:84
 #: src/postpane.rs:62
 msgid "Details"
 msgstr "Details"
@@ -648,7 +649,7 @@ msgid "Standard"
 msgstr "Default"
 
 #: src/blockinspector.rs:428 src/blockinspector.rs:430 src/releasecheck.rs:111
-#: src/releasecheck.rs:336
+#: src/releasecheck.rs:341
 msgid "Links"
 msgstr "Links"
 
@@ -677,7 +678,7 @@ msgid "Ausstehend"
 msgstr "Pending"
 
 #: src/blogposts.rs:46 src/document.rs:74 src/importer.rs:57
-#: src/newarticle.rs:708 src/releasecheck.rs:212
+#: src/newarticle.rs:708 src/releasecheck.rs:217
 msgid "Geplant"
 msgstr "Scheduled"
 
@@ -693,76 +694,80 @@ msgstr "Pages"
 msgid "Papierkorb"
 msgstr "Trash"
 
-#: src/blogposts.rs:129 src/blogposts.rs:160
+#: src/blogposts.rs:130 src/blogposts.rs:164
 msgid "Beiträge"
 msgstr "Posts"
 
-#: src/blogposts.rs:133
+#: src/blogposts.rs:134
 msgid "Im Blog suchen"
 msgstr "Search the blog"
 
-#: src/blogposts.rs:232 src/librarysidebar.rs:443
+#: src/blogposts.rs:153 src/tagsuggest.rs:70
+msgid "Erneut versuchen"
+msgstr "Try Again"
+
+#: src/blogposts.rs:243 src/librarysidebar.rs:443
 msgid "Kein Blog verbunden"
 msgstr "No blog connected"
 
-#: src/blogposts.rs:232
+#: src/blogposts.rs:243
 msgid "Die WordPress-Verbindung wird in den Einstellungen eingerichtet."
 msgstr "Set up the WordPress connection in Preferences."
 
-#: src/blogposts.rs:276
+#: src/blogposts.rs:288
 msgid "Beiträge konnten nicht geladen werden"
 msgstr "Couldn't load posts"
 
-#: src/blogposts.rs:277 src/linkpicker.rs:123 src/mediabrowser.rs:658
-#: src/medialibrary.rs:163 src/properties.rs:277 src/properties.rs:499
+#: src/blogposts.rs:291 src/linkpicker.rs:123 src/mediabrowser.rs:658
+#: src/medialibrary.rs:163 src/properties.rs:277 src/properties.rs:500
 msgid "Fehler beim Laden: {err}"
 msgstr "Error loading: {err}"
 
-#: src/blogposts.rs:288 src/librarysidebar.rs:118
+#: src/blogposts.rs:302 src/librarysidebar.rs:118
 msgid "Keine Treffer"
 msgstr "No matches"
 
-#: src/blogposts.rs:288
+#: src/blogposts.rs:302
 msgid "Ein anderer Suchbegriff findet vielleicht mehr."
 msgstr "A different search term may find more."
 
-#: src/blogposts.rs:290
+#: src/blogposts.rs:304
 msgid "Keine Beiträge"
 msgstr "No posts"
 
-#: src/blogposts.rs:296
+#: src/blogposts.rs:310
 msgid "{n} insgesamt"
 msgstr "{n} in total"
 
-#: src/blogposts.rs:313
+#: src/blogposts.rs:327
 msgid "(ohne Titel)"
 msgstr "(Untitled)"
 
-#: src/blogposts.rs:318
+#: src/blogposts.rs:332
 msgid "Liegt in der Bibliothek"
 msgstr "In the library"
 
-#: src/blogposts.rs:322
+#: src/blogposts.rs:336
 msgid "Wiederherstellen"
 msgstr "Restore"
 
-#: src/blogposts.rs:323
+#: src/blogposts.rs:337
 msgid "Als Entwurf wiederherstellen"
 msgstr "Restore as draft"
 
-#: src/blogposts.rs:327 src/blogposts.rs:386
+#: src/blogposts.rs:341 src/blogposts.rs:400
 msgid "In den Papierkorb"
 msgstr "Move to trash"
 
-#: src/blogposts.rs:372 src/window.rs:1504
+#: src/blogposts.rs:386 src/window.rs:1582
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr "Failed to open: {err}"
 
-#: src/blogposts.rs:382
+#: src/blogposts.rs:396
 msgid "In den Papierkorb verschieben?"
 msgstr "Move to trash?"
 
-#: src/blogposts.rs:383
+#: src/blogposts.rs:397
 msgid ""
 "„{title}“ wird in den WordPress-Papierkorb verschoben und lässt sich von "
 "dort wiederherstellen."
@@ -851,7 +856,7 @@ msgstr "Provider"
 msgid "Basis-URL"
 msgstr "Base URL"
 
-#: src/chatsettings.rs:34 src/translatedialog.rs:726
+#: src/chatsettings.rs:34 src/translatedialog.rs:759
 msgid "Modell"
 msgstr "Model"
 
@@ -873,7 +878,7 @@ msgstr ""
 msgid "API-Key wird geprüft …"
 msgstr "Checking API key …"
 
-#: src/chatsettings.rs:95 src/connection.rs:270
+#: src/chatsettings.rs:95 src/connection.rs:285
 msgid "Verbindung wird geprüft …"
 msgstr "Checking connection …"
 
@@ -886,9 +891,9 @@ msgid "Gespeichert."
 msgstr "Saved."
 
 #: src/chatsettings.rs:116 src/chatsettings.rs:185 src/chatsettings.rs:206
-#: src/chatsettings.rs:262 src/chatsettings.rs:340 src/connection.rs:123
-#: src/connection.rs:195 src/connection.rs:220 src/firstrun.rs:190
-#: src/promptsettings.rs:152
+#: src/chatsettings.rs:262 src/chatsettings.rs:340 src/connection.rs:127
+#: src/connection.rs:205 src/connection.rs:230 src/firstrun.rs:190
+#: src/mainaction.rs:624 src/promptsettings.rs:152
 msgid "Fehler beim Speichern: {err}"
 msgstr "Error saving: {err}"
 
@@ -912,7 +917,7 @@ msgstr "System Prompt"
 msgid "KI-Chat"
 msgstr "AI Chat"
 
-#: src/compare.rs:87 src/mainaction.rs:152 src/mainaction.rs:170
+#: src/compare.rs:87 src/mainaction.rs:165 src/mainaction.rs:183
 msgid "Mit Blog-Fassung vergleichen"
 msgstr "Compare with Blog Version"
 
@@ -920,7 +925,7 @@ msgstr "Compare with Blog Version"
 msgid "− nur im Blog · + nur hier"
 msgstr "− only on the blog · + only here"
 
-#: src/compare.rs:87 src/mainaction.rs:761
+#: src/compare.rs:87 src/mainaction.rs:1048
 msgid "Blog-Fassung übernehmen"
 msgstr "Use Blog Version"
 
@@ -940,7 +945,7 @@ msgstr "Load the File's Version"
 msgid "Keine Unterschiede im Text"
 msgstr "No differences in the text"
 
-#: src/compare.rs:150 src/diskwatch.rs:226 src/mainaction.rs:762
+#: src/compare.rs:150 src/diskwatch.rs:226 src/mainaction.rs:1049
 msgid "Meine Fassung behalten"
 msgstr "Keep My Version"
 
@@ -960,41 +965,41 @@ msgstr ""
 msgid "Website-URL"
 msgstr "Website URL"
 
-#: src/connection.rs:26 src/firstrun.rs:86
-msgid "Benutzername"
-msgstr "Username"
-
 #: src/connection.rs:28
+msgid "Benutzername (WordPress-Anmeldename)"
+msgstr "Username (WordPress login name)"
+
+#: src/connection.rs:30
 msgid "Speichern"
 msgstr "Save"
 
-#: src/connection.rs:30
+#: src/connection.rs:32
 msgid "Blog hinzufügen oder bearbeiten"
 msgstr "Add or Edit a Blog"
 
-#: src/connection.rs:31
+#: src/connection.rs:33
 msgid ""
 "Zugangsdaten werden im Schlüsselbund gespeichert, nicht als Klartext in "
 "einer Datei."
 msgstr "Credentials are stored in the keyring, not as plain text in a file."
 
-#: src/connection.rs:40 src/modelsettings.rs:274 src/translatedialog.rs:1042
-msgid "Prüfen"
-msgstr "Check"
+#: src/connection.rs:44
+msgid "Prüfen und speichern"
+msgstr "Check and Save"
 
-#: src/connection.rs:41
+#: src/connection.rs:45
 msgid "Verbindung"
 msgstr "Connection"
 
-#: src/connection.rs:41 src/connection.rs:269 src/linkcheck.rs:158
+#: src/connection.rs:45 src/connection.rs:284 src/linkcheck.rs:158
 msgid "Noch nicht geprüft"
 msgstr "Not checked yet"
 
-#: src/connection.rs:53
+#: src/connection.rs:57
 msgid "Vor stark gestalteten Beiträgen warnen"
 msgstr "Warn about heavily designed posts"
 
-#: src/connection.rs:54
+#: src/connection.rs:58
 msgid ""
 "Fragt beim Öffnen aus dem Blog nach, wenn ein Beitrag sich hier großteils "
 "nur als WordPress-Markup bearbeiten ließe."
@@ -1002,15 +1007,15 @@ msgstr ""
 "Asks before opening a post from the blog that could mostly only be edited as "
 "WordPress markup here."
 
-#: src/connection.rs:58
+#: src/connection.rs:62
 msgid "Blog-Bausteine (zählen nicht als Markup)"
 msgstr "Blog building blocks (don't count as markup)"
 
-#: src/connection.rs:60
+#: src/connection.rs:64
 msgid "Beiträge aus dem Blog"
 msgstr "Posts from the blog"
 
-#: src/connection.rs:61
+#: src/connection.rs:65
 msgid ""
 "Blocksatz ist für Artikel gedacht, die in Markdown geschrieben sind. Blöcke "
 "wie Inhaltsverzeichnis oder Werbeplatz, die zu deinen Artikeln gehören, "
@@ -1020,79 +1025,79 @@ msgstr ""
 "your articles, like a table of contents or an ad slot, go here as blog "
 "building blocks (block names, separated by commas)."
 
-#: src/connection.rs:114
+#: src/connection.rs:118
 msgid "Als aktives Blog verwenden"
 msgstr "Use as active blog"
 
-#: src/connection.rs:131
+#: src/connection.rs:135
 msgid "Blog entfernen"
 msgstr "Remove blog"
 
-#: src/connection.rs:157
+#: src/connection.rs:161
 msgid "Noch kein Blog eingerichtet"
 msgstr "No blog set up yet"
 
-#: src/connection.rs:181
+#: src/connection.rs:185
 msgid "Passwort konnte nicht geladen werden: {err}"
 msgstr "Couldn't load password: {err}"
 
-#: src/connection.rs:191
+#: src/connection.rs:201
 msgid "Website-URL und Benutzername sind nötig."
 msgstr "Website URL and username are required."
 
-#: src/connection.rs:203
-msgid "„{site}“ gespeichert und als aktives Blog gewählt."
-msgstr "“{site}” saved and made the active blog."
+#: src/connection.rs:213
+msgid "„{site}“ gespeichert."
+msgstr "“{site}” saved."
 
-#: src/connection.rs:204 src/firstrun.rs:203
+#: src/connection.rs:214 src/firstrun.rs:203
 msgid "Fehler beim Speichern des Passworts: {err}"
 msgstr "Error saving the password: {err}"
 
-#: src/connection.rs:223
+#: src/connection.rs:233
 msgid "„{site}“ entfernt."
 msgstr "“{site}” removed."
 
-#: src/connection.rs:237
+#: src/connection.rs:247
 msgid "Website-URL, Benutzername und Application Password eintragen."
 msgstr "Enter the website URL, username and Application Password."
 
-#: src/connection.rs:301
+#: src/connection.rs:316
 msgid "Verbunden als {name}"
 msgstr "Connected as {name}"
 
-#: src/connection.rs:303
+#: src/connection.rs:318
 msgid "{who} – darf veröffentlichen und Medien hochladen"
 msgstr "{who} – may publish and upload media"
 
-#: src/connection.rs:304
+#: src/connection.rs:319
 msgid "{who}, darf aber nicht veröffentlichen – nur Entwürfe zur Prüfung"
 msgstr "{who}, but may not publish – only submit drafts for review"
 
-#: src/connection.rs:305
+#: src/connection.rs:320
 msgid "{who}, darf aber keine Medien hochladen"
 msgstr "{who}, but may not upload media"
 
-#: src/connection.rs:312
+#: src/connection.rs:327
 msgid "Blog nicht erreichbar: {err}"
 msgstr "Blog not reachable: {err}"
 
-#: src/connection.rs:313
+#: src/connection.rs:328
 msgid ""
 "Anmeldung abgelehnt – Benutzername oder Application Password stimmen nicht."
 msgstr "Sign-in refused – the username or Application Password is wrong."
 
-#: src/connection.rs:314
+#: src/connection.rs:329
 msgid ""
 "Unter dieser Adresse gibt es keine WordPress-REST-API – stimmt die Website-"
 "URL?"
 msgstr ""
 "There is no WordPress REST API at this address – is the website URL right?"
 
-#: src/connection.rs:315
+#: src/connection.rs:330
 msgid "Unter dieser Adresse antwortet kein WordPress – stimmt die Website-URL?"
 msgstr "No WordPress answers at this address – is the website URL right?"
 
-#: src/connection.rs:316
+#: src/connection.rs:331
 msgid "Fehler {status}: {err}"
 msgstr "Error {status}: {err}"
 
@@ -1116,7 +1121,7 @@ msgstr "Done"
 msgid "Deine Fassung liegt als „{name}“ neben der Datei."
 msgstr "Your version is saved as “{name}” next to the file."
 
-#: src/diskwatch.rs:170
+#: src/diskwatch.rs:170 src/mainaction.rs:619
 msgid "Kopie deiner Fassung fehlgeschlagen: {err}"
 msgstr "Could not save a copy of your version: {err}"
 
@@ -1142,7 +1147,7 @@ msgstr "Resolve Conflict…"
 msgid "Die Datei wurde außerhalb von Blocksatz geändert."
 msgstr "The file was changed outside Blocksatz."
 
-#: src/diskwatch.rs:220 src/mainaction.rs:756
+#: src/diskwatch.rs:220 src/mainaction.rs:1043
 msgid "Welche Fassung soll gelten?"
 msgstr "Which Version Should Count?"
 
@@ -1155,7 +1160,7 @@ msgstr ""
 "The file was changed outside Blocksatz, and you kept writing here. With "
 "“Load the File's Version” your text is kept as a copy next to the file."
 
-#: src/diskwatch.rs:224 src/mainaction.rs:760
+#: src/diskwatch.rs:224 src/mainaction.rs:1047
 msgid "Vergleichen …"
 msgstr "Compare…"
 
@@ -1175,15 +1180,15 @@ msgstr "Blog post"
 msgid "Seite"
 msgstr "Page"
 
-#: src/export.rs:164
+#: src/export.rs:168
 msgid "Prüfe auf Änderungen auf WordPress …"
 msgstr "Checking for changes on WordPress …"
 
-#: src/export.rs:197
+#: src/export.rs:201
 msgid "Artikel wurde extern geändert"
 msgstr "Article was changed externally"
 
-#: src/export.rs:199
+#: src/export.rs:203
 msgid ""
 "Der Artikel wurde seit dem letzten Abruf/Senden direkt auf WordPress "
 "geändert - z. B. in wp-admin. Trotzdem mit der lokalen Version überschreiben?"
@@ -1191,49 +1196,59 @@ msgstr ""
 "The article was changed directly on WordPress since it was last fetched or "
 "sent - in wp-admin, most likely. Overwrite it with the local version anyway?"
 
-#: src/export.rs:203
+#: src/export.rs:207
 msgid "Überschreiben"
 msgstr "Overwrite"
 
-#: src/export.rs:218
+#: src/export.rs:222
 msgid "Abgebrochen - lokale Änderungen wurden nicht gesendet."
 msgstr "Cancelled - the local changes were not sent."
 
-#: src/export.rs:259
+#: src/export.rs:263
 msgid "Wird gesendet …"
 msgstr "Sending …"
 
-#: src/export.rs:331
+#: src/export.rs:335
 msgid "Aktualisiert"
 msgstr "Updated"
 
-#: src/export.rs:332
+#: src/export.rs:336
 msgid "„{title}“ wurde erfolgreich gesendet."
 msgstr "\"{title}\" was sent successfully."
 
-#: src/export.rs:338
+#: src/export.rs:342
 msgid "Veröffentlichen fehlgeschlagen"
 msgstr "Publishing failed"
 
-#: src/export.rs:344
+#: src/export.rs:348
 msgid "Interner Fehler: Export-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the export thread returned no result."
 
-#: src/export.rs:365
+#: src/export.rs:369
 msgid ""
 "Für den Status „Geplant“ muss ein gültiger Veröffentlichungstermin gesetzt "
 "sein."
 msgstr "A valid publish date must be set for the “Scheduled” status."
 
-#: src/export.rs:814
+#: src/export.rs:575
+msgid ""
+"SEO-Titel/-Beschreibung nicht gespeichert: Rank Math ist auf diesem Blog "
+"nicht aktiv."
+msgstr "SEO title/description not saved: Rank Math is not active on this blog."
+
+#: src/export.rs:585
+msgid "Alt-Text des Aufmacherbilds nicht gesetzt: {err}"
+msgstr "Alt text of the featured image not set: {err}"
+
+#: src/export.rs:906
 msgid "Bild nicht abrufbar: {err}"
 msgstr "Couldn't fetch image: {err}"
 
-#: src/export.rs:818
+#: src/export.rs:910
 msgid "Bild nicht lesbar: {err}"
 msgstr "Couldn't read image: {err}"
 
-#: src/export.rs:821 src/media.rs:478
+#: src/export.rs:913 src/media.rs:515
 msgid "Bild {path} nicht lesbar: {err}"
 msgstr "Couldn't read image {path}: {err}"
 
@@ -1250,6 +1265,10 @@ msgstr ""
 "Write articles in Markdown and publish them directly as native WordPress "
 "Gutenberg blocks - with live preview, AI assistance and everything else an "
 "article needs."
+
+#: src/firstrun.rs:86
+msgid "Benutzername"
+msgstr "Username"
 
 #: src/firstrun.rs:89
 msgid "WordPress-Verbindung"
@@ -1457,8 +1476,8 @@ msgstr "Large"
 msgid "Volle Größe"
 msgstr "Full Size"
 
-#: src/gallerydialog.rs:148 src/settings.rs:62 src/settings.rs:67
-#: src/settings.rs:77 src/shortcuts.rs:54 src/window.rs:420
+#: src/gallerydialog.rs:148 src/settings.rs:70 src/settings.rs:75
+#: src/settings.rs:85 src/shortcuts.rs:54 src/window.rs:420
 msgid "Einstellungen"
 msgstr "Preferences"
 
@@ -1502,8 +1521,8 @@ msgstr "Remove from Gallery"
 msgid "Alt-Text"
 msgstr "Alt text"
 
-#: src/gallerydialog.rs:399 src/imagealt.rs:470 src/imagealt.rs:517
-#: src/mediapanel.rs:673
+#: src/gallerydialog.rs:399 src/imagealt.rs:487 src/imagealt.rs:543
+#: src/mediapanel.rs:686
 msgid "Bildunterschrift"
 msgstr "Caption"
 
@@ -1548,37 +1567,49 @@ msgstr ""
 msgid "OK"
 msgstr "OK"
 
-#: src/imagealt.rs:364 src/mediapanel.rs:606
+#: src/imagealt.rs:366 src/mediapanel.rs:619
 msgid "Alternativtext definieren"
 msgstr "Define Alt Text"
 
-#: src/imagealt.rs:365 src/mediapanel.rs:607
+#: src/imagealt.rs:367 src/mediapanel.rs:620
 msgid "Aus lassen für rein dekorative Bilder - das ist kein Fehler"
 msgstr "Leave off for purely decorative images - that's not an error"
 
-#: src/imagealt.rs:369 src/imagealt.rs:463 src/mediapanel.rs:611
+#: src/imagealt.rs:371 src/imagealt.rs:480 src/mediapanel.rs:624
 msgid "Alternativtext"
 msgstr "Alt Text"
 
-#: src/imagealt.rs:381 src/properties.rs:417
+#: src/imagealt.rs:386 src/properties.rs:417
 msgid "KI-Alternativtext generieren…"
 msgstr "Generate AI Alt Text…"
 
-#: src/imagealt.rs:464
+#: src/imagealt.rs:418
+msgid "Alternativtext ersetzt."
+msgstr "Alt text replaced."
+
+#: src/imagealt.rs:481
 msgid "Für Screenreader - wird im Artikel selbst nicht sichtbar angezeigt."
 msgstr "For screen readers - not shown visibly in the article itself."
 
-#: src/imagealt.rs:485
+#: src/imagealt.rs:502
 msgid "KI-Bildunterschrift generieren…"
 msgstr "Generate AI Caption…"
 
-#: src/imagealt.rs:518
+#: src/imagealt.rs:532
+msgid "Bildunterschrift ersetzt."
+msgstr "Caption replaced."
+
+#: src/imagealt.rs:544
 msgid "Sichtbarer Text, der im Artikel unter dem Bild angezeigt wird."
 msgstr "Visible text shown below the image in the article."
 
-#: src/imagealt.rs:538
+#: src/imagealt.rs:565
 msgid "Bildbeschriftung"
 msgstr "Image Description"
+
+#: src/imagealt.rs:637
+msgid "Rückgängig"
+msgstr "Undo"
 
 #: src/imageedit.rs:182 src/imageedit.rs:185
 msgid ""
@@ -1617,7 +1648,7 @@ msgstr "Processing …"
 msgid "Interner Fehler: Bildbearbeitungs-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the image-editing thread returned no result."
 
-#: src/imageedit.rs:358 src/postpane.rs:185
+#: src/imageedit.rs:358 src/postpane.rs:190
 msgid "Keine Bilder"
 msgstr "No Images"
 
@@ -1761,7 +1792,7 @@ msgstr "No articles yet"
 msgid "{site} · nicht erreichbar"
 msgstr "{site} · unreachable"
 
-#: src/librarysidebar.rs:497 src/mainaction.rs:225 src/window.rs:394
+#: src/librarysidebar.rs:497 src/mainaction.rs:244 src/window.rs:394
 #: src/window.rs:883 src/window.rs:1169
 msgid "Unbenannt"
 msgstr "Untitled"
@@ -1778,7 +1809,7 @@ msgstr "Changed on the blog"
 msgid "Im Blog gelöscht"
 msgstr "Deleted on the blog"
 
-#: src/librarysidebar.rs:551 src/mainaction.rs:840
+#: src/librarysidebar.rs:551 src/mainaction.rs:1128
 msgid "Nur lokal"
 msgstr "Local only"
 
@@ -1936,154 +1967,167 @@ msgstr "The reply was cut off (length limit reached)."
 msgid "Das Modell hat die Anfrage abgelehnt (Kategorie: {category})."
 msgstr "The model declined the request (category: {category})."
 
-#: src/llm.rs:769 src/wpclient.rs:370
+#: src/llm.rs:769 src/wpclient.rs:432
 msgid "Antwort nicht lesbar: {err}"
 msgstr "Couldn't read the response: {err}"
 
-#: src/mainaction.rs:70 src/mainaction.rs:138
+#: src/mainaction.rs:74 src/mainaction.rs:151
 msgid "Als Entwurf hochladen"
 msgstr "Upload as Draft"
 
-#: src/mainaction.rs:70
+#: src/mainaction.rs:74
 msgid "Weitere Aktionen"
 msgstr "More actions"
 
-#: src/mainaction.rs:140
+#: src/mainaction.rs:153 src/mainaction.rs:1201
 msgid "Zur Prüfung einreichen"
 msgstr "Submit for Review"
 
-#: src/mainaction.rs:140 src/mainaction.rs:144 src/mainaction.rs:152
+#: src/mainaction.rs:153 src/mainaction.rs:157 src/mainaction.rs:165
+#: src/mainaction.rs:1199
 msgid "Veröffentlichen …"
 msgstr "Publish…"
 
-#: src/mainaction.rs:146 src/mainaction.rs:162 src/postpane.rs:58
-#: src/postpane.rs:180
+#: src/mainaction.rs:159 src/mainaction.rs:175 src/postpane.rs:58
+#: src/postpane.rs:185
 msgid "Blog-Vorschau öffnen"
 msgstr "Open Blog Preview"
 
-#: src/mainaction.rs:146
+#: src/mainaction.rs:159
 msgid "Planen …"
 msgstr "Schedule…"
 
-#: src/mainaction.rs:150
+#: src/mainaction.rs:163
 msgid "Entwurf aktualisieren"
 msgstr "Update Draft"
 
-#: src/mainaction.rs:152
+#: src/mainaction.rs:165
 msgid "Aktualisieren und Vorschau öffnen"
 msgstr "Update and Open Preview"
 
-#: src/mainaction.rs:156
+#: src/mainaction.rs:169
 msgid "Änderungen hochladen"
 msgstr "Upload Changes"
 
-#: src/mainaction.rs:158 src/mainaction.rs:164
+#: src/mainaction.rs:171 src/mainaction.rs:177
 msgid "Termin ändern …"
 msgstr "Change Date…"
 
-#: src/mainaction.rs:158 src/mainaction.rs:164 src/releasecheck.rs:229
+#: src/mainaction.rs:171 src/mainaction.rs:177 src/releasecheck.rs:234
 msgid "Jetzt veröffentlichen"
 msgstr "Publish Now"
 
-#: src/mainaction.rs:158 src/mainaction.rs:164 src/mainaction.rs:170
-#: src/mainaction.rs:176
+#: src/mainaction.rs:171 src/mainaction.rs:177 src/mainaction.rs:183
+#: src/mainaction.rs:190 src/mainaction.rs:192 src/mainaction.rs:1200
 msgid "Auf Entwurf zurücksetzen …"
 msgstr "Revert to Draft…"
 
-#: src/mainaction.rs:168
+#: src/mainaction.rs:181
 msgid "Änderungen veröffentlichen …"
 msgstr "Publish Changes…"
 
-#: src/mainaction.rs:170
+#: src/mainaction.rs:183
 msgid "Vorschau im Blog"
 msgstr "Preview on Blog"
 
-#: src/mainaction.rs:170
+#: src/mainaction.rs:183
 msgid "Änderungen verwerfen …"
 msgstr "Discard Changes…"
 
-#: src/mainaction.rs:174 src/postpane.rs:180
+#: src/mainaction.rs:187 src/postpane.rs:185
 msgid "Im Blog ansehen"
 msgstr "View on Blog"
 
-#: src/mainaction.rs:190 src/mainaction.rs:199
+#: src/mainaction.rs:190
+msgid "Neu veröffentlichen (Datum: jetzt) …"
+msgstr "Republish (Date: Now)…"
+
+#: src/mainaction.rs:208 src/mainaction.rs:218
 msgid "Original kopieren"
 msgstr "Copy Original"
 
-#: src/mainaction.rs:191
+#: src/mainaction.rs:209
 msgid "Abschnitt des Originals kopieren"
 msgstr "Copy Section of the Original"
 
-#: src/mainaction.rs:192
+#: src/mainaction.rs:210
 msgid "Übersetzung einfügen"
 msgstr "Paste Translation"
 
-#: src/mainaction.rs:193 src/releasecheck.rs:318
+#: src/mainaction.rs:211 src/releasecheck.rs:323
 msgid "Prüfen …"
 msgstr "Check …"
 
-#: src/mainaction.rs:194 src/mainaction.rs:262
+#: src/mainaction.rs:212
+msgid "Bilder dieser Fassung …"
+msgstr "Images of this version …"
+
+#: src/mainaction.rs:213 src/mainaction.rs:287
 msgid "Als aktuell markieren"
 msgstr "Mark as Up to Date"
 
-#: src/mainaction.rs:196
+#: src/mainaction.rs:215
 msgid "Per KI aktualisieren …"
 msgstr "Update with AI …"
 
-#: src/mainaction.rs:201 src/translatedialog.rs:621
+#: src/mainaction.rs:220 src/translatedialog.rs:639
 msgid "Per KI übersetzen …"
 msgstr "Translate with AI…"
 
-#: src/mainaction.rs:247
+#: src/mainaction.rs:266
 msgid ""
 "Dieser Beitrag wurde im Blog gelöscht oder in den Papierkorb verschoben."
 msgstr "This post was deleted on the blog or moved to the trash."
 
-#: src/mainaction.rs:247
+#: src/mainaction.rs:266
 msgid "Verknüpfung lösen"
 msgstr "Unlink"
 
-#: src/mainaction.rs:248
+#: src/mainaction.rs:267
 msgid ""
 "Dieser Beitrag wurde im Blog geändert, während du hier weitergeschrieben "
 "hast."
 msgstr "This post was changed on the blog while you kept writing here."
 
-#: src/mainaction.rs:248
+#: src/mainaction.rs:267
 msgid "Auflösen …"
 msgstr "Resolve…"
 
-#: src/mainaction.rs:249
+#: src/mainaction.rs:268
 msgid "Dieser Beitrag wurde im Blog geändert."
 msgstr "This post was changed on the blog."
 
-#: src/mainaction.rs:249
+#: src/mainaction.rs:268
 msgid "Blog-Fassung laden"
 msgstr "Load Blog Version"
 
-#: src/mainaction.rs:252
+#: src/mainaction.rs:272
+msgid "Status oder Termin geändert - geht erst mit „{action}“ an den Blog."
+msgstr "Status or date changed - goes to the blog only with “{action}”."
+
+#: src/mainaction.rs:277
 msgid ""
 "Veröffentlichter Beitrag: Deine Änderungen gehen erst mit „Änderungen "
 "veröffentlichen“ online."
 msgstr "Published post: your changes only go live with “Publish Changes”."
 
-#: src/mainaction.rs:258
+#: src/mainaction.rs:283
 msgid "Titel, Auszug oder andere Angaben des Originals wurden geändert."
 msgstr "The original's title, excerpt or other details changed."
 
-#: src/mainaction.rs:259
+#: src/mainaction.rs:284
 msgid "Original geändert: 1 Abschnitt offen."
 msgstr "Original changed: 1 section open."
 
-#: src/mainaction.rs:260
+#: src/mainaction.rs:285
 msgid "Original geändert: {n} Abschnitte offen."
 msgstr "Original changed: {n} sections open."
 
-#: src/mainaction.rs:262 src/translatedialog.rs:393
+#: src/mainaction.rs:287 src/translatedialog.rs:411
 msgid "Zeigen"
 msgstr "Show"
 
-#: src/mainaction.rs:266
+#: src/mainaction.rs:291
 msgid ""
 "Diese KI-Übersetzung ist noch nicht gegengelesen. Erst danach lässt sie sich "
 "veröffentlichen und wird im Blog verknüpft."
@@ -2091,22 +2135,22 @@ msgstr ""
 "This AI translation hasn't been reviewed yet. Only then can it be published "
 "and linked on the blog."
 
-#: src/mainaction.rs:267
+#: src/mainaction.rs:292
 msgid "Gegenlesen …"
 msgstr "Review …"
 
-#: src/mainaction.rs:271
+#: src/mainaction.rs:296
 msgid ""
 "Teile dieses Beitrags sind WordPress-Markup und nur als Text bearbeitbar."
 msgstr ""
 "Parts of this post are WordPress markup and can only be edited as text."
 
-#: src/mainaction.rs:305 src/mainaction.rs:374
+#: src/mainaction.rs:330 src/mainaction.rs:434
 msgid "Als aktuell markiert."
 msgstr "Marked as up to date."
 
-#: src/mainaction.rs:322 src/translatedialog.rs:148 src/translatedialog.rs:289
-#: src/translatedialog.rs:328 src/translatedialog.rs:936
+#: src/mainaction.rs:352 src/translatedialog.rs:148 src/translatedialog.rs:307
+#: src/translatedialog.rs:346 src/translatedialog.rs:970
 msgid ""
 "Das Original dieser Übersetzung liegt nicht in der Bibliothek. Öffne es dort "
 "zuerst aus dem Blog."
@@ -2114,39 +2158,63 @@ msgstr ""
 "The original of this translation isn’t in the library. Open it from the blog "
 "first."
 
-#: src/mainaction.rs:330
+#: src/mainaction.rs:360
 msgid "Zu diesem Beitrag gibt es noch keine Übersetzung."
 msgstr "There is no translation of this post yet."
 
-#: src/mainaction.rs:337
+#: src/mainaction.rs:367
 msgid "Jetzt veröffentlichen?"
 msgstr "Publish Now?"
 
-#: src/mainaction.rs:337
+#: src/mainaction.rs:367
 msgid "Der geplante Termin entfällt, der Beitrag geht sofort online."
 msgstr "The scheduled date is dropped and the post goes live right away."
 
-#: src/mainaction.rs:337 src/releasecheck.rs:187 src/releasecheck.rs:285
+#: src/mainaction.rs:367 src/releasecheck.rs:192 src/releasecheck.rs:290
 msgid "Veröffentlichen"
 msgstr "Publish"
 
-#: src/mainaction.rs:342
+#: src/mainaction.rs:377
+msgid ""
+"Der Beitrag bekommt das aktuelle Datum und steht im Blog wieder oben. Bisher "
+"veröffentlicht am {date}."
+msgstr ""
+"The post gets the current date and moves back to the top of the blog. "
+"Previously published on {date}."
+
+#: src/mainaction.rs:378
+msgid "Der Beitrag bekommt das aktuelle Datum und steht im Blog wieder oben."
+msgstr "The post gets the current date and moves back to the top of the blog."
+
+#: src/mainaction.rs:382
+msgid "Deine lokalen Änderungen gehen mit online."
+msgstr "Your local changes go online with it."
+
+#: src/mainaction.rs:384
+msgid "Neu veröffentlichen?"
+msgstr "Republish?"
+
+#: src/mainaction.rs:384
+msgid "Neu veröffentlichen"
+msgstr "Republish"
+
+#: src/mainaction.rs:402
 msgid "Auf Entwurf zurücksetzen?"
 msgstr "Revert to Draft?"
 
-#: src/mainaction.rs:342
+#: src/mainaction.rs:402
 msgid "Der Beitrag ist danach nicht mehr öffentlich sichtbar."
 msgstr "The post will no longer be publicly visible."
 
-#: src/mainaction.rs:342
+#: src/mainaction.rs:402
 msgid "Auf Entwurf zurücksetzen"
 msgstr "Revert to Draft"
 
-#: src/mainaction.rs:347
+#: src/mainaction.rs:407
 msgid "Änderungen verwerfen?"
 msgstr "Discard Changes?"
 
-#: src/mainaction.rs:347
+#: src/mainaction.rs:407
 msgid ""
 "Die Arbeitskopie wird durch die Fassung aus dem Blog ersetzt. Deine "
 "Änderungen gehen verloren."
@@ -2154,87 +2222,160 @@ msgstr ""
 "The working copy will be replaced by the version from the blog. Your changes "
 "will be lost."
 
-#: src/mainaction.rs:391
+#: src/mainaction.rs:451
 msgid ""
 "Geänderte Abschnitte sind im Original orange markiert. „Erledigt“ hakt sie "
 "ab."
 msgstr ""
 "Changed sections are marked orange in the original. “Done” ticks them off."
 
-#: src/mainaction.rs:429 src/mediapanel.rs:200 src/mediapanel.rs:411
-#: src/mediapanel.rs:510 src/mediapanel.rs:717
+#: src/mainaction.rs:489 src/mediapanel.rs:201 src/mediapanel.rs:424
+#: src/mediapanel.rs:523 src/mediapanel.rs:730
 msgid "Wird hochgeladen …"
 msgstr "Uploading …"
 
-#: src/mainaction.rs:444
+#: src/mainaction.rs:503
 msgid "Erst das Original hochladen - die Übersetzung wird mit ihm verknüpft."
 msgstr "Upload the original first - the translation is linked to it."
 
-#: src/mainaction.rs:455
+#: src/mainaction.rs:522
+msgid "Veröffentlichten Beitrag offline nehmen?"
+msgstr "Take Published Post Offline?"
+
+#: src/mainaction.rs:523
+msgid ""
+"Der Beitrag ist online. Mit dem Termin {when} nimmt WordPress ihn bis dahin "
+"offline - seine Adresse ist bis dahin nicht erreichbar.\n"
+"\n"
+"Nur das Datum ändern, ohne ihn offline zu nehmen, geht mit einem Termin in "
+"der Vergangenheit."
+msgstr ""
+"The post is online. With the date {when}, WordPress takes it offline until "
+"then - its address can't be reached until then.\n"
+"\n"
+"To change only the date without taking it offline, use a date in the past."
+
+#: src/mainaction.rs:526
+msgid "Offline nehmen und planen"
+msgstr "Take Offline and Schedule"
+
+#: src/mainaction.rs:570
+msgid ""
+"Zu diesem Original gibt es in {site} schon eine Fassung: „{title}“ "
+"({status}, ID {id}). Hochladen würde einen zweiten Beitrag anlegen."
+msgstr ""
+"A version of this original already exists on {site}: “{title}” ({status}, ID "
+"{id}). Uploading would create a second post."
+
+#: src/mainaction.rs:577
+msgid "Es gibt sogar {n} davon."
+msgstr "There are even {n} of them."
+
+#: src/mainaction.rs:580
+msgid ""
+"„Vorhandene übernehmen“ öffnet sie als diese Fassung; dein Text bleibt als "
+"Kopie neben der Datei."
+msgstr ""
+"“Adopt Existing” opens it as this version; your text stays as a copy next to "
+"the file."
+
+#: src/mainaction.rs:581
+msgid "Fassung gibt es schon"
+msgstr "Version Already Exists"
+
+#: src/mainaction.rs:583
+msgid "Trotzdem neu anlegen"
+msgstr "Create Anyway"
+
+#: src/mainaction.rs:584
+msgid "Vorhandene übernehmen"
+msgstr "Adopt Existing"
+
+#: src/mainaction.rs:629
+msgid ""
+"Vorhandene Fassung übernommen. Dein Text liegt als „{name}“ neben der Datei."
+msgstr "Existing version adopted. Your text is next to the file as “{name}”."
+
+#: src/mainaction.rs:631
+msgid "Fassung nicht geladen: {err}"
+msgstr "Version not loaded: {err}"
+
+#: src/mainaction.rs:646
 msgid "Deutsch"
 msgstr "German"
 
-#: src/mainaction.rs:456 src/translatedialog.rs:29
+#: src/mainaction.rs:647 src/translatedialog.rs:29
 msgid "Englisch"
 msgstr "English"
 
-#: src/mainaction.rs:460
+#: src/mainaction.rs:651
 msgid "Falsche Sprache für diesen Blog?"
 msgstr "Wrong Language for This Blog?"
 
-#: src/mainaction.rs:462
+#: src/mainaction.rs:653
 msgid ""
 "Der Text sieht nach {found} aus, geht aber an {site}, einen Blog auf "
 "{expected}."
 msgstr ""
 "The text looks like {found}, but it's going to {site}, a blog in {expected}."
 
-#: src/mainaction.rs:469
+#: src/mainaction.rs:660
 msgid "Trotzdem hochladen"
 msgstr "Upload Anyway"
 
-#: src/mainaction.rs:521
-msgid "Als Entwurf hochgeladen."
-msgstr "Uploaded as draft."
+#: src/mainaction.rs:714
+msgid ""
+"Diese Kategorien gibt es in {site} noch nicht und würden neu angelegt: "
+"{names}."
+msgstr ""
+"These categories don't exist on {site} yet and would be created: {names}."
 
-#: src/mainaction.rs:522
-msgid "Zur Prüfung eingereicht."
-msgstr "Submitted for review."
+#: src/mainaction.rs:719
+msgid ""
+"Für Übersetzungen lassen sich Kategorien unter Einstellungen › Übersetzung › "
+"„Kategorien zuordnen“ übertragen."
+msgstr ""
+"For translations, categories can be mapped under Settings › Translation › "
+"“Map Categories”."
 
-#: src/mainaction.rs:523
-msgid "Veröffentlicht."
-msgstr "Published."
+#: src/mainaction.rs:721
+msgid "Neue Kategorien anlegen?"
+msgstr "Create New Categories?"
 
-#: src/mainaction.rs:524
-msgid "Geplant."
-msgstr "Scheduled."
+#: src/mainaction.rs:723
+msgid "Anlegen und hochladen"
+msgstr "Create and Upload"
 
-#: src/mainaction.rs:525
-msgid "Aktualisiert."
-msgstr "Updated."
-
-#: src/mainaction.rs:568
+#: src/mainaction.rs:827
 msgid "Vorschau nicht verfügbar: {err}"
 msgstr "Preview not available: {err}"
 
-#: src/mainaction.rs:580
+#: src/mainaction.rs:842
+msgid ""
+"Entwurfsvorschau: Falls die Anmeldung erscheint, einmal bei WordPress "
+"anmelden - danach zeigt der Browser-Tab die Vorschau."
+msgstr ""
+"Draft preview: if the login page appears, sign in to WordPress once - the "
+"browser tab then shows the preview."
+
+#: src/mainaction.rs:864
 msgid "Noch nicht im Blog – erst als Entwurf hochladen."
 msgstr "Not on the blog yet – upload it as a draft first."
 
-#: src/mainaction.rs:615
+#: src/mainaction.rs:900
 msgid ""
 "Vorschau fehlgeschlagen. Bist du im Browser-Tab bei WordPress angemeldet?"
 msgstr "Preview failed. Are you logged in to WordPress in the browser tab?"
 
-#: src/mainaction.rs:679 src/mainaction.rs:727
+#: src/mainaction.rs:964 src/mainaction.rs:1014
 msgid "Laden fehlgeschlagen: {err}"
 msgstr "Loading failed: {err}"
 
-#: src/mainaction.rs:710
+#: src/mainaction.rs:997
 msgid "Blog-Fassung geladen."
 msgstr "Blog version loaded."
 
-#: src/mainaction.rs:757
+#: src/mainaction.rs:1044
 msgid ""
 "Der Beitrag wurde im Blog geändert, nachdem du ihn zuletzt abgeglichen hast, "
 "und du hast hier weitergeschrieben."
@@ -2242,29 +2383,76 @@ msgstr ""
 "The post was changed on the blog after you last synced it, and you kept "
 "writing here."
 
-#: src/mainaction.rs:809
+#: src/mainaction.rs:1097
 msgid "Verknüpfung gelöst. Der Artikel ist jetzt nur lokal."
 msgstr "Unlinked. The article is now local only."
 
-#: src/mainaction.rs:848
+#: src/mainaction.rs:1136
 msgid "im Blog gelöscht"
 msgstr "deleted on the blog"
 
-#: src/mainaction.rs:849
+#: src/mainaction.rs:1137
 msgid "Konflikt"
 msgstr "conflict"
 
-#: src/mainaction.rs:850
+#: src/mainaction.rs:1138
 msgid "im Blog geändert"
 msgstr "changed on the blog"
 
-#: src/mainaction.rs:851
+#: src/mainaction.rs:1139
 msgid "Änderungen nicht online"
 msgstr "changes not online"
 
-#: src/mainaction.rs:852
+#: src/mainaction.rs:1140
 msgid "nicht hochgeladen"
 msgstr "not uploaded"
+
+#: src/mainaction.rs:1196
+msgid "Status im Blog lassen"
+msgstr "Keep Status on the Blog"
+
+#: src/mainaction.rs:1198
+msgid "Termin hochladen"
+msgstr "Upload Schedule"
+
+#: src/mainaction.rs:1202
+msgid "Privat veröffentlichen"
+msgstr "Publish Privately"
+
+#: src/mainaction.rs:1213
+msgid ""
+"Hochgeladen, aber WordPress hat den Beitrag als „{stored}“ gespeichert, "
+"nicht als „{requested}“."
+msgstr ""
+"Uploaded, but WordPress stored the post as “{stored}”, not as “{requested}”."
+
+#: src/mainaction.rs:1217
+msgid "Termin: {when}"
+msgstr "Scheduled: {when}"
+
+#: src/mainaction.rs:1222
+msgid "Als Entwurf hochgeladen."
+msgstr "Uploaded as draft."
+
+#: src/mainaction.rs:1223
+msgid "Zur Prüfung eingereicht."
+msgstr "Submitted for review."
+
+#: src/mainaction.rs:1224 src/mainaction.rs:1240
+msgid "Veröffentlicht."
+msgstr "Published."
+
+#: src/mainaction.rs:1225
+msgid "Geplant für {when}."
+msgstr "Scheduled for {when}."
+
+#: src/mainaction.rs:1226
+msgid "Privat veröffentlicht."
+msgstr "Published privately."
+
+#: src/mainaction.rs:1227 src/mainaction.rs:1241
+msgid "Aktualisiert."
+msgstr "Updated."
 
 #: src/markdowncheck.rs:68
 msgid "hoch"
@@ -2302,7 +2490,7 @@ msgstr "Classic content"
 msgid "Shortcode"
 msgstr "Shortcode"
 
-#: src/markdowncheck.rs:103 src/preview.rs:1616
+#: src/markdowncheck.rs:103 src/preview.rs:1618
 msgid "Abfrage-Loop"
 msgstr "Query loop"
 
@@ -2374,7 +2562,7 @@ msgstr "Open anyway"
 msgid "Gutenberg-Funktionen in diesem Beitrag"
 msgstr "Gutenberg features in this post"
 
-#: src/markdowncheck.rs:177 src/postpane.rs:176
+#: src/markdowncheck.rs:177 src/postpane.rs:181
 msgid "Markdown-Nähe: {level}"
 msgstr "Closeness to Markdown: {level}"
 
@@ -2387,8 +2575,8 @@ msgid "Alle Medien"
 msgstr "All media"
 
 #: src/mediabrowser.rs:34 src/newarticle.rs:194 src/newarticle.rs:412
-#: src/properties.rs:820 src/releasecheck.rs:101 src/releasecheck.rs:104
-#: src/releasecheck.rs:332 src/window.rs:1605
+#: src/properties.rs:903 src/releasecheck.rs:101 src/releasecheck.rs:104
+#: src/releasecheck.rs:337 src/window.rs:1694
 msgid "Bilder"
 msgstr "Images"
 
@@ -2400,7 +2588,7 @@ msgstr "Documents"
 msgid "Nach Medientyp filtern"
 msgstr "Filter by media type"
 
-#: src/mediabrowser.rs:163 src/translatedialog.rs:736
+#: src/mediabrowser.rs:163 src/translatedialog.rs:769
 msgid "Aktualisieren"
 msgstr "Update"
 
@@ -2517,148 +2705,148 @@ msgstr "Images found: {n}."
 msgid "Medienverwaltung"
 msgstr "Media Manager"
 
-#: src/mediapanel.rs:148
+#: src/mediapanel.rs:149
 msgid "Alle hochladen"
 msgstr "Upload All"
 
-#: src/mediapanel.rs:171
+#: src/mediapanel.rs:172
 msgid "Alle Bilder bereits hochgeladen."
 msgstr "All images are already uploaded."
 
-#: src/mediapanel.rs:199
+#: src/mediapanel.rs:200
 msgid "0 von {total} hochgeladen"
 msgstr "0 of {total} uploaded"
 
-#: src/mediapanel.rs:259
+#: src/mediapanel.rs:260
 msgid "{completed} von {total} hochgeladen"
 msgstr "{completed} of {total} uploaded"
 
-#: src/mediapanel.rs:272 src/mediapanel.rs:764
+#: src/mediapanel.rs:273 src/mediapanel.rs:777
 msgid "Erfolgreich hochgeladen."
 msgstr "Uploaded successfully."
 
-#: src/mediapanel.rs:273 src/mediapanel.rs:686 src/mediapanel.rs:766
+#: src/mediapanel.rs:274 src/mediapanel.rs:699 src/mediapanel.rs:779
 msgid "Erneut hochladen"
 msgstr "Upload Again"
 
-#: src/mediapanel.rs:297 src/mediapanel.rs:550
+#: src/mediapanel.rs:298 src/mediapanel.rs:563
 msgid "Fehler beim Hochladen: {err}"
 msgstr "Error uploading: {err}"
 
-#: src/mediapanel.rs:301 src/mediapanel.rs:773
+#: src/mediapanel.rs:302 src/mediapanel.rs:786
 msgid "Upload fehlgeschlagen"
 msgstr "Upload Failed"
 
-#: src/mediapanel.rs:301 src/mediapanel.rs:773
+#: src/mediapanel.rs:302 src/mediapanel.rs:786
 msgid "„{filename}“: {err}"
 msgstr "\"{filename}\": {err}"
 
-#: src/mediapanel.rs:311
+#: src/mediapanel.rs:312
 msgid "Alle {total} Bilder erfolgreich hochgeladen."
 msgstr "All {total} images uploaded successfully."
 
-#: src/mediapanel.rs:313 src/mediapanel.rs:329
+#: src/mediapanel.rs:314 src/mediapanel.rs:330
 msgid "{ok} von {total} Bildern hochgeladen, {failed} fehlgeschlagen."
 msgstr "{ok} of {total} images uploaded, {failed} failed."
 
-#: src/mediapanel.rs:324
+#: src/mediapanel.rs:325
 msgid "Bilder hochgeladen"
 msgstr "Images Uploaded"
 
-#: src/mediapanel.rs:324
+#: src/mediapanel.rs:325
 msgid "Alle {total} Bilder wurden erfolgreich hochgeladen."
 msgstr "All {total} images were uploaded successfully."
 
-#: src/mediapanel.rs:328
+#: src/mediapanel.rs:329
 msgid "Upload teilweise fehlgeschlagen"
 msgstr "Upload Partly Failed"
 
-#: src/mediapanel.rs:339
+#: src/mediapanel.rs:340
 msgid "Hochladen abgebrochen: {reason}"
 msgstr "Upload cancelled: {reason}"
 
-#: src/mediapanel.rs:346 src/mediapanel.rs:556 src/mediapanel.rs:779
+#: src/mediapanel.rs:347 src/mediapanel.rs:569 src/mediapanel.rs:792
 msgid "Interner Fehler: Upload-Thread hat kein Ergebnis geliefert."
 msgstr "Internal error: the upload thread returned no result."
 
-#: src/mediapanel.rs:378
+#: src/mediapanel.rs:391
 msgid "Dieser Artikel enthält aktuell keine Bilder."
 msgstr "This article currently contains no images."
 
-#: src/mediapanel.rs:383
+#: src/mediapanel.rs:396
 msgid "1 Bild in diesem Artikel."
 msgstr "1 image in this article."
 
-#: src/mediapanel.rs:384
+#: src/mediapanel.rs:397
 msgid "{n} Bilder in diesem Artikel."
 msgstr "{n} images in this article."
 
-#: src/mediapanel.rs:388
+#: src/mediapanel.rs:401
 msgid "1 Bild hat noch keinen Alternativtext."
 msgstr "1 image has no alt text yet."
 
-#: src/mediapanel.rs:389
+#: src/mediapanel.rs:402
 msgid "1 von {total} Bildern hat noch keinen Alternativtext."
 msgstr "1 of {total} images has no alt text yet."
 
-#: src/mediapanel.rs:390
+#: src/mediapanel.rs:403
 msgid "{missing} von {total} Bildern haben noch keinen Alternativtext."
 msgstr "{missing} of {total} images have no alt text yet."
 
-#: src/mediapanel.rs:410
+#: src/mediapanel.rs:423
 msgid "Noch nicht zu WordPress hochgeladen"
 msgstr "Not uploaded to WordPress yet"
 
-#: src/mediapanel.rs:412 src/mediapanel.rs:422
+#: src/mediapanel.rs:425 src/mediapanel.rs:435
 msgid "Bereits hochgeladen (Medien-ID {id})"
 msgstr "Already uploaded (media ID {id})"
 
-#: src/mediapanel.rs:413
+#: src/mediapanel.rs:426
 msgid "Fehler beim letzten Upload: {err}"
 msgstr "Error during the last upload: {err}"
 
-#: src/mediapanel.rs:419
+#: src/mediapanel.rs:432
 msgid "Bereit zum Hochladen: {path}"
 msgstr "Ready to upload: {path}"
 
-#: src/mediapanel.rs:424
+#: src/mediapanel.rs:437
 msgid "Kein Aufmacherbild festgelegt - in den Artikel-Eigenschaften auswählen."
 msgstr "No featured image set - choose one in Article Properties."
 
-#: src/mediapanel.rs:447 src/properties.rs:656 src/properties.rs:805
+#: src/mediapanel.rs:460 src/properties.rs:657 src/properties.rs:857
 msgid "Aufmacherbild"
 msgstr "Featured Image"
 
-#: src/mediapanel.rs:448
+#: src/mediapanel.rs:461
 msgid "Das des Originals – der Ziel-Blog übernimmt es selbst."
 msgstr "The original's - the target blog takes it over itself."
 
-#: src/mediapanel.rs:450 src/mediapanel.rs:686
+#: src/mediapanel.rs:463 src/mediapanel.rs:699
 msgid "Zu WordPress hochladen"
 msgstr "Upload to WordPress"
 
-#: src/mediapanel.rs:464
+#: src/mediapanel.rs:477
 msgid "Aus Mediathek wählen…"
 msgstr "Choose from Media Library…"
 
-#: src/mediapanel.rs:546
+#: src/mediapanel.rs:559
 msgid "Aufmacherbild hochgeladen"
 msgstr "Featured Image Uploaded"
 
-#: src/mediapanel.rs:546
+#: src/mediapanel.rs:559
 msgid "Das Aufmacherbild wurde erfolgreich hochgeladen."
 msgstr "The featured image was uploaded successfully."
 
-#: src/mediapanel.rs:603
+#: src/mediapanel.rs:616
 msgid ""
 "Aus dem Original – im Blog des Originals verlinkt, nicht erneut hochgeladen"
 msgstr "From the original - linked on the original's blog, not uploaded again"
 
-#: src/mediapanel.rs:765
+#: src/mediapanel.rs:778
 msgid "Bild hochgeladen"
 msgstr "Image Uploaded"
 
-#: src/mediapanel.rs:765
+#: src/mediapanel.rs:778
 msgid "„{filename}“ wurde erfolgreich hochgeladen."
 msgstr "\"{filename}\" was uploaded successfully."
 
@@ -2670,7 +2858,11 @@ msgstr ""
 "Alt text is long ({length} characters) - screen readers read all of it out; "
 "well under {max} characters is recommended."
 
-#: src/media.rs:522
+#: src/media.rs:566 src/media.rs:575
+msgid "Bildtexte von {file} nicht abgeglichen: {err}"
+msgstr "Image texts of {file} not synced: {err}"
+
+#: src/media.rs:608
 msgid ""
 "Das Bild {file} gehört zum Original, ist dort aber noch nicht hochgeladen. "
 "Bitte zuerst das Original aktualisieren."
@@ -2749,6 +2941,10 @@ msgstr "Fallback model"
 msgid "Wird genutzt, wenn das Hauptmodell nicht verfügbar ist"
 msgstr "Used when the primary model isn't available"
 
+#: src/modelsettings.rs:274 src/translatedialog.rs:1076
+msgid "Prüfen"
+msgstr "Check"
+
 #: src/modelsettings.rs:293
 msgid "Modelle je Aufgabe"
 msgstr "Models per task"
@@ -2767,7 +2963,7 @@ msgstr ""
 
 #: src/nautilustemplate.rs:21 src/newarticle.rs:132 src/newarticle.rs:699
 #: src/promptsettings.rs:242 src/properties.rs:313 src/releasecheck.rs:60
-#: src/releasecheck.rs:61 src/translatedialog.rs:358
+#: src/releasecheck.rs:61 src/translatedialog.rs:376
 msgid "Titel"
 msgstr "Title"
 
@@ -2957,17 +3153,17 @@ msgstr "Remove"
 msgid "Artikel konnte nicht angelegt werden: {err}"
 msgstr "Could not create the article: {err}"
 
-#: src/newarticle.rs:701 src/translatedialog.rs:720
+#: src/newarticle.rs:701 src/translatedialog.rs:753
 msgid "Schlagwörter"
 msgstr "Tags"
 
-#: src/newarticle.rs:702 src/preview.rs:1618 src/taxonomy.rs:33
-#: src/translatedialog.rs:716
+#: src/newarticle.rs:702 src/preview.rs:1620 src/taxonomy.rs:33
+#: src/translatedialog.rs:749
 msgid "Kategorien"
 msgstr "Categories"
 
 #: src/newarticle.rs:703 src/releasecheck.rs:66 src/releasecheck.rs:68
-#: src/translatedialog.rs:362
+#: src/translatedialog.rs:380
 msgid "Auszug"
 msgstr "Excerpt"
 
@@ -2980,7 +3176,7 @@ msgstr "Featured Image"
 msgid "Alternativtext Beitragsbild"
 msgstr "Featured image alt text"
 
-#: src/newarticle.rs:706 src/translatedialog.rs:662
+#: src/newarticle.rs:706 src/translatedialog.rs:680
 msgid "Sprache"
 msgstr "Language"
 
@@ -3016,11 +3212,15 @@ msgstr "Last synced: {at}"
 msgid "Noch nicht im Blog."
 msgstr "Not on the blog yet."
 
-#: src/postpane.rs:186
+#: src/postpane.rs:173
+msgid "Veröffentlicht am {date}"
+msgstr "Published on {date}"
+
+#: src/postpane.rs:191
 msgid "1 Bild"
 msgstr "1 image"
 
-#: src/postpane.rs:187
+#: src/postpane.rs:192
 msgid "{n} Bilder"
 msgstr "{n} images"
 
@@ -3044,147 +3244,151 @@ msgstr "Edit Image…"
 msgid "Alle Bilder bearbeiten…"
 msgstr "Edit All Images…"
 
-#: src/preview.rs:827
+#: src/preview.rs:828
 msgid "Wiedergabeliste – die Titel erzeugt das Blog"
 msgstr "Playlist – the blog renders its tracks"
 
-#: src/preview.rs:1511
+#: src/preview.rs:1513
 msgid "Video lässt sich in der Vorschau nicht abspielen"
 msgstr "The video can't be played in the preview"
 
-#: src/preview.rs:1582
+#: src/preview.rs:1584
 msgid "Seitenumbruch"
 msgstr "Page break"
 
-#: src/preview.rs:1614
+#: src/preview.rs:1616
 msgid "Neueste Beiträge"
 msgstr "Latest posts"
 
-#: src/preview.rs:1615
+#: src/preview.rs:1617
 msgid "Neueste Kommentare"
 msgstr "Latest comments"
 
-#: src/preview.rs:1617
+#: src/preview.rs:1619
 msgid "Archive"
 msgstr "Archives"
 
-#: src/preview.rs:1619
+#: src/preview.rs:1621
 msgid "Schlagwörter-Wolke"
 msgstr "Tag cloud"
 
-#: src/preview.rs:1620
+#: src/preview.rs:1622
 msgid "Kalender"
 msgstr "Calendar"
 
-#: src/preview.rs:1621
+#: src/preview.rs:1623
 msgid "Suche"
 msgstr "Search"
 
-#: src/preview.rs:1622
+#: src/preview.rs:1624
 msgid "Seitenliste"
 msgstr "Page list"
 
-#: src/preview.rs:1623
+#: src/preview.rs:1625
 msgid "Social-Media-Links"
 msgstr "Social links"
 
-#: src/preview.rs:1624
+#: src/preview.rs:1626
 msgid "RSS-Feed"
 msgstr "RSS feed"
 
-#: src/preview.rs:1625
+#: src/preview.rs:1627
 msgid "Synchronisiertes Muster"
 msgstr "Synced pattern"
 
-#: src/preview.rs:1626
+#: src/preview.rs:1628
 msgid "Inhaltsverzeichnis"
 msgstr "Table of contents"
 
-#: src/preview.rs:1627
+#: src/preview.rs:1629
 msgid "Werbeplatz"
 msgstr "Ad slot"
 
-#: src/preview.rs:1628
+#: src/preview.rs:1630
 msgid "Symbol"
 msgstr "Icon"
 
-#: src/preview.rs:1629
+#: src/preview.rs:1631
 msgid "Anmelden/Abmelden"
 msgstr "Log in/out"
 
-#: src/preview.rs:1630
+#: src/preview.rs:1632
 msgid "Lesezeit"
 msgstr "Reading time"
 
-#: src/preview.rs:1631 src/properties.rs:447
+#: src/preview.rs:1633 src/properties.rs:448
 msgid "Autor"
 msgstr "Author"
 
-#: src/preview.rs:1632
+#: src/preview.rs:1634
 msgid "Kategorien und Schlagwörter"
 msgstr "Categories and tags"
 
-#: src/preview.rs:1633
+#: src/preview.rs:1635
 msgid "Datum"
 msgstr "Date"
 
-#: src/preview.rs:1634
+#: src/preview.rs:1636
 msgid "Avatar"
 msgstr "Avatar"
 
-#: src/preview.rs:1635
+#: src/preview.rs:1637
 msgid "Brotkrümelnavigation"
 msgstr "Breadcrumbs"
 
-#: src/preview.rs:1636
+#: src/preview.rs:1638
 msgid "Navigation"
 msgstr "Navigation"
 
-#: src/preview.rs:1637 src/properties.rs:559
+#: src/preview.rs:1639 src/properties.rs:560
 msgid "Kommentare"
 msgstr "Comments"
 
-#: src/preview.rs:1642 src/preview.rs:1680
+#: src/preview.rs:1644 src/preview.rs:1682
 msgid "{name} – wird vom Blog erzeugt"
 msgstr "{name} – rendered by the blog"
 
-#: src/preview.rs:1679
+#: src/preview.rs:1681
 msgid "Shortcode [{name}]"
 msgstr "Shortcode [{name}]"
 
-#: src/preview.rs:1686
+#: src/preview.rs:1688
 msgid "Weiterlesen"
 msgstr "Read more"
 
-#: src/preview.rs:1700
+#: src/preview.rs:1702
 msgid "Fußnoten"
 msgstr "Footnotes"
 
-#: src/preview.rs:1715
+#: src/preview.rs:1717
 msgid "YouTube-Video"
 msgstr "YouTube video"
 
-#: src/preview.rs:1716
+#: src/preview.rs:1718
 msgid "Vimeo-Video"
 msgstr "Vimeo video"
 
-#: src/preview.rs:1721
+#: src/preview.rs:1723
 msgid "Eingebetteter Inhalt"
 msgstr "Embedded content"
 
-#: src/preview.rs:1995
+#: src/preview.rs:1775
+msgid "Sprache dieser Fassung"
+msgstr "Language of this version"
+
+#: src/preview.rs:2010
 msgid "Bereits zu WordPress hochgeladen"
 msgstr "Already uploaded to WordPress"
 
-#: src/preview.rs:2002 src/preview.rs:2003
+#: src/preview.rs:2017 src/preview.rs:2018
 msgid "Alt"
 msgstr "Alt"
 
-#: src/preview.rs:2003
+#: src/preview.rs:2018
 msgid "Bewusst ohne Alternativtext (dekoratives Bild)"
 msgstr "Deliberately without alt text (decorative image)"
 
-#: src/preview.rs:2007
+#: src/preview.rs:2022
 msgid "Bildformat"
 msgstr "Image format"
 
@@ -3252,7 +3456,7 @@ msgstr "{url} ({length} characters)"
 msgid "{url} ({length} Zeichen, empfohlen: max. {max})"
 msgstr "{url} ({length} characters, recommended: max. {max})"
 
-#: src/properties.rs:222 src/properties.rs:445
+#: src/properties.rs:222 src/properties.rs:446
 msgid "Wird geladen …"
 msgstr "Loading …"
 
@@ -3265,11 +3469,11 @@ msgstr "Parent page"
 msgid "Keine (oberste Ebene)"
 msgstr "None (top level)"
 
-#: src/properties.rs:241 src/properties.rs:463
+#: src/properties.rs:241 src/properties.rs:464
 msgid "Keine WordPress-Verbindung eingerichtet."
 msgstr "No WordPress site configured."
 
-#: src/properties.rs:284 src/properties.rs:506 src/taxonomy.rs:112
+#: src/properties.rs:284 src/properties.rs:507 src/taxonomy.rs:112
 msgid "Interner Fehler: kein Ergebnis vom Ladevorgang."
 msgstr "Internal error: no result from the load."
 
@@ -3285,7 +3489,7 @@ msgstr "URL length (SEO)"
 msgid "Auszug / Meta-Beschreibung"
 msgstr "Excerpt / Meta Description"
 
-#: src/properties.rs:339 src/releasecheck.rs:120 src/releasecheck.rs:121
+#: src/properties.rs:339 src/releasecheck.rs:124 src/releasecheck.rs:125
 msgid "Fokus-Keyword"
 msgstr "Focus Keyword"
 
@@ -3313,53 +3517,93 @@ msgstr "Choose Image…"
 msgid "Alt-Text für Aufmacherbild"
 msgstr "Alt text for the featured image"
 
-#: src/properties.rs:448 src/properties.rs:484 src/properties.rs:499
-#: src/properties.rs:506 src/properties.rs:560
+#: src/properties.rs:449 src/properties.rs:485 src/properties.rs:500
+#: src/properties.rs:507 src/properties.rs:561
 msgid "Nicht ändern"
 msgstr "Leave unchanged"
 
-#: src/properties.rs:542
+#: src/properties.rs:543
 msgid "VG-Wort-Zählmarke"
 msgstr "VG Wort counter"
 
-#: src/properties.rs:543
+#: src/properties.rs:544
 msgid ""
 "Aus lassen, um diesen Artikel bewusst von der VG-Wort-Zählung auszuschließen."
 msgstr "Leave off to deliberately exclude this article from VG Wort counting."
 
-#: src/properties.rs:560
+#: src/properties.rs:561
 msgid "Offen"
 msgstr "Open"
 
-#: src/properties.rs:560
+#: src/properties.rs:561
 msgid "Geschlossen"
 msgstr "Closed"
 
-#: src/properties.rs:579
+#: src/properties.rs:580
 msgid "Kategorien & Tags von WordPress aktualisieren"
 msgstr "Refresh categories & tags from WordPress"
 
-#: src/properties.rs:594
+#: src/properties.rs:595
 msgid "Kategorien & Tags verwalten…"
 msgstr "Manage Categories & Tags…"
 
-#: src/properties.rs:629 src/shortcuts.rs:53
+#: src/properties.rs:630 src/shortcuts.rs:53
 msgid "Allgemein"
 msgstr "General"
 
-#: src/properties.rs:636
+#: src/properties.rs:637
 msgid "Veröffentlichung"
 msgstr "Publishing"
 
-#: src/properties.rs:646
+#: src/properties.rs:647
 msgid "Kategorien & Tags"
 msgstr "Categories & Tags"
 
+#: src/properties.rs:663
+msgid "Via & Quelle"
+msgstr "Via & Source"
+
+#: src/properties.rs:664
+msgid "Erscheinen unter dem Artikel. Leer lassen, wenn es keine gibt."
+msgstr "Shown below the article. Leave empty if there are none."
+
 #: src/properties.rs:666
+msgid "Via – Name"
+msgstr "Via – Name"
+
+#: src/properties.rs:667
+msgid "Via – Adresse"
+msgstr "Via – Address"
+
+#: src/properties.rs:668
+msgid "Quelle – Name"
+msgstr "Source – Name"
+
+#: src/properties.rs:669
+msgid "Quelle – Adresse"
+msgstr "Source – Address"
+
+#: src/properties.rs:691
 msgid "RankMath SEO"
 msgstr "RankMath SEO"
 
-#: src/properties.rs:824
+#: src/properties.rs:705
+msgid ""
+"Rank Math ist auf diesem Blog nicht aktiv – diese Felder werden nicht "
+"gespeichert. Als Meta-Beschreibung dient der Auszug."
+msgstr ""
+"Rank Math is not active on this blog – these fields are not saved. The "
+"excerpt serves as the meta description."
+
+#: src/properties.rs:881
+msgid "Bild im Blog nicht gefunden"
+msgstr "Image not found on the blog"
+
+#: src/properties.rs:882
+msgid "Bild nicht geladen: {err}"
+msgstr "Image not loaded: {err}"
+
+#: src/properties.rs:907
 msgid "Featured Image auswählen"
 msgstr "Choose Featured Image"
 
@@ -3439,75 +3683,75 @@ msgid ""
 msgstr ""
 "AI translation not reviewed yet – confirm it under “Review …” in the menu."
 
-#: src/releasecheck.rs:121
+#: src/releasecheck.rs:125
 msgid "Optional, für RankMath."
 msgstr "Optional, for RankMath."
 
-#: src/releasecheck.rs:135 src/releasecheck.rs:136 src/releasecheck.rs:137
+#: src/releasecheck.rs:140 src/releasecheck.rs:141 src/releasecheck.rs:142
 msgid "Abgleich mit dem Original"
 msgstr "Compared with the original"
 
-#: src/releasecheck.rs:135
+#: src/releasecheck.rs:140
 msgid "Code, Links, Auszeichnungen und Überschriften wie im Original"
 msgstr "Code, links, markup and headings as in the original"
 
-#: src/releasecheck.rs:137
+#: src/releasecheck.rs:142
 msgid "{n} Auffälligkeiten, z. B.: {first}"
 msgstr "{n} findings, e.g.: {first}"
 
-#: src/releasecheck.rs:145
+#: src/releasecheck.rs:150
 msgid "Titel und Auszug sind noch die des Originals."
 msgstr "Title and excerpt are still the original's."
 
-#: src/releasecheck.rs:146
+#: src/releasecheck.rs:151
 msgid "Der Titel ist noch der des Originals."
 msgstr "The title is still the original's."
 
-#: src/releasecheck.rs:147
+#: src/releasecheck.rs:152
 msgid "Der Auszug ist noch der des Originals."
 msgstr "The excerpt is still the original's."
 
-#: src/releasecheck.rs:149
+#: src/releasecheck.rs:154
 msgid "Titel und Auszug"
 msgstr "Title and Excerpt"
 
-#: src/releasecheck.rs:153
+#: src/releasecheck.rs:158
 msgid "1 Abschnitt des Originals seit der Übersetzung geändert"
 msgstr "1 section of the original changed since the translation"
 
-#: src/releasecheck.rs:153
+#: src/releasecheck.rs:158
 msgid "{n} Abschnitte des Originals seit der Übersetzung geändert"
 msgstr "{n} sections of the original changed since the translation"
 
-#: src/releasecheck.rs:154 src/translatedialog.rs:951
+#: src/releasecheck.rs:159 src/translatedialog.rs:985
 msgid "Original geändert"
 msgstr "Original Changed"
 
-#: src/releasecheck.rs:189
+#: src/releasecheck.rs:194
 msgid "Prüfung"
 msgstr "Checks"
 
-#: src/releasecheck.rs:206
+#: src/releasecheck.rs:211
 msgid "Termin (JJJJ-MM-TT HH:MM)"
 msgstr "Date (YYYY-MM-DD HH:MM)"
 
-#: src/releasecheck.rs:211
+#: src/releasecheck.rs:216
 msgid "Sofort"
 msgstr "Now"
 
-#: src/releasecheck.rs:217
+#: src/releasecheck.rs:222
 msgid "Zeitpunkt"
 msgstr "When"
 
-#: src/releasecheck.rs:227 src/releasecheck.rs:284
+#: src/releasecheck.rs:232 src/releasecheck.rs:289
 msgid "Änderungen veröffentlichen"
 msgstr "Publish Changes"
 
-#: src/releasecheck.rs:228
+#: src/releasecheck.rs:233
 msgid "Planen"
 msgstr "Schedule"
 
-#: src/releasecheck.rs:305
+#: src/releasecheck.rs:310
 msgid "Beheben"
 msgstr "Fix"
 
@@ -3779,10 +4023,6 @@ msgstr ""
 "The AI reads the title and text and suggests fitting tags. Tags the site "
 "already has take precedence."
 
-#: src/tagsuggest.rs:70
-msgid "Erneut versuchen"
-msgstr "Try Again"
-
 #: src/tagsuggest.rs:75
 msgid "Neu generieren"
 msgstr "Regenerate"
@@ -3799,15 +4039,15 @@ msgstr "Green: tag already exists. Red: will be created."
 msgid "KI-Tags vorschlagen"
 msgstr "Suggest AI Tags"
 
-#: src/tagsuggest.rs:229
+#: src/tagsuggest.rs:231
 msgid "Keine neuen Tag-Vorschläge"
 msgstr "No New Tag Suggestions"
 
-#: src/tagsuggest.rs:229
+#: src/tagsuggest.rs:231
 msgid "Alles Passende ist schon gesetzt."
 msgstr "Everything that fits is already set."
 
-#: src/tagsuggest.rs:236 src/tagsuggest.rs:241
+#: src/tagsuggest.rs:238 src/tagsuggest.rs:243
 msgid "Generierung fehlgeschlagen"
 msgstr "Generation Failed"
 
@@ -3899,6 +4139,64 @@ msgstr "Paste"
 msgid "Alles auswählen"
 msgstr "Select All"
 
+#: src/langmedia.rs:162
+msgid "Das gibt es nur in einer Sprachfassung, nicht im Original."
+msgstr "This only exists in a language version, not in the original."
+
+#: src/langmedia.rs:171 src/langmedia.rs:279
+msgid "Bilder und Videos"
+msgstr "Images and videos"
+
+#: src/langmedia.rs:173
+msgid ""
+"Mit der Sprache im Dateinamen: bild.de.webp für Deutsch, bild.en.webp für "
+"Englisch, bild.webp für beide. Was nicht auf {lang} endet, kommt aus dem "
+"Blog des Originals und wird nicht noch einmal hochgeladen."
+msgstr ""
+"With the language in the file name: image.de.webp for German, image.en.webp "
+"for English, image.webp for both. Anything not ending in {lang} comes from "
+"the original's blog and is not uploaded again."
+
+#: src/langmedia.rs:179
+msgid "Bilder dieser Fassung"
+msgstr "Images of this version"
+
+#: src/langmedia.rs:193
+msgid "Diese Fassung hat keine Bilder oder Videos."
+msgstr "This version has no images or videos."
+
+#: src/langmedia.rs:200
+msgid "Wie im Original – aus dessen Blog, kein neuer Upload"
+msgstr "Same as the original – from its blog, no new upload"
+
+#: src/langmedia.rs:201
+msgid "Eigene Fassung – wird in den Blog dieser Sprache hochgeladen"
+msgstr "Own version – uploaded to this language's blog"
+
+#: src/langmedia.rs:222
+msgid "{file} nehmen"
+msgstr "Use {file}"
+
+#: src/langmedia.rs:228
+msgid "Eigene Fassung wählen …"
+msgstr "Choose own version …"
+
+#: src/langmedia.rs:234
+msgid "Wie im Original"
+msgstr "Same as the original"
+
+#: src/langmedia.rs:236
+msgid "Das Original hat keine Datei dazu (gleicher Name ohne .{lang})"
+msgstr "The original has no file for it (same name without .{lang})"
+
+#: src/langmedia.rs:282
+msgid "Bild für diese Sprache wählen"
+msgstr "Choose the image for this language"
+
+#: src/langmedia.rs:301
+msgid "Ungültiger Dateiname."
+msgstr "Invalid file name."
+
 #: src/translatedialog.rs:29
 msgid "Französisch"
 msgstr "French"
@@ -3946,62 +4244,62 @@ msgstr "The article has no file yet."
 msgid "Eine Sprachfassung geht vom Original in der Bibliothek aus."
 msgstr "A language version starts from the original in the library."
 
-#: src/translatedialog.rs:274
+#: src/translatedialog.rs:292
 msgid "Einleitung"
 msgstr "Introduction"
 
-#: src/translatedialog.rs:298
+#: src/translatedialog.rs:316
 msgid "Abschnitt {name} des Originals kopiert."
 msgstr "Copied section {name} of the original."
 
-#: src/translatedialog.rs:299
+#: src/translatedialog.rs:317
 msgid "Original kopiert ({w} Wörter)."
 msgstr "Original copied ({w} words)."
 
-#: src/translatedialog.rs:312
+#: src/translatedialog.rs:330
 msgid "Die Zwischenablage enthält keinen Text."
 msgstr "The clipboard holds no text."
 
-#: src/translatedialog.rs:324
+#: src/translatedialog.rs:342
 msgid "Einfügen geht in eine Sprachfassung - wechsle mit Alt+2 dorthin."
 msgstr "Pasting goes into a language version – switch to it with Alt+2."
 
-#: src/translatedialog.rs:383
+#: src/translatedialog.rs:401
 msgid "Abschnitt {name} eingefügt"
 msgstr "Pasted section {name}"
 
-#: src/translatedialog.rs:384
+#: src/translatedialog.rs:402
 msgid "Text eingefügt"
 msgstr "Text pasted"
 
-#: src/translatedialog.rs:385
+#: src/translatedialog.rs:403
 msgid "Text, {fields} eingefügt"
 msgstr "Text, {fields} pasted"
 
-#: src/translatedialog.rs:388
+#: src/translatedialog.rs:406
 msgid "{what} - Code, Links und Überschriften stimmen."
 msgstr "{what} – code, links and headings match."
 
-#: src/translatedialog.rs:392
+#: src/translatedialog.rs:410
 msgid "{what} · {n} Hinweise"
 msgstr "{what} · {n} findings"
 
-#: src/translatedialog.rs:481
+#: src/translatedialog.rs:499
 msgid "Alle Änderungen des Originals sind übernommen."
 msgstr "All changes of the original are carried over."
 
-#: src/translatedialog.rs:542
+#: src/translatedialog.rs:560
 msgid "Fassung auf {lang} anlegen"
 msgstr "Create {lang} Version"
 
-#: src/translatedialog.rs:547
+#: src/translatedialog.rs:565
 msgid ""
 "Die Fassung liegt als {file} neben dem Original und geht in den Blog {blog}."
 msgstr ""
 "The version is saved as {file} next to the original and goes to the blog "
 "{blog}."
 
-#: src/translatedialog.rs:548
+#: src/translatedialog.rs:566
 msgid ""
 "Die Fassung liegt als {file} neben dem Original. Ein Blog für diese Sprache "
 "legst du unter Einstellungen → WordPress an."
@@ -4009,11 +4307,11 @@ msgstr ""
 "The version is saved as {file} next to the original. Add a blog for this "
 "language under Preferences → WordPress."
 
-#: src/translatedialog.rs:575
+#: src/translatedialog.rs:593
 msgid "Fassung anlegen"
 msgstr "Create Version"
 
-#: src/translatedialog.rs:594
+#: src/translatedialog.rs:612
 msgid ""
 "Fassung mit dem Original als Vorlage angelegt - Titel und Auszug unter "
 "„Beitrag“."
@@ -4021,35 +4319,35 @@ msgstr ""
 "Version created with the original as a template – title and excerpt under "
 "“Post”."
 
-#: src/translatedialog.rs:595
+#: src/translatedialog.rs:613
 msgid "Leere Fassung angelegt - Titel unter „Beitrag“, Text hier."
 msgstr "Empty version created – title under “Post”, text here."
 
-#: src/translatedialog.rs:605
+#: src/translatedialog.rs:623
 msgid "Fassung aus der Zwischenablage angelegt."
 msgstr "Version created from the clipboard."
 
-#: src/translatedialog.rs:605
+#: src/translatedialog.rs:623
 msgid "Fassung aus der Zwischenablage angelegt - Titel unter „Beitrag“."
 msgstr "Version created from the clipboard – set the title under “Post”."
 
-#: src/translatedialog.rs:608
+#: src/translatedialog.rs:626
 msgid "{n} Hinweise unter „Prüfen …“."
 msgstr "{n} findings under “Check …”."
 
-#: src/translatedialog.rs:622
+#: src/translatedialog.rs:640
 msgid "Per KI übersetzen geht, sobald das Original als Entwurf im Blog liegt."
 msgstr "Translating with AI works once the original is on the blog as a draft."
 
-#: src/translatedialog.rs:661
+#: src/translatedialog.rs:679
 msgid "Ziel-Blog"
 msgstr "Target blog"
 
-#: src/translatedialog.rs:703
+#: src/translatedialog.rs:721
 msgid "Keine Abschnitte geändert – es wird nichts neu übersetzt."
 msgstr "No sections changed – nothing will be translated again."
 
-#: src/translatedialog.rs:704
+#: src/translatedialog.rs:722
 msgid ""
 "{n} von {total} Abschnitten geändert; nur sie werden neu übersetzt, deine "
 "Korrekturen in den übrigen bleiben."
@@ -4057,63 +4355,76 @@ msgstr ""
 "{n} of {total} sections changed; only those are translated again, your "
 "corrections in the others stay."
 
-#: src/translatedialog.rs:705
+#: src/translatedialog.rs:723
 msgid "{s} Abschnitte · {w} Wörter · {c} Code-Blöcke bleiben unverändert"
 msgstr "{s} sections · {w} words · {c} code blocks stay unchanged"
 
-#: src/translatedialog.rs:710
+#: src/translatedialog.rs:728
 msgid "Umfang"
 msgstr "Scope"
 
-#: src/translatedialog.rs:714
+#: src/translatedialog.rs:733
+msgid "Eigene Änderungen behalten"
+msgstr "Keep My Changes"
+
+#: src/translatedialog.rs:735
+msgid ""
+"In {n} der geänderten Abschnitte hast du die Übersetzung selbst bearbeitet "
+"(Abschnitt {list}). Bleiben sie, sind sie weiter als „Original geändert“ "
+"markiert."
+msgstr ""
+"In {n} of the changed sections you edited the translation yourself (section "
+"{list}). If they stay, they remain marked as “Original changed”."
+
+#: src/translatedialog.rs:747
 msgid "Titel, Slug, Auszug"
 msgstr "Title, slug, excerpt"
 
-#: src/translatedialog.rs:714
+#: src/translatedialog.rs:747
 msgid "werden übersetzt"
 msgstr "will be translated"
 
-#: src/translatedialog.rs:719
+#: src/translatedialog.rs:752
 msgid "{n} Schlagwörter, übersetzt und mit denen des Ziel-Blogs abgeglichen"
 msgstr "{n} tags, translated and matched against the target blog's tags"
 
-#: src/translatedialog.rs:736
+#: src/translatedialog.rs:769
 msgid "Übersetzen"
 msgstr "Translate"
 
-#: src/translatedialog.rs:772
+#: src/translatedialog.rs:806
 msgid "Wird übersetzt …"
 msgstr "Translating …"
 
-#: src/translatedialog.rs:821
+#: src/translatedialog.rs:855
 msgid "{done} von {total}"
 msgstr "{done} of {total}"
 
-#: src/translatedialog.rs:839 src/worksave.rs:112
+#: src/translatedialog.rs:873 src/worksave.rs:112
 msgid "Speichern fehlgeschlagen: {err}"
 msgstr "Failed to save: {err}"
 
-#: src/translatedialog.rs:856
+#: src/translatedialog.rs:890
 msgid "Interner Fehler: Übersetzung hat kein Ergebnis geliefert."
 msgstr "Internal error: the translation returned no result."
 
-#: src/translatedialog.rs:913
+#: src/translatedialog.rs:947
 msgid "{n} Abschnitte übersetzt, {k} übernommen. Jetzt gegenlesen."
 msgstr "{n} sections translated, {k} kept. Review it now."
 
-#: src/translatedialog.rs:915
+#: src/translatedialog.rs:949
 msgid "{n} Abschnitte übersetzt. Jetzt gegenlesen."
 msgstr "{n} sections translated. Review it now."
 
-#: src/translatedialog.rs:931
+#: src/translatedialog.rs:965
 msgid "Das ist keine Übersetzung."
 msgstr "This isn’t a translation."
 
-#: src/translatedialog.rs:949
+#: src/translatedialog.rs:983
 msgid "Prüfungen"
 msgstr "Checks"
 
-#: src/translatedialog.rs:951
+#: src/translatedialog.rs:985
 msgid ""
 "Das Original wurde seit der Übersetzung bearbeitet – „Zeigen“ im Banner "
 "zeigt, wo."
@@ -4121,58 +4432,58 @@ msgstr ""
 "The original was edited since the translation – “Show” in the banner shows "
 "where."
 
-#: src/translatedialog.rs:956
+#: src/translatedialog.rs:990
 msgid "Keine Auffälligkeiten"
 msgstr "Nothing found"
 
-#: src/translatedialog.rs:956
+#: src/translatedialog.rs:990
 msgid ""
 "Code, Links, Auszeichnungen und Überschriften stimmen mit dem Original "
 "überein."
 msgstr "Code, links, markup and headings match the original."
 
-#: src/translatedialog.rs:962 src/translatedialog.rs:1004
+#: src/translatedialog.rs:996 src/translatedialog.rs:1038
 msgid "Abschnitt {n}"
 msgstr "Section {n}"
 
-#: src/translatedialog.rs:963
+#: src/translatedialog.rs:997
 msgid "Ganzer Artikel"
 msgstr "Whole article"
 
-#: src/translatedialog.rs:976
+#: src/translatedialog.rs:1010
 msgid "Original"
 msgstr "Original"
 
-#: src/translatedialog.rs:1002
+#: src/translatedialog.rs:1036
 msgid "Abschnitt {n} · Original geändert"
 msgstr "Section {n} · original changed"
 
-#: src/translatedialog.rs:1020
+#: src/translatedialog.rs:1054
 msgid "Abschnitte"
 msgstr "Sections"
 
-#: src/translatedialog.rs:1022
+#: src/translatedialog.rs:1056
 msgid ""
 "Korrekturen machst du im Editor; dieser Dialog zeigt den gespeicherten Stand."
 msgstr "Make corrections in the editor; this dialog shows the saved state."
 
-#: src/translatedialog.rs:1030
+#: src/translatedialog.rs:1064
 msgid "Markierung entfernen"
 msgstr "Remove mark"
 
-#: src/translatedialog.rs:1030
+#: src/translatedialog.rs:1064
 msgid "Als gegengelesen markieren"
 msgstr "Mark as reviewed"
 
-#: src/translatedialog.rs:1042
+#: src/translatedialog.rs:1076
 msgid "Gegenlesen"
 msgstr "Review"
 
-#: src/translatedialog.rs:1052
+#: src/translatedialog.rs:1086
 msgid "Markierung „gegengelesen“ entfernt."
 msgstr "“Reviewed” mark removed."
 
-#: src/translatedialog.rs:1052
+#: src/translatedialog.rs:1086
 msgid ""
 "Als gegengelesen markiert. Beim nächsten Hochladen wird die Übersetzung im "
 "Blog verknüpft."
@@ -4210,11 +4521,11 @@ msgstr "Headings: {a} in the original, {b} in the translation."
 msgid "Abschnitt enthält noch {n} Wörter, die nach Original-Sprache aussehen."
 msgstr "Section still contains {n} words that look like the original language."
 
-#: src/translate.rs:908
+#: src/translate.rs:931
 msgid "Die Antwort für Titel und Auszug war kein gültiges JSON."
 msgstr "The reply for title and excerpt wasn’t valid JSON."
 
-#: src/translate.rs:979
+#: src/translate.rs:1024
 msgid "Hinweis des Modells: {note}"
 msgstr "Model note: {note}"
 
@@ -4362,111 +4673,92 @@ msgstr "Moved {n} translations into the folder of their original."
 msgid "Vorhandene Arbeitskopie geöffnet."
 msgstr "Opened the existing working copy."
 
-#: src/window.rs:1343
+#: src/window.rs:1347
+msgid ""
+"Original nicht in der Bibliothek – öffne es aus dem Originalblog, dann "
+"landet es im selben Ordner."
+msgstr ""
+"Original not in the library – open it from the original blog and it lands in "
+"the same folder."
+
+#: src/window.rs:1351 src/window.rs:1364
 msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
 msgstr "Couldn't create a working copy: {err}"
 
-#: src/window.rs:1448
+#: src/window.rs:1383
+msgid "Neben dem Original abgelegt."
+msgstr "Placed next to the original."
+
+#: src/window.rs:1401
+msgid "Zur vorhandenen Übersetzung gelegt."
+msgstr "Placed with the existing translation."
+
+#: src/window.rs:1526
 msgid "Markdown-Datei öffnen"
 msgstr "Open Markdown File"
 
-#: src/window.rs:1609
+#: src/window.rs:1698
 msgid "Bild einfügen"
 msgstr "Insert Image"
 
-#: src/window.rs:1644
+#: src/window.rs:1733
 msgid "Video/Audio einfügen"
 msgstr "Insert Video/Audio"
 
-#: src/window.rs:1738
+#: src/window.rs:1827
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr "AI draft created as a new document - please review it."
 
-#: src/window.rs:1845
+#: src/window.rs:1934
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr "Please save the article first to insert images."
 
-#: src/window.rs:1854
+#: src/window.rs:1943
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the image from the clipboard."
 
-#: src/window.rs:1860
+#: src/window.rs:1949
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr "Couldn't save the image: {err}"
 
-#: src/window.rs:1874 src/window.rs:1888
+#: src/window.rs:1963 src/window.rs:1977
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the formatted text from the clipboard."
 
-#: src/window.rs:1892
+#: src/window.rs:1981
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr "Formatted text from the clipboard is in an unknown format."
 
-#: src/window.rs:1897
+#: src/window.rs:1986
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr "Couldn't convert the formatted text: {err}"
 
-#: src/wpclient.rs:482
+#: src/wpclient.rs:35
+msgid "Keine Verbindung zum Blog ({err})"
+msgstr "No connection to the blog ({err})"
+
+#: src/wpclient.rs:564
 msgid "Keine Medien-ID in der Antwort"
 msgstr "No media ID in the response"
 
-#: src/wpclient.rs:621
+#: src/wpclient.rs:730
 msgid "Kein aktives Theme gefunden."
 msgstr "No active theme found."
 
-#: src/wpclient.rs:744
+#: src/wpclient.rs:853
 msgid "Keine Term-ID in der Antwort"
 msgstr "No term ID in the response"
 
-#: src/wpclient.rs:1032
+#: src/wpclient.rs:1151
 msgid "Keine Post-ID in der Antwort"
 msgstr "No post ID in the response"
 
-#: src/wpclient.rs:1079
+#: src/wpclient.rs:1210
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr "No term ID received for \"{name}\""
 
-msgid "Sprache dieser Fassung"
-msgstr "Language of this version"
+#~ msgid "„{site}“ gespeichert und als aktives Blog gewählt."
+#~ msgstr "“{site}” saved and made the active blog."
 
-msgid "Das gibt es nur in einer Sprachfassung, nicht im Original."
-msgstr "This only exists in a language version, not in the original."
-
-msgid "Bilder und Videos"
-msgstr "Images and videos"
-
-msgid "Mit der Sprache im Dateinamen: bild.de.webp für Deutsch, bild.en.webp für Englisch, bild.webp für beide. Was nicht auf {lang} endet, kommt aus dem Blog des Originals und wird nicht noch einmal hochgeladen."
-msgstr "With the language in the file name: image.de.webp for German, image.en.webp for English, image.webp for both. Anything not ending in {lang} comes from the original's blog and is not uploaded again."
-
-msgid "Bilder dieser Fassung"
-msgstr "Images of this version"
-
-msgid "Bilder dieser Fassung …"
-msgstr "Images of this version …"
-
-msgid "Diese Fassung hat keine Bilder oder Videos."
-msgstr "This version has no images or videos."
-
-msgid "Wie im Original – aus dessen Blog, kein neuer Upload"
-msgstr "Same as the original – from its blog, no new upload"
-
-msgid "Eigene Fassung – wird in den Blog dieser Sprache hochgeladen"
-msgstr "Own version – uploaded to this language's blog"
-
-msgid "{file} nehmen"
-msgstr "Use {file}"
-
-msgid "Eigene Fassung wählen …"
-msgstr "Choose own version …"
-
-msgid "Wie im Original"
-msgstr "Same as the original"
-
-msgid "Das Original hat keine Datei dazu (gleicher Name ohne .{lang})"
-msgstr "The original has no file for it (same name without .{lang})"
-
-msgid "Bild für diese Sprache wählen"
-msgstr "Choose the image for this language"
-
-msgid "Ungültiger Dateiname."
-msgstr "Invalid file name."
+#~ msgid "Geplant."
+#~ msgstr "Scheduled."

@@ -237,6 +237,10 @@ pub struct Frontmatter {
     /// that was `Future` then - lets "Termin ändern" tell a new date from
     /// the one already on the server.
     pub wp_scheduled_at: Option<String>,
+    /// The publish date on WordPress (site time, `YYYY-MM-DDTHH:MM:SS`) as
+    /// of the last sync, for a post that was published (or private) then -
+    /// shown in the post pane; "Neu veröffentlichen" replaces it.
+    pub wp_published_at: Option<String>,
     /// Language of this file of a language pair, e.g. `en` - `None` for
     /// the original in the blog's own language (`library.rs`). The upload
     /// checks it against the target blog.
@@ -445,6 +449,7 @@ pub fn parse(input: &str) -> Document {
             "wp_pending_create" => frontmatter.wp_pending_create = (!value.is_empty()).then(|| unquote(value)),
             "wp_status" => frontmatter.wp_status = (!value.is_empty()).then(|| PostStatus::from_str(&unquote(value))),
             "wp_scheduled_at" => frontmatter.wp_scheduled_at = (!value.is_empty()).then(|| unquote(value)),
+            "wp_published_at" => frontmatter.wp_published_at = (!value.is_empty()).then(|| unquote(value)),
             "wp_featured_media_id" => frontmatter.featured_media_id = value.parse::<u64>().ok(),
             "author_id" => frontmatter.author_id = value.parse::<u64>().ok(),
             "author_name" => {
@@ -564,6 +569,7 @@ pub fn serialize(doc: &Document) -> String {
         ("wp_pending_create", &fm.wp_pending_create),
         ("wp_status", &fm.wp_status.map(|status| status.as_str().to_string())),
         ("wp_scheduled_at", &fm.wp_scheduled_at),
+        ("wp_published_at", &fm.wp_published_at),
     ] {
         if let Some(value) = value {
             out.push_str(&format!("{key}: \"{}\"\n", escape(value)));
@@ -1203,6 +1209,7 @@ mod tests {
                 wp_pending_create: None,
                 wp_status: None,
                 wp_scheduled_at: None,
+                wp_published_at: None,
                 via_label: None,
                 via_url: None,
                 source_label: None,

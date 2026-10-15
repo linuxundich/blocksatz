@@ -643,6 +643,13 @@ fn apply_stored_status(fm: &mut Frontmatter, post: &wpclient::PostResult, reques
             fm.scheduled_at = Some(date.to_string());
         }
     }
+    if matches!(fm.status, PostStatus::Publish | PostStatus::Private) {
+        if let Some(date) = post.date.as_deref().filter(|date| !date.is_empty()) {
+            fm.wp_published_at = Some(date.to_string());
+        }
+    } else {
+        fm.wp_published_at = None;
+    }
 }
 
 /// The attachment that gets the featured image's alt text: one just
@@ -961,6 +968,18 @@ mod tests {
 
     fn post_result(status: Option<&str>, date: Option<&str>) -> wpclient::PostResult {
         wpclient::PostResult { id: 1, link: String::new(), modified_gmt: String::new(), status: status.map(str::to_string), date: date.map(str::to_string), featured_media: None, notes: Vec::new() }
+    }
+
+    #[test]
+    fn the_publish_date_is_kept_from_the_answer_and_dropped_when_offline() {
+        let mut fm = Frontmatter::default();
+        apply_stored_status(&mut fm, &post_result(Some("publish"), Some("2025-03-01T10:00:00")), None);
+        assert_eq!(fm.wp_published_at.as_deref(), Some("2025-03-01T10:00:00"));
+        apply_stored_status(&mut fm, &post_result(Some("draft"), Some("2025-03-01T10:00:00")), None);
+        assert_eq!(fm.wp_published_at, None);
+        let doc = document::Document { frontmatter: Frontmatter { wp_published_at: Some("2025-03-01T10:00:00".into()), ..Frontmatter::default() }, body: String::new() };
+        assert_eq!(document::parse(&document::serialize(&doc)).frontmatter.wp_published_at.as_deref(), Some("2025-03-01T10:00:00"));
+        assert_eq!(crate::postpane::format_site_date("2025-03-01T10:00:00"), "01.03.2025, 10:00");
     }
 
     #[test]
@@ -1431,6 +1450,7 @@ mod tests {
             wp_pending_create: None,
             wp_status: None,
             wp_scheduled_at: None,
+            wp_published_at: None,
             via_label: None,
             via_url: None,
             source_label: None,
@@ -1501,6 +1521,7 @@ mod tests {
             wp_pending_create: None,
             wp_status: None,
             wp_scheduled_at: None,
+            wp_published_at: None,
             via_label: None,
             via_url: None,
             source_label: None,
@@ -1570,6 +1591,7 @@ mod tests {
             wp_pending_create: None,
             wp_status: None,
             wp_scheduled_at: None,
+            wp_published_at: None,
             via_label: None,
             via_url: None,
             source_label: None,
@@ -1638,6 +1660,7 @@ mod tests {
             wp_pending_create: None,
             wp_status: None,
             wp_scheduled_at: None,
+            wp_published_at: None,
             via_label: None,
             via_url: None,
             source_label: None,
@@ -1709,6 +1732,7 @@ mod tests {
             wp_pending_create: None,
             wp_status: None,
             wp_scheduled_at: None,
+            wp_published_at: None,
             via_label: None,
             via_url: None,
             source_label: None,
@@ -1785,6 +1809,7 @@ mod tests {
             wp_pending_create: None,
             wp_status: None,
             wp_scheduled_at: None,
+            wp_published_at: None,
             via_label: None,
             via_url: None,
             source_label: None,

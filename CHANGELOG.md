@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.72.1] - 2026-10-15
+
+Fixes from a second QA pass: opening posts from the blog, translating
+them and updating them again.
+
+### Fixed
+
+- **No second language version of the same original.** Before a language
+  version goes to its blog for the first time, Blocksatz asks the blog
+  (lui-translations' list of pairs) whether the original already has one
+  there. Instead of creating a second post, it offers "Vorhandene
+  übernehmen": the existing post becomes this language version (language
+  and link kept, your text saved beside the file), and it shows "Original
+  geändert" when the existing version follows an older state of the
+  original. "Trotzdem neu anlegen" is still possible.
+- **A published post is no longer taken offline unasked.** A scheduled
+  date in the future on a post that is online makes WordPress unpublish it
+  until then; Blocksatz now asks first and says so. A date in the past
+  still just backdates the post.
+- **Shared media keep their texts** (regression in 0.72.0). Updating an
+  article wrote its own alt text and caption of images it only uses - an
+  opened post's images, media library picks - into the shared attachment.
+  The media library is now only brought in line for files Blocksatz
+  uploaded itself.
+
 ## [0.72.0] - 2026-10-15
 
 Fixes from the QA audit of 0.71.0 (bilingual DE → EN workflow, tested in
@@ -2571,7 +2596,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.72.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.72.1...HEAD
+[0.72.1]: https://github.com/linuxundich/blocksatz/compare/v0.72.0...v0.72.1
 [0.72.0]: https://github.com/linuxundich/blocksatz/compare/v0.71.0...v0.72.0
 [0.71.0]: https://github.com/linuxundich/blocksatz/compare/v0.70.0...v0.71.0
 [0.70.0]: https://github.com/linuxundich/blocksatz/compare/v0.69.0...v0.70.0

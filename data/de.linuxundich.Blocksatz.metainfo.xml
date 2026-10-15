@@ -25,6 +25,11 @@
   <url type="homepage">https://github.com/linuxundich/blocksatz</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksatz</url>
   <releases>
+    <release version="0.72.1" date="2026-10-15">
+      <description>
+        <p>Behoben: Gibt es zu einem Original im Blog schon eine englische Fassung, legt Blocksatz keine zweite an, sondern bietet an, die vorhandene zu übernehmen. Ein veröffentlichter Beitrag geht mit einem Termin in der Zukunft nur noch nach Rückfrage offline. Alternativtexte und Bildunterschriften gemeinsam genutzter Bilder in der Mediathek bleiben unverändert, wenn ein Artikel sie anders verwendet.</p>
+      </description>
+    </release>
     <release version="0.72.0" date="2026-10-15">
       <description>
         <p>Neu: Felder für „Via“ und „Quelle“ unter dem Artikel. Eigene Zeilen im Kopf der Datei bleiben beim Speichern erhalten. „Per KI aktualisieren“ behält Abschnitte der Übersetzung, die du selbst bearbeitet hast.</p>

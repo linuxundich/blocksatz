@@ -477,7 +477,6 @@ impl MainAction {
     /// its text reads like another language than the target blog's (a
     /// German text on its way to the English blog, or the other way).
     fn upload(&self, target: TargetStatus, preview_after: bool) {
-        let Some(window) = self.window.upgrade() else { return };
         // A translation is linked to its original's post: without one yet,
         // the original goes first.
         crate::translatedialog::fill_source_id(&self.ctx);
@@ -485,6 +484,138 @@ impl MainAction {
             window::show_toast(&self.ctx.toast_overlay, &tr("Erst das Original hochladen - die Übersetzung wird mit ihm verknüpft."));
             return;
         }
+        self.confirm_unpublish(target, preview_after);
+    }
+
+    /// A scheduled date in the future on a post that is online takes it
+    /// offline until then - WordPress turns it into "future" and its
+    /// address answers 404. That only happens after saying so.
+    fn confirm_unpublish(&self, target: TargetStatus, preview_after: bool) {
+        let Some(window) = self.window.upgrade() else { return };
+        let fm = self.ctx.frontmatter.borrow().clone();
+        let now = glib::DateTime::now_local().and_then(|now| now.format("%Y-%m-%dT%H:%M:%S")).map(|s| s.to_string()).unwrap_or_default();
+        if !takes_offline(&fm, target.resolve(&fm), &now) {
+            self.check_existing_translation(target, preview_after);
+            return;
+        }
+        let when = fm.scheduled_at.as_deref().map(document::format_scheduled_at_for_display).unwrap_or_default();
+        let alert = adw::AlertDialog::builder()
+            .heading(tr("Veröffentlichten Beitrag offline nehmen?"))
+            .body(tr("Der Beitrag ist online. Mit dem Termin {when} nimmt WordPress ihn bis dahin offline - seine Adresse ist bis dahin nicht erreichbar.\n\nNur das Datum ändern, ohne ihn offline zu nehmen, geht mit einem Termin in der Vergangenheit.").replace("{when}", &when))
+            .build();
+        alert.add_response("cancel", &tr("Abbrechen"));
+        alert.add_response("schedule", &tr("Offline nehmen und planen"));
+        alert.set_response_appearance("schedule", adw::ResponseAppearance::Destructive);
+        alert.set_default_response(Some("cancel"));
+        alert.set_close_response("cancel");
+        let weak = self.weak.clone();
+        alert.connect_response(None, move |_, response| {
+            if response == "schedule" {
+                if let Some(this) = weak.upgrade() {
+                    this.check_existing_translation(target, preview_after);
+                }
+            }
+        });
+        alert.present(Some(&window));
+    }
+
+    /// Before a language version goes to its blog for the first time:
+    /// does the original already have one there (lui-translations' list of
+    /// pairs)? Then that one is offered instead of creating a second post
+    /// for the same original. Without an answer (offline, no plugin) the
+    /// upload goes ahead as before.
+    fn check_existing_translation(&self, target: TargetStatus, preview_after: bool) {
+        let fm = self.ctx.frontmatter.borrow().clone();
+        let Some(source_id) = fm.translation.as_ref().map(|t| t.source_id).filter(|id| *id != 0 && fm.wp_post_id.is_none()) else {
+            self.check_language(target, preview_after);
+            return;
+        };
+        let weak = self.weak.clone();
+        importer::run_with_password(
+            &self.site(),
+            move |site, password| wpclient::Client::new(&site.url, &site.username, password).translation_pairs().map_err(|err| err.to_string()),
+            move |outcome| {
+                let Some(this) = weak.upgrade() else { return };
+                let existing: Vec<wpclient::TranslationPair> = outcome.unwrap_or_default().into_iter().filter(|pair| pair.source_id == source_id).collect();
+                match existing.first() {
+                    None => this.check_language(target, preview_after),
+                    Some(pair) => this.offer_existing_translation(pair.clone(), existing.len(), target, preview_after),
+                }
+            },
+        );
+    }
+
+    fn offer_existing_translation(&self, pair: wpclient::TranslationPair, count: usize, target: TargetStatus, preview_after: bool) {
+        let Some(window) = self.window.upgrade() else { return };
+        let status = document::PostStatus::from_str(&pair.status).label();
+        let mut body = tr("Zu diesem Original gibt es in {site} schon eine Fassung: „{title}“ ({status}, ID {id}). Hochladen würde einen zweiten Beitrag anlegen.")
+            .replace("{site}", &self.site().site_id())
+            .replace("{title}", &pair.title)
+            .replace("{status}", &status)
+            .replace("{id}", &pair.id.to_string());
+        if count > 1 {
+            body.push(' ');
+            body.push_str(&tr("Es gibt sogar {n} davon.").replace("{n}", &count.to_string()));
+        }
+        body.push_str("\n\n");
+        body.push_str(&tr("„Vorhandene übernehmen“ öffnet sie als diese Fassung; dein Text bleibt als Kopie neben der Datei."));
+        let alert = adw::AlertDialog::builder().heading(tr("Fassung gibt es schon")).body(body).build();
+        alert.add_response("cancel", &tr("Abbrechen"));
+        alert.add_response("new", &tr("Trotzdem neu anlegen"));
+        alert.add_response("adopt", &tr("Vorhandene übernehmen"));
+        alert.set_response_appearance("new", adw::ResponseAppearance::Destructive);
+        alert.set_response_appearance("adopt", adw::ResponseAppearance::Suggested);
+        alert.set_default_response(Some("adopt"));
+        alert.set_close_response("cancel");
+        let weak = self.weak.clone();
+        alert.connect_response(None, move |_, response| {
+            let Some(this) = weak.upgrade() else { return };
+            match response {
+                "adopt" => this.adopt_existing_translation(pair.id, pair.source_hash.clone()),
+                "new" => this.check_language(target, preview_after),
+                _ => {}
+            }
+        });
+        alert.present(Some(&window));
+    }
+
+    /// Replaces the open language version with the existing post `id` of
+    /// its blog - kept as this language version of the original (language,
+    /// link), with the local text saved beside it first.
+    fn adopt_existing_translation(&self, id: u64, source_hash: String) {
+        let Some(path) = self.ctx.current_path.borrow().clone() else { return };
+        worksave::flush(&self.ctx, true);
+        let local = self.ctx.current_document();
+        let site = self.site();
+        let ctx = self.ctx.clone();
+        importer::run_with_password(
+            &site,
+            move |site, password| importer::fetch_and_convert(site, password, document::PostType::Post, id),
+            move |outcome| match outcome {
+                Ok(imported) => {
+                    let stamp = glib::DateTime::now_local().and_then(|now| now.format("%Y%m%d-%H%M%S")).map(|s| s.to_string()).unwrap_or_default();
+                    let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                    let copy = path.with_file_name(format!("{name}.lokal-{stamp}"));
+                    if let Err(err) = std::fs::write(&copy, document::serialize(&local)) {
+                        window::show_toast(&ctx.toast_overlay, &tr("Kopie deiner Fassung fehlgeschlagen: {err}").replace("{err}", &err.to_string()));
+                        return;
+                    }
+                    let adopted = adopted_translation(&local, imported, &source_hash);
+                    if let Err(err) = document::write(&path, &adopted) {
+                        window::show_toast(&ctx.toast_overlay, &tr("Fehler beim Speichern: {err}").replace("{err}", &err.to_string()));
+                        return;
+                    }
+                    window::open_document_at_path(path.clone(), &ctx);
+                    let shown = copy.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                    window::show_toast(&ctx.toast_overlay, &tr("Vorhandene Fassung übernommen. Dein Text liegt als „{name}“ neben der Datei.").replace("{name}", &shown));
+                }
+                Err(err) => window::show_toast(&ctx.toast_overlay, &tr("Fassung nicht geladen: {err}").replace("{err}", &err)),
+            },
+        );
+    }
+
+    fn check_language(&self, target: TargetStatus, preview_after: bool) {
+        let Some(window) = self.window.upgrade() else { return };
         let site = self.site();
         let expected = wpsite::site_lang(&site).unwrap_or_else(|| "de".to_string());
         let found = crate::translate::detect_language(&self.ctx.current_document().body);
@@ -993,6 +1124,39 @@ pub(crate) fn state_text(doc: &Document, state: PostState) -> String {
     }
 }
 
+/// Whether uploading `fm` with `resolved` takes a post that is online
+/// offline: it becomes "future" with a date after `now` (local time,
+/// `YYYY-MM-DDTHH:MM:SS`, as `scheduled_at` is written).
+fn takes_offline(fm: &document::Frontmatter, resolved: Option<PostStatus>, now: &str) -> bool {
+    resolved == Some(PostStatus::Future)
+        && matches!(fm.wp_status, Some(PostStatus::Publish | PostStatus::Private))
+        && fm.scheduled_at.as_deref().is_some_and(|at| at > now)
+}
+
+/// An existing post adopted as the open language version: the blog's
+/// content and metadata, with the version's language and link to the
+/// original kept. Its sections count as the baseline of hand edits. Which
+/// state of the original it follows is what the blog recorded
+/// (`source_hash` from lui-translations) - when that isn't the original's
+/// current state, the version shows "Original geändert" until checked.
+fn adopted_translation(local: &Document, imported: importer::ImportedPost, source_hash: &str) -> Document {
+    let mut frontmatter = imported.frontmatter;
+    frontmatter.lang = local.frontmatter.lang.clone();
+    frontmatter.translation = local.frontmatter.translation.clone().map(|mut link| {
+        link.source_sections = Vec::new();
+        link.source_hash = source_hash.to_string();
+        link.reviewed = true;
+        link.target_sections = crate::translate::split_sections(&imported.body).iter().map(|s| crate::translate::section_hash(s)).collect();
+        link
+    });
+    let (site, modified) = (frontmatter.wp_site.clone().unwrap_or_default(), frontmatter.wp_modified_gmt.clone().unwrap_or_default());
+    let mut doc = Document { frontmatter, body: imported.body };
+    // In sync with the blog as adopted - language and link are this app's
+    // bookkeeping, not a change to upload.
+    syncstate::mark_synced(&mut doc, &site, &modified, &syncstate::now_rfc3339());
+    doc
+}
+
 /// `s` for use inside a query parameter.
 fn percent_encode_component(s: &str) -> String {
     s.bytes()
@@ -1058,5 +1222,36 @@ mod tests {
     #[test]
     fn the_preview_address_survives_as_login_redirect() {
         assert_eq!(percent_encode_component("http://b.example/?p=5&preview=true"), "http%3A%2F%2Fb.example%2F%3Fp%3D5%26preview%3Dtrue");
+    }
+
+    #[test]
+    fn only_a_future_date_on_an_online_post_takes_it_offline() {
+        let mut fm = document::Frontmatter { wp_status: Some(PostStatus::Publish), scheduled_at: Some("2026-12-20T10:00:00".into()), ..Default::default() };
+        let now = "2026-10-15T22:00:00";
+        assert!(takes_offline(&fm, Some(PostStatus::Future), now));
+        fm.scheduled_at = Some("2025-01-15T10:00:00".into());
+        assert!(!takes_offline(&fm, Some(PostStatus::Future), now), "a past date only backdates");
+        fm.scheduled_at = Some("2026-12-20T10:00:00".into());
+        fm.wp_status = Some(PostStatus::Draft);
+        assert!(!takes_offline(&fm, Some(PostStatus::Future), now), "a draft isn't online");
+        fm.wp_status = Some(PostStatus::Publish);
+        assert!(!takes_offline(&fm, None, now));
+    }
+
+    #[test]
+    fn an_adopted_post_keeps_language_and_link() {
+        let link = document::TranslationLink { lang: "en".into(), source_id: 48295, source_sections: vec!["aa".into()], reviewed: false, ..Default::default() };
+        let local = Document { frontmatter: document::Frontmatter { lang: Some("en".into()), translation: Some(link), ..Default::default() }, body: "Local".into() };
+        let imported = importer::ImportedPost { frontmatter: document::Frontmatter { title: "QA Pair EN".into(), wp_post_id: Some(59), ..Default::default() }, body: "Existing text.\n".into() };
+        let doc = adopted_translation(&local, imported, "old");
+        assert_eq!(doc.frontmatter.wp_post_id, Some(59));
+        assert_eq!(doc.frontmatter.lang.as_deref(), Some("en"));
+        let link = doc.frontmatter.translation.clone().unwrap();
+        assert_eq!(link.source_id, 48295);
+        assert!(link.source_sections.is_empty() && link.reviewed);
+        assert_eq!(link.source_hash, "old", "the blog's record of the original, not the local one");
+        assert_eq!(link.target_sections.len(), 1);
+        assert_eq!(doc.body, "Existing text.\n");
+        assert!(!syncstate::has_local_changes(&doc), "adopted as it is on the blog");
     }
 }

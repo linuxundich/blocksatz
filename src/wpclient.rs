@@ -62,6 +62,39 @@ pub struct PostResult {
     pub notes: Vec<String>,
 }
 
+/// A language version on the blog and the original it belongs to
+/// (`Client::translation_pairs`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct TranslationPair {
+    pub id: u64,
+    pub status: String,
+    pub title: String,
+    pub source_id: u64,
+    /// `lui_source_hash`: the original's fingerprint when this version was
+    /// last brought up to date.
+    pub source_hash: String,
+}
+
+fn parse_translation_pairs(value: &Value) -> Vec<TranslationPair> {
+    value
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| {
+                    Some(TranslationPair {
+                        id: item.get("id")?.as_u64()?,
+                        status: item.get("status").and_then(Value::as_str).unwrap_or_default().to_string(),
+                        title: item.get("title").and_then(Value::as_str).unwrap_or_default().to_string(),
+                        source_id: item.get("source_id")?.as_u64()?,
+                        source_hash: item.get("hash").and_then(Value::as_str).unwrap_or_default().to_string(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// The user an Application Password belongs to (`Client::current_user`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct CurrentUser {
@@ -410,6 +443,19 @@ impl Client {
 
     fn endpoint(&self, path: &str) -> String {
         format!("{}/wp-json/wp/v2/{path}", self.base_url)
+    }
+
+    /// The language versions lui-translations knows on this blog
+    /// (`/lui-translations/v1/pairs`). Empty where the plugin isn't
+    /// installed (404) - then nothing can be found and nothing is in the way.
+    pub fn translation_pairs(&self) -> Result<Vec<TranslationPair>> {
+        let url = format!("{}/wp-json/lui-translations/v1/pairs", self.base_url);
+        let value = match self.get_json(&url) {
+            Ok(value) => value,
+            Err(err) if err.status == 404 => return Ok(Vec::new()),
+            Err(err) => return Err(err),
+        };
+        Ok(parse_translation_pairs(&value))
     }
 
     /// The REST namespaces the blog offers (`/wp-json/` index) - tells
@@ -1215,6 +1261,15 @@ mod tests {
         assert_eq!(existing_term_id(r#"{"code":"rest_forbidden","data":{"status":403}}"#), None);
     }
     use super::*;
+
+    #[test]
+    fn translation_pairs_are_read_from_the_plugin_answer() {
+        let value: Value = serde_json::json!([
+            { "id": 59, "status": "publish", "title": "QA Pair EN", "source_id": 48295, "hash": "abc", "state": "current" },
+            { "id": 7, "status": "draft", "title": "Broken" }
+        ]);
+        assert_eq!(parse_translation_pairs(&value), vec![TranslationPair { id: 59, status: "publish".into(), title: "QA Pair EN".into(), source_id: 48295, source_hash: "abc".into() }]);
+    }
     use crate::{secrets, wpsite};
 
     #[test]

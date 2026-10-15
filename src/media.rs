@@ -550,13 +550,16 @@ pub fn sync_uploads(
 /// earlier in line with the article - `sync_uploads` sets them only when a
 /// file is (re)uploaded, so an alt text edited later stayed old in the
 /// media library (the `<img alt>` in the post was already right). Reads
-/// each attachment and writes only what differs; a translation's images of
-/// the original carry no upload of their own and are left alone. Returns
-/// what couldn't be updated, for the upload message.
+/// each attachment and writes only what differs. Only images Blocksatz
+/// uploaded itself count (`is_own_upload`): an image of an opened post,
+/// one picked from the media library or a translation's image of the
+/// original is shared with other posts, and its texts in this post are
+/// this post's own - they must not rewrite the attachment. Returns what
+/// couldn't be updated, for the upload message.
 pub fn sync_metadata(client: &crate::wpclient::Client, items: &[MediaItem]) -> Vec<String> {
     let mut problems = Vec::new();
     for item in items {
-        let Some(reference) = &item.wordpress else { continue };
+        let Some(reference) = item.wordpress.as_ref().filter(|reference| is_own_upload(reference)) else { continue };
         let current = match client.get_media(reference.media_id) {
             Ok(current) => current,
             Err(err) => {
@@ -573,6 +576,14 @@ pub fn sync_metadata(client: &crate::wpclient::Client, items: &[MediaItem]) -> V
         }
     }
     problems
+}
+
+/// Whether Blocksatz uploaded this file itself: only its own uploads record
+/// the file's content hash (`sync_uploads`, Medienverwaltung); references
+/// to existing attachments - an opened post's images, the media library,
+/// galleries - keep it empty.
+fn is_own_upload(reference: &WordPressMediaRef) -> bool {
+    !reference.content_hash.is_empty()
 }
 
 /// What of `item`'s alt text and caption differs from the attachment's
@@ -935,6 +946,13 @@ mod tests {
         assert_eq!(items[0].caption, Some("Endgültig".to_string()));
         let items = reconcile(&items, "![](x.png)\n");
         assert_eq!(items[0].caption, None, "clearing the bracket in the editor clears the caption too");
+    }
+
+    #[test]
+    fn only_own_uploads_count_for_the_media_library() {
+        let reference = |hash: &str| WordPressMediaRef { media_id: 1, url: "https://x/a.webp".into(), content_hash: hash.into(), width: 0, height: 0, size_slug: None };
+        assert!(is_own_upload(&reference("abc123")));
+        assert!(!is_own_upload(&reference("")), "an opened post's or library image is shared");
     }
 
     #[test]

@@ -68,6 +68,36 @@ changes, which reports a missing login instead of leading to it.
   GTK context menu in English, release check doesn't mention the other
   language, EN featured image from a local path is uploaded as a duplicate.
 
+## QA audit 2: import and round trip (2026-10-15, 0.72.0)
+
+Report (German, local only): `qa/2026-10-15/audit2/QA-BERICHT-IMPORT.md`.
+Updating existing posts is safe (ID, slug, date, metadata kept); open:
+
+- [x] **Existing EN version is not found (P1)** - translating an imported
+  original creates a second EN post with the same `lui_source_id`;
+  `create_version` only checks for a local `artikel.en.md`. Look up the
+  target blog first and link/import the existing version.
+- [x] **Scheduling a published post takes it offline without asking (P1)** -
+  the only way to change a published post's date is status "Geplant"; a
+  future date unpublishes it (404). Confirm with the consequence, better a
+  separate publish-date field.
+- [x] **Media library texts overwritten by post-specific ones (P1,
+  regression in 0.72.0)** - `media::sync_metadata` also touches images an
+  imported post only references (`importer::keep_media_ids`); limit it to
+  uploads Blocksatz made itself.
+- [ ] **EN posts imported as German originals (P2)** - importer sets no
+  `lang` and ignores `lui_source_*`.
+- [ ] **AI translation drops Via & Quelle (P2)** - only the template path
+  copies them.
+- [ ] **Blog list shows nothing when offline (P2)**, no error or retry.
+- [ ] **Deleted EN post not noticed while DE is active (P2)** - `blogsync`
+  checks the active blog only.
+- [ ] **Publish date not kept or shown (P2, gap)** - no "re-publish now"
+  for published posts; the original date is lost after C3.
+- [ ] Smaller (P3): backdating only via "Geplant" with a misleading toast,
+  internal links stay on the DE URL in EN, „…“ becomes "…", language check
+  needs 8 marker words.
+
 ## Next up (after 0.66.0)
 
 The short list from the 0.65.0 review (2026-10-02), roughly by value.

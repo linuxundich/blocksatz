@@ -82,7 +82,11 @@ impl Sites {
             Some(existing) => *existing = site,
             None => self.sites.push(site),
         }
-        self.active = id;
+        // Saving a blog's credentials doesn't switch to it - that is the
+        // list's radio button. Only the first blog becomes active by itself.
+        if self.active.is_empty() || !self.sites.iter().any(|s| s.site_id() == self.active) {
+            self.active = id;
+        }
     }
 
     /// Removes a blog; if it was the active one, the first remaining one
@@ -249,10 +253,11 @@ mod tests {
     }
 
     #[test]
-    fn upsert_replaces_by_id_and_activates() {
+    fn upsert_replaces_by_id_and_activates_only_the_first() {
         let mut sites = Sites::default();
         sites.upsert(site("https://linuxundich.de", "a"));
         sites.upsert(site("https://tuxsucht.de", "b"));
+        assert_eq!(sites.active, "linuxundich.de", "a second blog doesn't take over");
         sites.upsert(site("https://www.linuxundich.de/", "c"));
         assert_eq!(sites.sites.len(), 2);
         assert_eq!(sites.active, "linuxundich.de");

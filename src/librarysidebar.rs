@@ -308,7 +308,7 @@ impl LibrarySidebar {
         }
         self.site_menu.append_section(None, &blogs);
         let manage = gio::Menu::new();
-        manage.append(Some(&tr("Blogs verwalten …")), Some("win.settings"));
+        manage.append(Some(&tr("Blogs verwalten …")), Some("win.manage-blogs"));
         self.site_menu.append_section(None, &manage);
         self.site_action.set_state(&sites.active_site().site_id().to_variant());
     }

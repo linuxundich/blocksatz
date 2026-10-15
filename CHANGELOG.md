@@ -76,6 +76,24 @@ an Ubuntu 26.04 VM against the test blog).
   Translations made before this have no record yet and are updated as
   before.
 
+- **AI image texts can be taken back.** In the image dialog, an AI alt
+  text or caption that replaced an existing one offers "Rückgängig".
+- **The media library follows edited image texts.** An alt text or caption
+  changed after an image was uploaded now also reaches its attachment in
+  the media library (only differing values are written; a translation's
+  images of the original are left alone). Before, only the `<img alt>` in
+  the post changed.
+- **Draft preview without a bare 404.** WordPress shows drafts only to a
+  logged-in user; when the app's browser isn't logged in, the preview now
+  goes to the blog's login with the preview as the way back, and says so.
+- **"Im Blog" follows the language switch.** With the blog preview on
+  screen, switching between DE and EN loads the other version's preview.
+- **Blog credentials are kept once checked.** "Prüfen" is now "Prüfen und
+  speichern" - working credentials are stored right away; saving a blog no
+  longer makes it the active one (only the first blog becomes active by
+  itself); the user name field says it means the WordPress login; "Blogs
+  verwalten …" opens the settings on the WordPress page.
+
 ### Added
 
 - **Via & Quelle.** Four fields in the Beitrag tab for the theme's "Via"

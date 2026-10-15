@@ -56,6 +56,10 @@ pub struct MainAction {
     busy: Cell<bool>,
     /// Open the blog preview once the running upload is done.
     preview_after_upload: Cell<bool>,
+    /// The working copy whose blog preview "Im Blog" shows - when another
+    /// one is opened (DE/EN switch) while the view is on screen, the
+    /// preview follows.
+    previewed: std::cell::RefCell<Option<std::path::PathBuf>>,
     /// Whether the open translation's original changed since - looked up
     /// in the library once per opened document (`doc_generation`), not on
     /// every keystroke.
@@ -81,6 +85,7 @@ impl MainAction {
             banner_kind: Cell::new(BannerKind::None),
             busy: Cell::new(false),
             preview_after_upload: Cell::new(false),
+            previewed: std::cell::RefCell::new(None),
             original_changed: Cell::new((u64::MAX, None)),
             weak: weak.clone(),
         });
@@ -127,6 +132,7 @@ impl MainAction {
         if self.busy.get() {
             return;
         }
+        self.follow_previewed_document();
         let (doc, state, _) = self.state();
         let fm = &doc.frontmatter;
         let empty = doc.body.trim().is_empty() && fm.title.trim().is_empty();
@@ -647,8 +653,13 @@ impl MainAction {
             _ => None,
         };
         let published = matches!(state.status, Some(PostStatus::Publish | PostStatus::Private));
+        *self.previewed.borrow_mut() = self.ctx.current_path.borrow().clone();
         if let Some(link) = link {
-            (self.open_url)(if published { link } else { export::preview_url_for(&link) });
+            if published {
+                (self.open_url)(link);
+            } else {
+                self.open_draft_preview(export::preview_url_for(&link));
+            }
             return;
         }
         // Not checked yet: ask the blog for the link first.
@@ -662,11 +673,36 @@ impl MainAction {
                 let Some(this) = weak.upgrade() else { return };
                 match outcome {
                     Ok(detail) if detail.status == "publish" || detail.status == "private" => (this.open_url)(detail.link),
-                    Ok(detail) => (this.open_url)(export::preview_url_for(&detail.link)),
+                    Ok(detail) => this.open_draft_preview(export::preview_url_for(&detail.link)),
                     Err(err) => window::show_toast(&this.ctx.toast_overlay, &tr("Vorschau nicht verfügbar: {err}").replace("{err}", &err)),
                 }
             },
         );
+    }
+
+    /// A draft's preview. WordPress shows it only to a logged-in user, and
+    /// the app's browser view has its own session: if the blog answers
+    /// with its 404 page, the view goes to the login with the preview as
+    /// the way back, and a toast says why - instead of a bare 404.
+    fn open_draft_preview(&self, url: String) {
+        let login = format!("{}/wp-login.php?redirect_to={}", self.site().url.trim_end_matches('/'), percent_encode_component(&url));
+        let target = serde_json::to_string(&login).unwrap_or_default();
+        self.blog_view.run_after_next_load(format!("if (document.body && document.body.classList.contains('error404')) {{ location.href = {target}; }}"));
+        (self.open_url)(url);
+        window::show_toast(&self.ctx.toast_overlay, &tr("Entwurfsvorschau: Falls die Anmeldung erscheint, einmal bei WordPress anmelden - danach zeigt der Browser-Tab die Vorschau."));
+    }
+
+    /// Re-loads "Im Blog" for the article now open when it still shows
+    /// another one's preview and is on screen (DE/EN switch).
+    fn follow_previewed_document(&self) {
+        let current = self.ctx.current_path.borrow().clone();
+        let shown = self.previewed.borrow().clone();
+        if shown.is_some() && shown != current && self.blog_view.widget.is_mapped() {
+            // Recorded first: an article not in the blog yet only gets its
+            // toast once, not on every refresh.
+            *self.previewed.borrow_mut() = current;
+            self.blog_preview();
+        }
     }
 
     /// "Vorschau → Im Blog": the open article as the blog shows it - the
@@ -693,6 +729,7 @@ impl MainAction {
     /// created it, which is that view's wp-admin login, not the REST
     /// client's application password.
     fn autosave_preview(&self) {
+        *self.previewed.borrow_mut() = self.ctx.current_path.borrow().clone();
         let doc = self.ctx.current_document();
         let fm = &doc.frontmatter;
         let Some(post_id) = fm.wp_post_id else { return };
@@ -956,6 +993,16 @@ pub(crate) fn state_text(doc: &Document, state: PostState) -> String {
     }
 }
 
+/// `s` for use inside a query parameter.
+fn percent_encode_component(s: &str) -> String {
+    s.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (b as char).to_string(),
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
 /// The main action for a status changed in the properties: scheduling or
 /// a new date goes up as an update (which now sends it), publishing goes
 /// through the release check, back to draft through its confirmation.
@@ -1006,5 +1053,10 @@ mod tests {
         assert!(message.contains("2026-12-24 10:00"), "{message}");
         assert_eq!(upload_message(PostStatus::Publish, Some(PostStatus::Publish), None), tr("Veröffentlicht."));
         assert_eq!(upload_message(PostStatus::Draft, None, None), tr("Aktualisiert."));
+    }
+
+    #[test]
+    fn the_preview_address_survives_as_login_redirect() {
+        assert_eq!(percent_encode_component("http://b.example/?p=5&preview=true"), "http%3A%2F%2Fb.example%2F%3Fp%3D5%26preview%3Dtrue");
     }
 }

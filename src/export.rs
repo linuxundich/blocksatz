@@ -384,6 +384,7 @@ fn run_export(
 
     frontmatter.media = media::reconcile(&frontmatter.media, body);
     let uploaded_urls = media::sync_uploads(&client, &mut frontmatter.media, doc_dir, shared)?;
+    let media_notes = media::sync_metadata(&client, &frontmatter.media);
 
     let (body, footnotes) = with_footnotes(body);
     let mut blocks = gutenberg::parse_markdown(&body);
@@ -566,6 +567,7 @@ fn run_export(
     for id in ids.collect::<std::collections::BTreeSet<u64>>() {
         let _ = client.attach_media(id, result.id);
     }
+    result.notes.extend(media_notes);
     // SEO fields sent to a blog without Rank Math are dropped by WordPress -
     // said instead of reporting a plain success.
     let has_seo = [&frontmatter.rank_math_title, &frontmatter.rank_math_description, &frontmatter.rank_math_focus_keyword].iter().any(|v| v.as_deref().is_some_and(|v| !v.trim().is_empty()));

@@ -24,6 +24,14 @@ thread_local! {
     static LAST_PAGE: Cell<usize> = const { Cell::new(0) };
 }
 
+/// The "WordPress" page's position in `open`'s list.
+const WORDPRESS_PAGE: usize = 2;
+
+/// Makes the next `open` start on the WordPress page ("Blogs verwalten …").
+pub fn start_on_wordpress() {
+    LAST_PAGE.with(|last| last.set(WORDPRESS_PAGE));
+}
+
 pub fn open(
     parent: &adw::ApplicationWindow,
     ai_menu_handles: &AiMenuHandles,

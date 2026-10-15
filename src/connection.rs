@@ -23,7 +23,9 @@ pub fn build_page(on_sites_changed: Rc<dyn Fn()>) -> adw::PreferencesPage {
     sites_group.set_description(Some(&tr("Das aktive Blog ist das, dessen Beiträge Blocksatz anzeigt und in das neue Artikel hochgeladen werden.")));
 
     let url_row = adw::EntryRow::builder().title(tr("Website-URL")).build();
-    let username_row = adw::EntryRow::builder().title(tr("Benutzername")).build();
+    // The WordPress login - not the name given to the application
+    // password, which is easy to mix up.
+    let username_row = adw::EntryRow::builder().title(tr("Benutzername (WordPress-Anmeldename)")).build();
     let password_row = adw::PasswordEntryRow::builder().title("Application Password").build();
     let save_button = gtk4::Button::builder().label(tr("Speichern")).valign(gtk4::Align::Center).build();
     save_button.add_css_class("suggested-action");
@@ -37,7 +39,9 @@ pub fn build_page(on_sites_changed: Rc<dyn Fn()>) -> adw::PreferencesPage {
     // The connection check: runs after saving, or on demand.
     let check_icon = gtk4::Image::builder().visible(false).build();
     let check_spinner = adw::Spinner::builder().visible(false).build();
-    let check_button = gtk4::Button::builder().label(tr("Prüfen")).valign(gtk4::Align::Center).build();
+    // A successful check saves too - checked credentials that were lost
+    // by closing without "Speichern" were the usual trap.
+    let check_button = gtk4::Button::builder().label(tr("Prüfen und speichern")).valign(gtk4::Align::Center).build();
     let check_row = adw::ActionRow::builder().title(tr("Verbindung")).subtitle(tr("Noch nicht geprüft")).build();
     check_row.add_prefix(&check_icon);
     check_row.add_suffix(&check_spinner);
@@ -186,6 +190,12 @@ impl Ui {
     }
 
     fn save(self: &Rc<Self>) {
+        self.persist(true);
+    }
+
+    /// Stores the form's blog and password; `check_after` runs the
+    /// connection check afterwards (not when the save follows a check).
+    fn persist(self: &Rc<Self>, check_after: bool) {
         let site = wpsite::SiteConfig { url: self.url_row.text().trim().to_string(), username: self.username_row.text().trim().to_string() };
         if site.url.is_empty() || site.username.is_empty() {
             self.status(&tr("Website-URL und Benutzername sind nötig."));
@@ -200,12 +210,12 @@ impl Ui {
         glib::MainContext::default().spawn_local(async move {
             let stored = secrets::store_app_password(&site.url, &site.username, &password).await;
             match &stored {
-                Ok(()) => ui.status(&tr("„{site}“ gespeichert und als aktives Blog gewählt.").replace("{site}", &site.site_id())),
+                Ok(()) => ui.status(&tr("„{site}“ gespeichert.").replace("{site}", &site.site_id())),
                 Err(err) => ui.status(&tr("Fehler beim Speichern des Passworts: {err}").replace("{err}", &err.to_string())),
             }
             ui.rebuild_list();
             (ui.on_sites_changed)();
-            if stored.is_ok() {
+            if stored.is_ok() && check_after {
                 ui.check_connection();
             }
         });
@@ -246,10 +256,15 @@ impl Ui {
         glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
             Ok(result) => {
                 if let Some(ui) = ui.upgrade() {
+                    let signed_in = result.is_ok();
                     ui.show_check(match result {
                         Ok(user) => check_outcome(&user),
                         Err(err) => CheckState::Failed(explain_error(&err)),
                     });
+                    // Credentials that work are kept right away.
+                    if signed_in {
+                        ui.persist(false);
+                    }
                 }
                 glib::ControlFlow::Break
             }

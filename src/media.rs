@@ -546,6 +546,44 @@ pub fn sync_uploads(
     Ok(urls)
 }
 
+/// Brings the media library's alt text and caption of images uploaded
+/// earlier in line with the article - `sync_uploads` sets them only when a
+/// file is (re)uploaded, so an alt text edited later stayed old in the
+/// media library (the `<img alt>` in the post was already right). Reads
+/// each attachment and writes only what differs; a translation's images of
+/// the original carry no upload of their own and are left alone. Returns
+/// what couldn't be updated, for the upload message.
+pub fn sync_metadata(client: &crate::wpclient::Client, items: &[MediaItem]) -> Vec<String> {
+    let mut problems = Vec::new();
+    for item in items {
+        let Some(reference) = &item.wordpress else { continue };
+        let current = match client.get_media(reference.media_id) {
+            Ok(current) => current,
+            Err(err) => {
+                problems.push(tr("Bildtexte von {file} nicht abgeglichen: {err}").replace("{file}", &item.filename).replace("{err}", &err.to_string()));
+                continue;
+            }
+        };
+        let (alt, caption) = metadata_changes(item, &current.alt_text, &current.caption);
+        if alt.is_none() && caption.is_none() {
+            continue;
+        }
+        if let Err(err) = client.update_media_metadata(reference.media_id, alt, caption) {
+            problems.push(tr("Bildtexte von {file} nicht abgeglichen: {err}").replace("{file}", &item.filename).replace("{err}", &err.to_string()));
+        }
+    }
+    problems
+}
+
+/// What of `item`'s alt text and caption differs from the attachment's
+/// (`server_alt`, `server_caption`) - an undecided alt text and an unset
+/// caption leave the attachment's own alone.
+fn metadata_changes<'a>(item: &'a MediaItem, server_alt: &str, server_caption: &str) -> (Option<&'a str>, Option<&'a str>) {
+    let alt = item.alt.as_wordpress_value().filter(|alt| *alt != server_alt);
+    let caption = item.caption.as_deref().filter(|caption| caption.trim() != server_caption.trim());
+    (alt, caption)
+}
+
 /// The part of `sync_uploads` that needs no blog: a translation's images
 /// its original has, linked to the original's uploads (see there).
 pub(crate) fn link_shared(items: &mut [MediaItem], shared: Option<&crate::translate::SharedMedia>) -> Result<HashMap<String, String>, String> {
@@ -897,6 +935,16 @@ mod tests {
         assert_eq!(items[0].caption, Some("Endgültig".to_string()));
         let items = reconcile(&items, "![](x.png)\n");
         assert_eq!(items[0].caption, None, "clearing the bracket in the editor clears the caption too");
+    }
+
+    #[test]
+    fn only_differing_image_texts_go_to_the_media_library() {
+        let mut item = reconcile(&[], "![Unterschrift](x.png \"Neuer Alt\")\n").remove(0);
+        assert_eq!(metadata_changes(&item, "Alter Alt", "Unterschrift"), (Some("Neuer Alt"), None));
+        assert_eq!(metadata_changes(&item, "Neuer Alt", "Unterschrift"), (None, None));
+        item.alt = AltText::Undefined;
+        item.caption = None;
+        assert_eq!(metadata_changes(&item, "Etwas", "Etwas"), (None, None), "undecided alt and unset caption leave the library alone");
     }
 
     #[test]

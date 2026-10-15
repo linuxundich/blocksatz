@@ -1577,6 +1577,17 @@ fn wire_settings_action(
         }
     });
     window.add_action(&action);
+
+    // "Blogs verwalten …": the settings, opened on the WordPress page.
+    let manage = gio::SimpleAction::new("manage-blogs", None);
+    let window_weak = window.downgrade();
+    manage.connect_activate(move |_, _| {
+        settings::start_on_wordpress();
+        if let Some(window) = window_weak.upgrade() {
+            gio::prelude::ActionGroupExt::activate_action(&window, "settings", None);
+        }
+    });
+    window.add_action(&manage);
 }
 
 fn wire_about_action(window: &adw::ApplicationWindow) {

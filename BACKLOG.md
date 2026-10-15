@@ -14,10 +14,10 @@ what's already shipped.
 Bilingual DE → EN workflow tested in an Ubuntu 26.04 VM against the test
 blog. Full report (German, local only, not in git):
 `qa/2026-10-15/QA-BERICHT.md`. The six P1/P2 items checked below are fixed
-in [Unreleased] and re-tested in the VM (R-01 to R-13). Still open: the
-media library attachment of an already uploaded body image keeps its old
-alt text (only `<img alt>` in the post follows the Markdown), and the
-items below.
+in [Unreleased] and re-tested in the VM (R-01 to R-17), including the
+media library follow-up and AI undo in the image dialog. Still open: the
+P3 list below, and the autosave preview of a published post with local
+changes, which reports a missing login instead of leading to it.
 
 - [x] **Status from the server response** - after every upload take `status`,
   `date`, `modified_gmt` from the REST reply instead of the requested target
@@ -57,9 +57,9 @@ items below.
   (P2)
 - [x] **"Per KI aktualisieren" keeps EN-only edits** - replaced sections drop
   sentences added only in English, without a warning. (P2)
-- [ ] **Preview** - draft preview is a 404 when the built-in browser isn't
+- [x] **Preview** - draft preview is a 404 when the built-in browser isn't
   logged in (no hint); "Im Blog" keeps the other language after Alt+1/2. (P2)
-- [ ] **Credentials dialog** - "Prüfen" doesn't save, "Speichern" is far
+- [x] **Credentials dialog** - "Prüfen" doesn't save, "Speichern" is far
   away and also switches the active blog; AI key is dropped without Enter;
   "Blogs verwalten …" opens "Erscheinungsbild". (P2)
 - [ ] Smaller items (P3): slug transliteration ö→o (WP de_DE: oe), URL-length

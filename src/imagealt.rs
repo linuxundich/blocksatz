@@ -377,6 +377,9 @@ pub fn open_dialog_for_index(window: &gtk4::Window, frontmatter: &Rc<RefCell<Fro
     let ai_status_label = gtk4::Label::builder().wrap(true).xalign(0.0).build();
     ai_status_label.add_css_class("dim-label");
     ai_status_label.set_visible(false);
+    // An AI text that replaced one already there can be taken back - the
+    // same "replace, then keep or discard" as the in-place text edits.
+    let ai_undo = AiUndo::new();
 
     if is_image {
         let ai_alt_button = gtk4::Button::from_icon_name("chat-message-new-symbolic");
@@ -392,7 +395,9 @@ pub fn open_dialog_for_index(window: &gtk4::Window, frontmatter: &Rc<RefCell<Fro
         let alt_switch_row = alt_switch_row.clone();
         let alt_entry_row = alt_entry_row.clone();
         let ai_status_label = ai_status_label.clone();
+        let ai_undo = ai_undo.clone();
         ai_alt_button.connect_clicked(move |_| {
+            ai_undo.clear();
             ai_alt_button_for_click.set_sensitive(false);
             ai_status_label.set_label(&tr("Wird generiert …"));
             ai_status_label.set_visible(true);
@@ -400,12 +405,21 @@ pub fn open_dialog_for_index(window: &gtk4::Window, frontmatter: &Rc<RefCell<Fro
             let alt_switch_row = alt_switch_row.clone();
             let alt_entry_row = alt_entry_row.clone();
             let ai_status_label = ai_status_label.clone();
+            let ai_undo = ai_undo.clone();
             aialt::generate(&source, doc_dir.clone(), &lang, move |result| {
                 match result {
                     Ok(text) => {
+                        let (was_active, old) = (alt_switch_row.is_active(), alt_entry_row.text().to_string());
                         alt_switch_row.set_active(true);
                         alt_entry_row.set_text(&text);
                         ai_status_label.set_visible(false);
+                        if was_active && !old.trim().is_empty() && old != text {
+                            let (alt_switch_row, alt_entry_row) = (alt_switch_row.clone(), alt_entry_row.clone());
+                            ai_undo.offer(&tr("Alternativtext ersetzt."), move || {
+                                alt_switch_row.set_active(was_active);
+                                alt_entry_row.set_text(&old);
+                            });
+                        }
                     }
                     Err(err) => ai_status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err)),
                 }
@@ -497,18 +511,26 @@ pub fn open_dialog_for_index(window: &gtk4::Window, frontmatter: &Rc<RefCell<Fro
         let ai_caption_button_for_click = ai_caption_button.clone();
         let caption_row_for_result = caption_row.clone();
         let ai_status_label = ai_status_label.clone();
+        let ai_undo = ai_undo.clone();
         ai_caption_button.connect_clicked(move |_| {
+            ai_undo.clear();
             ai_caption_button_for_click.set_sensitive(false);
             ai_status_label.set_label(&tr("Wird generiert …"));
             ai_status_label.set_visible(true);
             let ai_caption_button_for_click = ai_caption_button_for_click.clone();
             let caption_row_for_result = caption_row_for_result.clone();
             let ai_status_label = ai_status_label.clone();
+            let ai_undo = ai_undo.clone();
             aicaption::generate(&source, &context, doc_dir.clone(), &lang, move |result| {
                 match result {
                     Ok(text) => {
+                        let old = caption_row_for_result.text().to_string();
                         caption_row_for_result.set_text(&text);
                         ai_status_label.set_visible(false);
+                        if !old.trim().is_empty() && old != text {
+                            let caption_row = caption_row_for_result.clone();
+                            ai_undo.offer(&tr("Bildunterschrift ersetzt."), move || caption_row.set_text(&old));
+                        }
                     }
                     Err(err) => ai_status_label.set_label(&tr("Fehler: {err}").replace("{err}", &err)),
                 }
@@ -526,6 +548,7 @@ pub fn open_dialog_for_index(window: &gtk4::Window, frontmatter: &Rc<RefCell<Fro
     content.append(&alt_group);
     content.append(&caption_group);
     content.append(&ai_status_label);
+    content.append(&ai_undo.widget);
 
     let clamp = adw::Clamp::builder().maximum_size(420).child(&content).build();
     // `propagate_natural_height` lets the scroller size to fit everything
@@ -590,6 +613,54 @@ fn image_source_on_line(markdown: &str, line: i32) -> Option<String> {
         }
     }
     None
+}
+
+/// What "Rückgängig" restores.
+type UndoAction = Rc<RefCell<Option<Box<dyn Fn()>>>>;
+
+/// The "… ersetzt. [Rückgängig]" line under the AI buttons: offered after
+/// an AI text replaced an existing one, gone again on the next AI run or
+/// once used.
+#[derive(Clone)]
+struct AiUndo {
+    widget: gtk4::Box,
+    label: gtk4::Label,
+    action: UndoAction,
+}
+
+impl AiUndo {
+    fn new() -> Self {
+        let widget = gtk4::Box::new(gtk4::Orientation::Horizontal, 12);
+        widget.set_visible(false);
+        let label = gtk4::Label::builder().xalign(0.0).hexpand(true).wrap(true).build();
+        label.add_css_class("dim-label");
+        let button = gtk4::Button::with_label(&tr("Rückgängig"));
+        widget.append(&label);
+        widget.append(&button);
+        let undo = AiUndo { widget, label, action: Rc::new(RefCell::new(None)) };
+        {
+            let undo = undo.clone();
+            button.connect_clicked(move |_| {
+                let action = undo.action.borrow_mut().take();
+                if let Some(action) = action {
+                    action();
+                }
+                undo.clear();
+            });
+        }
+        undo
+    }
+
+    fn offer(&self, message: &str, action: impl Fn() + 'static) {
+        self.label.set_label(message);
+        *self.action.borrow_mut() = Some(Box::new(action));
+        self.widget.set_visible(true);
+    }
+
+    fn clear(&self) {
+        self.action.borrow_mut().take();
+        self.widget.set_visible(false);
+    }
 }
 
 #[cfg(test)]

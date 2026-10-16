@@ -241,6 +241,14 @@ pub struct Frontmatter {
     /// of the last sync, for a post that was published (or private) then -
     /// shown in the post pane; "Neu veröffentlichen" replaces it.
     pub wp_published_at: Option<String>,
+    /// The local file the featured image was uploaded from (`featured_image`
+    /// is cleared then) - lets a language version that points to the same
+    /// file share it instead of uploading a copy.
+    pub wp_featured_source: Option<String>,
+    /// A new publish date for a post that is online, chosen here and not
+    /// sent yet (site time, `YYYY-MM-DDTHH:MM:SS`, always in the past -
+    /// a future date would take the post offline).
+    pub publish_date: Option<String>,
     /// Language of this file of a language pair, e.g. `en` - `None` for
     /// the original in the blog's own language (`library.rs`). The upload
     /// checks it against the target blog.
@@ -353,6 +361,10 @@ impl Frontmatter {
         if self.status == PostStatus::Future && self.scheduled_at.is_some() && self.scheduled_at != self.wp_scheduled_at {
             return Some(PostStatus::Future);
         }
+        // A new date for a post that stays online.
+        if matches!(self.status, PostStatus::Publish | PostStatus::Private) && self.publish_date.is_some() && self.publish_date != self.wp_published_at {
+            return Some(self.status);
+        }
         None
     }
 }
@@ -450,6 +462,8 @@ pub fn parse(input: &str) -> Document {
             "wp_status" => frontmatter.wp_status = (!value.is_empty()).then(|| PostStatus::from_str(&unquote(value))),
             "wp_scheduled_at" => frontmatter.wp_scheduled_at = (!value.is_empty()).then(|| unquote(value)),
             "wp_published_at" => frontmatter.wp_published_at = (!value.is_empty()).then(|| unquote(value)),
+            "wp_featured_source" => frontmatter.wp_featured_source = (!value.is_empty()).then(|| unquote(value)),
+            "publish_date" => frontmatter.publish_date = (!value.is_empty()).then(|| unquote(value)),
             "wp_featured_media_id" => frontmatter.featured_media_id = value.parse::<u64>().ok(),
             "author_id" => frontmatter.author_id = value.parse::<u64>().ok(),
             "author_name" => {
@@ -570,6 +584,8 @@ pub fn serialize(doc: &Document) -> String {
         ("wp_status", &fm.wp_status.map(|status| status.as_str().to_string())),
         ("wp_scheduled_at", &fm.wp_scheduled_at),
         ("wp_published_at", &fm.wp_published_at),
+        ("wp_featured_source", &fm.wp_featured_source),
+        ("publish_date", &fm.publish_date),
     ] {
         if let Some(value) = value {
             out.push_str(&format!("{key}: \"{}\"\n", escape(value)));
@@ -685,9 +701,10 @@ pub fn slugify(title: &str) -> String {
     let mut slug = String::with_capacity(title.len());
     for ch in title.chars() {
         match ch {
-            'ä' | 'Ä' => slug.push('a'),
-            'ö' | 'Ö' => slug.push('o'),
-            'ü' | 'Ü' => slug.push('u'),
+            // As WordPress does on a German site (de_DE `remove_accents`).
+            'ä' | 'Ä' => slug.push_str("ae"),
+            'ö' | 'Ö' => slug.push_str("oe"),
+            'ü' | 'Ü' => slug.push_str("ue"),
             'ß' => slug.push_str("ss"),
             c if c.is_ascii_alphanumeric() => slug.push(c.to_ascii_lowercase()),
             _ => {
@@ -984,7 +1001,7 @@ mod tests {
 
     #[test]
     fn slugify_flattens_german_umlauts_and_eszett_like_wordpress() {
-        assert_eq!(slugify("Über Größe und Maß"), "uber-grosse-und-mass");
+        assert_eq!(slugify("Über Größe und Maß"), "ueber-groesse-und-mass");
     }
 
     #[test]
@@ -1210,6 +1227,8 @@ mod tests {
                 wp_status: None,
                 wp_scheduled_at: None,
                 wp_published_at: None,
+                wp_featured_source: None,
+                publish_date: None,
                 via_label: None,
                 via_url: None,
                 source_label: None,

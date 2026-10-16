@@ -46,7 +46,7 @@ pub fn build_type_row(frontmatter: &Rc<RefCell<Frontmatter>>) -> adw::ComboRow {
 /// `EntryRow`, live-bound to `frontmatter.status`/`scheduled_at`. Always
 /// built and returned together since the entry row's visibility depends on
 /// the combo row's own value.
-pub fn build_status_row(frontmatter: &Rc<RefCell<Frontmatter>>) -> (adw::ComboRow, adw::EntryRow) {
+pub fn build_status_row(frontmatter: &Rc<RefCell<Frontmatter>>) -> (adw::ComboRow, adw::EntryRow, adw::EntryRow) {
     let current = frontmatter.borrow().clone();
     let labels: Vec<String> = PostStatus::ALL.iter().map(|s| s.label()).collect();
     let label_refs: Vec<&str> = labels.iter().map(String::as_str).collect();
@@ -64,13 +64,26 @@ pub fn build_status_row(frontmatter: &Rc<RefCell<Frontmatter>>) -> (adw::ComboRo
         .build();
     scheduled_row.set_visible(current.status == PostStatus::Future);
 
+    // The publish date of a post that is online: changed here, it goes up
+    // with "Datum hochladen" - only into the past.
+    let online = |status: PostStatus, fm: &Frontmatter| matches!(status, PostStatus::Publish | PostStatus::Private) && fm.wp_post_id.is_some() && matches!(fm.wp_status, Some(PostStatus::Publish | PostStatus::Private));
+    let published_row = adw::EntryRow::builder()
+        .title(tr("Veröffentlicht am (JJJJ-MM-TT HH:MM)"))
+        .tooltip_text(tr("Nur Daten in der Vergangenheit - ein späteres Datum nähme den Beitrag offline; dafür gibt es „Geplant“."))
+        .text(current.publish_date.as_deref().or(current.wp_published_at.as_deref()).map(document::format_scheduled_at_for_display).unwrap_or_default().as_str())
+        .build();
+    published_row.set_visible(online(current.status, &current));
+
     {
         let frontmatter = frontmatter.clone();
         let scheduled_row = scheduled_row.clone();
+        let published_row = published_row.clone();
         status_row.connect_selected_notify(move |row| {
             if let Some(status) = PostStatus::ALL.get(row.selected() as usize) {
-                frontmatter.borrow_mut().status = *status;
+                let mut fm = frontmatter.borrow_mut();
+                fm.status = *status;
                 scheduled_row.set_visible(*status == PostStatus::Future);
+                published_row.set_visible(online(*status, &fm));
             }
         });
     }
@@ -87,5 +100,26 @@ pub fn build_status_row(frontmatter: &Rc<RefCell<Frontmatter>>) -> (adw::ComboRo
         });
     }
 
-    (status_row, scheduled_row)
+    {
+        let frontmatter = frontmatter.clone();
+        published_row.connect_changed(move |row| {
+            let text = row.text().to_string();
+            let parsed = document::parse_scheduled_at(&text);
+            let in_future = parsed.as_deref().is_some_and(|date| date > now_site_time().as_str());
+            row.remove_css_class("error");
+            if (!text.trim().is_empty() && parsed.is_none()) || in_future {
+                row.add_css_class("error");
+            }
+            let mut fm = frontmatter.borrow_mut();
+            fm.publish_date = parsed.filter(|_| !in_future).filter(|date| Some(date) != fm.wp_published_at.as_ref());
+        });
+    }
+
+    (status_row, scheduled_row, published_row)
+}
+
+/// Now in local time as `YYYY-MM-DDTHH:MM:SS` - the blog's site time,
+/// assuming the blog runs in the writer's time zone.
+fn now_site_time() -> String {
+    gtk4::glib::DateTime::now_local().ok().and_then(|now| now.format("%Y-%m-%dT%H:%M:%S").ok()).map(|s| s.to_string()).unwrap_or_default()
 }

@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Work through the remaining backlog: the small findings of both QA audits,
+plus the open feature ideas.
+
+### Added
+
+- **GNOME Shell search.** Typing a title into the Activities Overview lists
+  matching library articles (umlauts may be written out, "ueber" finds
+  „Über“); picking one opens it. The Shell can start Blocksatz for it.
+- **Resize images in the preview.** A handle on the right edge of an image
+  changes its width by dragging; the width goes into the attribute line
+  below the image as one undoable edit.
+- **Publish date field.** A published post has "Veröffentlicht am" in the
+  properties; a new date in the past goes up with "Datum hochladen",
+  without a status change and without taking the post offline (a future
+  date is refused there - that is what "Geplant" is for).
+- **"Neue Version" hint** for installs that don't update themselves (the
+  Flatpak bundle, the Arch package): at most once a day Blocksatz asks
+  GitHub for the latest release and shows a toast with a link. Not in the
+  Flathub build; can be switched off in Einstellungen → Erscheinungsbild.
+- **The release check names the other language version** of an original:
+  its status and how many sections of the original it hasn't caught up
+  with, with a button to open it.
+- **Closing during an upload asks first** ("Upload läuft - trotzdem
+  beenden?"), from the first check on the blog until the answer is in.
+- **Screenshots in the metainfo** for software centers (`data/screenshots/`)
+  and notes for the Flathub submission (`build-aux/flathub/SUBMISSION.md`).
+
+### Fixed
+
+- **Slugs spell umlauts like WordPress on a German site**: ö becomes oe,
+  ü ue, ä ae (before: o, u, a). Affects new slugs and library folders only.
+- **The URL length check knows the blog's address scheme**: it reads it from
+  a real post address, so a blog without the category in its URLs isn't
+  measured with one; the row sits under the slug and no longer disappears
+  with the Rank Math fields.
+- **GTK's own menus are German again in the Flatpak bundle.** The bundle
+  kept its translations in a separate locale extension that a bundle
+  install doesn't bring along - without them GLib leaves GTK's texts
+  (Cut/Copy/Paste) untranslated.
+- **Narrow windows**: the library becomes an overlay below 1100sp and one
+  pane at a time is shown below 820sp, so the properties are no longer
+  cut off in a window tiled to half a full HD screen; the pane's tab bars
+  scroll instead of hiding the last tab.
+- **A language version shares its original's uploaded featured image**:
+  the original remembers the file it uploaded (`wp_featured_source`), so the
+  same file in the translation isn't uploaded a second time.
+- **An unreachable blog shows up after 10 seconds** (connection timeout)
+  instead of only when the whole request gives up.
+- **The start page of a new language version greys out the right pane**,
+  which still holds the original's properties.
+- **Release check: the featured image's alt text is checked** also for one
+  already on the blog.
+- **An original that joins its translation's folder renames it** after
+  itself, unless a file in it is open.
+- **Blog search finds „Über“ by "Ueber"**: with no result WordPress is asked
+  once more with the umlauts written as such.
+- **Older working copies get their publish date** from the sync check when
+  the properties are built.
+
 ## [0.73.0] - 2026-10-16
 
 Follow-up to the second QA pass: language versions opened from the blog,

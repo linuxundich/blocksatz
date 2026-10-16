@@ -66,6 +66,7 @@ mod recentfiles;
 mod releasecheck;
 mod richtext;
 mod searchbar;
+mod searchprovider;
 mod secrets;
 mod siteinfo;
 mod settings;
@@ -82,6 +83,7 @@ mod taxonomy;
 mod terminal;
 mod termcache;
 mod textimport;
+mod updatecheck;
 mod themestyle;
 mod websession;
 mod window;
@@ -190,6 +192,9 @@ fn main() -> glib::ExitCode {
         }
     });
 
+    // Before `run`: started by the Shell over D-Bus, its first search
+    // arrives the moment the bus name is taken, before `startup` runs.
+    searchprovider::register(&app);
     app.run()
 }
 

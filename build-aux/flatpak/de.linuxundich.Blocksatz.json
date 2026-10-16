@@ -7,6 +7,7 @@
         "org.freedesktop.Sdk.Extension.rust-stable"
     ],
     "command": "blocksatz",
+    "separate-locales": false,
     "finish-args": [
         "--socket=wayland",
         "--socket=fallback-x11",
@@ -77,6 +78,8 @@
                 "for mo in po/locale/*/LC_MESSAGES/blocksatz.mo; do install -Dm644 \"$mo\" \"/app/share/locale/${mo#po/locale/}\"; done",
                 "install -Dm644 data/de.linuxundich.Blocksatz.desktop /app/share/applications/de.linuxundich.Blocksatz.desktop",
                 "install -Dm644 data/de.linuxundich.Blocksatz.metainfo.xml /app/share/metainfo/de.linuxundich.Blocksatz.metainfo.xml",
+                "install -Dm644 data/de.linuxundich.Blocksatz.search-provider.ini /app/share/gnome-shell/search-providers/de.linuxundich.Blocksatz.search-provider.ini",
+                "sed 's|@bindir@|/app/bin|' data/de.linuxundich.Blocksatz.service.in > de.linuxundich.Blocksatz.service && install -Dm644 de.linuxundich.Blocksatz.service /app/share/dbus-1/services/de.linuxundich.Blocksatz.service",
                 "for size in 48 64 128 256; do install -Dm644 data/icons/hicolor/${size}x${size}/apps/de.linuxundich.Blocksatz.png /app/share/icons/hicolor/${size}x${size}/apps/de.linuxundich.Blocksatz.png; done",
                 "install -Dm644 data/icons/hicolor/scalable/apps/de.linuxundich.Blocksatz.svg /app/share/icons/hicolor/scalable/apps/de.linuxundich.Blocksatz.svg",
                 "install -Dm644 data/icons/hicolor/symbolic/apps/de.linuxundich.Blocksatz-symbolic.svg /app/share/icons/hicolor/symbolic/apps/de.linuxundich.Blocksatz-symbolic.svg"

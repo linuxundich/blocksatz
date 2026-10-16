@@ -24,6 +24,20 @@
   <content_rating type="oars-1.1"/>
   <url type="homepage">https://github.com/linuxundich/blocksatz</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksatz</url>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/linuxundich/blocksatz/main/data/screenshots/editor-and-properties.png</image>
+      <caption>Markdown editor with the post's properties</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/linuxundich/blocksatz/main/data/screenshots/live-preview.png</image>
+      <caption>Live preview of the article as it will look on the blog</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/linuxundich/blocksatz/main/data/screenshots/dark-mode.png</image>
+      <caption>Dark mode</caption>
+    </screenshot>
+  </screenshots>
   <releases>
     <release version="0.73.0" date="2026-10-16">
       <description>

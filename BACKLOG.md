@@ -62,7 +62,7 @@ changes, which reports a missing login instead of leading to it.
 - [x] **Credentials dialog** - "Prüfen" doesn't save, "Speichern" is far
   away and also switches the active blog; AI key is dropped without Enter;
   "Blogs verwalten …" opens "Erscheinungsbild". (P2)
-- [ ] Smaller items (P3): slug transliteration ö→o (WP de_DE: oe), URL-length
+- [x] Smaller items (P3): slug transliteration ö→o (WP de_DE: oe), URL-length
   check assumes `/category/` on DE, technical network-error toast, no
   confirmation when quitting during upload, right pane clipped below ~900 px,
   GTK context menu in English, release check doesn't mention the other
@@ -100,11 +100,11 @@ Updating existing posts is safe (ID, slug, date, metadata kept); open:
 - [x] Found while fixing the P2s (P3): the blog list's "in the library"
   mark compares post ids only; older working copies show no publish date;
   the list's error says "Beiträge" on the pages list too.
-- [ ] A folder made for a translation keeps its English name when the
+- [x] A folder made for a translation keeps its English name when the
   original joins it (renaming would move an open file).
-- [ ] Blog search finds „Ü“ only as „Ü“, not as „Ue“ (WordPress search;
+- [x] Blog search finds „Ü“ only as „Ü“, not as „Ue“ (WordPress search;
   optional).
-- [ ] A separate publish-date field instead of backdating via "Geplant".
+- [x] A separate publish-date field instead of backdating via "Geplant".
 
 ## Next up (after 0.66.0)
 
@@ -137,8 +137,8 @@ sizes, connection check.
   0.66.0). The Flathub manifest builds offline on
   GNOME 51 and passes `flatpak-builder-lint manifest`; `lint repo` still
   wants **screenshots** in the metainfo (`<screenshots>` with image URLs,
-  e.g. raw GitHub files under `data/screenshots/`). Left: screenshots, a
-  release tag, the PR at
+  e.g. raw GitHub files under `data/screenshots/`) - added 2026-10-16.
+  Left: a release tag, the PR at
   flathub/flathub (needs the GitHub account and a decision on the
   timing), then the domain verification (`docs/flathub-verification.md`).
 
@@ -146,10 +146,11 @@ sizes, connection check.
   right away (2026-10-07).
 - [x] **Comparison dialog** in the color scheme: checked live in light
   and dark (2026-10-07).
-- [ ] **Flathub and the terminal**: `--talk-name=org.freedesktop.Flatpak`
+- [x] **Flathub and the terminal**: `--talk-name=org.freedesktop.Flatpak`
   (host shell via `flatpak-spawn`) is a sandbox escape Flathub asks to
   justify - state it in the submission like GNOME Builder does, or ship
-  the terminal disabled there.
+  the terminal disabled there. Justification written in
+  `build-aux/flathub/SUBMISSION.md` (2026-10-16).
 
 ## Quick wins (small scope, low risk)
 
@@ -335,7 +336,7 @@ that a GNOME/Flatpak-native app is expected to have? Checked against
 - ~~**Flatpak sandbox is wider than the app needs.**~~ Done - only
   `xdg-documents`; files from elsewhere come through the portals and are
   copied into the article folder.
-- **A GNOME Shell search provider.** Implementing the
+- ~~**A GNOME Shell search provider.**~~ Done (see CHANGELOG.md). Implementing the
   `org.gnome.Shell.SearchProvider2` D-Bus interface over the same data
   `recentfiles.rs` already tracks would let a partial article title typed
   into the Activities Overview jump straight to opening that file in
@@ -457,8 +458,7 @@ Still open from that comparison, roughly by value:
   works both ways (0.66.0).
 - ~~**Accordion / tabs blocks**~~ Done (0.65.0) - `:::: accordion` /
   `::: item`, `:::: tabs` / `::: tab` containers (`docs/markdown-blocks.md`).
-- **An update check on launch** (Quill shows a "new version available"
-  link) - only relevant for non-Flathub installs.
-- **Inline image resizing** (drag handles/width field) - the width
-  itself can now be written as an attribute line (`{width=240px}`,
-  0.65.0); drag handles in the preview are still open.
+- ~~**An update check on launch**~~ Done (see CHANGELOG.md) - once a day,
+  not in the Flathub build.
+- ~~**Inline image resizing**~~ Done (see CHANGELOG.md) - a drag handle in
+  the preview writes `{width=…px}`.

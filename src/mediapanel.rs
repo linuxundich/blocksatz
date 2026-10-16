@@ -278,7 +278,7 @@ fn build_bulk_upload_section(
                         BulkTarget::Featured => {
                             {
                                 let mut fm = frontmatter.borrow_mut();
-                                fm.featured_image = None;
+                                fm.wp_featured_source = fm.featured_image.take();
                                 fm.featured_media_id = Some(media_result.id);
                             }
                             featured.row.set_subtitle(&featured_image_status_text(&frontmatter.borrow()));
@@ -495,6 +495,7 @@ fn build_featured_image_row(frontmatter: Rc<RefCell<Frontmatter>>, doc_path: Opt
                 {
                     let mut fm = frontmatter.borrow_mut();
                     fm.featured_image = None;
+                    fm.wp_featured_source = None;
                     fm.featured_media_id = Some(item.id);
                     if !item.alt_text.trim().is_empty() {
                         fm.featured_image_alt = Some(item.alt_text.clone());
@@ -550,7 +551,7 @@ fn build_featured_image_row(frontmatter: Rc<RefCell<Frontmatter>>, doc_path: Opt
                 Ok(Ok(media_result)) => {
                     {
                         let mut fm = frontmatter.borrow_mut();
-                        fm.featured_image = None;
+                        fm.wp_featured_source = fm.featured_image.take();
                         fm.featured_media_id = Some(media_result.id);
                     }
                     row.set_subtitle(&featured_image_status_text(&frontmatter.borrow()));

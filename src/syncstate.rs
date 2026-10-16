@@ -46,6 +46,7 @@ pub fn fingerprint(doc: &Document) -> String {
         wp_status: None,
         wp_scheduled_at: None,
         wp_published_at: None,
+        wp_featured_source: None,
         via_label: None,
         via_url: None,
         source_label: None,

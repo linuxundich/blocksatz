@@ -219,6 +219,15 @@ impl PostPane {
             self.properties_slot.remove(&child);
         }
         let doc_dir = self.ctx.current_path.borrow().as_deref().and_then(Path::parent).map(Path::to_path_buf);
+        // An older working copy learns its publish date from the last sync
+        // check, so the date field starts from it.
+        let remote = self.ctx.remote_for(&self.ctx.frontmatter.borrow());
+        if let Remote::Present { date, status: PostStatus::Publish | PostStatus::Private, .. } = remote {
+            let mut fm = self.ctx.frontmatter.borrow_mut();
+            if fm.wp_published_at.is_none() && !date.is_empty() {
+                fm.wp_published_at = Some(date);
+            }
+        }
         let widget = properties::build(&window, body, self.ctx.frontmatter.clone(), self.term_caches.clone(), doc_dir);
         self.properties_slot.append(&widget);
     }

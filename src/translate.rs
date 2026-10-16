@@ -844,7 +844,9 @@ pub struct SharedMedia {
 impl SharedMedia {
     /// From the original of a translation (its media list as uploaded).
     pub fn from_original(original: &Document) -> SharedMedia {
-        let mut shared = SharedMedia { featured_image: original.frontmatter.featured_image.clone().filter(|f| !is_remote(f)), ..SharedMedia::default() };
+        // Also once uploaded: then only `wp_featured_source` still names it.
+        let featured = original.frontmatter.featured_image.clone().or_else(|| original.frontmatter.wp_featured_source.clone());
+        let mut shared = SharedMedia { featured_image: featured.filter(|f| !is_remote(f)), ..SharedMedia::default() };
         for item in &original.frontmatter.media {
             if item.source.is_empty() || is_remote(&item.source) {
                 continue;
@@ -1539,6 +1541,16 @@ mod tests {
         let same = translate(&source_doc(), Some(&previous), &opts(), "sys", &send, &|_, _| {}).unwrap();
         assert_eq!(*calls.borrow(), 0);
         assert!(same.document.frontmatter.translation.as_ref().unwrap().reviewed);
+    }
+
+    #[test]
+    fn a_translation_shares_the_originals_uploaded_featured_image() {
+        let mut original = document::parse("---\ntitle: \"x\"\n---\nText.\n");
+        original.frontmatter.featured_media_id = Some(5);
+        original.frontmatter.wp_featured_source = Some("aufmacher.webp".into());
+        let shared = SharedMedia::from_original(&original);
+        assert!(shared.covers_featured("aufmacher.webp"), "the file the original uploaded");
+        assert!(!shared.covers_featured("aufmacher.en.webp"), "another file: the translation's own");
     }
 
     #[test]

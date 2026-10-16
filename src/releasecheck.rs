@@ -37,6 +37,8 @@ pub enum Fix {
     Links,
     /// "Prüfen …" for a language version (`translatedialog::open_review`).
     Translation,
+    /// For an original: open its language version.
+    Counterpart,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -82,7 +84,9 @@ pub fn checks(doc: &Document) -> Vec<Check> {
     }
 
     let has_featured = fm.featured_image.is_some() || fm.featured_media_id.is_some();
-    let featured_alt_missing = fm.featured_image.is_some() && fm.featured_image_alt.as_deref().is_none_or(|alt| alt.trim().is_empty());
+    // Also for one already on the blog: since opening a post brings its alt
+    // text along, an empty one is really empty.
+    let featured_alt_missing = has_featured && fm.featured_image_alt.as_deref().is_none_or(|alt| alt.trim().is_empty());
     // A translation without a featured image of its own gets its
     // original's: the target blog takes it over (lui-translations).
     let inherits_featured = !has_featured && fm.translation.is_some();
@@ -161,6 +165,25 @@ pub fn translation_checks(doc: &Document, original: &Document) -> Vec<Check> {
     out
 }
 
+/// For an original: where its language version stands - not yet on the
+/// blog, behind the original, or current. A hint, never blocking: the
+/// version follows in its own time.
+pub fn counterpart_check(original: &Document, translation: &Document) -> Option<Check> {
+    let link = translation.frontmatter.translation.as_ref()?;
+    let lang = link.lang.to_uppercase();
+    let status = match translation.frontmatter.wp_post_id {
+        None => tr("nur lokal"),
+        Some(_) => translation.frontmatter.wp_status.unwrap_or(translation.frontmatter.status).label(),
+    };
+    let open = crate::translate::changed_sections(original, &link.source_sections).len();
+    let (detail, severity) = if open > 0 {
+        (tr("{lang}: {status}, {n} Abschnitte des Originals noch nicht übertragen").replace("{lang}", &lang).replace("{status}", &status).replace("{n}", &open.to_string()), Severity::Hint)
+    } else {
+        (tr("{lang}: {status}, auf dem Stand des Originals").replace("{lang}", &lang).replace("{status}", &status), Severity::Ok)
+    };
+    Some(check(tr("Andere Fassung"), detail, severity, Fix::Counterpart))
+}
+
 /// What the dialog was opened for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
@@ -197,6 +220,11 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext, mode: Mode, links
         let path = ctx.current_path.borrow().clone();
         if let Some((_, original)) = crate::translatedialog::find_original(&doc, path.as_deref()) {
             all_checks.extend(translation_checks(&doc, &original));
+        }
+    } else {
+        let path = ctx.current_path.borrow().clone();
+        if let Some(found) = crate::translatedialog::find_translation(&doc, path.as_deref()).and_then(|(_, translation)| counterpart_check(&doc, &translation)) {
+            all_checks.push(found);
         }
     }
     let blocked = all_checks.iter().any(|c| c.severity == Severity::Error);
@@ -331,6 +359,18 @@ fn check_row(c: &Check, dialog: &adw::Dialog, nav: &adw::NavigationView, ctx: &D
             });
             row.add_suffix(&button);
         }
+        Fix::Counterpart => {
+            let button = flat_button(&tr("Öffnen"));
+            let dialog = dialog.clone();
+            let window = ctx.toast_overlay.root().and_downcast::<adw::ApplicationWindow>();
+            button.connect_clicked(move |_| {
+                dialog.close();
+                if let Some(window) = &window {
+                    let _ = WidgetExt::activate_action(window, "main.open-translation", None);
+                }
+            });
+            row.add_suffix(&button);
+        }
         Fix::Media => {
             let doc_path = ctx.current_path.borrow().clone();
             let content = mediapanel::build_content(ctx.frontmatter.clone(), &doc.body, doc_path, ctx.preview_pane.clone());
@@ -377,6 +417,21 @@ mod tests {
 
     fn severity_of(checks: &[Check], title: &str) -> Option<Severity> {
         checks.iter().find(|c| c.title == tr(title)).map(|c| c.severity)
+    }
+
+    #[test]
+    fn an_original_mentions_where_its_language_version_stands() {
+        let original = document::parse("---\ntitle: \"x\"\nwp_post_id: 7\n---\nIntro.\n\n## Eins\nText.\n");
+        let hashes: Vec<String> = crate::translate::split_sections(&original.body).iter().map(|s| crate::translate::section_hash(s)).collect();
+        let mut translation = document::parse("---\ntitle: \"y\"\n---\nIntro.\n\n## One\nText.\n");
+        translation.frontmatter.translation = Some(document::TranslationLink { lang: "en".into(), source_id: 7, source_sections: hashes, ..Default::default() });
+        let current = counterpart_check(&original, &translation).unwrap();
+        assert_eq!(current.severity, Severity::Ok);
+        let mut changed = original.clone();
+        changed.body.push_str("Neu.\n");
+        let behind = counterpart_check(&changed, &translation).unwrap();
+        assert_eq!(behind.severity, Severity::Hint);
+        assert!(behind.detail.starts_with("EN"), "{}", behind.detail);
     }
 
     #[test]

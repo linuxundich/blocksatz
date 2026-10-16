@@ -73,7 +73,9 @@ fn refresh_url_length_row(
         icon.set_visible(false);
         return;
     }
-    let category_slug = fm.categories.first().map(|name| category_slugs.borrow().get(name).cloned().unwrap_or_else(|| document::slugify(name)));
+    // Only where the blog's addresses carry the category (unknown: assumed).
+    let with_category = crate::siteinfo::category_in_permalink(domain) != Some(false);
+    let category_slug = fm.categories.first().filter(|_| with_category).map(|name| category_slugs.borrow().get(name).cloned().unwrap_or_else(|| document::slugify(name)));
     let (url, length) = seo_url_preview(domain, category_slug.as_deref(), &fm.slug);
 
     icon.set_visible(true);
@@ -325,6 +327,8 @@ pub fn build(
     // can differ, e.g. a category renamed without updating its slug), so
     // this reads `category_slugs` rather than deriving it locally.
     let url_length_row = adw::ActionRow::builder().title(tr("URL-Länge (SEO)")).build();
+    // The blog the article belongs to, not necessarily the active one.
+    let url_site = wpsite::for_site_id(current.wp_site.as_deref()).url;
     let url_length_icon = gtk4::Image::new();
     url_length_icon.set_valign(gtk4::Align::Center);
     url_length_row.add_suffix(&url_length_icon);
@@ -430,7 +434,7 @@ pub fn build(
     featured_image_alt_row.add_suffix(&featured_image_alt_length_warning_icon);
     update_alt_length_warning(&featured_image_alt_length_warning_icon, &featured_image_alt_row.text());
 
-    let (status_row, scheduled_row) = statuscontrols::build_status_row(&frontmatter);
+    let (status_row, scheduled_row, published_row) = statuscontrols::build_status_row(&frontmatter);
 
     // "Nicht ändern" (index 0) leaves `author_id` unset, so the post keeps
     // whichever author it already has on export (see `export.rs`'s own
@@ -632,11 +636,14 @@ pub fn build(
     general_group.add(&parent_row);
     general_group.add(&title_row);
     general_group.add(&slug_row);
+    // Needs no Rank Math: shown with the slug it measures.
+    general_group.add(&url_length_row);
     general_group.add(&excerpt_row);
 
     let publishing_group = adw::PreferencesGroup::builder().title(tr("Veröffentlichung")).build();
     publishing_group.add(&status_row);
     publishing_group.add(&scheduled_row);
+    publishing_group.add(&published_row);
     publishing_group.add(&author_row);
     publishing_group.add(&comment_status_row);
     publishing_group.add(&vgwort_row);
@@ -689,7 +696,6 @@ pub fn build(
     // Same `vexpand(true)` reasoning as `general_group` above, for
     // `seo_description_row`.
     let seo_group = adw::PreferencesGroup::builder().title(tr("RankMath SEO")).vexpand(true).build();
-    seo_group.add(&url_length_row);
     seo_group.add(&seo_title_row);
     seo_group.add(&seo_description_row);
     seo_group.add(&focus_keyword_row);
@@ -699,7 +705,10 @@ pub fn build(
     {
         let seo_group = seo_group.clone();
         let has_values = [&current.rank_math_title, &current.rank_math_description, &current.rank_math_focus_keyword].iter().any(|v| v.as_deref().is_some_and(|v| !v.trim().is_empty()));
+        let (url_length_row, url_length_icon, url_site, frontmatter, category_slugs) = (url_length_row.clone(), url_length_icon.clone(), url_site.clone(), frontmatter.clone(), category_slugs.clone());
         crate::siteinfo::probe(&wpsite::for_site_id(current.wp_site.as_deref()), move |active| {
+            // Now the permalink shape is known as well.
+            refresh_url_length_row(&url_length_row, &url_length_icon, &url_site, &frontmatter, &category_slugs);
             seo_group.set_visible(active || has_values);
             if !active {
                 seo_group.set_description(Some(&tr("Rank Math ist auf diesem Blog nicht aktiv – diese Felder werden nicht gespeichert. Als Meta-Beschreibung dient der Auszug.")));
@@ -726,7 +735,7 @@ pub fn build(
         let frontmatter = frontmatter.clone();
         let url_length_row = url_length_row.clone();
         let url_length_icon = url_length_icon.clone();
-        let domain = site.url.clone();
+        let domain = url_site.clone();
         let category_slugs = category_slugs.clone();
         slug_row.connect_changed(move |row| {
             frontmatter.borrow_mut().slug = row.text().to_string();
@@ -773,7 +782,7 @@ pub fn build(
         let frontmatter = frontmatter.clone();
         let url_length_row = url_length_row.clone();
         let url_length_icon = url_length_icon.clone();
-        let domain = site.url.clone();
+        let domain = url_site.clone();
         let category_slugs = category_slugs.clone();
         categories_row.connect_changed(move |row| {
             frontmatter.borrow_mut().categories = parse_list(&row.text());
@@ -932,7 +941,7 @@ pub fn build(
         });
     }
 
-    refresh_url_length_row(&url_length_row, &url_length_icon, &site.url, &frontmatter, &category_slugs);
+    refresh_url_length_row(&url_length_row, &url_length_icon, &url_site, &frontmatter, &category_slugs);
 
     content.upcast()
 }

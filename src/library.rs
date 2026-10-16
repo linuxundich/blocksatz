@@ -372,8 +372,8 @@ mod tests {
         let a = create_entry(&root.0, Some("Über GNOME"), "x").unwrap();
         let b = create_entry(&root.0, Some("Über GNOME"), "x").unwrap();
         let c = create_entry(&root.0, None, "2026-10-01-2140").unwrap();
-        assert_eq!(a, root.0.join("uber-gnome").join(ARTICLE_FILE));
-        assert_eq!(b, root.0.join("uber-gnome-2").join(ARTICLE_FILE));
+        assert_eq!(a, root.0.join("ueber-gnome").join(ARTICLE_FILE));
+        assert_eq!(b, root.0.join("ueber-gnome-2").join(ARTICLE_FILE));
         assert_eq!(c, root.0.join("2026-10-01-2140").join(ARTICLE_FILE));
         assert!(contains(&root.0, &a));
         assert!(!contains(&root.0, Path::new("/tmp/artikel.md")));

@@ -27,6 +27,7 @@ src/gallerydialog.rs
 src/imagealt.rs
 src/imageedit.rs
 src/importer.rs
+src/langmedia.rs
 src/langswitch.rs
 src/librarysidebar.rs
 src/linkcheck.rs
@@ -36,10 +37,10 @@ src/llm.rs
 src/mainaction.rs
 src/markdowncheck.rs
 src/mdpango.rs
+src/media.rs
 src/mediabrowser.rs
 src/medialibrary.rs
 src/mediapanel.rs
-src/media.rs
 src/modelsettings.rs
 src/nautilustemplate.rs
 src/newarticle.rs
@@ -49,6 +50,7 @@ src/promptsettings.rs
 src/properties.rs
 src/releasecheck.rs
 src/searchbar.rs
+src/searchprovider.rs
 src/settings.rs
 src/shortcuts.rs
 src/stats.rs
@@ -57,10 +59,10 @@ src/statuscontrols.rs
 src/tagsuggest.rs
 src/taxonomy.rs
 src/terminal.rs
-src/langmedia.rs
-src/translatedialog.rs
 src/translate.rs
+src/translatedialog.rs
 src/translationsettings.rs
+src/updatecheck.rs
 src/window.rs
 src/worksave.rs
 src/wpclient.rs

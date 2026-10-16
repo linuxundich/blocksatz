@@ -438,6 +438,9 @@ impl Client {
         let config = ureq::Agent::config_builder()
             .http_status_as_error(false)
             .timeout_global(Some(Duration::from_secs(30)))
+            // An unreachable blog shows up after 10 s, not only when the
+            // whole request gives up.
+            .timeout_connect(Some(Duration::from_secs(10)))
             .build();
         let credentials = format!("{username}:{password}");
         let auth_header = format!(
@@ -466,6 +469,13 @@ impl Client {
             Err(err) => return Err(err),
         };
         Ok(parse_translation_pairs(&value))
+    }
+
+    /// The permalink and slug of the newest published post - shows how the
+    /// blog builds its post addresses. `None` when it has none yet.
+    pub fn newest_post_link(&self) -> Result<Option<(String, String)>> {
+        let value = self.get_json(&format!("{}?per_page=1&status=publish&_fields=link,slug", self.endpoint("posts")))?;
+        Ok(value.as_array().and_then(|a| a.first()).and_then(|p| Some((p.get("link")?.as_str()?.to_string(), p.get("slug")?.as_str()?.to_string()))))
     }
 
     /// The REST namespaces the blog offers (`/wp-json/` index) - tells

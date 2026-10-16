@@ -45,6 +45,54 @@ use crate::wpsite;
 /// Name registered on the `WebView`'s `UserContentManager` for the reverse
 /// (preview -> editor) leg of scroll-sync - see `PreviewPane::connect_scroll`.
 const SCROLL_SYNC_HANDLER: &str = "scrollSync";
+/// Message handler for a picture resized by its handle: `"line;width"`.
+const IMAGE_RESIZE_HANDLER: &str = "imageResize";
+
+/// A drag handle on the right edge of every picture (inside it: the
+/// corner holds the badges, and the pane's scrollbar sits just outside):
+/// dragging changes
+/// its width live, letting go reports the source line and the new width
+/// in CSS pixels (`connect_image_resize`).
+const IMAGE_RESIZE_JS: &str = r#"
+(function() {
+  const css = document.createElement('style');
+  css.textContent = '.bs-resize{position:relative;display:inline-block;max-width:100%}.bs-resize>img{display:block}.bs-handle{position:absolute;right:6px;top:50%;width:8px;height:56px;margin-top:-28px;border-radius:4px;background:#3584e4;border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.4);cursor:ew-resize;opacity:0;transition:opacity .15s;z-index:5}.bs-resize:hover>.bs-handle,.bs-resize.dragging>.bs-handle{opacity:1}';
+  document.head.appendChild(css);
+  if (!(window.webkit && window.webkit.messageHandlers.imageResize)) return;
+  for (const img of document.querySelectorAll('div[data-line] img')) {
+    if (img.closest('a') || img.closest('.wp-block-gallery')) continue;
+    const block = img.closest('div[data-line]');
+    const wrap = document.createElement('span');
+    wrap.className = 'bs-resize';
+    img.parentNode.insertBefore(wrap, img);
+    wrap.appendChild(img);
+    const handle = document.createElement('span');
+    handle.className = 'bs-handle';
+    handle.title = 'Breite ziehen';
+    wrap.appendChild(handle);
+    handle.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      const startX = e.clientX, startW = img.getBoundingClientRect().width;
+      const max = block.getBoundingClientRect().width;
+      wrap.classList.add('dragging');
+      function move(ev) {
+        const w = Math.max(40, Math.min(max, startW + ev.clientX - startX));
+        img.style.width = Math.round(w) + 'px';
+        img.style.height = 'auto';
+      }
+      function up() {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        wrap.classList.remove('dragging');
+        const w = Math.round(img.getBoundingClientRect().width);
+        if (Math.abs(w - startW) >= 2) window.webkit.messageHandlers.imageResize.postMessage(block.dataset.line + ';' + w);
+      }
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+  }
+})();
+"#;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PreviewStyle {
@@ -540,6 +588,22 @@ impl PreviewPane {
         });
     }
 
+    /// `callback(line, width)` after a picture was resized by its drag
+    /// handle - `line` the 1-based source line of its block, `width` in
+    /// CSS pixels.
+    pub fn connect_image_resize(&self, callback: impl Fn(usize, u32) + 'static) {
+        let Some(manager) = self.web_view.user_content_manager() else { return };
+        manager.register_script_message_handler(IMAGE_RESIZE_HANDLER, None);
+        manager.connect_script_message_received(Some(IMAGE_RESIZE_HANDLER), move |_manager, value| {
+            let payload = value.to_str();
+            if let Some((line, width)) = payload.split_once(';') {
+                if let (Ok(line), Ok(width)) = (line.trim().parse(), width.trim().parse()) {
+                    callback(line, width);
+                }
+            }
+        });
+    }
+
     pub fn style(&self) -> PreviewStyle {
         self.style.get()
     }
@@ -812,6 +876,7 @@ impl ScrollRestore {
 #[allow(clippy::too_many_arguments)]
 pub fn render_html(markdown: &str, style: PreviewStyle, dark: bool, media: &[MediaItem], restore: ScrollRestore, frontmatter: &Frontmatter, show_header: bool, code_colors: Option<(String, String)>) -> String {
     let restore_js = restore.script();
+    let image_resize_js = IMAGE_RESIZE_JS;
     // Footnotes written in Markdown show like the blog's (references and
     // the list block); an opened post's unconverted ones come from the
     // frontmatter.
@@ -1168,6 +1233,7 @@ for (const tabs of document.querySelectorAll('.wp-block-tabs')) {{
   if (first) first.classList.add('is-active');
   if (panel) panel.classList.add('is-active');
 }}
+{image_resize_js}
 {restore_js}
 </script></body></html>"#
     )

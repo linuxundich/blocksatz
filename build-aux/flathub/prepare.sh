@@ -34,6 +34,8 @@ import json, sys
 src, dst, url, tag, commit = sys.argv[1:]
 manifest = json.load(open(src))
 manifest["build-options"]["env"]["CARGO_HOME"] = "/run/build/blocksatz/cargo"
+# Flathub updates the app itself: no "Neue Version" hint there.
+manifest["build-options"]["env"]["BLOCKSATZ_FLATHUB"] = "1"
 module = next(m for m in manifest["modules"] if m["name"] == "blocksatz")
 module["build-commands"] = [c for c in module["build-commands"] if "cargo-vendor-config" not in c]
 git = {"type": "git", "url": url, "commit": commit}

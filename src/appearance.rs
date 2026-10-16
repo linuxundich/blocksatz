@@ -674,6 +674,13 @@ pub fn build_page(preview_pane: Rc<preview::PreviewPane>) -> adw::PreferencesPag
     page.add(&color_group);
     page.add(&editor_font_group);
     page.add(&preview_group);
+    if crate::updatecheck::available() {
+        let updates_group = adw::PreferencesGroup::builder().title(tr("Aktualisierungen")).build();
+        let row = adw::SwitchRow::builder().title(tr("Auf neue Versionen hinweisen")).subtitle(tr("Fragt höchstens einmal am Tag bei GitHub nach der neuesten Version.")).active(crate::updatecheck::enabled()).build();
+        row.connect_active_notify(|row| crate::updatecheck::set_enabled(row.is_active()));
+        updates_group.add(&row);
+        page.add(&updates_group);
+    }
     page
 }
 

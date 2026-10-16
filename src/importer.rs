@@ -133,6 +133,8 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
         wp_pending_create: None,
         wp_status: None,
         wp_scheduled_at: None,
+        wp_featured_source: None,
+        publish_date: None,
         wp_published_at: matches!(detail.status.as_str(), "publish" | "private").then(|| detail.date.clone()).filter(|d| !d.is_empty()),
         extra: Vec::new(),
         lang,

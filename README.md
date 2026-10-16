@@ -516,7 +516,12 @@ blocks. Implemented so far:
   window rather than a second one if Blocksatz is already open. Opening
   or saving a file also registers it with `Gtk.RecentManager`, GNOME's
   shared recent-files list. Publishing, an image upload, or a link check finishing while
-  the window isn't focused raises a desktop notification.
+  the window isn't focused raises a desktop notification. Library articles
+  show up in the **GNOME Shell search** (Activities Overview) and open from
+  there. Outside Flathub, Blocksatz points out a new release at most once a
+  day (Einstellungen → Erscheinungsbild → Aktualisierungen).
+- **Resizing images in the preview** — a handle on an image's right edge
+  sets its width by dragging; it lands as `{width=…px}` below the image.
 
 ## Building & running
 

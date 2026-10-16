@@ -278,9 +278,15 @@ impl BlogPostsPage {
         importer::run_with_password(
             &site,
             move |site, password| {
-                wpclient::Client::new(&site.url, &site.username, password)
-                    .query_items(filter.post_type().rest_base(), filter.statuses(), &search, filter.by_modified(), page)
-                    .map_err(|err| err.to_string())
+                let client = wpclient::Client::new(&site.url, &site.username, password);
+                let query = |text: &str| client.query_items(filter.post_type().rest_base(), filter.statuses(), text, filter.by_modified(), page).map_err(|err| err.to_string());
+                let result = query(&search)?;
+                // WordPress doesn't find „Über“ by "Ueber": nothing found,
+                // then once more with the umlauts written out.
+                match umlaut_variant(&search) {
+                    Some(variant) if result.items.is_empty() => query(&variant),
+                    _ => Ok(result),
+                }
             },
             move |outcome| {
                 let Some(this) = weak.upgrade() else { return };
@@ -478,5 +484,26 @@ mod tests {
     fn dates_are_shown_day_first() {
         assert_eq!(format_date("2026-09-28T10:00:00"), "28.09.2026");
         assert_eq!(format_date("kaputt"), "kaputt");
+    }
+}
+
+/// `text` with "ae", "oe", "ue" written as umlauts - `None` when it has
+/// none of them.
+fn umlaut_variant(text: &str) -> Option<String> {
+    let mut out = text.to_string();
+    for (from, to) in [("Ae", "Ä"), ("Oe", "Ö"), ("Ue", "Ü"), ("ae", "ä"), ("oe", "ö"), ("ue", "ü")] {
+        out = out.replace(from, to);
+    }
+    (out != text).then_some(out)
+}
+
+#[cfg(test)]
+mod umlaut_tests {
+    use super::umlaut_variant;
+
+    #[test]
+    fn ue_is_searched_as_umlaut_too() {
+        assert_eq!(umlaut_variant("QA Ueberarbeiten").as_deref(), Some("QA Überarbeiten"));
+        assert_eq!(umlaut_variant("Munin"), None);
     }
 }

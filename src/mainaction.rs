@@ -143,7 +143,12 @@ impl MainAction {
         // offering a plain update that would leave it unsent.
         let pending = fm.pending_status_change().filter(|_| fm.wp_post_id.is_some() && state.sync != SyncState::RemoteGone);
         let (action, label, suggested, menu): (&str, String, bool, Vec<(String, &str)>) = if let Some(change) = pending {
-            pending_change_action(change)
+            if Some(change) == fm.wp_status {
+                // Same status, new publish date.
+                ("main.update", tr("Datum hochladen"), true, vec![(tr("Datum im Blog lassen"), "main.keep-status")])
+            } else {
+                pending_change_action(change)
+            }
         } else {
             match (state.status, state.sync) {
             (None, _) => (
@@ -385,11 +390,16 @@ impl MainAction {
                 body.push(' ');
                 body.push_str(&tr("Deine lokalen Änderungen gehen mit online."));
             }
-            this.confirm(&tr("Neu veröffentlichen?"), &body, &tr("Neu veröffentlichen"), false, |this| this.upload(TargetStatus::Set(PostStatus::Publish), false))
+            this.confirm(&tr("Neu veröffentlichen?"), &body, &tr("Neu veröffentlichen"), false, |this| {
+                // "Now" is the point: a date chosen in the properties yields.
+                this.ctx.frontmatter.borrow_mut().publish_date = None;
+                this.upload(TargetStatus::Set(PostStatus::Publish), false)
+            })
         });
         add("keep-status", |this| {
             {
                 let mut fm = this.ctx.frontmatter.borrow_mut();
+                fm.publish_date = None;
                 if let Some(status) = fm.wp_status {
                     fm.status = status;
                     if status == PostStatus::Future {
@@ -488,6 +498,7 @@ impl MainAction {
 
     fn set_busy(&self, busy: bool) {
         self.busy.set(busy);
+        crate::export::set_upload_busy(busy);
         self.button.set_sensitive(!busy);
         if busy {
             self.button.set_label(&tr("Wird hochgeladen …"));
@@ -500,6 +511,8 @@ impl MainAction {
     /// its text reads like another language than the target blog's (a
     /// German text on its way to the English blog, or the other way).
     fn upload(&self, target: TargetStatus, preview_after: bool) {
+        // Remembered for the toast: the date is cleared once it went up.
+        SENDING_DATE.with(|cell| cell.set(self.ctx.frontmatter.borrow().publish_date.is_some()));
         // A translation is linked to its original's post: without one yet,
         // the original goes first.
         crate::translatedialog::fill_source_id(&self.ctx);
@@ -554,11 +567,14 @@ impl MainAction {
             return;
         };
         let weak = self.weak.clone();
+        // Already part of the upload: the button says so, and closing asks.
+        self.set_busy(true);
         importer::run_with_password(
             &self.site(),
             move |site, password| wpclient::Client::new(&site.url, &site.username, password).translation_pairs().map_err(|err| err.to_string()),
             move |outcome| {
                 let Some(this) = weak.upgrade() else { return };
+                this.set_busy(false);
                 let existing: Vec<wpclient::TranslationPair> = outcome.unwrap_or_default().into_iter().filter(|pair| pair.source_id == source_id).collect();
                 match existing.first() {
                     None => this.check_language(target, preview_after),
@@ -697,6 +713,7 @@ impl MainAction {
         let site = self.site();
         let names = fm.categories.clone();
         let (tx, rx) = std::sync::mpsc::channel::<Vec<String>>();
+        self.set_busy(true);
         std::thread::spawn(move || {
             let missing = futures_lite::future::block_on(crate::secrets::load_app_password(&site.url, &site.username))
                 .ok()
@@ -716,6 +733,7 @@ impl MainAction {
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => Vec::new(),
             };
             let Some(this) = weak.upgrade() else { return glib::ControlFlow::Break };
+            this.set_busy(false);
             if missing.is_empty() {
                 this.upload_now(target, preview_after);
                 return glib::ControlFlow::Break;
@@ -783,7 +801,11 @@ impl MainAction {
                     let Some(this) = weak.upgrade() else { return };
                     blogsync::record_upload(&this.ctx, post, status);
                     let scheduled = this.ctx.frontmatter.borrow().scheduled_at.clone();
-                    let mut message = upload_message(status, requested, scheduled.as_deref(), post.date.as_deref());
+                    let mut message = if SENDING_DATE.with(|cell| cell.replace(false)) && matches!(status, PostStatus::Publish | PostStatus::Private) {
+                        tr("Datum geändert: veröffentlicht am {date}.").replace("{date}", &post.date.as_deref().map(crate::postpane::format_site_date).unwrap_or_default())
+                    } else {
+                        upload_message(status, requested, scheduled.as_deref(), post.date.as_deref())
+                    };
                     for note in &post.notes {
                         message.push(' ');
                         message.push_str(note);
@@ -1211,6 +1233,11 @@ fn pending_change_action(change: PostStatus) -> (&'static str, String, bool, Vec
         PostStatus::Pending => ("main.update", tr("Zur Prüfung einreichen"), true, back),
         PostStatus::Private => ("main.update", tr("Privat veröffentlichen"), true, back),
     }
+}
+
+thread_local! {
+    /// Whether the running upload sends a new publish date.
+    static SENDING_DATE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 /// The toast after an upload, from what WordPress actually stored. When

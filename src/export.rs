@@ -294,7 +294,9 @@ pub(crate) fn start_export(
     let body = crate::translate::localized_links(&body, &current_fm, &site);
 
     let (tx, rx) = mpsc::channel::<Result<(wpclient::PostResult, Vec<media::MediaItem>, Option<String>, (Option<String>, Option<u64>)), String>>();
+    let running = UploadRunning::start();
     std::thread::spawn(move || {
+        let _running = running;
         let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
             .map_err(|err| err.to_string())
             .and_then(|maybe_password| maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden.")))
@@ -352,6 +354,37 @@ pub(crate) fn start_export(
             glib::ControlFlow::Break
         }
     });
+}
+
+static UPLOADS_RUNNING: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+static UPLOAD_BUSY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether an upload is still on its way - from the check for changes on
+/// the blog until the answer is in. Closing the window asks first.
+pub fn upload_running() -> bool {
+    UPLOAD_BUSY.load(std::sync::atomic::Ordering::SeqCst) || UPLOADS_RUNNING.load(std::sync::atomic::Ordering::SeqCst) > 0
+}
+
+/// Set while the main action shows "Wird hochgeladen …".
+pub fn set_upload_busy(busy: bool) {
+    UPLOAD_BUSY.store(busy, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// Counts one upload as running for as long as it lives.
+struct UploadRunning;
+
+impl UploadRunning {
+    fn start() -> Self {
+        UPLOADS_RUNNING.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        UploadRunning
+    }
+}
+
+impl Drop for UploadRunning {
+    fn drop(&mut self) {
+        UPLOADS_RUNNING.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+    }
 }
 
 fn run_export(
@@ -484,7 +517,7 @@ fn run_export(
     if !meta.is_empty() {
         payload["meta"] = serde_json::Value::Object(meta);
     }
-    set_date_for_status(&mut payload, target_status, frontmatter.scheduled_at.as_deref());
+    set_date_for_status(&mut payload, target_status, frontmatter.scheduled_at.as_deref(), frontmatter.publish_date.as_deref());
     let mut featured_uploaded: Option<u64> = None;
     if let Some(path) = featured_image_to_upload(frontmatter, shared) {
         // Normally already uploaded via Medienverwaltung's own "Aufmacherbild"
@@ -503,7 +536,7 @@ fn run_export(
         // Remembered like Medienverwaltung's own upload does it: without
         // this the next update uploaded the same featured image again
         // ("name-1.webp", "name-2.webp" ... in the media library).
-        frontmatter.featured_image = None;
+        frontmatter.wp_featured_source = frontmatter.featured_image.take();
         frontmatter.featured_media_id = Some(media.id);
     } else if let Some(id) = frontmatter.featured_media_id {
         // (A translation's featured image that is the original's is left
@@ -646,6 +679,8 @@ fn apply_stored_status(fm: &mut Frontmatter, post: &wpclient::PostResult, reques
             fm.scheduled_at = Some(date.to_string());
         }
     }
+    // Sent (or overtaken by a status change): no longer pending.
+    fm.publish_date = None;
     if matches!(fm.status, PostStatus::Publish | PostStatus::Private) {
         if let Some(date) = post.date.as_deref().filter(|date| !date.is_empty()) {
             fm.wp_published_at = Some(date.to_string());
@@ -668,7 +703,13 @@ fn featured_alt_target(uploaded: Option<u64>, known: Option<u64>, reported: Opti
 /// its future date, and WordPress turns "publish" back into "future" and
 /// a draft into one with a fixed date. Without a status change the date
 /// is left alone.
-fn set_date_for_status(payload: &mut serde_json::Value, target_status: Option<PostStatus>, scheduled_at: Option<&str>) {
+/// A `publish_date` chosen for a post that is (or goes) online is sent as
+/// its date instead of resetting it to now.
+fn set_date_for_status(payload: &mut serde_json::Value, target_status: Option<PostStatus>, scheduled_at: Option<&str>, publish_date: Option<&str>) {
+    if let (Some(PostStatus::Publish | PostStatus::Private), Some(date)) = (target_status, publish_date) {
+        payload["date"] = serde_json::Value::String(date.to_string());
+        return;
+    }
     match target_status {
         Some(PostStatus::Future) => {
             if let Some(scheduled_at) = scheduled_at {
@@ -974,6 +1015,21 @@ mod tests {
     }
 
     #[test]
+    fn a_new_publish_date_goes_up_without_a_status_change() {
+        let mut fm = Frontmatter { wp_post_id: Some(1), status: PostStatus::Publish, wp_status: Some(PostStatus::Publish), wp_published_at: Some("2025-03-01T10:00:00".into()), ..Frontmatter::default() };
+        assert_eq!(fm.pending_status_change(), None);
+        fm.publish_date = Some("2024-12-24T18:00:00".into());
+        assert_eq!(fm.pending_status_change(), Some(PostStatus::Publish));
+        let mut payload = serde_json::json!({});
+        set_date_for_status(&mut payload, Some(PostStatus::Publish), None, fm.publish_date.as_deref());
+        assert_eq!(payload["date"], "2024-12-24T18:00:00");
+        assert!(payload.get("date_gmt").is_none(), "not reset to now");
+        apply_stored_status(&mut fm, &post_result(Some("publish"), Some("2024-12-24T18:00:00")), Some(PostStatus::Publish));
+        assert_eq!(fm.publish_date, None);
+        assert_eq!(fm.wp_published_at.as_deref(), Some("2024-12-24T18:00:00"));
+    }
+
+    #[test]
     fn the_publish_date_is_kept_from_the_answer_and_dropped_when_offline() {
         let mut fm = Frontmatter::default();
         apply_stored_status(&mut fm, &post_result(Some("publish"), Some("2025-03-01T10:00:00")), None);
@@ -1018,16 +1074,16 @@ mod tests {
     #[test]
     fn publishing_and_drafts_reset_the_date_scheduling_sets_it() {
         let mut payload = serde_json::json!({});
-        set_date_for_status(&mut payload, Some(PostStatus::Publish), Some("2026-12-24T10:00:00"));
+        set_date_for_status(&mut payload, Some(PostStatus::Publish), Some("2026-12-24T10:00:00"), None);
         assert_eq!(payload, serde_json::json!({ "date_gmt": null }));
         let mut payload = serde_json::json!({});
-        set_date_for_status(&mut payload, Some(PostStatus::Draft), None);
+        set_date_for_status(&mut payload, Some(PostStatus::Draft), None, None);
         assert_eq!(payload, serde_json::json!({ "date_gmt": null }));
         let mut payload = serde_json::json!({});
-        set_date_for_status(&mut payload, Some(PostStatus::Future), Some("2026-12-24T10:00:00"));
+        set_date_for_status(&mut payload, Some(PostStatus::Future), Some("2026-12-24T10:00:00"), None);
         assert_eq!(payload, serde_json::json!({ "date": "2026-12-24T10:00:00" }));
         let mut payload = serde_json::json!({});
-        set_date_for_status(&mut payload, None, Some("2026-12-24T10:00:00"));
+        set_date_for_status(&mut payload, None, Some("2026-12-24T10:00:00"), None);
         assert_eq!(payload, serde_json::json!({}));
     }
 
@@ -1454,6 +1510,8 @@ mod tests {
             wp_status: None,
             wp_scheduled_at: None,
             wp_published_at: None,
+            wp_featured_source: None,
+            publish_date: None,
             via_label: None,
             via_url: None,
             source_label: None,
@@ -1525,6 +1583,8 @@ mod tests {
             wp_status: None,
             wp_scheduled_at: None,
             wp_published_at: None,
+            wp_featured_source: None,
+            publish_date: None,
             via_label: None,
             via_url: None,
             source_label: None,
@@ -1595,6 +1655,8 @@ mod tests {
             wp_status: None,
             wp_scheduled_at: None,
             wp_published_at: None,
+            wp_featured_source: None,
+            publish_date: None,
             via_label: None,
             via_url: None,
             source_label: None,
@@ -1664,6 +1726,8 @@ mod tests {
             wp_status: None,
             wp_scheduled_at: None,
             wp_published_at: None,
+            wp_featured_source: None,
+            publish_date: None,
             via_label: None,
             via_url: None,
             source_label: None,
@@ -1736,6 +1800,8 @@ mod tests {
             wp_status: None,
             wp_scheduled_at: None,
             wp_published_at: None,
+            wp_featured_source: None,
+            publish_date: None,
             via_label: None,
             via_url: None,
             source_label: None,
@@ -1813,6 +1879,8 @@ mod tests {
             wp_status: None,
             wp_scheduled_at: None,
             wp_published_at: None,
+            wp_featured_source: None,
+            publish_date: None,
             via_label: None,
             via_url: None,
             source_label: None,

@@ -266,8 +266,20 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     };
 
     let right_pane = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).build();
-    right_pane.append(&section_bar);
-    right_pane.append(&sub_bar);
+    // In a narrow pane the tabs scroll sideways instead of being cut off
+    // (the language tab sits last and was the first to vanish).
+    let scrolling = |bar: &gtk4::Box| {
+        gtk4::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk4::PolicyType::Automatic)
+            .vscrollbar_policy(gtk4::PolicyType::Never)
+            .propagate_natural_height(true)
+            .child(bar)
+            .build()
+    };
+    right_pane.append(&scrolling(&section_bar));
+    let sub_scroll = scrolling(&sub_bar);
+    sub_bar.bind_property("visible", &sub_scroll, "visible").sync_create().build();
+    right_pane.append(&sub_scroll);
     right_pane.append(&gtk4::Separator::new(gtk4::Orientation::Horizontal));
     right_pane.append(&view_stack);
     view_stack.set_vexpand(true);
@@ -371,17 +383,21 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     // `Sp` ("scale-independent pixels", GNOME's recommended unit for
     // breakpoints - it scales with the user's text-size/accessibility
     // settings rather than always meaning the same physical pixel count)
-    // rather than `Px`. 700 leaves a wide `Gtk.Paned` split comfortably
-    // usable (two ~350sp panes) right down to the threshold; narrower
+    // rather than `Px`. 820 leaves a wide `Gtk.Paned` split comfortably
+    // usable (two ~410sp panes) right down to the threshold; narrower
     // than that - a tiled quarter of a typical monitor, or a Linux
     // tablet in portrait - collapses to the single-pane switcher instead.
-    let narrow_condition = adw::BreakpointCondition::new_length(adw::BreakpointConditionLengthType::MaxWidth, 700.0, adw::LengthUnit::Sp);
+    // 820: below it the two panes got narrower than the properties need
+    // and were cut off on the right (QA audit 0.71.0, U10).
+    let narrow_condition = adw::BreakpointCondition::new_length(adw::BreakpointConditionLengthType::MaxWidth, 820.0, adw::LengthUnit::Sp);
     let narrow_breakpoint = adw::Breakpoint::new(narrow_condition);
     narrow_breakpoint.add_setter(&layout_view, "layout-name", Some(&"narrow".to_value()));
-    // Below 860sp the library sidebar turns into an overlay. Only one
+    // Below 1100sp the library sidebar turns into an overlay - with it,
+    // editor and pane would get too little room (a window tiled to half
+    // of a full HD screen). Only one
     // breakpoint applies at a time (the last matching one), so the narrow
     // breakpoint above repeats that setter.
-    let sidebar_breakpoint = adw::Breakpoint::new(adw::BreakpointCondition::new_length(adw::BreakpointConditionLengthType::MaxWidth, 860.0, adw::LengthUnit::Sp));
+    let sidebar_breakpoint = adw::Breakpoint::new(adw::BreakpointCondition::new_length(adw::BreakpointConditionLengthType::MaxWidth, 1100.0, adw::LengthUnit::Sp));
     let split_view = adw::OverlaySplitView::builder()
         .sidebar_position(gtk4::PackType::Start)
         .min_sidebar_width(240.0)
@@ -507,7 +523,30 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let terminal_panel = terminal_panel.clone();
         let terminal_height = terminal_height.clone();
         let (saved_width, saved_height) = (saved_window_state.width, saved_window_state.height);
+        let quit_anyway = Rc::new(Cell::new(false));
         window.connect_close_request(move |window| {
+            // Closing mid-upload would leave the post half updated on the
+            // blog and the working copy without its new sync state.
+            if crate::export::upload_running() && !quit_anyway.get() {
+                let alert = adw::AlertDialog::builder().heading(tr("Upload läuft")).body(tr("Blocksatz lädt gerade zum Blog hoch. Wird jetzt beendet, fehlt der Arbeitskopie danach der Abgleich.")).build();
+                alert.add_response("wait", &tr("Weiter warten"));
+                alert.add_response("quit", &tr("Trotzdem beenden"));
+                alert.set_response_appearance("quit", adw::ResponseAppearance::Destructive);
+                alert.set_default_response(Some("wait"));
+                alert.set_close_response("wait");
+                let quit_anyway = quit_anyway.clone();
+                let window_weak = window.downgrade();
+                alert.connect_response(None, move |_, response| {
+                    if response == "quit" {
+                        quit_anyway.set(true);
+                        if let Some(window) = window_weak.upgrade() {
+                            window.close();
+                        }
+                    }
+                });
+                alert.present(Some(window));
+                return glib::Propagation::Stop;
+            }
             // A maximized window's size is the monitor's; keeping it as the
             // normal size would make the next start open too large for a
             // smaller monitor (which then drops the maximized state).
@@ -718,6 +757,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
 
     wire_live_preview(&buffer, &preview_pane, &stats_view, &code_view, &frontmatter);
     wire_scroll_sync(&editor_scroller, &view, &buffer, &preview_pane);
+    wire_image_resize(&buffer, &preview_pane);
     wire_status_bar(&buffer, &status_bar);
     wire_new_action(&window, &doc_ctx);
     worksave::wire(&window, &doc_ctx);
@@ -777,6 +817,12 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     );
     main_action_slot.append(&main_action.button);
     let lang_switch = langswitch::LangSwitch::new(&window, &doc_ctx, &view, &editor_area);
+    // While the start page of a new language version shows, the right pane
+    // still holds the original's properties: greyed out, not editable.
+    {
+        let right_pane = right_pane.clone();
+        editor_area.connect_visible_child_name_notify(move |area| right_pane.set_sensitive(area.visible_child_name().as_deref() != Some("start")));
+    }
     // The other language of the pair next to the editor.
     let counterpart = counterpart::Counterpart::new(&doc_ctx, &view, &editor_scroller, &view_stack, &section_toggles);
     {
@@ -862,6 +908,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     if let Some(path) = initial_path {
         open_document_at_path(path, &doc_ctx);
     }
+    crate::updatecheck::run(&doc_ctx.toast_overlay);
 
     window
 }
@@ -1021,6 +1068,37 @@ const SCROLL_SYNC_ECHO_GUARD_MS: u64 = 200;
 /// pulling the cursor's block to the preview's top on every click or
 /// keystroke was the main source of the preview jumping around while the
 /// editor itself stood still.
+/// The edit that gives the image block starting on source line `line`
+/// (1-based) the width `width` px - `None` when no image starts there.
+pub(crate) fn image_width_edit(text: &str, line: usize, width: u32) -> Option<(std::ops::Range<usize>, String)> {
+    let offset: usize = text.split_inclusive('\n').take(line.saturating_sub(1)).map(str::len).sum();
+    let block = gutenberg::block_at(text, offset)?;
+    if block.name.as_deref() != Some("image") {
+        return None;
+    }
+    let mut attrs = block.attrs.clone();
+    attrs.width = Some(format!("{width}px"));
+    gutenberg::attrs_edit(text, &block, &attrs)
+}
+
+/// A picture resized in the preview gets its new width as an attribute
+/// line, as one undoable edit.
+fn wire_image_resize(buffer: &sourceview5::Buffer, preview_pane: &Rc<preview::PreviewPane>) {
+    let buffer = buffer.clone();
+    preview_pane.connect_image_resize(move |line, width| {
+        let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), true).to_string();
+        let Some((range, replacement)) = image_width_edit(&text, line, width) else { return };
+        let char_at = |byte: usize| text[..byte].chars().count() as i32;
+        buffer.begin_user_action();
+        let mut start = buffer.iter_at_offset(char_at(range.start));
+        let mut end = buffer.iter_at_offset(char_at(range.end));
+        buffer.delete(&mut start, &mut end);
+        let mut at = buffer.iter_at_offset(char_at(range.start));
+        buffer.insert(&mut at, &replacement);
+        buffer.end_user_action();
+    });
+}
+
 fn wire_scroll_sync(scroller: &gtk4::ScrolledWindow, view: &sourceview5::View, buffer: &sourceview5::Buffer, preview_pane: &Rc<preview::PreviewPane>) {
     let ignore_editor_scroll_until: Rc<Cell<Instant>> = Rc::new(Cell::new(Instant::now()));
     let sync_pending: Rc<Cell<bool>> = Rc::new(Cell::new(false));
@@ -1339,20 +1417,27 @@ pub(crate) fn open_imported_post(ctx: &DocContext, imported: importer::ImportedP
 fn create_working_copy(ctx: &DocContext, imported: importer::ImportedPost) {
     let root = library::root();
     let mut doc = Document { frontmatter: imported.frontmatter, body: imported.body };
-    let (path, note) = match import_target(&root, &mut doc) {
-        Some(found) => found,
+    let (path, note, joined) = match import_target(&root, &mut doc) {
+        Some((path, note)) => (path, note, doc.frontmatter.translation.is_none()),
         None => {
             let title = (!doc.frontmatter.title.is_empty()).then_some(doc.frontmatter.title.as_str());
             let lang = doc.frontmatter.translation.as_ref().map(|link| link.lang.clone()).or_else(|| doc.frontmatter.lang.clone());
             let note = doc.frontmatter.translation.is_some().then(|| tr("Original nicht in der Bibliothek – öffne es aus dem Originalblog, dann landet es im selben Ordner."));
             match library::create_entry(&root, title, &library::untitled_name()) {
-                Ok(path) => (library::sibling(&path, lang.as_deref()).unwrap_or(path), note),
+                Ok(path) => (library::sibling(&path, lang.as_deref()).unwrap_or(path), note, false),
                 Err(err) => {
                     show_toast(&ctx.toast_overlay, &tr("Arbeitskopie konnte nicht angelegt werden: {err}").replace("{err}", &err.to_string()));
                     return;
                 }
             }
         }
+    };
+    // An original that joined its translation's folder: the folder takes
+    // the original's name, unless a file in it is open right now.
+    let path = if joined {
+        rename_for_original(&root, &path, &doc, ctx.current_path.borrow().as_deref())
+    } else {
+        path
     };
     match document::write(&path, &doc) {
         Ok(()) => {
@@ -1399,6 +1484,24 @@ fn import_target(root: &Path, doc: &mut Document) -> Option<(PathBuf, Option<Str
         }
     }
     Some((target, Some(tr("Zur vorhandenen Übersetzung gelegt."))))
+}
+
+/// `path` (an original's file in an existing folder) in a folder named
+/// after the original's slug or title - the folder is renamed when its
+/// name came from the translation and nothing in it is open.
+fn rename_for_original(root: &Path, path: &Path, doc: &Document, open: Option<&Path>) -> PathBuf {
+    let Some(dir) = path.parent() else { return path.to_path_buf() };
+    let wanted = if doc.frontmatter.slug.is_empty() { document::slugify(&doc.frontmatter.title) } else { doc.frontmatter.slug.clone() };
+    let current = dir.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+    let named_already = current == wanted || current.strip_prefix(&wanted).is_some_and(|rest| rest.starts_with('-') && rest[1..].chars().all(|c| c.is_ascii_digit()));
+    if wanted.is_empty() || named_already || open.is_some_and(|open| open.starts_with(dir)) {
+        return path.to_path_buf();
+    }
+    let target = library::unique_dir(root, &wanted);
+    match std::fs::rename(dir, &target) {
+        Ok(()) => target.join(library::article_file(None)),
+        Err(_) => path.to_path_buf(),
+    }
 }
 
 /// Records the original's section hashes in a translation's link, but
@@ -2133,6 +2236,30 @@ mod tests {
         let mut other = other;
         assert!(import_target(&root, &mut other).is_none(), "an unrelated original gets a folder of its own");
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_joining_original_names_the_folder_unless_it_is_open() {
+        let root = root("rename");
+        let dir = root.join("an-english-title");
+        std::fs::create_dir_all(&dir).unwrap();
+        let de = Document { frontmatter: Frontmatter { title: "Ein Titel".into(), slug: "ein-titel".into(), ..Frontmatter::default() }, body: String::new() };
+        let open_en = dir.join("artikel.en.md");
+        assert_eq!(rename_for_original(&root, &dir.join("artikel.md"), &de, Some(&open_en)), dir.join("artikel.md"), "open file: stays");
+        let moved = rename_for_original(&root, &dir.join("artikel.md"), &de, None);
+        assert_eq!(moved, root.join("ein-titel").join("artikel.md"));
+        assert!(root.join("ein-titel").exists() && !dir.exists());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_resized_image_gets_its_width_as_attribute() {
+        let text = "Absatz.\n\n![Bild](a.webp \"Alt\")\n\nNoch einer.\n";
+        let (range, replacement) = image_width_edit(text, 3, 320).expect("image on line 3");
+        let mut out = text.to_string();
+        out.replace_range(range, &replacement);
+        assert!(out.contains("width=320px"), "{out}");
+        assert!(image_width_edit(text, 1, 320).is_none(), "line 1 is a paragraph");
     }
 
     #[test]

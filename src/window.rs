@@ -768,6 +768,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_library(&window, &doc_ctx, &split_view, &nav_view, &primary_menu, &open_in_browser);
     // Blog previews: "Vorschau → Im Blog".
     let open_preview_url: Rc<dyn Fn(String)> = {
+        let blog_shown_once = Rc::new(Cell::new(false));
         let blog_view = blog_view.clone();
         let view_stack = view_stack.clone();
         let right_pane = right_pane.clone();
@@ -780,6 +781,19 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
             }
             blog_view.load_uri(&uri);
             view_stack.set_visible_child_name("blog");
+            // The first page "Im Blog" shows in a run took no clicks or keys
+            // (WebKitGTK 6, seen in a VM) until the tab was switched away and
+            // back - so that is done once, by itself, when it has loaded.
+            if !blog_shown_once.replace(true) {
+                let view_stack = view_stack.clone();
+                blog_view.after_next_load(move || {
+                    if view_stack.visible_child_name().as_deref() != Some("blog") {
+                        return;
+                    }
+                    view_stack.set_visible_child_name("post");
+                    glib::timeout_add_local_once(Duration::from_millis(300), move || view_stack.set_visible_child_name("blog"));
+                });
+            }
         })
     };
     let post_pane = postpane::PostPane::new(&window, &doc_ctx, &term_caches, &stats_view.widget, open_in_browser.clone());

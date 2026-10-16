@@ -43,6 +43,11 @@ plus the open feature ideas.
 
 ### Fixed
 
+- **"Im Blog" takes clicks and keys the first time it shows a page.** The
+  first page shown there in a run ignored the mouse and keyboard (typing
+  went into the hidden title field instead) until the tab was switched
+  away and back; Blocksatz now does that switch once by itself after the
+  first page has loaded. Seen in a VM with WebKitGTK 6.
 - **Crash when the text ends in an umlaut.** Typing "Ü" (or any non-ASCII
   character) as the very last character of an article without a final
   line break crashed the preview while it computed the block's last line.

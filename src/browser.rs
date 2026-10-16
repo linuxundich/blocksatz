@@ -188,6 +188,25 @@ impl BrowserView {
         self.web_view.load_uri(uri);
     }
 
+    /// Calls `f` once, after the next page has finished loading.
+    pub fn after_next_load(&self, f: impl FnOnce() + 'static) {
+        let handler: std::rc::Rc<std::cell::RefCell<Option<glib::SignalHandlerId>>> = std::rc::Rc::default();
+        let handler_for_closure = handler.clone();
+        let f = std::cell::RefCell::new(Some(f));
+        let id = self.web_view.connect_load_changed(move |web_view, event| {
+            if event != webkit6::LoadEvent::Finished {
+                return;
+            }
+            if let Some(id) = handler_for_closure.borrow_mut().take() {
+                web_view.disconnect(id);
+            }
+            if let Some(f) = f.borrow_mut().take() {
+                f();
+            }
+        });
+        *handler.borrow_mut() = Some(id);
+    }
+
     pub fn reload(&self) {
         self.web_view.reload();
     }

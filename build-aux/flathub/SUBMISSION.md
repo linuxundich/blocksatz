@@ -1,47 +1,37 @@
 # Flathub submission notes
 
-Text and checklist for the pull request at
-[flathub/flathub](https://github.com/flathub/flathub) (new app,
-`de.linuxundich.Blocksatz`). The manifest comes from `prepare.sh`; the
-domain verification is described in `docs/flathub-verification.md`.
+Status (2026-10-16): **not submitted, on hold.** Flathub's
+[requirements](https://docs.flathub.org/docs/for-app-authors/requirements)
+rule out the way this project is built and the way a submission would be
+prepared here:
 
-## Checklist
+- **Manifests must not contain AI-generated or AI-assisted content** - not
+  even with a disclosure. The manifest under `build-aux/flatpak/` and the
+  changes `prepare.sh` makes were written with AI assistance, so a
+  submission would need a manifest written by hand.
+- **AI tools or agents must not open or automate the submission pull
+  request**, nor write its description, commit messages or review
+  replies. The pull request has to be made and answered by a person.
+- **AI-generated code has to be disclosed**, with the affected parts and
+  roughly how much; reviewers may reject a submission because of its
+  extent. Large parts of Blocksatz are AI-assisted.
+- **A meaningful development history** is required; apps that have
+  existed only a short time are generally not accepted (the repository
+  starts in September 2026).
 
-- [x] Manifest builds offline on GNOME 51 and passes
-      `flatpak-builder-lint manifest`
-- [x] Screenshots in the metainfo (`data/screenshots/`, raw GitHub URLs on
-      `main`)
-- [ ] Release tag to build from (`prepare.sh <tag>`)
-- [ ] `flatpak-builder-lint repo` on the built repo
-- [ ] Pull request opened
-- [ ] Verification token on linuxundich.de
-      (`add-verification-token.sh`)
+What exists and can be reused once a submission makes sense:
 
-## Permissions, for the pull request description
-
-> **`--talk-name=org.freedesktop.Flatpak`** - Blocksatz has an optional
-> terminal panel (F12) for the article's folder: running `git`, converting
-> images, checking links with the user's own tools. Like GNOME Builder's
-> terminal it spawns the user's login shell on the host via
-> `flatpak-spawn --host`; a shell inside the sandbox would have none of
-> those tools. Nothing else is started on the host, and the panel is only
-> opened by the user.
->
-> **`--filesystem=xdg-documents`** - the article library lives in
-> `~/Documents/Blocksatz` (one folder per article, Markdown plus images).
->
-> **`--filesystem=xdg-templates`** - installs a "New Blocksatz article"
-> template for the file manager once.
->
-> **`--share=network`** - talks to the user's WordPress sites (REST API)
-> and, if configured, to an AI provider.
-
-If the reviewers don't accept the host shell, the alternative is to build
-the Flathub version without the terminal panel (hide the F12 action when
-`BLOCKSATZ_FLATHUB` is set) and drop the permission from the generated
-manifest.
-
-## Not in the Flathub build
-
-`prepare.sh` sets `BLOCKSATZ_FLATHUB=1`: the "new version available" hint
-(`src/updatecheck.rs`) is left out there, since Flathub delivers updates.
+- Screenshots in the metainfo (`data/screenshots/`, raw GitHub URLs on
+  `main`).
+- `prepare.sh <tag>` writes the manifest building from a Git tag and
+  `cargo-sources.json`; it sets `BLOCKSATZ_FLATHUB=1`, which leaves out the
+  "new version available" hint (`src/updatecheck.rs`).
+- `flatpak-builder-lint manifest` reports only
+  `finish-args-flatpak-spawn-access`: the terminal panel (F12) runs the
+  user's shell on the host through `flatpak-spawn --host`, as GNOME Builder
+  does. That needs a linter exception, or a Flathub build without the
+  terminal (hide the F12 action when `BLOCKSATZ_FLATHUB` is set and drop
+  `--talk-name=org.freedesktop.Flatpak` from the generated manifest).
+- The domain verification for linuxundich.de is prepared
+  (`docs/flathub-verification.md`); the token only exists after the app is
+  accepted.

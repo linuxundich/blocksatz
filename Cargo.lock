@@ -247,7 +247,7 @@ dependencies = [
 
 [[package]]
 name = "blocksatz"
-version = "0.72.1"
+version = "0.73.0"
 dependencies = [
  "base64",
  "futures-lite",

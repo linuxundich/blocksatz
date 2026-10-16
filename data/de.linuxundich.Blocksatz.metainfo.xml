@@ -25,6 +25,12 @@
   <url type="homepage">https://github.com/linuxundich/blocksatz</url>
   <url type="vcs-browser">https://github.com/linuxundich/blocksatz</url>
   <releases>
+    <release version="0.73.0" date="2026-10-16">
+      <description>
+        <p>Neu: Die Statuskarte zeigt, wann ein Beitrag veröffentlicht wurde, und „Neu veröffentlichen (Datum: jetzt)“ gibt einem veröffentlichten Beitrag nach Rückfrage das aktuelle Datum. Ohne Verbindung bietet die Blogliste „Erneut versuchen“ an.</p>
+        <p>Behoben: Englische Beiträge aus dem Blog öffnen als Übersetzung neben ihrem Original. Die KI-Übersetzung übernimmt Via und Quelle. Gelöschte Sprachfassungen fallen bei jedem aktiven Blog auf. Interne Links einer Sprachfassung zeigen auf vorhandene Fassungen derselben Sprache. Rückdatieren meldet sich als solches, die Sprachprüfung greift auch bei kurzen Texten, und der Alt-Text des Beitragsbilds kommt beim Öffnen mit.</p>
+      </description>
+    </release>
     <release version="0.72.1" date="2026-10-15">
       <description>
         <p>Behoben: Gibt es zu einem Original im Blog schon eine englische Fassung, legt Blocksatz keine zweite an, sondern bietet an, die vorhandene zu übernehmen. Ein veröffentlichter Beitrag geht mit einem Termin in der Zukunft nur noch nach Rückfrage offline. Alternativtexte und Bildunterschriften gemeinsam genutzter Bilder in der Mediathek bleiben unverändert, wenn ein Artikel sie anders verwendet.</p>

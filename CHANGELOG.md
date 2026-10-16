@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.73.0] - 2026-10-16
+
+Follow-up to the second QA pass: language versions opened from the blog,
+the publish date and smaller fixes.
+
 ### Added
 
 - **Publish date and "Neu veröffentlichen".** The post pane shows when a

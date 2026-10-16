@@ -39,6 +39,12 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.74.0" date="2026-10-16">
+      <description>
+        <p>Neu: Artikel aus der Bibliothek erscheinen in der Suche der GNOME-Shell. Formeln (```math), Abstände, Dateien und Icons lassen sich in Markdown schreiben. Veröffentlichte Beiträge haben ein Feld für das Veröffentlichungsdatum, Bilder lassen sich in der Vorschau per Griff verbreitern oder verschmälern, und außerhalb von Flathub weist Blocksatz auf neue Versionen hin.</p>
+        <p>Behoben: Ein Absturz, wenn der Text auf einen Umlaut endet. „Im Blog“ nimmt Eingaben schon beim ersten Mal an, und nach dem Hochladen erscheint kein falscher Konflikt mehr. Dazu Kleinigkeiten aus der Qualitätsprüfung: Umlaute im Slug wie bei WordPress, deutsche GTK-Menüs im Flatpak-Paket, schmale Fenster, Rückfrage beim Beenden während eines Uploads.</p>
+      </description>
+    </release>
     <release version="0.73.0" date="2026-10-16">
       <description>
         <p>Neu: Die Statuskarte zeigt, wann ein Beitrag veröffentlicht wurde, und „Neu veröffentlichen (Datum: jetzt)“ gibt einem veröffentlichten Beitrag nach Rückfrage das aktuelle Datum. Ohne Verbindung bietet die Blogliste „Erneut versuchen“ an.</p>

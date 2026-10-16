@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Work through the remaining backlog: the small findings of both QA audits,
-plus the open feature ideas.
+## [0.74.0] - 2026-10-16
+
+The rest of the backlog: GNOME Shell search, formulas and other blocks
+in Markdown, a publish date field, image resizing in the preview, and the
+small findings of both QA audits - plus two crash and input fixes.
 
 ### Added
 

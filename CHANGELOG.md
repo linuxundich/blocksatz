@@ -43,6 +43,9 @@ plus the open feature ideas.
 
 ### Fixed
 
+- **Crash when the text ends in an umlaut.** Typing "Ü" (or any non-ASCII
+  character) as the very last character of an article without a final
+  line break crashed the preview while it computed the block's last line.
 - **No false "Artikel wurde extern geändert" after an upload.** WordPress
   rewrites block comments when the REST API hands content out (a backslash
   as `\u005c`, for example); the baseline for the conflict check is now

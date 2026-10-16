@@ -2184,8 +2184,14 @@ fn render_special_fenced_block(lang: &str, text: &str) -> Option<String> {
     Some(gutenberg::render_block(&block))
 }
 
+/// `byte_offset` may fall inside a character (the last byte of a block
+/// ending in "Ü"): counted up to the character it belongs to.
 fn line_number(markdown: &str, byte_offset: usize) -> usize {
-    markdown[..byte_offset].matches('\n').count() + 1
+    let mut end = byte_offset.min(markdown.len());
+    while !markdown.is_char_boundary(end) {
+        end -= 1;
+    }
+    markdown[..end].matches('\n').count() + 1
 }
 
 /// Same `Tag::to_end()` depth-counting trick as `crates/gutenberg` uses -
@@ -2648,6 +2654,15 @@ mod tests {
     #[test]
     fn render_special_fenced_block_is_none_for_an_unrelated_language() {
         assert_eq!(render_special_fenced_block("bash", "echo hi"), None);
+    }
+
+    #[test]
+    fn a_text_ending_in_an_umlaut_without_newline_renders() {
+        // Typing "PRÜ" at the very end crashed the preview (byte index
+        // inside 'Ü').
+        let html = render_body_with_line_anchors("Absatz.\n\nEnde PRÜ", &[]);
+        assert!(html.contains("PRÜ"), "{html}");
+        assert_eq!(line_number("aÜ", 2), 1);
     }
 
     #[test]

@@ -930,26 +930,45 @@ impl MainAction {
         }
         let base = site.url.trim_end_matches('/');
         let failed = serde_json::to_string(&tr("Vorschau fehlgeschlagen. Bist du im Browser-Tab bei WordPress angemeldet?")).unwrap_or_default();
+        let nonce_url = format!("{base}/wp-admin/admin-ajax.php?action=rest-nonce");
+        // Not logged in, WordPress answers "0" instead of a nonce: then the
+        // login comes first and leads back here, where this runs again.
+        let login = format!("{base}/wp-login.php?redirect_to={}", percent_encode_component(&nonce_url));
         let script = format!(
-            r#"(async () => {{
+            r#"(() => {{
                 const nonce = document.body.innerText.trim();
-                const response = await fetch({endpoint}, {{
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {{ 'Content-Type': 'application/json', 'X-WP-Nonce': nonce }},
-                    body: JSON.stringify({payload}),
-                }});
-                const result = await response.json().catch(() => ({{}}));
-                if (result.preview_link) {{
-                    location.href = result.preview_link;
-                }} else {{
-                    document.body.innerText = {failed} + ' (' + (result.message || response.status) + ')';
+                if (!/^[0-9a-f]{{10}}$/.test(nonce)) {{
+                    location.href = {login};
+                    return 'login';
                 }}
+                (async () => {{
+                    const response = await fetch({endpoint}, {{
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {{ 'Content-Type': 'application/json', 'X-WP-Nonce': nonce }},
+                        body: JSON.stringify({payload}),
+                    }});
+                    const result = await response.json().catch(() => ({{}}));
+                    if (result.preview_link) {{
+                        location.href = result.preview_link;
+                    }} else {{
+                        document.body.innerText = {failed} + ' (' + (result.message || response.status) + ')';
+                    }}
+                }})();
+                return 'ok';
             }})()"#,
+            login = serde_json::to_string(&login).unwrap_or_default(),
             endpoint = serde_json::to_string(&format!("{base}/wp-json/wp/v2/{}/{post_id}/autosaves?_fields=preview_link", fm.post_type.rest_base())).unwrap_or_default(),
         );
-        self.blog_view.run_after_next_load(script);
-        (self.open_url)(format!("{base}/wp-admin/admin-ajax.php?action=rest-nonce"));
+        let overlay = self.ctx.toast_overlay.clone();
+        self.blog_view.run_on_page(nonce_url.clone(), script, move |result| {
+            if result == "login" {
+                window::show_toast(&overlay, &tr("Vorschau der Änderungen: einmal bei WordPress anmelden - danach zeigt der Browser-Tab sie."));
+                return false;
+            }
+            true
+        });
+        (self.open_url)(nonce_url);
     }
 
     fn on_banner_button(&self) {

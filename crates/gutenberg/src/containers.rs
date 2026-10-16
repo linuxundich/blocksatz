@@ -22,7 +22,7 @@ use crate::{escape_html, render_blocks, wrap, Block, BlockAttrs};
 
 /// The container kinds this crate knows - anything else after `:::` is
 /// just text.
-pub const KINDS: &[&str] = &["group", "columns", "column", "accordion", "item", "tabs", "tab", "cover", "details", "media-text"];
+pub const KINDS: &[&str] = &["group", "columns", "column", "accordion", "item", "tabs", "tab", "cover", "details", "media-text", "spacer", "file", "icon"];
 
 /// A container's own settings (`open`, `image=...`, `layout=flex`) -
 /// whatever isn't a general block attribute.
@@ -97,6 +97,11 @@ pub fn parse_header(line: &str) -> Option<Header> {
         if let Some(width) = attrs.width.take() {
             params.set("width", Some(width));
         }
+    }
+    // A file link's new tab, like a button's.
+    if kind == "file" && attrs.new_tab {
+        attrs.new_tab = false;
+        params.set("newtab", None);
     }
     // `justify=` is the container's own layout setting.
     if let Some(justify) = attrs.justify.take() {
@@ -272,6 +277,9 @@ pub fn render(kind: &str, title: Option<&str>, params: &Params, blocks: &[Block]
         "tab" => render_tab_panel(title.unwrap_or(""), params, blocks),
         "cover" => render_cover(params, blocks),
         "media-text" => render_media_text(params, blocks),
+        "spacer" => crate::special::render_spacer(params),
+        "file" => crate::special::render_file(params, blocks),
+        "icon" => crate::special::render_icon(params),
         "details" => {
             let mut json = Map::new();
             let open = if params.flag("open") {

@@ -237,7 +237,12 @@ blocks. Implemented so far:
   `::: details "Zusammenfassung" {open}`. A cover's or media-text's local
   image is uploaded with the other images. A line of colons closes the
   innermost container. The older ` ```columns `/` ```details ` fences are
-  still read.
+  still read. Blocks with only settings are empty containers:
+  `::: spacer {height=40px}`, `::: icon {icon=core/bell}`, and
+  `::: file {preview button="Herunterladen"}` around a `[Name](datei.pdf)`
+  link. A ` ```math ` fence (GitHub style) is a formula: LaTeX in, a
+  `core/math` block with MathML out (`math-core`), shown as MathML in the
+  preview.
 - **Lossless import** — opening a post from the blog turns a block into
   Markdown only if that Markdown renders back to the same block structure
   (attributes, classes, styles, captions, table footers); anything

@@ -222,6 +222,11 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
             };
             Block::BlockQuote { blocks: parse_gutenberg_blocks(&body), citation }
         }
+        // The LaTeX source is in the comment; the MathML is derived from it.
+        "math" => match json.remove("latex").and_then(|v| v.as_str().map(str::to_string)) {
+            Some(latex) if !latex.contains("```") => Block::CodeBlock { lang: Some("math".to_string()), text: latex },
+            _ => return verbatim(),
+        },
         "code" => {
             let code = strip_wrapper_tag(&strip_wrapper_tag(inner, "pre"), "code");
             Block::CodeBlock {
@@ -387,7 +392,7 @@ fn finish(name: &str, candidate: Block, mut json: serde_json::Map<String, serde_
     }
 }
 
-const CONTAINER_BLOCKS: &[&str] = &["group", "columns", "accordion", "tabs", "cover", "details", "media-text"];
+const CONTAINER_BLOCKS: &[&str] = &["group", "columns", "accordion", "tabs", "cover", "details", "media-text", "spacer", "file", "icon"];
 
 /// Direct child blocks of a container's inner HTML: name, attrs JSON,
 /// inner HTML.
@@ -602,6 +607,12 @@ fn parse_container(name: &str, json: &mut serde_json::Map<String, serde_json::Va
             let body = &content[start..];
             let body = &body[..body.rfind("</div>")?];
             container("cover", None, params, parse_blocks_in(body, true))
+        }
+        "spacer" => container("spacer", None, crate::special::spacer_params(json), Vec::new()),
+        "icon" => container("icon", None, crate::special::icon_params(json), Vec::new()),
+        "file" => {
+            let (params, blocks) = crate::special::file_parts(json, content, inline_html_to_markdown)?;
+            container("file", None, params, blocks)
         }
         "details" => {
             if take_json_true(json, "showContent") {
@@ -837,6 +848,10 @@ fn with_button_attrs(button: ButtonItem, attrs: &BlockAttrs) -> ButtonItem {
 }
 
 /// The text of some inline HTML, tags left out.
+pub(crate) fn plain_text(html: &str) -> String {
+    unescape_entities(&strip_tags_text(html))
+}
+
 fn strip_tags_text(html: &str) -> String {
     let mut out = String::new();
     let mut in_tag = false;

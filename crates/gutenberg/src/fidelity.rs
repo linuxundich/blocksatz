@@ -108,7 +108,16 @@ fn skeleton(html: &str) -> Vec<Token> {
             })
             .collect();
         attrs.sort();
+        // A formula's MathML is derived from its LaTeX (compared in the
+        // comment) - another converter writes other, equally valid MathML.
+        let is_math = name == "math";
         tokens.push(Token::Tag { name, attrs });
+        if is_math {
+            if let Some(end) = html[i..].find("</math>") {
+                i += end + "</math>".len();
+                tokens.push(Token::Tag { name: "/math".to_string(), attrs: Vec::new() });
+            }
+        }
     }
     tokens
 }

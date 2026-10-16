@@ -13,12 +13,14 @@ mod editing;
 mod fidelity;
 pub mod footnotes;
 mod reverse;
+mod special;
 pub use assess::{assess, Assessment, Closeness};
 pub use attrs::BlockAttrs;
 pub use containers::{images as container_images, Params as ContainerParams, IMAGE_KINDS as CONTAINER_IMAGE_KINDS};
 pub use editing::{attrs_edit, block_at, BlockAtCursor};
 pub use fidelity::{first_difference, same_structure};
 pub use reverse::{gutenberg_to_markdown, image_media_ids, render_gallery_fence};
+pub use special::latex_to_mathml;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Block {
@@ -1025,6 +1027,11 @@ fn parse_table_row_cells(events: &[Event], mut i: usize, end: usize) -> Vec<Stri
 // Rendering: Block tree -> Gutenberg block-comment HTML
 // ---------------------------------------------------------------------
 
+/// The text of an HTML fragment, tags removed and entities decoded.
+pub(crate) fn reverse_plain_text(html: &str) -> String {
+    reverse::plain_text(html)
+}
+
 pub fn escape_html(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
@@ -1332,6 +1339,8 @@ pub fn render_block(block: &Block) -> String {
                 &format!("<blockquote class=\"wp-block-quote\">{inner}{cite}</blockquote>"),
             )
         }
+        // GitHub's ```math: a formula, WordPress's `core/math`.
+        Block::CodeBlock { lang: Some(lang), text } if lang == "math" => special::render_math(text),
         Block::CodeBlock { lang: _, text } => wrap(
             "code",
             None,

@@ -34,8 +34,22 @@ plus the open feature ideas.
 - **Screenshots in the metainfo** for software centers (`data/screenshots/`)
   and notes for the Flathub submission (`build-aux/flathub/SUBMISSION.md`).
 
+- **Formula, spacer, file and icon blocks in Markdown.** ` ```math `
+  becomes WordPress's `core/math` (LaTeX in, MathML out, shown in the
+  preview); `::: spacer {height=40px}`, `::: file` around a `[Name](url)`
+  link (with `preview`, `button="…"`, `nobutton`, `newtab`) and
+  `::: icon {icon=core/bell}` cover the other three. Opening a post keeps
+  these blocks as Markdown instead of WordPress markup.
+
 ### Fixed
 
+- **No false "Artikel wurde extern geändert" after an upload.** WordPress
+  rewrites block comments when the REST API hands content out (a backslash
+  as `\u005c`, for example); the baseline for the conflict check is now
+  taken from the server's answer instead of from what was sent.
+- **"Vorschau im Blog" for a published post with local changes leads to
+  the WordPress login** when the built-in browser isn't signed in, and
+  shows the preview after signing in, instead of reporting a failure.
 - **Slugs spell umlauts like WordPress on a German site**: ö becomes oe,
   ü ue, ä ae (before: o, u, a). Affects new slugs and library folders only.
 - **The URL length check knows the blog's address scheme**: it reads it from

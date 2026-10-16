@@ -6,5 +6,6 @@ description = "Markdown to WordPress Gutenberg block-comment HTML conversion"
 license = "GPL-3.0-or-later"
 
 [dependencies]
+math-core = "0.9"
 pulldown-cmark = "0.13"
 serde_json = "1"

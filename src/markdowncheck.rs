@@ -103,6 +103,8 @@ fn kind_label(kind: &str) -> String {
         "query" => tr("Abfrage-Loop"),
         "separator" => tr("Trenner"),
         "spacer" => tr("Abstandhalter"),
+        "icon" => tr("Icon"),
+        "math" => tr("Formel"),
         other => other.to_string(),
     }
 }

@@ -2177,6 +2177,8 @@ fn render_special_fenced_block(lang: &str, text: &str) -> Option<String> {
         "pullquote" => gutenberg::parse_fenced_pullquote(text),
         "details" => gutenberg::parse_fenced_details(text),
         "preformatted" | "verse" => gutenberg::parse_fenced_pre(lang, text),
+        // WebKit renders the MathML itself.
+        "math" => gutenberg::Block::CodeBlock { lang: Some("math".to_string()), text: text.to_string() },
         _ => return None,
     };
     Some(gutenberg::render_block(&block))
@@ -2646,6 +2648,12 @@ mod tests {
     #[test]
     fn render_special_fenced_block_is_none_for_an_unrelated_language() {
         assert_eq!(render_special_fenced_block("bash", "echo hi"), None);
+    }
+
+    #[test]
+    fn a_math_fence_shows_as_mathml() {
+        let html = render_special_fenced_block("math", "x^2").expect("math is special");
+        assert!(html.contains("<math display=\"block\">"), "{html}");
     }
 
     #[test]

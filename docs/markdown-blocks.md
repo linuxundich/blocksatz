@@ -317,3 +317,15 @@ Schritt 1 sollte unabhängig vom Rest sofort kommen.
   ausgerichteter Kopfzeile (GFM richtet nur ganze Spalten aus; der
   Block-Editor selbst richtet Spalten ebenfalls komplett aus), Formel,
   Datei, Abstandhalter, Symbol und alle dynamischen Blöcke.
+- **Blöcke ohne eigenen Text (2026-10-16)**: `crates/gutenberg/src/special.rs`.
+  ` ```math ` (wie auf GitHub) wird `core/math`: LaTeX im Kommentar,
+  MathML Core aus `math-core` im Block; beim Rückweg zählt nur das LaTeX,
+  WordPress' eigenes MathML wird nicht verglichen. Leere Container
+  `::: spacer {height=… width=…}`, `::: icon {icon=core/… flip-h flip-v
+  rotate=…}` (vom Server gerendert, Namen wie `core/bell`) und
+  `::: file {preview height=… button="…" nobutton newtab href=… id=…}` mit
+  dem Link `[Name](url)` als Inhalt. Ausgabe wie `save()` in WordPress 7.1;
+  das Kommentar-JSON kodiert `\\`, `\"`, `--`, `<`, `>`, `&` wie
+  `serialize_block_attributes`. Roh bleiben weiterhin Tabellen mit
+  abweichend ausgerichteter Kopfzeile (der Block-Editor richtet ganze
+  Spalten aus, so etwas entsteht nur aus HTML).

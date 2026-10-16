@@ -595,7 +595,7 @@ fn run_export(
     // *next* update's conflict check (`wire_publish_button`) compare a
     // fresh fetch against a baseline that's actually still in sync, instead
     // of against a stale one from whenever this document was last opened.
-    frontmatter.wp_content_hash = Some(document::content_hash(&content));
+    frontmatter.wp_content_hash = Some(document::content_hash(result_content(&result, &content)));
     // The uploads happened before the post existed: tie them to it now, so
     // the media library shows where each one is used. Best effort - a
     // failure here is no reason to fail a post that is already saved.
@@ -688,6 +688,12 @@ fn apply_stored_status(fm: &mut Frontmatter, post: &wpclient::PostResult, reques
     } else {
         fm.wp_published_at = None;
     }
+}
+
+/// What the server holds now: its own answer if it sent one, else what
+/// went up.
+fn result_content<'a>(result: &'a wpclient::PostResult, sent: &'a str) -> &'a str {
+    result.content_raw.as_deref().unwrap_or(sent)
 }
 
 /// The attachment that gets the featured image's alt text: one just
@@ -1011,7 +1017,7 @@ mod tests {
     use super::*;
 
     fn post_result(status: Option<&str>, date: Option<&str>) -> wpclient::PostResult {
-        wpclient::PostResult { id: 1, link: String::new(), modified_gmt: String::new(), status: status.map(str::to_string), date: date.map(str::to_string), featured_media: None, notes: Vec::new() }
+        wpclient::PostResult { id: 1, link: String::new(), modified_gmt: String::new(), status: status.map(str::to_string), date: date.map(str::to_string), featured_media: None, content_raw: None, notes: Vec::new() }
     }
 
     #[test]

@@ -222,6 +222,46 @@ impl BrowserView {
     }
 }
 
+impl BrowserView {
+    /// Runs `script` every time a page whose address starts with `url`
+    /// finishes loading - also after a detour (the login page that leads
+    /// back to it) - until `done` says so for the script's result. Gives
+    /// up after `MAX_LOADS` loads of any page.
+    pub fn run_on_page(&self, url: String, script: String, done: impl Fn(&str) -> bool + 'static) {
+        const MAX_LOADS: u32 = 8;
+        let handler: std::rc::Rc<std::cell::RefCell<Option<glib::SignalHandlerId>>> = std::rc::Rc::default();
+        let handler_for_closure = handler.clone();
+        let loads = std::cell::Cell::new(0u32);
+        let done = std::rc::Rc::new(done);
+        let id = self.web_view.connect_load_changed(move |web_view, event| {
+            if event != webkit6::LoadEvent::Finished {
+                return;
+            }
+            loads.set(loads.get() + 1);
+            let stop_now = loads.get() >= MAX_LOADS;
+            if web_view.uri().is_some_and(|uri| uri.starts_with(&url)) {
+                let handler = handler_for_closure.clone();
+                let web_view_for_result = web_view.clone();
+                let done = done.clone();
+                web_view.evaluate_javascript(&script, None, None, gtk4::gio::Cancellable::NONE, move |result| {
+                    let value = result.map(|v| v.to_str().to_string()).unwrap_or_default();
+                    if done(&value) {
+                        if let Some(id) = handler.borrow_mut().take() {
+                            web_view_for_result.disconnect(id);
+                        }
+                    }
+                });
+            }
+            if stop_now {
+                if let Some(id) = handler_for_closure.borrow_mut().take() {
+                    web_view.disconnect(id);
+                }
+            }
+        });
+        *handler.borrow_mut() = Some(id);
+    }
+}
+
 /// Turns whatever was typed into the address bar into a real URL to load -
 /// a bare domain (`example.com`) gets `https://` prepended, and anything
 /// else (containing a space, or with no dot at all) is treated as a search

@@ -64,6 +64,11 @@ pub struct PostResult {
     /// by `export::run_export`), reported with the success message instead
     /// of being swallowed.
     pub notes: Vec<String>,
+    /// The content as the REST API hands it out again (`content.raw`):
+    /// WordPress re-serializes block comments on the way out (backslashes
+    /// as `\u005c`, for example), so this - not what was sent - is what
+    /// the next conflict check compares against.
+    pub content_raw: Option<String>,
 }
 
 /// A language version on the blog and the original it belongs to
@@ -1164,7 +1169,8 @@ impl Client {
         let status = value.get("status").and_then(Value::as_str).map(str::to_string);
         let date = value.get("date").and_then(Value::as_str).map(str::to_string);
         let featured_media = value.get("featured_media").and_then(Value::as_u64).filter(|id| *id != 0);
-        Ok(PostResult { id, link, modified_gmt, status, date, featured_media, notes: Vec::new() })
+        let content_raw = value.get("content").and_then(|c| c.get("raw")).and_then(Value::as_str).map(str::to_string);
+        Ok(PostResult { id, link, modified_gmt, status, date, featured_media, content_raw, notes: Vec::new() })
     }
 
     /// Resolves a category/tag name to its term id, creating the term if no

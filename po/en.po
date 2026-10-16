@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-16 08:40+0200\n"
+"POT-Creation-Date: 2026-10-16 09:12+0200\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -124,7 +124,7 @@ msgstr "{n} findings - click one to jump there."
 msgid "Verwerfen"
 msgstr "Discard"
 
-#: src/aiinplace.rs:109 src/markdowncheck.rs:186
+#: src/aiinplace.rs:109 src/markdowncheck.rs:188
 msgid "Schließen"
 msgstr "Close"
 
@@ -179,7 +179,7 @@ msgstr ""
 #: src/aimenu.rs:188 src/blogposts.rs:412 src/diskwatch.rs:223
 #: src/export.rs:206 src/gallerydialog.rs:154 src/mainaction.rs:542
 #: src/mainaction.rs:602 src/mainaction.rs:685 src/mainaction.rs:750
-#: src/mainaction.rs:1078 src/mainaction.rs:1135 src/markdowncheck.rs:162
+#: src/mainaction.rs:1097 src/mainaction.rs:1154 src/markdowncheck.rs:164
 #: src/mediabrowser.rs:554 src/newarticle.rs:209 src/releasecheck.rs:267
 #: src/tagsuggest.rs:86 src/taxonomy.rs:352 src/taxonomy.rs:666
 msgid "Abbrechen"
@@ -941,7 +941,7 @@ msgstr "Compare with Blog Version"
 msgid "− nur im Blog · + nur hier"
 msgstr "− only on the blog · + only here"
 
-#: src/compare.rs:87 src/mainaction.rs:1080
+#: src/compare.rs:87 src/mainaction.rs:1099
 msgid "Blog-Fassung übernehmen"
 msgstr "Use Blog Version"
 
@@ -961,7 +961,7 @@ msgstr "Load the File's Version"
 msgid "Keine Unterschiede im Text"
 msgstr "No differences in the text"
 
-#: src/compare.rs:150 src/diskwatch.rs:226 src/mainaction.rs:1081
+#: src/compare.rs:150 src/diskwatch.rs:226 src/mainaction.rs:1100
 msgid "Meine Fassung behalten"
 msgstr "Keep My Version"
 
@@ -1163,7 +1163,7 @@ msgstr "Resolve Conflict…"
 msgid "Die Datei wurde außerhalb von Blocksatz geändert."
 msgstr "The file was changed outside Blocksatz."
 
-#: src/diskwatch.rs:220 src/mainaction.rs:1075
+#: src/diskwatch.rs:220 src/mainaction.rs:1094
 msgid "Welche Fassung soll gelten?"
 msgstr "Which Version Should Count?"
 
@@ -1176,7 +1176,7 @@ msgstr ""
 "The file was changed outside Blocksatz, and you kept writing here. With "
 "“Load the File's Version” your text is kept as a copy next to the file."
 
-#: src/diskwatch.rs:224 src/mainaction.rs:1079
+#: src/diskwatch.rs:224 src/mainaction.rs:1098
 msgid "Vergleichen …"
 msgstr "Compare…"
 
@@ -1256,15 +1256,15 @@ msgstr "SEO title/description not saved: Rank Math is not active on this blog."
 msgid "Alt-Text des Aufmacherbilds nicht gesetzt: {err}"
 msgstr "Alt text of the featured image not set: {err}"
 
-#: src/export.rs:950
+#: src/export.rs:956
 msgid "Bild nicht abrufbar: {err}"
 msgstr "Couldn't fetch image: {err}"
 
-#: src/export.rs:954
+#: src/export.rs:960
 msgid "Bild nicht lesbar: {err}"
 msgstr "Couldn't read image: {err}"
 
-#: src/export.rs:957 src/media.rs:515
+#: src/export.rs:963 src/media.rs:515
 msgid "Bild {path} nicht lesbar: {err}"
 msgstr "Couldn't read image {path}: {err}"
 
@@ -1883,7 +1883,7 @@ msgstr "Changed on the blog"
 msgid "Im Blog gelöscht"
 msgstr "Deleted on the blog"
 
-#: src/librarysidebar.rs:551 src/mainaction.rs:1160
+#: src/librarysidebar.rs:551 src/mainaction.rs:1179
 msgid "Nur lokal"
 msgstr "Local only"
 
@@ -2041,7 +2041,7 @@ msgstr "The reply was cut off (length limit reached)."
 msgid "Das Modell hat die Anfrage abgelehnt (Kategorie: {category})."
 msgstr "The model declined the request (category: {category})."
 
-#: src/llm.rs:769 src/wpclient.rs:432
+#: src/llm.rs:769 src/wpclient.rs:437
 msgid "Antwort nicht lesbar: {err}"
 msgstr "Couldn't read the response: {err}"
 
@@ -2061,12 +2061,12 @@ msgstr "Upload Date"
 msgid "Datum im Blog lassen"
 msgstr "Keep Date on the Blog"
 
-#: src/mainaction.rs:158 src/mainaction.rs:1233
+#: src/mainaction.rs:158 src/mainaction.rs:1252
 msgid "Zur Prüfung einreichen"
 msgstr "Submit for Review"
 
 #: src/mainaction.rs:158 src/mainaction.rs:162 src/mainaction.rs:170
-#: src/mainaction.rs:1231
+#: src/mainaction.rs:1250
 msgid "Veröffentlichen …"
 msgstr "Publish…"
 
@@ -2100,7 +2100,7 @@ msgid "Jetzt veröffentlichen"
 msgstr "Publish Now"
 
 #: src/mainaction.rs:176 src/mainaction.rs:182 src/mainaction.rs:188
-#: src/mainaction.rs:195 src/mainaction.rs:197 src/mainaction.rs:1232
+#: src/mainaction.rs:195 src/mainaction.rs:197 src/mainaction.rs:1251
 msgid "Auf Entwurf zurücksetzen …"
 msgstr "Revert to Draft…"
 
@@ -2453,15 +2453,23 @@ msgid ""
 "Vorschau fehlgeschlagen. Bist du im Browser-Tab bei WordPress angemeldet?"
 msgstr "Preview failed. Are you logged in to WordPress in the browser tab?"
 
-#: src/mainaction.rs:996 src/mainaction.rs:1046
+#: src/mainaction.rs:966
+msgid ""
+"Vorschau der Änderungen: einmal bei WordPress anmelden - danach zeigt der "
+"Browser-Tab sie."
+msgstr ""
+"Preview of the changes: sign in to WordPress once - the browser tab then "
+"shows them."
+
+#: src/mainaction.rs:1015 src/mainaction.rs:1065
 msgid "Laden fehlgeschlagen: {err}"
 msgstr "Loading failed: {err}"
 
-#: src/mainaction.rs:1029
+#: src/mainaction.rs:1048
 msgid "Blog-Fassung geladen."
 msgstr "Blog version loaded."
 
-#: src/mainaction.rs:1076
+#: src/mainaction.rs:1095
 msgid ""
 "Der Beitrag wurde im Blog geändert, nachdem du ihn zuletzt abgeglichen hast, "
 "und du hast hier weitergeschrieben."
@@ -2469,82 +2477,82 @@ msgstr ""
 "The post was changed on the blog after you last synced it, and you kept "
 "writing here."
 
-#: src/mainaction.rs:1129
+#: src/mainaction.rs:1148
 msgid "Verknüpfung gelöst. Der Artikel ist jetzt nur lokal."
 msgstr "Unlinked. The article is now local only."
 
-#: src/mainaction.rs:1168
+#: src/mainaction.rs:1187
 msgid "im Blog gelöscht"
 msgstr "deleted on the blog"
 
-#: src/mainaction.rs:1169
+#: src/mainaction.rs:1188
 msgid "Konflikt"
 msgstr "conflict"
 
-#: src/mainaction.rs:1170
+#: src/mainaction.rs:1189
 msgid "im Blog geändert"
 msgstr "changed on the blog"
 
-#: src/mainaction.rs:1171
+#: src/mainaction.rs:1190
 msgid "Änderungen nicht online"
 msgstr "changes not online"
 
-#: src/mainaction.rs:1172
+#: src/mainaction.rs:1191
 msgid "nicht hochgeladen"
 msgstr "not uploaded"
 
-#: src/mainaction.rs:1228
+#: src/mainaction.rs:1247
 msgid "Status im Blog lassen"
 msgstr "Keep Status on the Blog"
 
-#: src/mainaction.rs:1230
+#: src/mainaction.rs:1249
 msgid "Termin hochladen"
 msgstr "Upload Schedule"
 
-#: src/mainaction.rs:1234
+#: src/mainaction.rs:1253
 msgid "Privat veröffentlichen"
 msgstr "Publish Privately"
 
-#: src/mainaction.rs:1251 src/mainaction.rs:1283
+#: src/mainaction.rs:1270 src/mainaction.rs:1302
 msgid "Rückdatiert: veröffentlicht am {date}."
 msgstr "Backdated: published on {date}."
 
-#: src/mainaction.rs:1252
+#: src/mainaction.rs:1271
 msgid "Rückdatiert."
 msgstr "Backdated."
 
-#: src/mainaction.rs:1255
+#: src/mainaction.rs:1274
 msgid ""
 "Hochgeladen, aber WordPress hat den Beitrag als „{stored}“ gespeichert, "
 "nicht als „{requested}“."
 msgstr ""
 "Uploaded, but WordPress stored the post as “{stored}”, not as “{requested}”."
 
-#: src/mainaction.rs:1259
+#: src/mainaction.rs:1278
 msgid "Termin: {when}"
 msgstr "Scheduled: {when}"
 
-#: src/mainaction.rs:1264
+#: src/mainaction.rs:1283
 msgid "Als Entwurf hochgeladen."
 msgstr "Uploaded as draft."
 
-#: src/mainaction.rs:1265
+#: src/mainaction.rs:1284
 msgid "Zur Prüfung eingereicht."
 msgstr "Submitted for review."
 
-#: src/mainaction.rs:1266 src/mainaction.rs:1282
+#: src/mainaction.rs:1285 src/mainaction.rs:1301
 msgid "Veröffentlicht."
 msgstr "Published."
 
-#: src/mainaction.rs:1267
+#: src/mainaction.rs:1286
 msgid "Geplant für {when}."
 msgstr "Scheduled for {when}."
 
-#: src/mainaction.rs:1268
+#: src/mainaction.rs:1287
 msgid "Privat veröffentlicht."
 msgstr "Published privately."
 
-#: src/mainaction.rs:1269 src/mainaction.rs:1284
+#: src/mainaction.rs:1288 src/mainaction.rs:1303
 msgid "Aktualisiert."
 msgstr "Updated."
 
@@ -2576,7 +2584,7 @@ msgstr "File"
 msgid "HTML"
 msgstr "HTML"
 
-#: src/markdowncheck.rs:101 src/markdowncheck.rs:143
+#: src/markdowncheck.rs:101 src/markdowncheck.rs:145
 msgid "Klassischer Inhalt"
 msgstr "Classic content"
 
@@ -2592,23 +2600,31 @@ msgstr "Query loop"
 msgid "Abstandhalter"
 msgstr "Spacer"
 
-#: src/markdowncheck.rs:114
+#: src/markdowncheck.rs:106
+msgid "Icon"
+msgstr "Icon"
+
+#: src/markdowncheck.rs:107
+msgid "Formel"
+msgstr "Formula"
+
+#: src/markdowncheck.rs:116
 msgid "…"
 msgstr "…"
 
-#: src/markdowncheck.rs:122
+#: src/markdowncheck.rs:124
 msgid "{n} Blöcke lassen sich hier nur als WordPress-Markup bearbeiten."
 msgstr "{n} blocks can only be edited as WordPress markup here."
 
-#: src/markdowncheck.rs:124
+#: src/markdowncheck.rs:126
 msgid "Der Beitrag besteht zum großen Teil aus verschachtelten Containern."
 msgstr "Most of the post consists of nested containers."
 
-#: src/markdowncheck.rs:129
+#: src/markdowncheck.rs:131
 msgid "Darunter: {kinds}."
 msgstr "Among them: {kinds}."
 
-#: src/markdowncheck.rs:132
+#: src/markdowncheck.rs:134
 msgid ""
 "Blocksatz ist für Artikel gedacht, die in Markdown geschrieben sind. Solche "
 "Beiträge bearbeitest du besser im Block-Editor von WordPress."
@@ -2616,51 +2632,51 @@ msgstr ""
 "Blocksatz is meant for articles written in Markdown. Posts like this are "
 "better edited in the WordPress block editor."
 
-#: src/markdowncheck.rs:140
+#: src/markdowncheck.rs:142
 msgid "Als WordPress-Markup im Text"
 msgstr "Kept as WordPress markup"
 
-#: src/markdowncheck.rs:140
+#: src/markdowncheck.rs:142
 msgid "{n} Blöcke ({share} %)"
 msgstr "{n} blocks ({share} %)"
 
-#: src/markdowncheck.rs:143
+#: src/markdowncheck.rs:145
 msgid "aus der Zeit vor dem Block-Editor"
 msgstr "from before the block editor"
 
-#: src/markdowncheck.rs:146
+#: src/markdowncheck.rs:148
 msgid "Container und Sonderblöcke"
 msgstr "Containers and special blocks"
 
-#: src/markdowncheck.rs:149
+#: src/markdowncheck.rs:151
 msgid "Gestaltungsangaben"
 msgstr "Design settings"
 
-#: src/markdowncheck.rs:153
+#: src/markdowncheck.rs:155
 msgid "Betroffene Blöcke"
 msgstr "Blocks involved"
 
-#: src/markdowncheck.rs:161
+#: src/markdowncheck.rs:163
 msgid "Dieser Beitrag nutzt viele Gutenberg-Funktionen"
 msgstr "This post uses many Gutenberg features"
 
-#: src/markdowncheck.rs:162 src/postpane.rs:59
+#: src/markdowncheck.rs:164 src/postpane.rs:59
 msgid "In wp-admin bearbeiten"
 msgstr "Edit in wp-admin"
 
-#: src/markdowncheck.rs:162
+#: src/markdowncheck.rs:164
 msgid "Trotzdem öffnen"
 msgstr "Open anyway"
 
-#: src/markdowncheck.rs:177
+#: src/markdowncheck.rs:179
 msgid "Gutenberg-Funktionen in diesem Beitrag"
 msgstr "Gutenberg features in this post"
 
-#: src/markdowncheck.rs:177 src/postpane.rs:187
+#: src/markdowncheck.rs:179 src/postpane.rs:187
 msgid "Markdown-Nähe: {level}"
 msgstr "Closeness to Markdown: {level}"
 
-#: src/markdowncheck.rs:188
+#: src/markdowncheck.rs:190
 msgid "Hinweis ausblenden"
 msgstr "Hide notice"
 
@@ -4843,23 +4859,23 @@ msgstr "Couldn't convert the formatted text: {err}"
 msgid "Keine Verbindung zum Blog ({err})"
 msgstr "No connection to the blog ({err})"
 
-#: src/wpclient.rs:574
+#: src/wpclient.rs:579
 msgid "Keine Medien-ID in der Antwort"
 msgstr "No media ID in the response"
 
-#: src/wpclient.rs:740
+#: src/wpclient.rs:745
 msgid "Kein aktives Theme gefunden."
 msgstr "No active theme found."
 
-#: src/wpclient.rs:863
+#: src/wpclient.rs:868
 msgid "Keine Term-ID in der Antwort"
 msgstr "No term ID in the response"
 
-#: src/wpclient.rs:1161
+#: src/wpclient.rs:1166
 msgid "Keine Post-ID in der Antwort"
 msgstr "No post ID in the response"
 
-#: src/wpclient.rs:1220
+#: src/wpclient.rs:1226
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr "No term ID received for \"{name}\""
 

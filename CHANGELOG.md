@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.74.1] - 2026-10-16
+
+No changes to the app itself.
+
+### Changed
+
+- **Flathub notes**: the submission is on hold - Flathub's requirements on
+  AI-assisted manifests, submission pull requests and development history
+  are summarized in `build-aux/flathub/SUBMISSION.md`. The live test of the
+  AI translation with a real model is done and ticked off in the backlog.
+
 ## [0.74.0] - 2026-10-16
 
 The rest of the backlog: GNOME Shell search, formulas and other blocks

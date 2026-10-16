@@ -39,6 +39,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.74.1" date="2026-10-16">
+      <description>
+        <p>Keine Änderungen an der App selbst, nur an der Dokumentation.</p>
+      </description>
+    </release>
     <release version="0.74.0" date="2026-10-16">
       <description>
         <p>Neu: Artikel aus der Bibliothek erscheinen in der Suche der GNOME-Shell. Formeln (```math), Abstände, Dateien und Icons lassen sich in Markdown schreiben. Veröffentlichte Beiträge haben ein Feld für das Veröffentlichungsdatum, Bilder lassen sich in der Vorschau per Griff verbreitern oder verschmälern, und außerhalb von Flathub weist Blocksatz auf neue Versionen hin.</p>

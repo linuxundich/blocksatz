@@ -1413,6 +1413,15 @@ msgstr "Image …"
 msgid "Weitere Medien"
 msgstr "More media"
 
+msgid "Beide Sprachen als Entwurf hochladen"
+msgstr "Upload both languages as drafts"
+
+msgid "Beide Sprachen veröffentlichen …"
+msgstr "Publish both languages …"
+
+msgid "Die andere Sprache wurde nicht hochgeladen."
+msgstr "The other language was not uploaded."
+
 #: src/formatting.rs:126
 msgid "Bestehenden Artikel verlinken …"
 msgstr "Link existing article …"

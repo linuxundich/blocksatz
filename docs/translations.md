@@ -249,6 +249,19 @@ uses them for hreflang links, a language switcher and a note under the
 byline. A blog without that plugin drops the keys silently, the same way it
 drops RankMath's.
 
+## Uploading both languages together
+
+While the original and its language version are both still off the blog
+(local, draft or pending), the main action's menu offers "Beide Sprachen
+als Entwurf hochladen" and "Beide Sprachen veröffentlichen …". Either opens
+the original, uploads it through the usual steps, then opens the
+translation and uploads it with the same status - the original goes first,
+so the translation is linked to its post and takes its featured image over.
+Publishing runs the original's release check once; its decision (now or
+scheduled) applies to both. The translation's own release check only shows
+up when it finds a warning or an error. If the original's upload fails or a
+dialog on the way is cancelled, the translation stays as it is.
+
 ## Checks
 
 After pasting, after an AI translation, in "Prüfen …"/"Gegenlesen …" and

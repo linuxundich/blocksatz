@@ -64,7 +64,41 @@ pub struct MainAction {
     /// in the library once per opened document (`doc_generation`), not on
     /// every keystroke.
     original_changed: Cell<(u64, Option<bool>)>,
+    /// The open article's language pair, if both versions are still off
+    /// the blog - looked up once per opened document like
+    /// `original_changed`.
+    pair: std::cell::RefCell<(u64, Option<Pair>)>,
+    /// "Beide Sprachen …": what follows once the original went up.
+    pair_step: std::cell::RefCell<Option<PairStep>>,
     weak: Weak<MainAction>,
+}
+
+/// An original and its language version, both in the library.
+#[derive(Debug, Clone)]
+struct Pair {
+    original: std::path::PathBuf,
+    translation: std::path::PathBuf,
+}
+
+/// The translation's turn after the original's upload: the same status,
+/// or the same publish decision.
+#[derive(Debug, Clone)]
+struct PairStep {
+    original: std::path::PathBuf,
+    translation: std::path::PathBuf,
+    next: PairNext,
+}
+
+#[derive(Debug, Clone)]
+enum PairNext {
+    Draft,
+    Publish(Decision),
+}
+
+/// Whether a version is still off the blog (local, draft or pending) -
+/// only then do both languages go up together.
+fn offline(fm: &document::Frontmatter) -> bool {
+    fm.wp_post_id.is_none() || matches!(fm.wp_status.unwrap_or(fm.status), PostStatus::Draft | PostStatus::Pending)
 }
 
 impl MainAction {
@@ -87,6 +121,8 @@ impl MainAction {
             preview_after_upload: Cell::new(false),
             previewed: std::cell::RefCell::new(None),
             original_changed: Cell::new((u64::MAX, None)),
+            pair: std::cell::RefCell::new((u64::MAX, None)),
+            pair_step: std::cell::RefCell::new(None),
             weak: weak.clone(),
         });
         this.install_actions(window);
@@ -225,6 +261,12 @@ impl MainAction {
                 ai_menu.append(Some(&tr("Per KI übersetzen …")), Some("main.translate"));
             }
         }
+        if pending.is_none() && self.pair().is_some() {
+            let pair_menu = gio::Menu::new();
+            pair_menu.append(Some(&tr("Beide Sprachen als Entwurf hochladen")), Some("main.upload-pair-draft"));
+            pair_menu.append(Some(&tr("Beide Sprachen veröffentlichen …")), Some("main.publish-pair"));
+            menu_model.append_section(None, &pair_menu);
+        }
         if translation_menu.n_items() > 0 {
             menu_model.append_section(None, &translation_menu);
         }
@@ -316,11 +358,17 @@ impl MainAction {
             let weak = self.weak.clone();
             action.connect_activate(move |_, _| {
                 if let Some(this) = weak.upgrade() {
+                    // Any action ends a "Beide Sprachen …" that stopped
+                    // halfway (a dialog cancelled); the pair actions start
+                    // their own.
+                    this.pair_step.borrow_mut().take();
                     f(&this);
                 }
             });
             group.add_action(&action);
         };
+        add("upload-pair-draft", |this| this.start_pair(PairNext::Draft));
+        add("publish-pair", |this| this.start_pair(PairNext::Publish(Decision::Now)));
         add("upload-draft", |this| this.upload(TargetStatus::Set(PostStatus::Draft), false));
         add("submit-review", |this| this.upload(TargetStatus::Set(PostStatus::Pending), false));
         add("update", |this| this.upload(TargetStatus::PublishOrKeep, false));
@@ -478,6 +526,111 @@ impl MainAction {
     }
 
     /// Opens the release check and uploads with the decision taken there.
+    /// The open article's language pair, while both versions are off the
+    /// blog.
+    fn pair(&self) -> Option<Pair> {
+        let generation = self.ctx.doc_generation.get();
+        {
+            let (cached, value) = &*self.pair.borrow();
+            if *cached == generation {
+                return value.clone();
+            }
+        }
+        let value = self.find_pair();
+        *self.pair.borrow_mut() = (generation, value.clone());
+        value
+    }
+
+    fn find_pair(&self) -> Option<Pair> {
+        let path = self.ctx.current_path.borrow().clone()?;
+        if !library::contains(&library::root(), &path) {
+            return None;
+        }
+        let doc = self.ctx.current_document();
+        let (other_path, other) = if doc.frontmatter.translation.is_some() {
+            crate::translatedialog::find_original(&doc, Some(&path))?
+        } else {
+            crate::translatedialog::find_translation(&doc, Some(&path))?
+        };
+        if !offline(&doc.frontmatter) || !offline(&other.frontmatter) {
+            return None;
+        }
+        Some(if doc.frontmatter.translation.is_some() { Pair { original: other_path, translation: path } } else { Pair { original: path, translation: other_path } })
+    }
+
+    /// "Beide Sprachen …": the original first - the translation is linked
+    /// to its post and takes its featured image over - then the
+    /// translation with the same status (`continue_pair`).
+    fn start_pair(&self, next: PairNext) {
+        let Some(pair) = self.pair() else { return };
+        if self.ctx.current_path.borrow().as_deref() != Some(pair.original.as_path()) {
+            window::open_document_at_path(pair.original.clone(), &self.ctx);
+        }
+        let step = PairStep { original: pair.original, translation: pair.translation, next: next.clone() };
+        match next {
+            PairNext::Draft => {
+                *self.pair_step.borrow_mut() = Some(step);
+                self.upload(TargetStatus::Set(PostStatus::Draft), false);
+            }
+            PairNext::Publish(_) => {
+                let Some(window) = self.window.upgrade() else { return };
+                worksave::flush(&self.ctx, false);
+                let weak = self.weak.clone();
+                releasecheck::open(&window, &self.ctx, Mode::Publish { scheduled: false }, &self.links, move |decision| {
+                    let Some(this) = weak.upgrade() else { return };
+                    *this.pair_step.borrow_mut() = Some(PairStep { next: PairNext::Publish(decision.clone()), ..step.clone() });
+                    this.publish_with(decision);
+                });
+            }
+        }
+    }
+
+    fn publish_with(&self, decision: Decision) {
+        match decision {
+            Decision::Now => self.upload(TargetStatus::Set(PostStatus::Publish), false),
+            Decision::Scheduled(at) => {
+                self.ctx.frontmatter.borrow_mut().scheduled_at = Some(at);
+                self.upload(TargetStatus::Set(PostStatus::Future), false);
+            }
+        }
+    }
+
+    /// After an upload: if it was the original of "Beide Sprachen …", the
+    /// translation follows. Publishing it asks again only when its own
+    /// release check finds something.
+    fn continue_pair(&self) {
+        let Some(step) = self.pair_step.borrow_mut().take() else { return };
+        if self.ctx.current_path.borrow().as_deref() != Some(step.original.as_path()) {
+            return;
+        }
+        window::open_document_at_path(step.translation.clone(), &self.ctx);
+        match step.next {
+            PairNext::Draft => self.upload(TargetStatus::Set(PostStatus::Draft), false),
+            PairNext::Publish(decision) => {
+                let doc = self.ctx.current_document();
+                let mut found = releasecheck::checks(&doc);
+                if let Some((_, original)) = crate::translatedialog::find_original(&doc, Some(&step.translation)) {
+                    found.extend(releasecheck::translation_checks(&doc, &original));
+                }
+                if !found.iter().any(|c| matches!(c.severity, releasecheck::Severity::Warning | releasecheck::Severity::Error)) {
+                    self.publish_with(decision);
+                    return;
+                }
+                let Some(window) = self.window.upgrade() else { return };
+                let scheduled = matches!(decision, Decision::Scheduled(_));
+                if let Decision::Scheduled(at) = decision {
+                    self.ctx.frontmatter.borrow_mut().scheduled_at = Some(at);
+                }
+                let weak = self.weak.clone();
+                releasecheck::open(&window, &self.ctx, Mode::Publish { scheduled }, &self.links, move |decision| {
+                    if let Some(this) = weak.upgrade() {
+                        this.publish_with(decision);
+                    }
+                });
+            }
+        }
+    }
+
     fn release_check(&self, mode: Mode) {
         let Some(window) = self.window.upgrade() else { return };
         // The checks look at the current media list.
@@ -818,8 +971,25 @@ impl MainAction {
                     if this.preview_after_upload.replace(false) {
                         this.open_preview();
                     }
+                    // After the upload has finished writing the file.
+                    let weak = this.weak.clone();
+                    glib::idle_add_local_once(move || {
+                        if let Some(this) = weak.upgrade() {
+                            this.continue_pair();
+                        }
+                    });
                 }),
-                on_error: Rc::new(move |message: &str| window::show_toast(&toast_overlay, message)),
+                on_error: {
+                    let weak = self.weak.clone();
+                    Rc::new(move |message: &str| {
+                        let halfway = weak.upgrade().and_then(|this| this.pair_step.borrow_mut().take()).is_some();
+                        if halfway {
+                            window::show_toast(&toast_overlay, &format!("{message} {}", tr("Die andere Sprache wurde nicht hochgeladen.")));
+                        } else {
+                            window::show_toast(&toast_overlay, message);
+                        }
+                    })
+                },
             }
         };
         let dialog_parent: gtk4::Widget = window.upcast();
@@ -1292,6 +1462,17 @@ fn upload_message(stored: PostStatus, requested: Option<PostStatus>, scheduled_a
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_versions_off_the_blog_go_up_together() {
+        let fm = |id: Option<u64>, status: Option<PostStatus>| document::Frontmatter { wp_post_id: id, wp_status: status, ..Default::default() };
+        assert!(offline(&fm(None, None)), "only local");
+        assert!(offline(&fm(Some(1), Some(PostStatus::Draft))));
+        assert!(offline(&fm(Some(1), Some(PostStatus::Pending))));
+        assert!(!offline(&fm(Some(1), Some(PostStatus::Publish))));
+        assert!(!offline(&fm(Some(1), Some(PostStatus::Future))));
+        assert!(!offline(&fm(Some(1), Some(PostStatus::Private))));
+    }
 
     #[test]
     fn a_publish_that_came_back_scheduled_does_not_read_as_published() {

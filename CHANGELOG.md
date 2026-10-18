@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Upload or publish both languages together**: while an article and its
+  language version are both still off the blog, the main action's menu
+  offers "Beide Sprachen als Entwurf hochladen" and "Beide Sprachen
+  veröffentlichen …". The original goes first, then the translation with
+  the same status - or, when publishing, the same decision (now or
+  scheduled) from one release check. The translation's own release check
+  only appears when it finds a warning or an error.
+
 ### Changed
 
 - **All media under the image button**: the toolbar's image button is now a

@@ -503,7 +503,9 @@ blocks. Implemented so far:
   is ever affected, never the local file. Posts are only ever moved to
   WordPress's (recoverable) trash, never deleted permanently.
 - **Primary menu** (in the sidebar's header bar) — "WordPress-Mediathek",
-  "Galerie einfügen…", "Einstellungen", "Tastenkürzel" (an
+  "Galerie einfügen…" (also in the toolbar's insert menu as "Galerie aus
+  Mediathek …"; for local images the insert menu's "Galerie" puts in an
+  empty ` ```gallery ` fence), "Einstellungen", "Tastenkürzel" (an
   `AdwShortcutsDialog`, also reachable via Ctrl+?), and "Über Blocksatz", the latter a native `Adw.AboutDialog`
   with the version (always in sync with `Cargo.toml`), GPL-3.0-or-later
   license text, issue tracker/repository links, and the full

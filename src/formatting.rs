@@ -123,6 +123,7 @@ fn insert_menu() -> gio::Menu {
     let media = gio::Menu::new();
     media.append(Some(&tr("Video/Audio …")), Some("win.insert-media"));
     media.append(Some(&tr("Aus WordPress-Mediathek …")), Some("win.insert-media-library"));
+    media.append(Some(&tr("Galerie aus Mediathek …")), Some("win.insert-gallery"));
     media.append(Some(&tr("Bestehenden Artikel verlinken …")), Some("win.insert-post-link"));
     let elements = gio::Menu::new();
     elements.append(Some(&tr("Trenner")), Some("fmt.insert-separator"));
@@ -369,6 +370,7 @@ const BLOCK_SNIPPETS: &[(&str, &str, &str)] = &[
     ("tabs", "Reiter", ":::: tabs\n::: tab \"Reiter 1\"\nInhalt\n:::\n\n::: tab \"Reiter 2\"\nInhalt\n:::\n::::"),
     ("cover", "Cover", "::: cover {overlay=contrast dim=60 height=400px}\n## Titel\n:::"),
     ("media-text", "Medien & Text", "::: media-text {image=bild.png}\nText neben dem Bild\n:::"),
+    ("gallery", "Galerie", "```gallery\n![Bildunterschrift](bild.png \"Alternativtext\")\n```"),
     ("details", "Details", "::: details \"Zusammenfassung\"\nInhalt\n:::"),
     ("preformatted", "Vorformatierter Text", "```preformatted\nText, dessen Zeilen und Leerzeichen bleiben\n```"),
     ("verse", "Gedicht", "```verse\nErste Zeile\nZweite Zeile\n```"),

@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   could only be inserted from the primary menu, and only with images
   already in the WordPress media library.
 
+### Fixed
+
+- **A translation's preview shows the original's featured image**: a
+  translation leaves its featured image to the blog, which takes the
+  original's over on upload (lui-translations). The preview header now shows
+  that image too instead of none, as long as the translation sets no
+  featured image of its own.
+
 ## [0.75.0] - 2026-10-18
 
 ### Added

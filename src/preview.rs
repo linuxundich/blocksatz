@@ -225,6 +225,10 @@ pub struct PreviewPane {
     /// the fields the header shows (title, excerpt, categories, tags,
     /// slug, featured image) are ever derived from the body text itself.
     last_frontmatter: Rc<RefCell<Frontmatter>>,
+    /// `set_article_header`'s frontmatter as given - `last_frontmatter` is
+    /// this plus the original's featured image for a translation without
+    /// one of its own (`with_original_featured_image`).
+    given_frontmatter: RefCell<Frontmatter>,
     show_header: Rc<Cell<bool>>,
 }
 
@@ -304,6 +308,7 @@ impl PreviewPane {
             last_media,
             doc_dir,
             last_frontmatter,
+            given_frontmatter: RefCell::new(Frontmatter::default()),
             show_header,
         }
     }
@@ -355,6 +360,7 @@ impl PreviewPane {
     /// edit.
     pub fn set_doc_dir(&self, doc_dir: Option<PathBuf>) {
         *self.doc_dir.borrow_mut() = doc_dir;
+        self.with_original_featured_image();
         self.rerender();
     }
 
@@ -646,8 +652,21 @@ impl PreviewPane {
     /// of the fields shown here ever change by editing the body text - see
     /// `last_frontmatter`'s own doc comment on the struct.
     pub fn set_article_header(&self, frontmatter: &Frontmatter) {
-        *self.last_frontmatter.borrow_mut() = frontmatter.clone();
+        *self.given_frontmatter.borrow_mut() = frontmatter.clone();
+        self.with_original_featured_image();
         self.rerender_preserving_scroll();
+    }
+
+    /// A translation leaves its featured image to the blog, which takes
+    /// the original's over (lui-translations) - the header shows that one,
+    /// as the post will have it. Looked up here, not on every render, since
+    /// it reads the original from disk.
+    fn with_original_featured_image(&self) {
+        let mut frontmatter = self.given_frontmatter.borrow().clone();
+        if frontmatter.featured_image.as_deref().is_none_or(str::is_empty) {
+            frontmatter.featured_image = crate::translatedialog::original_featured_image(&frontmatter, self.doc_dir.borrow().as_deref());
+        }
+        *self.last_frontmatter.borrow_mut() = frontmatter;
     }
 
     pub fn show_article_header(&self) -> bool {

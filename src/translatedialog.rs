@@ -75,6 +75,24 @@ pub fn shared_media_for(frontmatter: &document::Frontmatter, doc_dir: Option<&Pa
     Some(find_original(&doc, path.as_deref()).map(|(_, original)| translate::SharedMedia::from_original(&original)).unwrap_or_default())
 }
 
+/// The original's featured image for a translation in `doc_dir` - a local
+/// file as `featured_image` names it, relative to `doc_dir` when the
+/// original sits next to it, else absolute. `None` when `frontmatter` isn't
+/// a translation or the original has no featured image file.
+pub fn original_featured_image(frontmatter: &document::Frontmatter, doc_dir: Option<&Path>) -> Option<String> {
+    let link = frontmatter.translation.as_ref()?;
+    let doc = Document { frontmatter: frontmatter.clone(), body: String::new() };
+    let path = doc_dir.map(|dir| dir.join(library::article_file(Some(&link.lang))));
+    let (original_path, original) = find_original(&doc, path.as_deref())?;
+    // Also once uploaded: then only `wp_featured_source` still names it.
+    let image = original.frontmatter.featured_image.or(original.frontmatter.wp_featured_source).filter(|f| !f.is_empty())?;
+    let original_dir = original_path.parent()?;
+    if image.contains("://") || Path::new(&image).is_absolute() || doc_dir == Some(original_dir) {
+        return Some(image);
+    }
+    Some(original_dir.join(image).to_string_lossy().into_owned())
+}
+
 /// Whether the original changed since `translation` was made - `None` when
 /// it isn't a translation or the original isn't in the library.
 pub fn original_changed(translation: &Document, path: Option<&Path>) -> Option<bool> {
@@ -1094,6 +1112,28 @@ fn open_review_with(window: &adw::ApplicationWindow, ctx: &DocContext, extra_iss
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn translation_frontmatter() -> document::Frontmatter {
+        document::Frontmatter {
+            translation: Some(document::TranslationLink { lang: "en".into(), source_site: "example.org".into(), source_id: 7, ..Default::default() }),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_translation_shows_the_featured_image_of_the_original_next_to_it() {
+        let dir = std::env::temp_dir().join(format!("blocksatz-featured-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let write = |featured: &str| std::fs::write(dir.join("artikel.md"), format!("---\ntitle: \"Original\"\n{featured}---\n\nText\n")).unwrap();
+        write("featured_image: \"aufmacher.webp\"\n");
+        assert_eq!(original_featured_image(&translation_frontmatter(), Some(&dir)).as_deref(), Some("aufmacher.webp"));
+        write("wp_featured_source: \"hochgeladen.webp\"\n");
+        assert_eq!(original_featured_image(&translation_frontmatter(), Some(&dir)).as_deref(), Some("hochgeladen.webp"), "once uploaded");
+        write("");
+        assert_eq!(original_featured_image(&translation_frontmatter(), Some(&dir)), None, "the original has none");
+        assert_eq!(original_featured_image(&document::Frontmatter::default(), Some(&dir)), None, "not a translation");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     /// One real translation through the configured model (costs a few
     /// cents, needs an API key in the keyring), written nowhere but to

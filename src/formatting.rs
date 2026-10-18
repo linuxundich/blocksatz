@@ -79,7 +79,15 @@ pub fn build(view: &sourceview5::View, buffer: &sourceview5::Buffer) -> gtk4::Bo
     }
     toolbar.append(&separator());
 
-    let image = gtk4::Button::builder().icon_name("insert-image-symbolic").tooltip_text(tr("Bild einfügen …")).action_name("win.insert-image").build();
+    // A click inserts a local image; the arrow holds everything else that
+    // puts images, videos or galleries into the article.
+    let image = adw::SplitButton::builder()
+        .icon_name("insert-image-symbolic")
+        .tooltip_text(tr("Bild einfügen …"))
+        .action_name("win.insert-image")
+        .menu_model(&image_menu())
+        .dropdown_tooltip(tr("Weitere Medien"))
+        .build();
     image.add_css_class("flat");
     toolbar.append(&image);
     toolbar.append(&menu_button("list-add-symbolic", &tr("Einfügen"), &insert_menu()));
@@ -119,11 +127,25 @@ fn heading_menu() -> gio::Menu {
     menu
 }
 
+fn image_menu() -> gio::Menu {
+    let local = gio::Menu::new();
+    local.append(Some(&tr("Bild …")), Some("win.insert-image"));
+    local.append(Some(&tr("Video/Audio …")), Some("win.insert-media"));
+    local.append(Some(&tr("Galerie")), Some("fmt.insert-block::gallery"));
+    let library = gio::Menu::new();
+    library.append(Some(&tr("Aus WordPress-Mediathek …")), Some("win.media-library"));
+    library.append(Some(&tr("Galerie aus Mediathek …")), Some("win.insert-gallery"));
+    let edit = gio::Menu::new();
+    edit.append(Some(&tr("Alle Bilder bearbeiten…")), Some("win.edit-all-images"));
+    let menu = gio::Menu::new();
+    menu.append_section(None, &local);
+    menu.append_section(None, &library);
+    menu.append_section(None, &edit);
+    menu
+}
+
 fn insert_menu() -> gio::Menu {
     let media = gio::Menu::new();
-    media.append(Some(&tr("Video/Audio …")), Some("win.insert-media"));
-    media.append(Some(&tr("Aus WordPress-Mediathek …")), Some("win.insert-media-library"));
-    media.append(Some(&tr("Galerie aus Mediathek …")), Some("win.insert-gallery"));
     media.append(Some(&tr("Bestehenden Artikel verlinken …")), Some("win.insert-post-link"));
     let elements = gio::Menu::new();
     elements.append(Some(&tr("Trenner")), Some("fmt.insert-separator"));
@@ -131,7 +153,8 @@ fn insert_menu() -> gio::Menu {
     elements.append(Some(&tr("Fußnote")), Some("fmt.insert-footnote"));
     let containers = gio::Menu::new();
     let dynamic = gio::Menu::new();
-    for (id, label, snippet) in BLOCK_SNIPPETS {
+    // The gallery sits in the image button's menu (`image_menu`).
+    for (id, label, snippet) in BLOCK_SNIPPETS.iter().filter(|(id, _, _)| *id != "gallery") {
         let target = if snippet.starts_with("<!--") { &dynamic } else { &containers };
         target.append(Some(&tr(label)), Some(&format!("fmt.insert-block::{id}")));
     }

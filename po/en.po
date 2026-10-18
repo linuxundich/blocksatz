@@ -1407,6 +1407,12 @@ msgstr "From WordPress media library …"
 msgid "Galerie aus Mediathek …"
 msgstr "Gallery from media library …"
 
+msgid "Bild …"
+msgstr "Image …"
+
+msgid "Weitere Medien"
+msgstr "More media"
+
 #: src/formatting.rs:126
 msgid "Bestehenden Artikel verlinken …"
 msgstr "Link existing article …"

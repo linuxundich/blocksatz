@@ -112,10 +112,12 @@ blocks. Implemented so far:
   italic Ctrl+I, strikethrough Ctrl+Shift+X, code Ctrl+E, link Ctrl+K),
   line/block (heading menu with Ctrl+2/3/4/0, list, numbered list, quote -
   applied to every selected line and toggled back off - code block,
-  table) and insert ("Bild einfügen" opening a native image file picker
-  instead of typing a filename by hand, plus an "Einfügen" menu with
-  video/audio, media library, separator, "Weiterlesen" marker, containers
-  and dynamic blocks); "Bestehenden Artikel verlinken"
+  table) and insert ("Bild einfügen", a split button: a click opens a
+  native image file picker instead of typing a filename by hand, its arrow
+  holds everything else for media - video/audio, an empty gallery fence for
+  local images, the media library, a gallery from the media library and
+  "Alle Bilder bearbeiten…"; plus an "Einfügen" menu with separator,
+  "Weiterlesen" marker, footnote, containers and dynamic blocks); "Bestehenden Artikel verlinken"
   opening a searchable picker over the site's existing posts and inserting
   a real Markdown link to the one picked; pasting an image straight from the
   clipboard with Ctrl+V - a screenshot, or "Copy Image" from a browser -
@@ -338,15 +340,15 @@ blocks. Implemented so far:
   the menu of the sidebar's new-article button), and upload/preview/
   conflict checks all targeting `/wp/v2/pages`. The "Kategorien & Tags" group is
   hidden for pages, which have neither taxonomy.
-- **WordPress-Mediathek** (Ctrl+Shift+L, primary menu) — browse and manage
+- **WordPress-Mediathek** (Ctrl+Shift+L, image button menu) — browse and manage
   the whole media library without opening wp-admin: a thumbnail grid
   (WordPress's own generated thumbnails, type icons for documents/audio/
   video), a type filter (Alle Medien/Bilder/Dokumente/Audio/Video),
   server-side search, 48 items per page behind "Mehr laden", and a details
   pane with file name, MIME type, dimensions, size, upload date, alt text
   and URL - plus "URL kopieren", "Im Browser öffnen", "In Artikel
-  einfügen" (images, videos and audio) and "Endgültig löschen". The
-  insert menu's "Aus WordPress-Mediathek …" opens the same browser.
+  einfügen" (images, videos and audio) and "Endgültig löschen". It is
+  "Aus WordPress-Mediathek …" in the image button's menu.
 - **KI-Artikel schreiben** (Ctrl+Shift+G, menu of the sidebar's new-article button) — drafts a whole
   article from a topic/brief with the active KI-Chat provider, at a chosen
   length, optionally imitating your own writing style: your 1-5 most
@@ -413,8 +415,8 @@ blocks. Implemented so far:
   width or height (with an optional "Seitenverhältnis beibehalten" toggle
   for a free, non-proportional resize) - writes a new sibling file and
   updates the article's own image reference to it, leaving the original
-  untouched. "Alle Bilder bearbeiten…" (same context menu, or the main
-  menu) applies one such edit to every local image of the article at
+  untouched. "Alle Bilder bearbeiten…" (same context menu, or the image
+  button's menu) applies one such edit to every local image of the article at
   once - one format for all or each keeps its own, and by default images
   already smaller than the target size are left at their size; a single
   Ctrl+Z switches all references back.
@@ -502,10 +504,8 @@ blocks. Implemented so far:
   them off. Only what's *sent*
   is ever affected, never the local file. Posts are only ever moved to
   WordPress's (recoverable) trash, never deleted permanently.
-- **Primary menu** (in the sidebar's header bar) — "WordPress-Mediathek",
-  "Galerie einfügen…" (also in the toolbar's insert menu as "Galerie aus
-  Mediathek …"; for local images the insert menu's "Galerie" puts in an
-  empty ` ```gallery ` fence), "Einstellungen", "Tastenkürzel" (an
+- **Primary menu** (in the sidebar's header bar) — the color scheme,
+  "Einstellungen", "Tastenkürzel" (an
   `AdwShortcutsDialog`, also reachable via Ctrl+?), and "Über Blocksatz", the latter a native `Adw.AboutDialog`
   with the version (always in sync with `Cargo.toml`), GPL-3.0-or-later
   license text, issue tracker/repository links, and the full

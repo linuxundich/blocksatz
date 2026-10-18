@@ -427,11 +427,6 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     theme_item.set_attribute_value("custom", Some(&"theme".to_variant()));
     theme_section.append_item(&theme_item);
     primary_menu.append_section(None, &theme_section);
-    let insert_section = gio::Menu::new();
-    insert_section.append(Some(&tr("WordPress-Mediathek")), Some("win.media-library"));
-    insert_section.append(Some(&tr("Galerie einfügen…")), Some("win.insert-gallery"));
-    insert_section.append(Some(&tr("Alle Bilder bearbeiten…")), Some("win.edit-all-images"));
-    primary_menu.append_section(None, &insert_section);
     let app_section = gio::Menu::new();
     app_section.append(Some(&tr("Einstellungen")), Some("win.settings"));
     app_section.append(Some(&tr("Tastenkürzel")), Some("win.shortcuts"));
@@ -901,7 +896,6 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_media_action(&window, &buffer, &current_path, &frontmatter, &preview_pane);
     wire_insert_image_action(&window, &buffer, &current_path);
     wire_insert_media_action(&window, &buffer, &current_path);
-    wire_insert_media_library_action(&window, &buffer, &frontmatter);
     wire_media_library_browser_action(&window, &buffer, &frontmatter);
     wire_insert_gallery_action(&window, &buffer, &frontmatter);
     wire_insert_post_link_action(&window, &buffer);
@@ -1861,26 +1855,6 @@ fn wire_insert_media_action(window: &adw::ApplicationWindow, buffer: &sourceview
     window.add_action(&action);
 }
 
-/// "Aus WordPress-Mediathek …": the full media browser (`mediabrowser.rs`),
-/// whose "In Artikel einfügen" takes images, videos and audio alike (see
-/// `insert_wordpress_media`).
-fn wire_insert_media_library_action(window: &adw::ApplicationWindow, buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>) {
-    let action = gio::SimpleAction::new("insert-media-library", None);
-    let buffer = buffer.clone();
-    let frontmatter = frontmatter.clone();
-    let window_weak = window.downgrade();
-    action.connect_activate(move |_, _| {
-        let Some(window) = window_weak.upgrade() else {
-            return;
-        };
-        let buffer = buffer.clone();
-        let frontmatter = frontmatter.clone();
-        let on_insert: Rc<dyn Fn(crate::wpclient::WpMediaEntry)> = Rc::new(move |entry| insert_wordpress_media(&buffer, &frontmatter, &entry));
-        mediabrowser::open(&window, Some(on_insert));
-    });
-    window.add_action(&action);
-}
-
 /// Inserts a media library item: an image as `insert_wordpress_image`
 /// does, a video or audio file as `![](url)` - the engine makes a video or
 /// audio block of it by its file extension.
@@ -1894,7 +1868,7 @@ fn insert_wordpress_media(buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell
 
 /// Inserts an image that already lives in the WordPress media library -
 /// shared by "Aus Mediathek wählen…" and the "WordPress-Mediathek"
-/// browser's "In Artikel einfügen" (see `wire_insert_media_library_action`
+/// browser's "In Artikel einfügen" (see `wire_media_library_browser_action`
 /// for why the `MediaItem` gets patched right away).
 fn insert_wordpress_image(buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>, media_id: u64, sizes: &[crate::wpclient::ImageSize], source_url: &str, alt_text: &str) {
     // The "large" size, like WordPress's block editor (`for_article`).
@@ -1948,7 +1922,9 @@ fn wire_ai_writer_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
     window.add_action(&action);
 }
 
-/// Opens the full "WordPress-Mediathek" browser (`mediabrowser.rs`).
+/// "Aus WordPress-Mediathek …" (image button menu, Ctrl+Shift+L): the full
+/// media browser (`mediabrowser.rs`), whose "In Artikel einfügen" takes
+/// images, videos and audio alike (see `insert_wordpress_media`).
 fn wire_media_library_browser_action(window: &adw::ApplicationWindow, buffer: &sourceview5::Buffer, frontmatter: &Rc<RefCell<Frontmatter>>) {
     let action = gio::SimpleAction::new("media-library", None);
     let buffer = buffer.clone();

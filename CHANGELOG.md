@@ -7,14 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- **Galleries in the insert menu**: the toolbar's **+** menu now offers
-  "Galerie" under "Container" (an empty ` ```gallery ` fence with one sample
-  image line, for local screenshots) and "Galerie aus Mediathek …" next to
-  the other media entries (the same dialog as "Galerie einfügen…" in the
-  primary menu). Before, galleries were only reachable from the primary menu,
-  and only for images already in the WordPress media library.
+- **All media under the image button**: the toolbar's image button is now a
+  split button. A click still picks a local image; its arrow lists
+  "Video/Audio …", "Galerie" (an empty ` ```gallery ` fence with one sample
+  line, for local screenshots), "Aus WordPress-Mediathek …" (Ctrl+Shift+L),
+  "Galerie aus Mediathek …" and "Alle Bilder bearbeiten…". These entries
+  are gone from the primary menu and the **+** menu. Before, a gallery
+  could only be inserted from the primary menu, and only with images
+  already in the WordPress media library.
 
 ## [0.75.0] - 2026-10-18
 

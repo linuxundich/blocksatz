@@ -768,6 +768,7 @@ fn style_css(style: PreviewStyle, dark: bool) -> &'static str {
              pre { background: #f2f2f2; padding: .75rem; border-radius: 6px; overflow-x: auto; }
              code { background: #f2f2f2; padding: .1rem .3rem; border-radius: 4px; }
              pre code { background: none; padding: 0; }
+             .code-file { font: 600 .8em monospace; opacity: .75; margin: 1em 0 -.6em; }
              blockquote { border-left: 4px solid #ccc; margin-left: 0; padding-left: 1rem; color: #555; }
              a { color: #1c71d8; }
              hr { border: none; border-top: 1px solid #ccc; }"
@@ -777,6 +778,7 @@ fn style_css(style: PreviewStyle, dark: bool) -> &'static str {
              pre { background: #2d2d2d; padding: .75rem; border-radius: 6px; overflow-x: auto; }
              code { background: #2d2d2d; padding: .1rem .3rem; border-radius: 4px; }
              pre code { background: none; padding: 0; }
+             .code-file { font: 600 .8em monospace; opacity: .75; margin: 1em 0 -.6em; }
              blockquote { border-left: 4px solid #555; margin-left: 0; padding-left: 1rem; color: #aaa; }
              a { color: #78aeed; }
              hr { border: none; border-top: 1px solid #444; }"
@@ -2137,16 +2139,18 @@ fn render_code_block_with_line_anchors(events: &[(Event, std::ops::Range<usize>)
         }
     }
 
-    let lang_class = match kind {
-        CodeBlockKind::Fenced(info) => info
-            .split_whitespace()
-            .next()
-            .filter(|lang| !lang.is_empty())
-            .map(|lang| format!(" class=\"language-{}\"", glib::markup_escape_text(lang))),
-        CodeBlockKind::Indented => None,
+    // Language and file as the blog reads them (```ini /etc/hosts); the file
+    // is shown above the listing like the blog's listing header.
+    let (lang, file) = match kind {
+        CodeBlockKind::Fenced(info) => gutenberg::split_code_info(info),
+        CodeBlockKind::Indented => (None, None),
     };
+    let lang_class = lang.map(|lang| format!(" class=\"language-{}\"", glib::markup_escape_text(&lang)));
 
-    let mut html = format!("<pre><code{}>", lang_class.unwrap_or_default());
+    let mut html = file
+        .map(|f| format!("<div class=\"code-file\">{}</div>", glib::markup_escape_text(&f)))
+        .unwrap_or_default();
+    html.push_str(&format!("<pre><code{}>", lang_class.unwrap_or_default()));
     // pulldown-cmark's code content always ends with a trailing newline;
     // drop the empty element `split('\n')` would otherwise produce for it.
     for (index, line_text) in code.strip_suffix('\n').unwrap_or(&code).split('\n').enumerate() {

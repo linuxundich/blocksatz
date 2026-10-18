@@ -203,7 +203,13 @@ blocks. Implemented so far:
   re-parsed as ordinary Markdown, `wp:details` in modern WordPress),
   ` ```preformatted ` and ` ```verse ` (lines and spacing kept) - all
   with full round-trip support back to the same Markdown when re-opening
-  an existing post. Design Markdown has no syntax for goes into an
+  an existing post. Ordinary code blocks carry their **language and file**
+  for the blog's syntax highlighting and listing header: ` ```ini ` (language),
+  ` ```ini /etc/pacman.conf ` (language and file), ` ```/etc/hosts ` or
+  ` ```.bashrc ` (file only - the blog derives the language from it) and
+  ` ```yaml title="~/my app/compose.yml" ` for paths with spaces. They are
+  stored as the code block's `luiLang`/`luiFile` attributes and come back
+  the same way when an article is opened from WordPress. Design Markdown has no syntax for goes into an
   **attribute line** in curly braces below the block (Pandoc/kramdown
   style), using the blog theme's preset slugs: `{bg=accent color=base}`,
   `{gradient=accent-fade}`, `{size=large align=center}`,

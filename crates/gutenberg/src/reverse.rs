@@ -229,8 +229,24 @@ fn make_block(name: &str, attrs: Option<&str>, inner: &str, raw: &str, styled_ok
         },
         "code" => {
             let code = strip_wrapper_tag(&strip_wrapper_tag(inner, "pre"), "code");
+            // Theme attributes (see `split_code_info`) back into the fence info string.
+            let take = |json: &mut serde_json::Map<String, serde_json::Value>, key: &str| {
+                json.remove(key).and_then(|v| v.as_str().map(str::to_string)).filter(|s| !s.is_empty())
+            };
+            let lang = take(&mut json, "luiLang");
+            let file = take(&mut json, "luiFile");
+            let file = file.map(|f| if f.contains(char::is_whitespace) { format!("title=\"{f}\"") } else { f });
+            let info = match (lang, file) {
+                (Some(l), Some(f)) => Some(format!("{l} {f}")),
+                (Some(l), None) => Some(l),
+                // A file on its own: written as `text <file>` when the file
+                // alone would not be read back as one.
+                (None, Some(f)) if f.contains('/') || f.starts_with('.') || f.starts_with('~') || f.contains('.') => Some(f),
+                (None, Some(f)) => Some(format!("text {f}")),
+                (None, None) => None,
+            };
             Block::CodeBlock {
-                lang: None,
+                lang: info,
                 text: unescape_entities(code.trim()),
             }
         }
@@ -1448,6 +1464,16 @@ mod tests {
 
     fn round_trip(markdown: &str) -> String {
         gutenberg_to_markdown(&markdown_to_gutenberg(markdown))
+    }
+
+    #[test]
+    fn code_fence_language_and_file_round_trip() {
+        for md in ["```ini /etc/pacman.conf\n[options]\n```", "```bash\nls -l\n```", "```/etc/hosts\n127.0.0.1 localhost\n```", "```yaml title=\"~/my app/compose.yml\"\nservices: {}\n```", "```\nplain\n```"] {
+            assert_eq!(round_trip(md), md);
+        }
+        // Edited in WordPress: the attributes come back as the fence info string.
+        let wp = "<!-- wp:code {\"luiLang\":\"conf\",\"luiFile\":\"/etc/fstab\"} -->\n<pre class=\"wp-block-code\"><code>UUID=x / ext4 defaults 0 1</code></pre>\n<!-- /wp:code -->";
+        assert_eq!(gutenberg_to_markdown(wp), "```conf /etc/fstab\nUUID=x / ext4 defaults 0 1\n```");
     }
 
     #[test]

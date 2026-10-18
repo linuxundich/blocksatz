@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Code block language and file**: the fence info string now carries the
+  language and an optional file for the blog's syntax highlighting and
+  listing header - ` ```ini /etc/pacman.conf `, ` ```/etc/hosts ` (file only),
+  ` ```yaml title="~/my app/compose.yml" `. Exported as the `core/code`
+  attributes `luiLang` and `luiFile` and read back the same way when an
+  article is opened from WordPress. The preview shows the file above the
+  listing. Previously the language of a fenced code block was dropped on
+  export.
+
 ## [0.74.1] - 2026-10-16
 
 No changes to the app itself.

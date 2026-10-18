@@ -1105,6 +1105,63 @@ fn render_embed(url: &str, caption: Option<&str>) -> String {
     )
 }
 
+/// Splits a fence info string into language and file, the way the
+/// linuxundich theme reads them (block attributes `luiLang` and `luiFile`):
+///
+/// - ```` ```ini ```` - language only
+/// - ```` ```ini /etc/hosts ```` - language and file
+/// - ```` ```ini title="/etc/my file.conf" ```` (also `file=`) - quoted file
+/// - ```` ```/etc/hosts ```` or ```` ```.bashrc ```` - file only; the theme
+///   derives the language from it
+///
+/// A first word counts as a file when it contains `/`, starts with `.` or
+/// `~`, or has a dot in it (`docker-compose.yml`).
+pub fn split_code_info(info: &str) -> (Option<String>, Option<String>) {
+    let info = info.trim();
+    if info.is_empty() {
+        return (None, None);
+    }
+    let mut file = None;
+    let mut rest = info.to_string();
+    for key in ["title=", "file="] {
+        if let Some(at) = rest.find(key) {
+            let after = &rest[at + key.len()..];
+            let (value, len) = if let Some(q) = after.strip_prefix('"') {
+                let end = q.find('"').unwrap_or(q.len());
+                (q[..end].to_string(), end + 2)
+            } else {
+                let end = after.find(char::is_whitespace).unwrap_or(after.len());
+                (after[..end].to_string(), end)
+            };
+            file = Some(value);
+            rest = format!("{}{}", &rest[..at], &rest[(at + key.len() + len).min(rest.len())..]);
+            break;
+        }
+    }
+    let mut words = rest.split_whitespace();
+    let first = words.next().map(str::to_string);
+    let is_file = |w: &str| w.contains('/') || w.starts_with('.') || w.starts_with('~') || w.contains('.');
+    let (lang, file) = match first {
+        Some(w) if file.is_none() && is_file(&w) => (None, Some(w)),
+        Some(w) => (Some(w), file.or_else(|| words.next().map(str::to_string))),
+        None => (None, file),
+    };
+    (lang.filter(|l| !l.is_empty()), file.filter(|f| !f.is_empty()))
+}
+
+/// Block-comment attributes of a `core/code` block for a fence info string.
+fn code_attrs(info: &str) -> Option<String> {
+    let (lang, file) = split_code_info(info);
+    let mut map = serde_json::Map::new();
+    if let Some(lang) = lang {
+        map.insert("luiLang".into(), serde_json::Value::String(lang));
+    }
+    if let Some(file) = file {
+        map.insert("luiFile".into(), serde_json::Value::String(file));
+    }
+    (!map.is_empty()).then(|| serde_json::Value::Object(map).to_string())
+}
+
 fn wrap(name: &str, attrs: Option<String>, content: &str) -> String {
     let attrs_str = attrs.map(|a| format!(" {a}")).unwrap_or_default();
     format!("<!-- wp:{name}{attrs_str} -->\n{content}\n<!-- /wp:{name} -->")
@@ -1341,9 +1398,9 @@ pub fn render_block(block: &Block) -> String {
         }
         // GitHub's ```math: a formula, WordPress's `core/math`.
         Block::CodeBlock { lang: Some(lang), text } if lang == "math" => special::render_math(text),
-        Block::CodeBlock { lang: _, text } => wrap(
+        Block::CodeBlock { lang, text } => wrap(
             "code",
-            None,
+            code_attrs(lang.as_deref().unwrap_or("")),
             &format!(
                 "<pre class=\"wp-block-code\"><code>{}</code></pre>",
                 escape_html(text.trim_end_matches('\n'))
@@ -1499,11 +1556,33 @@ mod tests {
 
     #[test]
     fn fenced_code_block_becomes_wp_code() {
-        let out = markdown_to_gutenberg("```rust\nlet x = 1;\n```");
+        let out = markdown_to_gutenberg("```\nlet x = 1;\n```");
         assert_eq!(
             out,
             "<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>let x = 1;</code></pre>\n<!-- /wp:code -->"
         );
+    }
+
+    #[test]
+    fn fence_language_and_file_become_code_attributes() {
+        let out = markdown_to_gutenberg("```ini /etc/pacman.conf\n[options]\n```");
+        assert_eq!(
+            out,
+            "<!-- wp:code {\"luiFile\":\"/etc/pacman.conf\",\"luiLang\":\"ini\"} -->\n<pre class=\"wp-block-code\"><code>[options]</code></pre>\n<!-- /wp:code -->"
+        );
+        assert!(markdown_to_gutenberg("```bash\nls\n```").starts_with("<!-- wp:code {\"luiLang\":\"bash\"} -->"));
+    }
+
+    #[test]
+    fn split_code_info_variants() {
+        assert_eq!(split_code_info("ini"), (Some("ini".into()), None));
+        assert_eq!(split_code_info("ini /etc/hosts"), (Some("ini".into()), Some("/etc/hosts".into())));
+        assert_eq!(split_code_info("/etc/hosts"), (None, Some("/etc/hosts".into())));
+        assert_eq!(split_code_info(".bashrc"), (None, Some(".bashrc".into())));
+        assert_eq!(split_code_info("docker-compose.yml"), (None, Some("docker-compose.yml".into())));
+        assert_eq!(split_code_info("yaml title=\"~/my app/compose.yml\""), (Some("yaml".into()), Some("~/my app/compose.yml".into())));
+        assert_eq!(split_code_info("conf file=/etc/fstab"), (Some("conf".into()), Some("/etc/fstab".into())));
+        assert_eq!(split_code_info(""), (None, None));
     }
 
     #[test]

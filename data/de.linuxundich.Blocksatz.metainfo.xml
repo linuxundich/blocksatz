@@ -39,6 +39,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.75.0" date="2026-10-18">
+      <description>
+        <p>Neu: Codeblöcke tragen Sprache und Datei für die Syntaxhervorhebung im Blog, etwa ```ini /etc/pacman.conf oder ```/etc/hosts. Beides kommt beim Öffnen aus WordPress zurück, die Vorschau zeigt die Datei über dem Listing.</p>
+      </description>
+    </release>
     <release version="0.74.1" date="2026-10-16">
       <description>
         <p>Keine Änderungen an der App selbst, nur an der Dokumentation.</p>

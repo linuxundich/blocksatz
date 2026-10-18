@@ -287,6 +287,17 @@ impl Masked {
 }
 
 /// Replaces everything the model must not change with placeholders.
+/// Fences whose content is Markdown text to translate (`crates/gutenberg`'s
+/// block fences), not code.
+const PROSE_FENCES: &[&str] = &["verse", "preformatted", "gallery", "columns", "buttons", "details", "pullquote"];
+
+/// A `+++` separator or a settings line (`columns=3 crop=false`) inside a
+/// block fence.
+fn is_fence_setting(line: &str) -> bool {
+    let line = line.trim();
+    line == "+++" || (!line.is_empty() && line.split_whitespace().all(|token| token.split_once('=').is_some_and(|(key, value)| !key.is_empty() && !value.is_empty() && key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'))))
+}
+
 pub fn mask(text: &str) -> Masked {
     let mut out = Masked { text: String::new(), originals: Vec::new() };
     let mut lines = text.split_inclusive('\n').peekable();
@@ -295,9 +306,10 @@ pub fn mask(text: &str) -> Masked {
         let newline = &line[bare.len()..];
 
         if let Some(marker) = fence_marker(bare) {
-            let verse = bare.trim_start().trim_start_matches(marker.as_str()).trim() == "verse";
-            if verse {
-                // Verse is prose: only the fence lines are protected.
+            let info = bare.trim_start().trim_start_matches(marker.as_str()).trim();
+            if PROSE_FENCES.contains(&info) {
+                // Verse and the block fences hold text, not code: only the
+                // fence lines, `+++` and a settings line are protected.
                 out.push("CODE", bare);
                 out.text.push_str(newline);
                 for inner in lines.by_ref() {
@@ -307,7 +319,11 @@ pub fn mask(text: &str) -> Masked {
                         out.text.push_str(&inner[inner_bare.len()..]);
                         break;
                     }
-                    mask_inline(inner_bare, &mut out);
+                    if is_fence_setting(inner_bare) {
+                        out.push("MARK", inner_bare);
+                    } else {
+                        mask_inline(inner_bare, &mut out);
+                    }
                     out.text.push_str(&inner[inner_bare.len()..]);
                 }
                 continue;
@@ -599,6 +615,54 @@ fn protected_parts(text: &str) -> Vec<String> {
     parts
 }
 
+/// A piece of a section for the side-by-side review: translatable text,
+/// or a protected part (code, link, markup ...) - `matched` when the other
+/// version's section has the same one.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Piece {
+    Text(String),
+    Part { text: String, matched: bool },
+}
+
+/// `section` cut into pieces, its protected parts matched against those of
+/// `other` (the same section in the other language), each one used once.
+pub fn compare_pieces(section: &str, other: &str) -> Vec<Piece> {
+    let mut available = protected_parts(other);
+    let masked = mask(section);
+    let mut pieces = Vec::new();
+    let mut rest = masked.text.as_str();
+    let push_text = |pieces: &mut Vec<Piece>, text: &str| {
+        if text.is_empty() {
+            return;
+        }
+        match pieces.last_mut() {
+            Some(Piece::Text(last)) => last.push_str(text),
+            _ => pieces.push(Piece::Text(text.to_string())),
+        }
+    };
+    while let Some(start) = rest.find('⟦') {
+        let after = &rest[start + '⟦'.len_utf8()..];
+        let index = after.find('⟧').and_then(|end| {
+            let (kind, n) = after[..end].rsplit_once('-')?;
+            let n: usize = n.parse().ok()?;
+            let (part_kind, original) = masked.originals.get(n.checked_sub(1)?)?;
+            (*part_kind == kind).then(|| (end, part_kind, original))
+        });
+        let Some((end, kind, original)) = index else {
+            push_text(&mut pieces, &rest[..start + '⟦'.len_utf8()]);
+            rest = after;
+            continue;
+        };
+        push_text(&mut pieces, &rest[..start]);
+        let key = format!("{kind}\u{1f}{original}");
+        let matched = available.iter().position(|p| *p == key).map(|i| available.remove(i)).is_some();
+        pieces.push(Piece::Part { text: original.clone(), matched });
+        rest = &after[end + '⟧'.len_utf8()..];
+    }
+    push_text(&mut pieces, rest);
+    pieces
+}
+
 fn heading_count(text: &str) -> usize {
     let mut fence: Option<String> = None;
     let mut n = 0;
@@ -811,6 +875,14 @@ pub fn body_with_uploaded_images(doc: &Document) -> String {
         }
     }
     body
+}
+
+/// A translation's body as compared with its original's
+/// (`body_with_uploaded_images`): a local file the original has uploaded is
+/// the same image - the translation links that upload instead of its own -
+/// so both sides name it by its URL.
+pub fn translation_body_for_check(translation: &Document, original: &Document) -> String {
+    body_with_uploaded_images(&Document { frontmatter: original.frontmatter.clone(), body: translation.body.clone() })
 }
 
 /// Local files the translated body still references (images not uploaded
@@ -1338,6 +1410,48 @@ mod tests {
         let (back, problems) = unmask(&m.text, &m.originals);
         assert_eq!(back, text);
         assert!(problems.is_empty());
+    }
+
+    #[test]
+    fn block_fences_are_translated_but_keep_their_settings() {
+        let de = "```gallery\ncolumns=3 crop=false\n+++\n![Die Bildunterschrift](a.webp \"Der Alt-Text\")\n```\n";
+        let en = de.replace("Die Bildunterschrift", "The caption").replace("Der Alt-Text", "The alt text");
+        let m = mask(de);
+        assert!(m.text.contains("Die Bildunterschrift") && m.text.contains("Der Alt-Text"), "caption and alt text are translatable");
+        assert!(!m.text.contains("columns=3") && !m.text.contains("+++") && !m.text.contains("a.webp"));
+        assert_eq!(unmask(&m.text, &m.originals).0, de);
+        assert!(check(de, &en, "de").is_empty(), "a translated gallery matches its original");
+        assert!(!check(de, &en.replace("a.webp", "b.webp"), "de").is_empty(), "another image does not");
+    }
+
+    #[test]
+    fn a_translation_names_the_originals_uploads_like_the_original() {
+        let mut original = Document { frontmatter: Default::default(), body: "![Bild](foto.webp \"Alt\")\n".into() };
+        original.frontmatter.media = vec![crate::media::MediaItem {
+            id: "m1".into(),
+            filename: "foto.webp".into(),
+            source: "foto.webp".into(),
+            alt: crate::media::AltText::Text("Alt".into()),
+            caption: None,
+            wordpress: Some(crate::media::WordPressMediaRef { media_id: 1, url: "https://example.org/foto.webp".into(), content_hash: String::new(), width: 0, height: 0, size_slug: None }),
+            last_markdown_caption: None,
+            last_markdown_alt: None,
+        }];
+        let translation = Document { frontmatter: Default::default(), body: "![Picture](foto.webp \"Alt EN\")\n".into() };
+        assert_eq!(translation_body_for_check(&translation, &original), "![Picture](https://example.org/foto.webp \"Alt EN\")\n");
+        assert!(check(&body_with_uploaded_images(&original), &translation_body_for_check(&translation, &original), "de").is_empty());
+    }
+
+    #[test]
+    fn compare_pieces_marks_what_the_other_section_lacks() {
+        let de = "Mit `ls -la` und [Link](https://a.example) sowie `ls -la` geht es.\n";
+        let en = "With `ls -la` and [link](https://b.example) it works.\n";
+        let pieces = compare_pieces(de, en);
+        let back: String = pieces.iter().map(|p| match p { Piece::Text(t) | Piece::Part { text: t, .. } => t.as_str() }).collect();
+        assert_eq!(back, de, "the pieces give back the section");
+        let parts: Vec<(&str, bool)> = pieces.iter().filter_map(|p| match p { Piece::Part { text, matched } => Some((text.as_str(), *matched)), _ => None }).collect();
+        assert_eq!(parts, vec![("`ls -la`", true), ("https://a.example", false), ("`ls -la`", false)], "each counterpart is used once");
+        assert!(compare_pieces("Nur Text ⟦ohne Platzhalter⟧.\n", "").iter().all(|p| matches!(p, Piece::Text(_))));
     }
 
     #[test]

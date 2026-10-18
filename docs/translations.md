@@ -278,6 +278,16 @@ in the release check before publishing:
 The release check also warns about changes of the original not carried
 over yet, and about a title or excerpt still the original's.
 
+"Prüfen …" shows original and translation side by side, section by
+section. Protected parts that the same section of the other column lacks
+(or has differently) are marked red, and the section caption counts them.
+Images the original has uploaded count as the same image in the
+translation when it names the local file, since the translation links that
+upload. The block fences (` ```gallery `, ` ```columns `, ` ```details `,
+` ```pullquote `, ` ```buttons `, ` ```preformatted `, ` ```verse `) are
+text to translate: only their fence lines, `+++` separators and settings
+lines are protected.
+
 ## Code
 
 - `src/translate.rs` - the pure part: sections, placeholders, copy and

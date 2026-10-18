@@ -1422,6 +1422,15 @@ msgstr "Publish both languages …"
 msgid "Die andere Sprache wurde nicht hochgeladen."
 msgstr "The other language was not uploaded."
 
+msgid "1 Abweichung"
+msgstr "1 difference"
+
+msgid "{n} Abweichungen"
+msgstr "{n} differences"
+
+msgid "Rot markiert: Code, Links und Auszeichnungen, die in der anderen Spalte fehlen oder anders lauten. Korrekturen machst du im Editor; dieser Dialog zeigt den gespeicherten Stand."
+msgstr "Marked red: code, links and markup that are missing or different in the other column. You make corrections in the editor; this dialog shows the saved state."
+
 #: src/formatting.rs:126
 msgid "Bestehenden Artikel verlinken …"
 msgstr "Link existing article …"

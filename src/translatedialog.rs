@@ -972,6 +972,31 @@ fn save(outcome: Outcome, existing: Option<PathBuf>, source_path: Option<&Path>,
 /// "Gegenlesen …" for the open translation: original and translation side
 /// by side, section by section, the checks on top, and the switch that
 /// marks it as reviewed.
+/// A section for the review's side-by-side view as Pango markup: protected
+/// parts the other column lacks on a red background (`translate::compare_pieces`).
+fn review_markup(pieces: &[translate::Piece]) -> String {
+    let mut markup = String::new();
+    for (index, piece) in pieces.iter().enumerate() {
+        let mut text = match piece {
+            translate::Piece::Text(text) | translate::Piece::Part { text, .. } => text.as_str(),
+        };
+        // The section's own leading and trailing blank lines.
+        if index == 0 {
+            text = text.trim_start();
+        }
+        if index + 1 == pieces.len() {
+            text = text.trim_end();
+        }
+        match piece {
+            translate::Piece::Part { matched: false, .. } if !text.is_empty() => {
+                markup.push_str(&format!("<span background=\"#e01b24\" bgalpha=\"35%\">{}</span>", glib::markup_escape_text(text)));
+            }
+            _ => markup.push_str(&glib::markup_escape_text(text)),
+        }
+    }
+    markup
+}
+
 pub fn open_review(window: &adw::ApplicationWindow, ctx: &DocContext) {
     open_review_with(window, ctx, Vec::new());
 }
@@ -990,8 +1015,9 @@ fn open_review_with(window: &adw::ApplicationWindow, ctx: &DocContext, extra_iss
     };
 
     let source_body = translate::body_with_uploaded_images(&original);
+    let translation_body = translate::translation_body_for_check(&translation, &original);
     let mut issues = extra_issues;
-    for issue in translate::check(&source_body, &translation.body, "de") {
+    for issue in translate::check(&source_body, &translation_body, "de") {
         if !issues.contains(&issue) {
             issues.push(issue);
         }
@@ -1028,10 +1054,11 @@ fn open_review_with(window: &adw::ApplicationWindow, ctx: &DocContext, extra_iss
     grid.attach(&heading(tr("Original")), 0, 0, 1, 1);
     grid.attach(&heading(tr("Übersetzung")), 1, 0, 1, 1);
     let left = translate::split_sections(&source_body);
-    let right = translate::split_sections(&translation.body);
-    let cell = |text: &str| {
+    let right = translate::split_sections(&translation_body);
+    let cell = |markup: &str| {
         let label = gtk4::Label::builder()
-            .label(text.trim())
+            .label(markup)
+            .use_markup(true)
             .xalign(0.0)
             .yalign(0.0)
             .wrap(true)
@@ -1050,18 +1077,26 @@ fn open_review_with(window: &adw::ApplicationWindow, ctx: &DocContext, extra_iss
     };
     for i in 0..left.len().max(right.len()) {
         let changed = left.get(i).is_some_and(|s| !link.source_sections.contains(&translate::section_hash(s)));
-        let caption = if changed {
+        let (left_text, right_text) = (left.get(i).map(String::as_str).unwrap_or(""), right.get(i).map(String::as_str).unwrap_or(""));
+        let (left_pieces, right_pieces) = (translate::compare_pieces(left_text, right_text), translate::compare_pieces(right_text, left_text));
+        let differing = left_pieces.iter().chain(&right_pieces).filter(|p| matches!(p, translate::Piece::Part { matched: false, .. })).count();
+        let mut caption = if changed {
             tr("Abschnitt {n} · Original geändert").replace("{n}", &(i + 1).to_string())
         } else {
             tr("Abschnitt {n}").replace("{n}", &(i + 1).to_string())
         };
+        match differing {
+            0 => {}
+            1 => caption.push_str(&format!(" · {}", tr("1 Abweichung"))),
+            n => caption.push_str(&format!(" · {}", tr("{n} Abweichungen").replace("{n}", &n.to_string()))),
+        }
         let section_label = gtk4::Label::builder().label(caption).xalign(0.0).margin_top(12).build();
         section_label.add_css_class("dim-label");
         section_label.add_css_class("caption");
         let row = (i as i32) * 2 + 1;
         grid.attach(&section_label, 0, row, 2, 1);
-        grid.attach(&cell(left.get(i).map(String::as_str).unwrap_or("")), 0, row + 1, 1, 1);
-        grid.attach(&cell(right.get(i).map(String::as_str).unwrap_or("")), 1, row + 1, 1, 1);
+        grid.attach(&cell(&review_markup(&left_pieces)), 0, row + 1, 1, 1);
+        grid.attach(&cell(&review_markup(&right_pieces)), 1, row + 1, 1, 1);
     }
 
     // Not a PreferencesPage: its clamp would squeeze the two columns into
@@ -1071,7 +1106,7 @@ fn open_review_with(window: &adw::ApplicationWindow, ctx: &DocContext, extra_iss
     content.append(&adw::Clamp::builder().maximum_size(900).child(&checks).build());
     let sections_title = gtk4::Label::builder().label(tr("Abschnitte")).xalign(0.0).margin_start(12).margin_top(12).build();
     sections_title.add_css_class("heading");
-    let sections_hint = gtk4::Label::builder().label(tr("Korrekturen machst du im Editor; dieser Dialog zeigt den gespeicherten Stand.")).xalign(0.0).wrap(true).margin_start(12).build();
+    let sections_hint = gtk4::Label::builder().label(tr("Rot markiert: Code, Links und Auszeichnungen, die in der anderen Spalte fehlen oder anders lauten. Korrekturen machst du im Editor; dieser Dialog zeigt den gespeicherten Stand.")).xalign(0.0).wrap(true).margin_start(12).build();
     sections_hint.add_css_class("dim-label");
     content.append(&sections_title);
     content.append(&sections_hint);

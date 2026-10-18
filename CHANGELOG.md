@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   scheduled) from one release check. The translation's own release check
   only appears when it finds a warning or an error.
 
+- **Differences marked in "Prüfen …"**: the side-by-side review marks code,
+  links and markup on a red background where the other column lacks them
+  or has them differently, and each section's caption counts them.
+
 ### Changed
 
 - **All media under the image button**: the toolbar's image button is now a
@@ -30,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Block fences are translated**: captions and alt texts in a
+  ` ```gallery `, and the text in ` ```columns `, ` ```details `,
+  ` ```pullquote `, ` ```buttons ` and ` ```preformatted `, counted as code -
+  the AI translation left them alone, and every translated gallery was
+  reported as differing from its original. Only the fence lines, `+++` and
+  settings lines stay protected now.
+- **Shared images no longer count as differences**: a translation that
+  names a local image the original has already uploaded was reported as
+  differing, since the original was compared with the upload's URL.
 - **A translation's preview shows the original's featured image**: a
   translation leaves its featured image to the blog, which takes the
   original's over on upload (lui-translations). The preview header now shows

@@ -139,7 +139,7 @@ pub fn checks(doc: &Document) -> Vec<Check> {
 pub fn translation_checks(doc: &Document, original: &Document) -> Vec<Check> {
     let Some(link) = &doc.frontmatter.translation else { return Vec::new() };
     let mut out = Vec::new();
-    let issues = crate::translate::check(&crate::translate::body_with_uploaded_images(original), &doc.body, "de");
+    let issues = crate::translate::check(&crate::translate::body_with_uploaded_images(original), &crate::translate::translation_body_for_check(doc, original), "de");
     out.push(match issues.len() {
         0 => check(tr("Abgleich mit dem Original"), tr("Code, Links, Auszeichnungen und Überschriften wie im Original"), Severity::Ok, Fix::Translation),
         1 => check(tr("Abgleich mit dem Original"), issues[0].message.clone(), Severity::Warning, Fix::Translation),

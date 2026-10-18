@@ -657,14 +657,19 @@ impl PreviewPane {
         self.rerender_preserving_scroll();
     }
 
-    /// A translation leaves its featured image to the blog, which takes
-    /// the original's over (lui-translations) - the header shows that one,
-    /// as the post will have it. Looked up here, not on every render, since
-    /// it reads the original from disk.
+    /// The header shows the featured image the post has on the blog: once
+    /// uploaded, `featured_image` is empty and only `wp_featured_source`
+    /// still names the file; a translation leaves its featured image to the
+    /// blog, which takes the original's over (lui-translations). Looked up
+    /// here, not on every render, since it reads the original from disk.
     fn with_original_featured_image(&self) {
         let mut frontmatter = self.given_frontmatter.borrow().clone();
         if frontmatter.featured_image.as_deref().is_none_or(str::is_empty) {
-            frontmatter.featured_image = crate::translatedialog::original_featured_image(&frontmatter, self.doc_dir.borrow().as_deref());
+            frontmatter.featured_image = frontmatter
+                .wp_featured_source
+                .clone()
+                .filter(|f| !f.is_empty())
+                .or_else(|| crate::translatedialog::original_featured_image(&frontmatter, self.doc_dir.borrow().as_deref()));
         }
         *self.last_frontmatter.borrow_mut() = frontmatter;
     }

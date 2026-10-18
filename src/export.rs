@@ -293,7 +293,7 @@ pub(crate) fn start_export(
     // there instead (only in what is sent; the file keeps its text).
     let body = crate::translate::localized_links(&body, &current_fm, &site);
 
-    let (tx, rx) = mpsc::channel::<Result<(wpclient::PostResult, Vec<media::MediaItem>, Option<String>, (Option<String>, Option<u64>)), String>>();
+    let (tx, rx) = mpsc::channel::<Result<(wpclient::PostResult, Vec<media::MediaItem>, Option<String>, (Option<String>, Option<u64>, Option<String>)), String>>();
     let running = UploadRunning::start();
     std::thread::spawn(move || {
         let _running = running;
@@ -301,7 +301,7 @@ pub(crate) fn start_export(
             .map_err(|err| err.to_string())
             .and_then(|maybe_password| maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden.")))
             .and_then(|password| run_export(&site, &password, &mut current_fm, target_status, &body, doc_dir.as_deref(), shared.as_ref()))
-            .map(|post| (post, current_fm.media, current_fm.wp_content_hash, (current_fm.featured_image, current_fm.featured_media_id)));
+            .map(|post| (post, current_fm.media, current_fm.wp_content_hash, (current_fm.featured_image, current_fm.featured_media_id, current_fm.wp_featured_source)));
         let _ = tx.send(outcome);
     });
 
@@ -310,13 +310,16 @@ pub(crate) fn start_export(
     let set_busy = set_busy.clone();
     let save_document = save_document.clone();
     glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
-        Ok(Ok((post, media, content_hash, (featured_image, featured_media_id)))) => {
+        Ok(Ok((post, media, content_hash, (featured_image, featured_media_id, featured_source)))) => {
             let (title, final_status) = {
                 let mut fm = frontmatter.borrow_mut();
                 fm.wp_post_id = Some(post.id);
                 fm.media = media;
                 fm.featured_image = featured_image;
                 fm.featured_media_id = featured_media_id;
+                // The file the featured image was uploaded from - without
+                // it the preview and a translation lose the image.
+                fm.wp_featured_source = featured_source;
                 apply_stored_status(&mut fm, &post, target_status);
                 fm.wp_content_hash = content_hash;
                 fm.wp_pending_create = None;

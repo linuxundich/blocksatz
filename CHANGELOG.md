@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   original's over on upload (lui-translations). The preview header now shows
   that image too instead of none, as long as the translation sets no
   featured image of its own.
+- **The featured image no longer vanishes from the preview after an
+  upload**: uploading it together with the post cleared `featured_image` as
+  intended, but lost the file it came from (`wp_featured_source`) on the way
+  back from the upload. The preview then showed no featured image, and a
+  translation no longer knew the original's. The preview header now also
+  shows an already uploaded featured image.
 
 ## [0.75.0] - 2026-10-18
 

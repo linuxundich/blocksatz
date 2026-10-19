@@ -999,6 +999,7 @@ object.wp-block-file__embed {{ display: none; }}
 .wp-block-gallery.has-nested-images figure.wp-block-image {{ margin: 0; flex-grow: 0; width: calc(33.33% - .67rem); box-sizing: border-box; display: flex; flex-direction: column; }}
 .wp-block-gallery.has-nested-images.columns-1 figure.wp-block-image {{ width: 100%; }}
 .wp-block-gallery.has-nested-images.columns-2 figure.wp-block-image {{ width: calc(50% - .5rem); }}
+.wp-block-gallery.has-nested-images.columns-3 figure.wp-block-image {{ width: calc(33.33% - .67rem); }}
 .wp-block-gallery.has-nested-images.columns-4 figure.wp-block-image {{ width: calc(25% - .75rem); }}
 .wp-block-gallery.has-nested-images.columns-5 figure.wp-block-image {{ width: calc(20% - .8rem); }}
 .wp-block-gallery.has-nested-images.columns-6 figure.wp-block-image {{ width: calc(16.66% - .84rem); }}
@@ -2201,7 +2202,16 @@ fn render_special_fenced_block(lang: &str, text: &str) -> Option<String> {
     let block = match lang {
         "columns" => gutenberg::parse_fenced_columns(text),
         "buttons" => gutenberg::parse_fenced_buttons(text),
-        "gallery" => gutenberg::parse_fenced_gallery(text),
+        "gallery" => match gutenberg::parse_fenced_gallery(text) {
+            // Without `columns=` WordPress lays the images out itself
+            // (`columns-default`); the preview has no such CSS, so it uses
+            // the same grid: up to three per row, the rest wrap at that width.
+            gutenberg::Block::Gallery { images, mut settings } => {
+                settings.columns = settings.columns.or(Some(images.len().clamp(1, 3) as u8));
+                gutenberg::Block::Gallery { images, settings }
+            }
+            other => other,
+        },
         "pullquote" => gutenberg::parse_fenced_pullquote(text),
         "details" => gutenberg::parse_fenced_details(text),
         "preformatted" | "verse" => gutenberg::parse_fenced_pre(lang, text),
@@ -2652,6 +2662,24 @@ mod tests {
         assert!(out.contains("class=\"wp-block-gallery"), "{out}");
         assert!(out.contains("src=\"one.jpg\""), "{out}");
         assert!(out.contains("src=\"two.jpg\""), "{out}");
+    }
+
+    #[test]
+    fn gallery_fence_fills_the_width_with_at_most_three_per_row() {
+        let gallery = |n: usize| {
+            let lines: String = (0..n).map(|i| format!("![Bild {i}](b{i}.webp)\n")).collect();
+            render_body_with_line_anchors(&format!("```gallery\n{lines}```\n"), &[])
+        };
+        assert!(gallery(1).contains("columns-1"), "{}", gallery(1));
+        assert!(gallery(2).contains("columns-2"), "{}", gallery(2));
+        assert!(gallery(3).contains("columns-3"), "{}", gallery(3));
+        // Further rows keep the first row's tile width.
+        assert!(gallery(4).contains("columns-3"), "{}", gallery(4));
+        assert!(gallery(5).contains("columns-3"), "{}", gallery(5));
+        assert!(!gallery(5).contains("columns-default"));
+        // An explicit setting wins.
+        let explicit = render_body_with_line_anchors("```gallery\ncolumns=2\n+++\n![A](a.webp)\n![B](b.webp)\n![C](c.webp)\n```\n", &[]);
+        assert!(explicit.contains("columns-2"), "{explicit}");
     }
 
     #[test]

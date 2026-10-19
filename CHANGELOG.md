@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Galleries fill the preview's width**: a ` ```gallery ` without
+  `columns=` showed every image as a third-width tile, so two images sat
+  small on the left with the rest of the row empty. The preview now lays
+  such a gallery out in up to three columns - one image at full width, two
+  at half, three or more at a third, with further rows keeping the first
+  row's tile size. An explicit `columns=` still wins; the markup sent to
+  WordPress is unchanged.
 - **Block fences are translated**: captions and alt texts in a
   ` ```gallery `, and the text in ` ```columns `, ` ```details `,
   ` ```pullquote `, ` ```buttons ` and ` ```preformatted `, counted as code -

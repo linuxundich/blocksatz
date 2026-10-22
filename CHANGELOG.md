@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **README as a product page**: the README now describes what Blocksatz
+  does, with screenshots, installation and a note on the use of AI. The
+  full feature list moved to [`docs/FEATURES.md`](docs/FEATURES.md), build,
+  test and packaging notes to [`docs/BUILDING.md`](docs/BUILDING.md).
+
 - **All media under the image button**: the toolbar's image button is now a
   split button. A click still picks a local image; its arrow lists
   "Video/Audio …", "Galerie" (an empty ` ```gallery ` fence with one sample

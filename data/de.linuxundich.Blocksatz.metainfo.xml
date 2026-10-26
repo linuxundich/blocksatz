@@ -39,6 +39,12 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.76.0" date="2026-10-26">
+      <description>
+        <p>Neu: Artikel und Übersetzung lassen sich gemeinsam hochladen oder veröffentlichen, und „Prüfen …“ markiert abweichenden Code, Links und Auszeichnungen. Alle Medien liegen jetzt unter dem Bildknopf.</p>
+        <p>Behoben: Hochgeladene Beiträge bekommen jetzt eine VG-Wort-Zählmarke, sobald der Text 1800 Zeichen erreicht. Dazu Korrekturen an Galerien und Beitragsbildern in der Vorschau und an übersetzten Blöcken.</p>
+      </description>
+    </release>
     <release version="0.75.0" date="2026-10-18">
       <description>
         <p>Neu: Codeblöcke tragen Sprache und Datei für die Syntaxhervorhebung im Blog, etwa ```ini /etc/pacman.conf oder ```/etc/hosts. Beides kommt beim Öffnen aus WordPress zurück, die Vorschau zeigt die Datei über dem Listing.</p>

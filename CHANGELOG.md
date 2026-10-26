@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.76.0] - 2026-10-26
+
 ### Added
 
 - **Upload or publish both languages together**: while an article and its
@@ -2823,7 +2825,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.75.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.76.0...HEAD
+[0.76.0]: https://github.com/linuxundich/blocksatz/compare/v0.75.0...v0.76.0
 [0.75.0]: https://github.com/linuxundich/blocksatz/compare/v0.74.1...v0.75.0
 [0.74.1]: https://github.com/linuxundich/blocksatz/compare/v0.74.0...v0.74.1
 [0.74.0]: https://github.com/linuxundich/blocksatz/compare/v0.73.0...v0.74.0

@@ -279,7 +279,8 @@ pub struct Frontmatter {
     /// use) - `false` (the default) means "tracked as normal", matching
     /// how a post behaves before this is ever touched. Sent unconditionally
     /// on every export as the "Worthy" WordPress plugin's own
-    /// `wp-worthy-pixel.ignored` REST field (see `export.rs`) - harmless on
+    /// `wp-worthy-pixel` REST field, which also asks for a marker once the
+    /// text is long enough (see `export.rs`) - harmless on
     /// a site without that plugin installed, since WordPress silently
     /// drops an unregistered field from the request body the same way it
     /// drops an unregistered `meta` key. See `stats.rs` for the length

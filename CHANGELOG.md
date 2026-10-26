@@ -39,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **VG Wort counting marker never assigned**: with "VG-Wort-Zählmarke"
+  switched on, Blocksatz only told Worthy the post was not excluded, but
+  never asked it to assign a marker - so no post uploaded from Blocksatz got
+  one, whether published directly or first uploaded as a draft. Uploads now
+  request a marker once the text reaches Worthy's 1,800 characters (counted
+  the way Worthy counts them); shorter texts stay without one, like in
+  Worthy's own editor panel. A post that already has a marker keeps it.
+
 - **Galleries fill the preview's width**: a ` ```gallery ` without
   `columns=` showed every image as a third-width tile, so two images sat
   small on the left with the rest of the row empty. The preview now lays

@@ -538,7 +538,8 @@ pub fn build(
     }
 
     // Sent unconditionally on export as the "Worthy" WordPress plugin's own
-    // `wp-worthy-pixel.ignored` REST field (see `export.rs`) - harmless on
+    // `wp-worthy-pixel` REST field, asking for a marker once the text is
+    // long enough (see `export.rs`) - harmless on
     // a site without that plugin. Active (the default) means "tracked as
     // normal"; see the Statistik tab for how close the article already is
     // to Worthy's own minimum length before a counting pixel is even

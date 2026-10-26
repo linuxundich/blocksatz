@@ -864,7 +864,7 @@ fn with_button_attrs(button: ButtonItem, attrs: &BlockAttrs) -> ButtonItem {
 }
 
 /// The text of some inline HTML, tags left out.
-pub(crate) fn plain_text(html: &str) -> String {
+pub fn plain_text(html: &str) -> String {
     unescape_entities(&strip_tags_text(html))
 }
 

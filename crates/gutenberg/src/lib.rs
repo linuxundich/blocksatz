@@ -19,7 +19,7 @@ pub use attrs::BlockAttrs;
 pub use containers::{images as container_images, Params as ContainerParams, IMAGE_KINDS as CONTAINER_IMAGE_KINDS};
 pub use editing::{attrs_edit, block_at, BlockAtCursor};
 pub use fidelity::{first_difference, same_structure};
-pub use reverse::{gutenberg_to_markdown, image_media_ids, render_gallery_fence};
+pub use reverse::{gutenberg_to_markdown, image_media_ids, plain_text, render_gallery_fence};
 pub use special::latex_to_mathml;
 
 #[derive(Debug, Clone, PartialEq)]

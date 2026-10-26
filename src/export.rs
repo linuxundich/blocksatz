@@ -568,7 +568,18 @@ fn run_export(
     // Silently dropped by WordPress if the "Worthy" plugin (or any plugin
     // registering this field) isn't installed on the target site, the same
     // way an unrecognized `meta` key is - see `Frontmatter::vgwort_ignored`.
-    payload["wp-worthy-pixel"] = serde_json::json!({ "ignored": frontmatter.vgwort_ignored });
+    // `ignored: false` alone only clears the flag - Worthy's REST handler
+    // assigns a marker only when `public` is set too (what its own
+    // Gutenberg panel sends), so without it no post exported from here
+    // ever got one. Worthy itself doesn't check the length when assigning,
+    // so this mirrors its Gutenberg panel's gate: below the minimum the
+    // marker would be wasted on a text VG Wort never pays for.
+    let assign_marker = !frontmatter.vgwort_ignored && worthy_length(&content) >= crate::stats::VGWORT_MIN_LENGTH;
+    payload["wp-worthy-pixel"] = if assign_marker {
+        serde_json::json!({ "ignored": false, "public": true })
+    } else {
+        serde_json::json!({ "ignored": frontmatter.vgwort_ignored })
+    };
     // Only sent when explicitly set (same "only when set" reasoning as
     // `author_id` above) - an unset comment status leaves the post's
     // existing one untouched rather than resetting it to WordPress's own
@@ -714,6 +725,13 @@ fn featured_alt_target(uploaded: Option<u64>, known: Option<u64>, reported: Opti
 /// is left alone.
 /// A `publish_date` chosen for a post that is (or goes) online is sent as
 /// its date instead of resetting it to now.
+/// A post's length the way Worthy counts it (`wp_worthy_post::getLength`):
+/// the rendered text without markup, line breaks and runs of whitespace
+/// collapsed to one space.
+fn worthy_length(content: &str) -> usize {
+    gutenberg::plain_text(content).split_whitespace().collect::<Vec<_>>().join(" ").chars().count()
+}
+
 fn set_date_for_status(payload: &mut serde_json::Value, target_status: Option<PostStatus>, scheduled_at: Option<&str>, publish_date: Option<&str>) {
     if let (Some(PostStatus::Publish | PostStatus::Private), Some(date)) = (target_status, publish_date) {
         payload["date"] = serde_json::Value::String(date.to_string());
@@ -1018,6 +1036,12 @@ pub(crate) fn mime_from_extension(filename: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn worthy_length_counts_text_without_markup_or_extra_whitespace() {
+        let content = "<!-- wp:paragraph -->\n<p>Ein <strong>kurzer</strong>   Text &amp; mehr</p>\n<!-- /wp:paragraph -->";
+        assert_eq!(worthy_length(content), "Ein kurzer Text & mehr".chars().count());
+    }
 
     fn post_result(status: Option<&str>, date: Option<&str>) -> wpclient::PostResult {
         wpclient::PostResult { id: 1, link: String::new(), modified_gmt: String::new(), status: status.map(str::to_string), date: date.map(str::to_string), featured_media: None, content_raw: None, notes: Vec::new() }

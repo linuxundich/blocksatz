@@ -23,6 +23,7 @@ pub fn open(parent: &impl IsA<gtk4::Widget>) {
             (tr("Entwürfe im Blog"), "<Ctrl><Shift>O"),
             (tr("Sofort speichern"), "<Ctrl>S"),
             (tr("Veröffentlichen (Freigabe-Prüfung)"), "<Ctrl><Shift>P"),
+            (tr("Beide Sprachen hochladen"), "<Ctrl><Alt>P"),
             (tr("KI-Artikel schreiben"), "<Ctrl><Shift>G"),
         ],
     ));

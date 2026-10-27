@@ -92,6 +92,7 @@ struct PairStep {
 #[derive(Debug, Clone)]
 enum PairNext {
     Draft,
+    Pending,
     Publish(Decision),
 }
 
@@ -263,8 +264,7 @@ impl MainAction {
         }
         if pending.is_none() && self.pair().is_some() {
             let pair_menu = gio::Menu::new();
-            pair_menu.append(Some(&tr("Beide Sprachen als Entwurf hochladen")), Some("main.upload-pair-draft"));
-            pair_menu.append(Some(&tr("Beide Sprachen veröffentlichen …")), Some("main.publish-pair"));
+            pair_menu.append(Some(&tr("Beide Sprachen hochladen …")), Some("main.upload-pair"));
             menu_model.append_section(None, &pair_menu);
         }
         if translation_menu.n_items() > 0 {
@@ -367,8 +367,11 @@ impl MainAction {
             });
             group.add_action(&action);
         };
-        add("upload-pair-draft", |this| this.start_pair(PairNext::Draft));
-        add("publish-pair", |this| this.start_pair(PairNext::Publish(Decision::Now)));
+        add("upload-pair", MainAction::ask_pair);
+        add("upload-pair-draft", |this| this.start_pair(PairNext::Draft, false));
+        add("submit-pair-review", |this| this.start_pair(PairNext::Pending, false));
+        add("publish-pair", |this| this.start_pair(PairNext::Publish(Decision::Now), false));
+        add("schedule-pair", |this| this.start_pair(PairNext::Publish(Decision::Now), true));
         add("upload-draft", |this| this.upload(TargetStatus::Set(PostStatus::Draft), false));
         add("submit-review", |this| this.upload(TargetStatus::Set(PostStatus::Pending), false));
         add("update", |this| this.upload(TargetStatus::PublishOrKeep, false));
@@ -547,7 +550,10 @@ impl MainAction {
             return None;
         }
         let doc = self.ctx.current_document();
-        let (other_path, other) = if doc.frontmatter.translation.is_some() {
+        // A language file written by hand without `translation_*` keys
+        // counts as the translation too (`translatedialog::implied_link`).
+        let is_translation = doc.frontmatter.translation.is_some() || library::file_lang(&path).is_some_and(|lang| lang.is_some());
+        let (other_path, other) = if is_translation {
             crate::translatedialog::find_original(&doc, Some(&path))?
         } else {
             crate::translatedialog::find_translation(&doc, Some(&path))?
@@ -555,13 +561,72 @@ impl MainAction {
         if !offline(&doc.frontmatter) || !offline(&other.frontmatter) {
             return None;
         }
-        Some(if doc.frontmatter.translation.is_some() { Pair { original: other_path, translation: path } } else { Pair { original: path, translation: other_path } })
+        Some(if is_translation { Pair { original: other_path, translation: path } } else { Pair { original: path, translation: other_path } })
+    }
+
+    /// "Beide Sprachen hochladen …" (Ctrl+Shift+U): which status both
+    /// versions go up with - draft, review, scheduled or published.
+    fn ask_pair(&self) {
+        let Some(window) = self.window.upgrade() else { return };
+        if self.busy.get() {
+            return;
+        }
+        let Some(pair) = self.pair() else {
+            window::show_toast(&self.ctx.toast_overlay, &self.no_pair_reason());
+            return;
+        };
+        let title = |path: &Path| document::read(path).ok().and_then(|doc| library::title_hint(&doc)).unwrap_or_else(|| tr("Unbenannt"));
+        let body = tr("Erst das Original, dann die Übersetzung - verknüpft und mit demselben Status.\n\n{original}\n{translation}")
+            .replace("{original}", &title(&pair.original))
+            .replace("{translation}", &title(&pair.translation));
+        let alert = adw::AlertDialog::builder().heading(tr("Beide Sprachen hochladen")).body(body).build();
+        alert.add_response("cancel", &tr("Abbrechen"));
+        alert.add_response("draft", &tr("Als Entwurf"));
+        alert.add_response("pending", &tr("Zur Prüfung"));
+        alert.add_response("schedule", &tr("Planen …"));
+        alert.add_response("publish", &tr("Veröffentlichen …"));
+        alert.set_response_appearance("publish", adw::ResponseAppearance::Suggested);
+        alert.set_prefer_wide_layout(true);
+        alert.set_default_response(Some("publish"));
+        alert.set_close_response("cancel");
+        let weak = self.weak.clone();
+        alert.connect_response(None, move |_, response| {
+            let Some(this) = weak.upgrade() else { return };
+            match response {
+                "draft" => this.start_pair(PairNext::Draft, false),
+                "pending" => this.start_pair(PairNext::Pending, false),
+                "schedule" => this.start_pair(PairNext::Publish(Decision::Now), true),
+                "publish" => this.start_pair(PairNext::Publish(Decision::Now), false),
+                _ => {}
+            }
+        });
+        alert.present(Some(&window));
+    }
+
+    /// Why "Beide Sprachen hochladen" has nothing to do for the open
+    /// article.
+    fn no_pair_reason(&self) -> String {
+        let path = self.ctx.current_path.borrow().clone();
+        if !path.as_deref().is_some_and(|p| library::contains(&library::root(), p)) {
+            return tr("Beide Sprachen gehen nur für Artikel aus der Bibliothek gemeinsam hoch.");
+        }
+        let doc = self.ctx.current_document();
+        let other = if path.as_deref().and_then(library::file_lang).is_some_and(|lang| lang.is_some()) {
+            crate::translatedialog::find_original(&doc, path.as_deref())
+        } else {
+            crate::translatedialog::find_translation(&doc, path.as_deref())
+        };
+        if other.is_none() {
+            return tr("Zu diesem Artikel gibt es keine zweite Sprachfassung.");
+        }
+        tr("Eine der beiden Fassungen ist schon veröffentlicht oder geplant - lade sie einzeln hoch.")
     }
 
     /// "Beide Sprachen …": the original first - the translation is linked
     /// to its post and takes its featured image over - then the
-    /// translation with the same status (`continue_pair`).
-    fn start_pair(&self, next: PairNext) {
+    /// translation with the same status (`continue_pair`). `scheduled`
+    /// opens the release check with the date field.
+    fn start_pair(&self, next: PairNext, scheduled: bool) {
         let Some(pair) = self.pair() else { return };
         if self.ctx.current_path.borrow().as_deref() != Some(pair.original.as_path()) {
             window::open_document_at_path(pair.original.clone(), &self.ctx);
@@ -572,11 +637,15 @@ impl MainAction {
                 *self.pair_step.borrow_mut() = Some(step);
                 self.upload(TargetStatus::Set(PostStatus::Draft), false);
             }
+            PairNext::Pending => {
+                *self.pair_step.borrow_mut() = Some(step);
+                self.upload(TargetStatus::Set(PostStatus::Pending), false);
+            }
             PairNext::Publish(_) => {
                 let Some(window) = self.window.upgrade() else { return };
                 worksave::flush(&self.ctx, false);
                 let weak = self.weak.clone();
-                releasecheck::open(&window, &self.ctx, Mode::Publish { scheduled: false }, &self.links, move |decision| {
+                releasecheck::open(&window, &self.ctx, Mode::Publish { scheduled }, &self.links, move |decision| {
                     let Some(this) = weak.upgrade() else { return };
                     *this.pair_step.borrow_mut() = Some(PairStep { next: PairNext::Publish(decision.clone()), ..step.clone() });
                     this.publish_with(decision);
@@ -606,6 +675,7 @@ impl MainAction {
         window::open_document_at_path(step.translation.clone(), &self.ctx);
         match step.next {
             PairNext::Draft => self.upload(TargetStatus::Set(PostStatus::Draft), false),
+            PairNext::Pending => self.upload(TargetStatus::Set(PostStatus::Pending), false),
             PairNext::Publish(decision) => {
                 let doc = self.ctx.current_document();
                 let mut found = releasecheck::checks(&doc);

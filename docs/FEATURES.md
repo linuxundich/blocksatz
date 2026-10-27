@@ -23,9 +23,9 @@ blocks. Implemented so far:
     "Änderungen veröffentlichen …" - with submit for review, update and
     preview, compare, schedule, revert to draft and discard in its menu.
     While an article and its language version are both still off the
-    blog, the menu also offers "Beide Sprachen als Entwurf hochladen" and
-    "Beide Sprachen veröffentlichen …": the original goes first, then the
-    translation with the same status or publish date. The window
+    blog, the menu also offers "Beide Sprachen hochladen …" (Ctrl+Alt+P):
+    draft, review, scheduled or published, the original goes first, then
+    the translation with the same status or publish date. The window
     title shows the article and its state ("Entwurf · nicht hochgeladen").
   - **Publishing goes through a release check**: title, excerpt, category,
     tags, featured image, alt texts, links, focus keyword, each with a way

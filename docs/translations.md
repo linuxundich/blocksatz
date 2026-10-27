@@ -253,12 +253,19 @@ drops RankMath's.
 
 While the original and its language version are both still off the blog
 (local, draft or pending), the main action's menu offers "Beide Sprachen
-als Entwurf hochladen" and "Beide Sprachen veröffentlichen …". Either opens
-the original, uploads it through the usual steps, then opens the
-translation and uploads it with the same status - the original goes first,
-so the translation is linked to its post and takes its featured image over.
-Publishing runs the original's release check once; its decision (now or
-scheduled) applies to both. The translation's own release check only shows
+hochladen …" (Ctrl+Alt+P). It asks once how both go up: "Als Entwurf",
+"Zur Prüfung", "Planen …" or "Veröffentlichen …". It then opens the
+original, uploads it through the usual steps, then opens the translation
+and uploads it with the same status - the original goes first, so the
+translation is linked to its post and takes its featured image over.
+Scheduling and publishing run the original's release check once; its
+decision (now or scheduled) applies to both.
+
+A language file written by hand (`artikel.en.md` next to `artikel.md`,
+without the `translation_*` keys) counts as the original's translation:
+the pair actions find it, and before its upload it gets the link - marked
+reviewed, since a person wrote it, and current with the original as it is
+then. The translation's own release check only shows
 up when it finds a warning or an error. If the original's upload fails or a
 dialog on the way is cancelled, the translation stays as it is.
 

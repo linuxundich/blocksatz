@@ -38,7 +38,9 @@ fn source_site_of(doc: &Document) -> String {
 pub fn find_translation(original: &Document, path: Option<&Path>) -> Option<(PathBuf, Document)> {
     if let Some(path) = path.filter(|p| library::file_lang(p) == Some(None)) {
         let pair = path.parent().and_then(library::read_pair);
-        if let Some(entry) = pair.and_then(|pair| pair.files.into_iter().find(|e| e.document.frontmatter.translation.is_some())) {
+        // A language file written by hand may lack the `translation_*`
+        // keys - next to its original it is the translation all the same.
+        if let Some(entry) = pair.and_then(|pair| pair.files.into_iter().find(|e| e.document.frontmatter.translation.is_some() || is_language_file(&e.path))) {
             return Some((entry.path, entry.document));
         }
     }
@@ -53,12 +55,12 @@ pub fn find_translation(original: &Document, path: Option<&Path>) -> Option<(Pat
 /// The working copy a translation (at `path`, if known) was made from:
 /// `artikel.md` next to it, else the library copy of its source post.
 pub fn find_original(translation: &Document, path: Option<&Path>) -> Option<(PathBuf, Document)> {
-    let link = translation.frontmatter.translation.as_ref()?;
-    if let Some(original) = path.filter(|p| library::file_lang(p).is_some_and(|l| l.is_some())).and_then(|p| library::sibling(p, None)) {
+    if let Some(original) = path.filter(|p| is_language_file(p)).and_then(|p| library::sibling(p, None)) {
         if let Ok(doc) = document::read(&original) {
             return Some((original, doc));
         }
     }
+    let link = translation.frontmatter.translation.as_ref()?;
     let path = library::find_by_post_id(&library::root(), &link.source_site, link.source_id)?;
     let doc = document::read(&path).ok()?;
     Some((path, doc))
@@ -550,11 +552,51 @@ pub fn changed_section_indices(ctx: &DocContext) -> Vec<usize> {
         .collect()
 }
 
+/// Whether `path` is a language version's file (`artikel.en.md`), not
+/// the original's.
+fn is_language_file(path: &Path) -> bool {
+    library::file_lang(path).is_some_and(|lang| lang.is_some())
+}
+
+/// The link of a language file written by hand without the
+/// `translation_*` keys, next to an original that is no translation
+/// itself: made by a person, so reviewed, and current with the original
+/// as it is now. The post id stays 0 while the original is off the blog.
+pub fn implied_link(doc: &Document, path: &Path) -> Option<document::TranslationLink> {
+    if doc.frontmatter.translation.is_some() {
+        return None;
+    }
+    let lang = library::file_lang(path)??;
+    let original = document::read(&library::sibling(path, None)?).ok()?;
+    if original.frontmatter.translation.is_some() {
+        return None;
+    }
+    Some(document::TranslationLink {
+        lang,
+        source_site: source_site_of(&original),
+        source_id: original.frontmatter.wp_post_id.unwrap_or_default(),
+        source_hash: syncstate::fingerprint(&original),
+        source_sections: translate::split_sections(&translate::body_with_uploaded_images(&original)).iter().map(|s| translate::section_hash(s)).collect(),
+        translated_at: today(),
+        reviewed: true,
+        target_sections: Vec::new(),
+    })
+}
+
 /// A translation made before its original was uploaded knows no post id
 /// yet; once the original has one, it's filled in (before the upload that
 /// sends it along as `lui_source_id`).
+///
+/// A language file without any link yet (`artikel.en.md` written by hand)
+/// gets one first (`implied_link`), so it goes up as the translation it is.
 pub fn fill_source_id(ctx: &DocContext) {
     let path = ctx.current_path.borrow().clone();
+    if ctx.frontmatter.borrow().translation.is_none() {
+        let doc = ctx.current_document();
+        if let Some(link) = path.as_deref().and_then(|p| implied_link(&doc, p)) {
+            ctx.frontmatter.borrow_mut().translation = Some(link);
+        }
+    }
     let missing = ctx.frontmatter.borrow().translation.as_ref().is_some_and(|t| t.source_id == 0);
     if !missing {
         return;
@@ -1167,6 +1209,32 @@ mod tests {
         write("");
         assert_eq!(original_featured_image(&translation_frontmatter(), Some(&dir)), None, "the original has none");
         assert_eq!(original_featured_image(&document::Frontmatter::default(), Some(&dir)), None, "not a translation");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_language_file_without_link_keys_translates_the_original_next_to_it() {
+        let dir = std::env::temp_dir().join(format!("blocksatz-implied-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("artikel.md"), "---\ntitle: \"Original\"\nwp_post_id: 48138\nwp_site: \"example.org\"\n---\n\nText\n").unwrap();
+        let en = dir.join("artikel.en.md");
+        std::fs::write(&en, "---\nlang: \"en\"\ntitle: \"Translation\"\n---\n\nText\n").unwrap();
+        let doc = document::read(&en).unwrap();
+        let link = implied_link(&doc, &en).expect("implied link");
+        assert_eq!((link.lang.as_str(), link.source_site.as_str(), link.source_id, link.reviewed), ("en", "example.org", 48138, true));
+        let original = document::read(&dir.join("artikel.md")).unwrap();
+        assert_eq!(link.source_hash, syncstate::fingerprint(&original), "current with the original");
+        assert_eq!(find_original(&doc, Some(&en)).map(|(p, _)| p), Some(dir.join("artikel.md")));
+        assert_eq!(find_translation(&original, Some(&dir.join("artikel.md"))).map(|(p, _)| p), Some(en.clone()));
+
+        assert_eq!(implied_link(&original, &dir.join("artikel.md")), None, "the original itself");
+        let linked = document::read(&en).map(|mut d| {
+            d.frontmatter.translation = Some(link.clone());
+            d
+        });
+        assert_eq!(implied_link(&linked.unwrap(), &en), None, "already linked");
+        std::fs::remove_file(dir.join("artikel.md")).unwrap();
+        assert_eq!(implied_link(&doc, &en), None, "no original next to it");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

@@ -125,6 +125,7 @@ fn main() -> glib::ExitCode {
     app.set_accels_for_action("win.save", &["<Ctrl>s"]);
     app.set_accels_for_action("win.settings", &["<Ctrl>comma"]);
     app.set_accels_for_action("win.publish", &["<Ctrl><Shift>p"]);
+    app.set_accels_for_action("main.upload-pair", &["<Ctrl><Alt>p"]);
     app.set_accels_for_action("win.media-manager", &["<Ctrl><Shift>m"]);
     app.set_accels_for_action("win.media-library", &["<Ctrl><Shift>l"]);
     app.set_accels_for_action("win.ai-write", &["<Ctrl><Shift>g"]);

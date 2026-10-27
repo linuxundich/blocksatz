@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Both languages in one go with Ctrl+Alt+P**: "Beide Sprachen hochladen …"
+  replaces the two separate menu entries and asks once how both versions
+  go up - as drafts, for review, scheduled or published. Drafts and review
+  need no further step; scheduling and publishing run the original's
+  release check once and apply its date to the translation. When the open
+  article has no language pair to upload, a toast says why.
+
+### Fixed
+
+- **A hand-written `artikel.en.md` is linked to its original**: a language
+  file next to `artikel.md` without the `translation_*` keys was uploaded
+  as an unrelated post, so the English post lacked `lui_source_id` and the
+  blog showed no language switch - and "Beide Sprachen …" never appeared
+  for such a pair. Such a file now counts as the original's translation:
+  before its upload it gets the link (reviewed, current with the original
+  as it is), and the pair actions find it.
+
 ## [0.76.0] - 2026-10-26
 
 ### Added

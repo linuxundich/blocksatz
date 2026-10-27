@@ -39,6 +39,12 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.77.0" date="2026-10-27">
+      <description>
+        <p>Neu: „Beide Sprachen hochladen …“ (Strg+Alt+P) schickt Artikel und Übersetzung in einem Schritt in die Blogs – als Entwurf, zur Prüfung, geplant oder veröffentlicht.</p>
+        <p>Behoben: Eine von Hand angelegte englische Fassung ohne Verknüpfungskopf wird jetzt mit ihrem Original verknüpft.</p>
+      </description>
+    </release>
     <release version="0.76.0" date="2026-10-26">
       <description>
         <p>Neu: Artikel und Übersetzung lassen sich gemeinsam hochladen oder veröffentlichen, und „Prüfen …“ markiert abweichenden Code, Links und Auszeichnungen. Alle Medien liegen jetzt unter dem Bildknopf.</p>

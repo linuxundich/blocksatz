@@ -56,7 +56,7 @@ const IMAGE_RESIZE_HANDLER: &str = "imageResize";
 const IMAGE_RESIZE_JS: &str = r#"
 (function() {
   const css = document.createElement('style');
-  css.textContent = '.bs-resize{position:relative;display:inline-block;max-width:100%}.bs-resize>img{display:block}.bs-handle{position:absolute;right:6px;top:50%;width:8px;height:56px;margin-top:-28px;border-radius:4px;background:#3584e4;border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.4);cursor:ew-resize;opacity:0;transition:opacity .15s;z-index:5}.bs-resize:hover>.bs-handle,.bs-resize.dragging>.bs-handle{opacity:1}';
+  css.textContent = '.bs-resize{position:relative;display:inline-block;max-width:100%;vertical-align:top}.bs-resize>img{display:block}.bs-handle{position:absolute;right:6px;top:50%;width:8px;height:56px;margin-top:-28px;border-radius:4px;background:#3584e4;border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.4);cursor:ew-resize;opacity:0;transition:opacity .15s;z-index:5}.bs-resize:hover>.bs-handle,.bs-resize.dragging>.bs-handle{opacity:1}';
   document.head.appendChild(css);
   if (!(window.webkit && window.webkit.messageHandlers.imageResize)) return;
   for (const img of document.querySelectorAll('div[data-line] img')) {
@@ -91,6 +91,26 @@ const IMAGE_RESIZE_JS: &str = r#"
       document.addEventListener('mouseup', up);
     });
   }
+})();
+"#;
+
+/// Gallery tiles share one format (`with_gallery_ratios`), so a shorter
+/// image ends above its tile's bottom edge; this moves its badges up from
+/// the tile's corner to the image's own, where every other image has them.
+const GALLERY_BADGES_JS: &str = r#"
+(function() {
+  function place(img) {
+    const wrap = img.parentNode, badges = wrap.querySelector('.img-badges');
+    if (!badges || !img.naturalWidth) return;
+    const shown = Math.min(wrap.clientHeight, wrap.clientWidth * img.naturalHeight / img.naturalWidth);
+    badges.style.bottom = (wrap.clientHeight - shown + 6) + 'px';
+  }
+  for (const img of document.querySelectorAll('.wp-block-gallery .img-wrap > img')) {
+    if (img.complete) place(img); else img.addEventListener('load', function() { place(img); });
+  }
+  window.addEventListener('resize', function() {
+    for (const img of document.querySelectorAll('.wp-block-gallery .img-wrap > img')) place(img);
+  });
 })();
 "#;
 
@@ -903,6 +923,7 @@ impl ScrollRestore {
 pub fn render_html(markdown: &str, style: PreviewStyle, dark: bool, media: &[MediaItem], restore: ScrollRestore, frontmatter: &Frontmatter, show_header: bool, code_colors: Option<(String, String)>) -> String {
     let restore_js = restore.script();
     let image_resize_js = IMAGE_RESIZE_JS;
+    let gallery_badges_js = GALLERY_BADGES_JS;
     // Footnotes written in Markdown show like the blog's (references and
     // the list block); an opened post's unconverted ones come from the
     // frontmatter.
@@ -1261,6 +1282,7 @@ for (const tabs of document.querySelectorAll('.wp-block-tabs')) {{
   if (panel) panel.classList.add('is-active');
 }}
 {image_resize_js}
+{gallery_badges_js}
 {restore_js}
 </script></body></html>"#
     )
@@ -1817,7 +1839,7 @@ fn embed_placeholder_label(url: &str) -> (&'static str, String) {
     }
 }
 
-const BADGE_CSS: &str = ".img-wrap { position: relative; display: inline-block; max-width: 100%; }
+const BADGE_CSS: &str = ".img-wrap { position: relative; display: inline-block; max-width: 100%; vertical-align: top; }
 .img-wrap img { display: block; }
 .img-badges { position: absolute; right: 6px; bottom: 6px; display: flex; gap: 4px; }
 .img-badge { background: rgba(0, 0, 0, 0.65); color: #fff; font: 11px/1.4 -apple-system, Cantarell, sans-serif; font-weight: 600; letter-spacing: .02em; padding: 2px 6px; border-radius: 4px; }

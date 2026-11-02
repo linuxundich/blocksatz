@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   into tall, mostly empty tiles that pushed their captions and the text
   after them far down. Now every gallery takes the format of its own
   tallest image.
+- **Image badges sit in the same corner everywhere**: the Alt/format badges
+  of a single image hung a few pixels below its bottom edge (the gap under
+  the inline resize wrapper), and in a gallery with mixed formats they sat
+  at the bottom of the tile instead of on the shorter image. Now they keep
+  the same 6 px from the image's bottom-right corner in every case.
 
 ## [0.77.0] - 2026-10-27
 

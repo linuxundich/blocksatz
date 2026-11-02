@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Each gallery in the preview gets its own tile format**: the format of
+  the tallest image used to apply to every gallery of the article, so
+  phone screenshots in one gallery turned the landscape shots of another
+  into tall, mostly empty tiles that pushed their captions and the text
+  after them far down. Now every gallery takes the format of its own
+  tallest image.
+
 ## [0.77.0] - 2026-10-27
 
 ### Added

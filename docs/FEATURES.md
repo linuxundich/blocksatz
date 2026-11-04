@@ -108,7 +108,10 @@ blocks. Implemented so far:
   holds everything else for media - video/audio, an empty gallery fence for
   local images, the media library, a gallery from the media library and
   "Alle Bilder bearbeiten…"; plus an "Einfügen" menu with separator,
-  "Weiterlesen" marker, footnote, containers and dynamic blocks); "Bestehenden Artikel verlinken"
+  "Weiterlesen" marker, footnote, the blog's own block patterns -
+  "Vorlagen des Blogs", e.g. the theme's callout boxes, fetched with its
+  presets and turned into Markdown, a selection becoming the box's
+  text - containers and dynamic blocks); "Bestehenden Artikel verlinken"
   opening a searchable picker over the site's existing posts and inserting
   a real Markdown link to the one picked; pasting an image straight from the
   clipboard with Ctrl+V - a screenshot, or "Copy Image" from a browser -

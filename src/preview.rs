@@ -1093,6 +1093,17 @@ figure.wp-block-table {{ margin: 1.5em 0; overflow-x: auto; }}
 .wp-block-separator.has-background {{ border: none; height: 2px; }}
 .wp-block-button.is-style-outline > .wp-block-button__link, .wp-block-button.is-style-lui-outline > .wp-block-button__link {{ background: transparent; }}
 .wp-block-group.has-background {{ padding: 1.25em 2.375em; }}
+/* Callout boxes of the Linux und Ich theme (patterns lui/callout-*), in
+   the palette's info/tip/warn colors where the blog defines them. */
+.lui-callout {{ border-left: 3px solid rgba(128,128,128,.45); border-radius: 0 6px 6px 0; padding: 1rem 1.25rem; margin: 1.75rem 0; }}
+.lui-callout > :first-child {{ margin-top: 0; }} .lui-callout > :last-child {{ margin-bottom: 0; }}
+.lui-callout-label {{ font-weight: 700; font-size: .875em; letter-spacing: .04em; margin: 0 0 .5em !important; }}
+.lui-callout.is-info {{ border-left-color: var(--wp--preset--color--info, #2f5d82); background: color-mix(in srgb, var(--wp--preset--color--info, #2f5d82) 9%, transparent); }}
+.lui-callout.is-info .lui-callout-label {{ color: var(--wp--preset--color--info, #2f5d82); }}
+.lui-callout.is-tip {{ border-left-color: var(--wp--preset--color--tip, #3b6e47); background: color-mix(in srgb, var(--wp--preset--color--tip, #3b6e47) 9%, transparent); }}
+.lui-callout.is-tip .lui-callout-label {{ color: var(--wp--preset--color--tip, #3b6e47); }}
+.lui-callout.is-warning {{ border-left-color: var(--wp--preset--color--warn, #a63a2a); background: color-mix(in srgb, var(--wp--preset--color--warn, #a63a2a) 9%, transparent); }}
+.lui-callout.is-warning .lui-callout-label {{ color: var(--wp--preset--color--warn, #a63a2a); }}
 /* Accordion and tabs: closed/hidden like on the blog, opened by the small
    script at the end of the page. */
 .wp-block-accordion-item {{ border-bottom: 1px solid rgba(128,128,128,.35); }}

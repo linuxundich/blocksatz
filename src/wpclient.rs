@@ -753,6 +753,13 @@ impl Client {
         self.get_json(&format!("{}?namespace=core&_fields=name,styles", self.endpoint("block-types")))
     }
 
+    /// The block patterns registered on the blog (`name`, `title`,
+    /// `content`, `source`, `inserter`, ...). Needs a user who can edit
+    /// posts.
+    pub fn get_block_patterns(&self) -> Result<Value> {
+        self.get_json(&self.endpoint("block-patterns/patterns"))
+    }
+
     /// Lists every existing term name for a taxonomy (`"categories"` or
     /// `"tags"`), for autocomplete suggestions.
     pub fn list_term_names(&self, taxonomy: &str) -> Result<Vec<String>> {

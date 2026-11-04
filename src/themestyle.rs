@@ -8,6 +8,9 @@
 //!   the blog;
 //! - the block inspector offers exactly these presets, nothing the theme
 //!   doesn't define.
+//!
+//! Alongside them come the theme's own block patterns (callout boxes, a
+//! donation box, ...), which "Einfügen" offers as ready-made Markdown.
 
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -36,6 +39,16 @@ pub struct BlockStyle {
     pub label: String,
 }
 
+/// A block pattern the theme ships for the inserter.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Pattern {
+    /// `lui/callout-info`
+    pub name: String,
+    pub title: String,
+    /// Block markup, as the block editor would insert it.
+    pub content: String,
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ThemeStyle {
     pub colors: Vec<Preset>,
@@ -53,6 +66,8 @@ pub struct ThemeStyle {
     pub button_css: String,
     /// `styles.spacing.blockGap` - the gap in flex/grid layouts.
     pub block_gap: Option<String>,
+    /// The theme's own patterns, in the order WordPress lists them.
+    pub patterns: Vec<Pattern>,
 }
 
 impl ThemeStyle {
@@ -85,7 +100,39 @@ impl ThemeStyle {
             default_gradients: settings["color"]["defaultGradients"].as_bool().unwrap_or(true),
             button_css: button_css(&global_styles["styles"]),
             block_gap: global_styles["styles"]["spacing"]["blockGap"].as_str().map(css_value),
+            patterns: Vec::new(),
         }
+    }
+
+    /// Keeps the patterns of `wpclient::get_block_patterns` that the blog
+    /// itself registers (theme or plugin) and offers in the inserter - not
+    /// WordPress's own or the pattern directory's, and not the template
+    /// parts a block theme hides with `Inserter: no`. A theme's patterns
+    /// from its `patterns/` folder come without any `source`.
+    pub fn patterns_from_rest(patterns: &Value) -> Vec<Pattern> {
+        patterns
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|pattern| {
+                let source = pattern["source"].as_str().unwrap_or("theme");
+                !(source == "core" || source.starts_with("core/") || source.starts_with("pattern-directory")) && pattern["inserter"].as_bool() != Some(false)
+            })
+            .filter_map(|pattern| {
+                let content = pattern["content"].as_str()?.trim();
+                (!content.is_empty()).then(|| Pattern {
+                    name: pattern["name"].as_str().unwrap_or_default().to_string(),
+                    title: pattern["title"].as_str().unwrap_or_default().to_string(),
+                    content: content.to_string(),
+                })
+            })
+            .collect()
+    }
+
+    /// The pattern called `name`, as Markdown for the editor.
+    pub fn pattern_markdown(&self, name: &str) -> Option<String> {
+        let pattern = self.patterns.iter().find(|p| p.name == name)?;
+        Some(gutenberg::gutenberg_to_markdown(&pattern.content).trim().to_string())
     }
 
     /// The colors to offer: the theme's own, plus WordPress's defaults only
@@ -151,6 +198,7 @@ impl ThemeStyle {
             "default_gradients": self.default_gradients,
             "button_css": self.button_css,
             "block_gap": self.block_gap,
+            "patterns": self.patterns.iter().map(|p| serde_json::json!({"name": p.name, "title": p.title, "content": p.content})).collect::<Vec<_>>(),
         })
     }
 
@@ -180,6 +228,12 @@ impl ThemeStyle {
             default_gradients: value["default_gradients"].as_bool().unwrap_or(true),
             button_css: value["button_css"].as_str().unwrap_or_default().to_string(),
             block_gap: value["block_gap"].as_str().map(str::to_string),
+            patterns: value["patterns"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|p| Some(Pattern { name: p["name"].as_str()?.to_string(), title: p["title"].as_str().unwrap_or_default().to_string(), content: p["content"].as_str()?.to_string() }))
+                .collect(),
         }
     }
 }
@@ -315,8 +369,8 @@ pub fn reload() {
     spawn_refresh();
 }
 
-/// Fetches the presets of the active blog on a background thread (three
-/// small requests), then updates the cache and the listeners. Leaves the
+/// Fetches the presets and patterns of the active blog on a background
+/// thread (four small requests), then updates the cache and the listeners. Leaves the
 /// cache alone on failure.
 pub fn spawn_refresh() {
     let site = wpsite::load();
@@ -334,7 +388,11 @@ pub fn spawn_refresh() {
                 // Block styles are a nice-to-have; the palette alone is
                 // still worth keeping if this request fails.
                 let block_types = client.get_core_block_styles().unwrap_or(Value::Null);
-                Some(ThemeStyle::from_rest(&global_styles, &block_types))
+                let mut style = ThemeStyle::from_rest(&global_styles, &block_types);
+                // Patterns, too: without them only "Einfügen" loses its
+                // blog section.
+                style.patterns = client.get_block_patterns().map(|patterns| ThemeStyle::patterns_from_rest(&patterns)).unwrap_or_default();
+                Some(style)
             });
         let _ = tx.send(result);
     });
@@ -352,6 +410,22 @@ pub fn spawn_refresh() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_the_themes_own_insertable_patterns_are_kept_and_become_markdown() {
+        let rest = serde_json::json!([
+            {"name": "lui/callout-tip", "title": "Tipp-Kasten",
+             "content": "<!-- wp:group {\"className\":\"lui-callout is-tip\"} -->\n<div class=\"wp-block-group lui-callout is-tip\"><!-- wp:paragraph {\"className\":\"lui-callout-label\"} -->\n<p class=\"lui-callout-label\">// Tipp</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:group -->"},
+            {"name": "lui/part-header", "title": "Kopfzeile", "inserter": false, "content": "<!-- wp:group /-->"},
+            {"name": "core/query-standard-posts", "title": "Standard", "source": "core", "content": "<!-- wp:query /-->"},
+            {"name": "twentytwentyfive/hero", "title": "Hero", "source": "pattern-directory/featured", "content": "<!-- wp:cover /-->"}
+        ]);
+        let mut style = ThemeStyle { patterns: ThemeStyle::patterns_from_rest(&rest), ..ThemeStyle::default() };
+        assert_eq!(style.patterns.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(), ["lui/callout-tip"]);
+        assert_eq!(style.pattern_markdown("lui/callout-tip").as_deref(), Some("::: group {.lui-callout .is-tip}\n// Tipp\n{.lui-callout-label}\n:::"));
+        style = ThemeStyle::from_json(&style.to_json());
+        assert_eq!(style.patterns.len(), 1);
+    }
 
     fn sample() -> ThemeStyle {
         let global_styles = serde_json::json!({

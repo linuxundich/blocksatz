@@ -158,12 +158,33 @@ fn insert_menu() -> gio::Menu {
         let target = if snippet.starts_with("<!--") { &dynamic } else { &containers };
         target.append(Some(&tr(label)), Some(&format!("fmt.insert-block::{id}")));
     }
+    let blog = gio::Menu::new();
+    fill_pattern_menu(&blog);
+    {
+        let blog = blog.downgrade();
+        crate::themestyle::connect_changed(move || {
+            if let Some(blog) = blog.upgrade() {
+                fill_pattern_menu(&blog);
+            }
+        });
+    }
     let menu = gio::Menu::new();
     menu.append_section(None, &media);
     menu.append_section(None, &elements);
+    menu.append_section(Some(&tr("Vorlagen des Blogs")), &blog);
     menu.append_section(Some(&tr("Container")), &containers);
     menu.append_section(Some(&tr("Vom Blog erzeugt")), &dynamic);
     menu
+}
+
+/// The theme's patterns (callout boxes and the like) - empty, and so
+/// hidden, until the blog's presets have been fetched once.
+fn fill_pattern_menu(menu: &gio::Menu) {
+    menu.remove_all();
+    for pattern in crate::themestyle::current().patterns {
+        let label = if pattern.title.is_empty() { pattern.name.clone() } else { pattern.title.clone() };
+        menu.append(Some(&label), Some(&format!("fmt.insert-pattern::{}", pattern.name)));
+    }
 }
 
 fn install_actions(actions: &gio::SimpleActionGroup, buffer: &sourceview5::Buffer) {
@@ -178,6 +199,16 @@ fn install_actions(actions: &gio::SimpleActionGroup, buffer: &sourceview5::Buffe
         });
     }
     actions.add_action(&insert);
+    let pattern = gio::SimpleAction::new("insert-pattern", Some(glib::VariantTy::STRING));
+    {
+        let buffer = buffer.clone();
+        pattern.connect_activate(move |_, parameter| {
+            let Some(name) = parameter.and_then(|p| p.get::<String>()) else { return };
+            let Some(markdown) = crate::themestyle::current().pattern_markdown(&name) else { return };
+            insert_pattern(&buffer, &markdown);
+        });
+    }
+    actions.add_action(&pattern);
     let line_style = gio::SimpleAction::new("line-style", Some(glib::VariantTy::STRING));
     {
         let buffer = buffer.clone();
@@ -404,6 +435,47 @@ const BLOCK_SNIPPETS: &[(&str, &str, &str)] = &[
     ("search", "Suche", "<!-- wp:search {\"label\":\"Suchen\",\"buttonText\":\"Suchen\"} /-->"),
 ];
 
+/// Inserts a theme pattern. A selection goes into it instead of the
+/// pattern's sample text, so marked paragraphs end up inside the box.
+fn insert_pattern(buffer: &sourceview5::Buffer, markdown: &str) {
+    let selection = buffer.selection_bounds().map(|(start, end)| buffer.text(&start, &end, false).to_string()).filter(|text| !text.trim().is_empty());
+    let snippet = match &selection {
+        Some(text) => pattern_with_body(markdown, text.trim()),
+        None => markdown.to_string(),
+    };
+    buffer.begin_user_action();
+    buffer.delete_selection(true, true);
+    insert_block(buffer, &snippet);
+    buffer.end_user_action();
+}
+
+/// `markdown` with the last stretch of sample text inside its outer
+/// container (`::: group ... :::`) replaced by `body`. Patterns without
+/// such a container or sample text get `body` below them instead.
+fn pattern_with_body(markdown: &str, body: &str) -> String {
+    let lines: Vec<&str> = markdown.lines().collect();
+    let wrapped = lines.len() >= 2 && lines[0].starts_with(":::") && lines[lines.len() - 1].trim_start_matches(':').is_empty();
+    if wrapped {
+        let is_text = |line: &str| {
+            let line = line.trim();
+            !line.is_empty() && !line.starts_with(":::") && !line.starts_with('{') && !line.starts_with("<!--")
+        };
+        // The last run of text lines before the closing fence.
+        let end = (1..lines.len() - 1).rev().find(|&i| is_text(lines[i]));
+        if let Some(end) = end {
+            let mut start = end;
+            while start > 1 && is_text(lines[start - 1]) {
+                start -= 1;
+            }
+            let mut out: Vec<&str> = lines[..start].to_vec();
+            out.push(body);
+            out.extend_from_slice(&lines[end + 1..]);
+            return out.join("\n");
+        }
+    }
+    format!("{markdown}\n\n{body}")
+}
+
 /// Inserts `snippet` as a block of its own at the cursor - blank lines
 /// around it as needed - and selects its first editable text.
 fn insert_block(buffer: &sourceview5::Buffer, snippet: &str) {
@@ -609,6 +681,16 @@ fn select(buffer: &sourceview5::Buffer, start_offset: i32, end_offset: i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_selection_replaces_the_sample_text_of_a_pattern() {
+        let callout = "::: group {layout=constrained .lui-callout .is-info}\n// Hinweis\n{.lui-callout-label}\n\nHier steht eine Zusatzinformation.\n:::";
+        assert_eq!(
+            pattern_with_body(callout, "Mein Absatz.\n\nNoch einer."),
+            "::: group {layout=constrained .lui-callout .is-info}\n// Hinweis\n{.lui-callout-label}\n\nMein Absatz.\n\nNoch einer.\n:::"
+        );
+        assert_eq!(pattern_with_body("<!-- wp:spacer /-->", "Text"), "<!-- wp:spacer /-->\n\nText");
+    }
 
     #[test]
     fn footnotes_get_the_next_number_and_a_definition_line() {

@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The blog's own patterns in "Einfügen"**: a new section "Vorlagen des
+  Blogs" lists the block patterns the theme (or a plugin) registers for the
+  inserter - on Linux und Ich the info, tip and warning boxes, the donation
+  box and the category spotlight. Blocksatz fetches them together with the
+  theme's colors, keeps them in the same per-blog cache and inserts them as
+  Markdown. Marked text goes into the box in place of its sample text.
+  WordPress's own and the pattern directory's patterns stay out, as do
+  template parts hidden from the inserter.
+
 ### Fixed
 
+- **Callout boxes in the preview**: groups with the theme classes
+  `lui-callout is-info|is-tip|is-warning` showed up as plain paragraphs.
+  The preview now draws them like the blog does - colored left border,
+  tinted background and colored label - in the palette's info, tip and
+  warn colors.
 - **Each gallery in the preview gets its own tile format**: the format of
   the tallest image used to apply to every gallery of the article, so
   phone screenshots in one gallery turned the landscape shots of another

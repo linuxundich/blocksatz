@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Blocksatz 0.76.0\n"
+"Project-Id-Version: Blocksatz 0.77.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-10-27 08:53+0100\n"
+"POT-Creation-Date: 2026-11-04 13:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1378,7 +1378,7 @@ msgstr ""
 msgid "Galerie aus Mediathek …"
 msgstr ""
 
-#: src/formatting.rs:139 src/preview.rs:473
+#: src/formatting.rs:139 src/preview.rs:493
 msgid "Alle Bilder bearbeiten…"
 msgstr ""
 
@@ -1394,27 +1394,31 @@ msgstr ""
 msgid "Fußnote"
 msgstr ""
 
-#: src/formatting.rs:164
+#: src/formatting.rs:174
+msgid "Vorlagen des Blogs"
+msgstr ""
+
+#: src/formatting.rs:175
 msgid "Container"
 msgstr ""
 
-#: src/formatting.rs:165
+#: src/formatting.rs:176
 msgid "Vom Blog erzeugt"
 msgstr ""
 
-#: src/formatting.rs:505
+#: src/formatting.rs:577
 msgid "Spalte 1"
 msgstr ""
 
-#: src/formatting.rs:506
+#: src/formatting.rs:578
 msgid "Spalte 2"
 msgstr ""
 
-#: src/formatting.rs:507
+#: src/formatting.rs:579
 msgid "Zelle 1"
 msgstr ""
 
-#: src/formatting.rs:508
+#: src/formatting.rs:580
 msgid "Zelle 2"
 msgstr ""
 
@@ -1540,7 +1544,7 @@ msgstr ""
 msgid "Interner Fehler: Lade-Thread hat kein Ergebnis geliefert."
 msgstr ""
 
-#: src/imagealt.rs:66 src/preview.rs:416
+#: src/imagealt.rs:66 src/preview.rs:436
 msgid "Bildbeschriftung bearbeiten…"
 msgstr ""
 
@@ -2574,7 +2578,7 @@ msgstr ""
 msgid "Shortcode"
 msgstr ""
 
-#: src/markdowncheck.rs:103 src/preview.rs:1711
+#: src/markdowncheck.rs:103 src/preview.rs:1744
 msgid "Abfrage-Loop"
 msgstr ""
 
@@ -3227,7 +3231,7 @@ msgstr ""
 msgid "Schlagwörter"
 msgstr ""
 
-#: src/newarticle.rs:702 src/preview.rs:1713 src/taxonomy.rs:33
+#: src/newarticle.rs:702 src/preview.rs:1746 src/taxonomy.rs:33
 #: src/translatedialog.rs:809
 msgid "Kategorien"
 msgstr ""
@@ -3294,167 +3298,167 @@ msgstr ""
 msgid "{n} Bilder"
 msgstr ""
 
-#: src/preview.rs:125
+#: src/preview.rs:145
 msgid "Modern"
 msgstr ""
 
-#: src/preview.rs:126
+#: src/preview.rs:146
 msgid "Klassisch"
 msgstr ""
 
-#: src/preview.rs:127
+#: src/preview.rs:147
 msgid "Sepia"
 msgstr ""
 
-#: src/preview.rs:461
+#: src/preview.rs:481
 msgid "Bild bearbeiten…"
 msgstr ""
 
-#: src/preview.rs:919
+#: src/preview.rs:940
 msgid "Wiedergabeliste – die Titel erzeugt das Blog"
 msgstr ""
 
-#: src/preview.rs:1606
+#: src/preview.rs:1639
 msgid "Video lässt sich in der Vorschau nicht abspielen"
 msgstr ""
 
-#: src/preview.rs:1677
+#: src/preview.rs:1710
 msgid "Seitenumbruch"
 msgstr ""
 
-#: src/preview.rs:1709
+#: src/preview.rs:1742
 msgid "Neueste Beiträge"
 msgstr ""
 
-#: src/preview.rs:1710
+#: src/preview.rs:1743
 msgid "Neueste Kommentare"
 msgstr ""
 
-#: src/preview.rs:1712
+#: src/preview.rs:1745
 msgid "Archive"
 msgstr ""
 
-#: src/preview.rs:1714
+#: src/preview.rs:1747
 msgid "Schlagwörter-Wolke"
 msgstr ""
 
-#: src/preview.rs:1715
+#: src/preview.rs:1748
 msgid "Kalender"
 msgstr ""
 
-#: src/preview.rs:1716
+#: src/preview.rs:1749
 msgid "Suche"
 msgstr ""
 
-#: src/preview.rs:1717
+#: src/preview.rs:1750
 msgid "Seitenliste"
 msgstr ""
 
-#: src/preview.rs:1718
+#: src/preview.rs:1751
 msgid "Social-Media-Links"
 msgstr ""
 
-#: src/preview.rs:1719
+#: src/preview.rs:1752
 msgid "RSS-Feed"
 msgstr ""
 
-#: src/preview.rs:1720
+#: src/preview.rs:1753
 msgid "Synchronisiertes Muster"
 msgstr ""
 
-#: src/preview.rs:1721
+#: src/preview.rs:1754
 msgid "Inhaltsverzeichnis"
 msgstr ""
 
-#: src/preview.rs:1722
+#: src/preview.rs:1755
 msgid "Werbeplatz"
 msgstr ""
 
-#: src/preview.rs:1723
+#: src/preview.rs:1756
 msgid "Symbol"
 msgstr ""
 
-#: src/preview.rs:1724
+#: src/preview.rs:1757
 msgid "Anmelden/Abmelden"
 msgstr ""
 
-#: src/preview.rs:1725
+#: src/preview.rs:1758
 msgid "Lesezeit"
 msgstr ""
 
-#: src/preview.rs:1726 src/properties.rs:452
+#: src/preview.rs:1759 src/properties.rs:452
 msgid "Autor"
 msgstr ""
 
-#: src/preview.rs:1727
+#: src/preview.rs:1760
 msgid "Kategorien und Schlagwörter"
 msgstr ""
 
-#: src/preview.rs:1728
+#: src/preview.rs:1761
 msgid "Datum"
 msgstr ""
 
-#: src/preview.rs:1729
+#: src/preview.rs:1762
 msgid "Avatar"
 msgstr ""
 
-#: src/preview.rs:1730
+#: src/preview.rs:1763
 msgid "Brotkrümelnavigation"
 msgstr ""
 
-#: src/preview.rs:1731
+#: src/preview.rs:1764
 msgid "Navigation"
 msgstr ""
 
-#: src/preview.rs:1732 src/properties.rs:565
+#: src/preview.rs:1765 src/properties.rs:565
 msgid "Kommentare"
 msgstr ""
 
-#: src/preview.rs:1737 src/preview.rs:1775
+#: src/preview.rs:1770 src/preview.rs:1808
 msgid "{name} – wird vom Blog erzeugt"
 msgstr ""
 
-#: src/preview.rs:1774
+#: src/preview.rs:1807
 msgid "Shortcode [{name}]"
 msgstr ""
 
-#: src/preview.rs:1781
+#: src/preview.rs:1814
 msgid "Weiterlesen"
 msgstr ""
 
-#: src/preview.rs:1795
+#: src/preview.rs:1828
 msgid "Fußnoten"
 msgstr ""
 
-#: src/preview.rs:1810
+#: src/preview.rs:1843
 msgid "YouTube-Video"
 msgstr ""
 
-#: src/preview.rs:1811
+#: src/preview.rs:1844
 msgid "Vimeo-Video"
 msgstr ""
 
-#: src/preview.rs:1816
+#: src/preview.rs:1849
 msgid "Eingebetteter Inhalt"
 msgstr ""
 
-#: src/preview.rs:1868
+#: src/preview.rs:1901
 msgid "Sprache dieser Fassung"
 msgstr ""
 
-#: src/preview.rs:2103
+#: src/preview.rs:2142
 msgid "Bereits zu WordPress hochgeladen"
 msgstr ""
 
-#: src/preview.rs:2110 src/preview.rs:2111
+#: src/preview.rs:2149 src/preview.rs:2150
 msgid "Alt"
 msgstr ""
 
-#: src/preview.rs:2111
+#: src/preview.rs:2150
 msgid "Bewusst ohne Alternativtext (dekoratives Bild)"
 msgstr ""
 
-#: src/preview.rs:2115
+#: src/preview.rs:2154
 msgid "Bildformat"
 msgstr ""
 
@@ -4777,14 +4781,14 @@ msgstr ""
 msgid "Kein aktives Theme gefunden."
 msgstr ""
 
-#: src/wpclient.rs:868
+#: src/wpclient.rs:875
 msgid "Keine Term-ID in der Antwort"
 msgstr ""
 
-#: src/wpclient.rs:1166
+#: src/wpclient.rs:1173
 msgid "Keine Post-ID in der Antwort"
 msgstr ""
 
-#: src/wpclient.rs:1226
+#: src/wpclient.rs:1233
 msgid "Kein Term-ID für \"{name}\" erhalten"
 msgstr ""

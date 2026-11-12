@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.78.0] - 2026-11-12
+
 ### Added
+
+- **Preview: click a picture to see it large**: clicking an image (also in a
+  gallery) opens it in a window of its own, the way a browser shows a
+  picture: shrunk to fit, a click toggles the full size, Esc closes it.
+  Pictures linked to a page keep their link.
 
 - **The blog's own patterns in "Einfügen"**: a new section "Vorlagen des
   Blogs" lists the block patterns the theme (or a plugin) registers for the
@@ -19,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   template parts hidden from the inserter.
 
 ### Fixed
+
+- **Preview: gap between a gallery and the block before it**: a gallery
+  directly after a table (or any block) now has the same vertical margin as
+  images and tables.
 
 - **Callout boxes in the preview**: groups with the theme classes
   `lui-callout is-info|is-tip|is-warning` showed up as plain paragraphs.
@@ -2876,7 +2887,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.77.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.78.0...HEAD
+[0.78.0]: https://github.com/linuxundich/blocksatz/compare/v0.77.0...v0.78.0
 [0.77.0]: https://github.com/linuxundich/blocksatz/compare/v0.76.0...v0.77.0
 [0.76.0]: https://github.com/linuxundich/blocksatz/compare/v0.75.0...v0.76.0
 [0.75.0]: https://github.com/linuxundich/blocksatz/compare/v0.74.1...v0.75.0

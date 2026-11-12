@@ -94,6 +94,66 @@ const IMAGE_RESIZE_JS: &str = r#"
 })();
 "#;
 
+/// Shows `uri` in a window of its own, the way a browser opens a picture:
+/// shrunk to fit, a click toggles the full size.
+fn open_image_window(parent: &webkit6::WebView, uri: &str) {
+    if !(uri.starts_with("file:") || uri.starts_with("http:") || uri.starts_with("https:")) {
+        return;
+    }
+    let view = webkit6::WebView::new();
+    view.set_hexpand(true);
+    view.set_vexpand(true);
+    view.load_uri(uri);
+    let header = adw::HeaderBar::new();
+    let content = adw::ToolbarView::new();
+    content.add_top_bar(&header);
+    content.set_content(Some(&view));
+    let window = adw::Window::new();
+    window.set_title(Some(uri.rsplit('/').next().unwrap_or(uri)));
+    window.set_default_size(1100, 800);
+    window.set_content(Some(&content));
+    if let Some(root) = parent.root().and_then(|r| r.downcast::<gtk4::Window>().ok()) {
+        window.set_transient_for(Some(&root));
+    }
+    let esc = gtk4::EventControllerKey::new();
+    let w = window.clone();
+    esc.connect_key_pressed(move |_, key, _, _| {
+        if key == gtk4::gdk::Key::Escape {
+            w.close();
+            glib::Propagation::Stop
+        } else {
+            glib::Propagation::Proceed
+        }
+    });
+    window.add_controller(esc);
+    window.present();
+}
+
+/// Message handler for a click on a picture: the image's absolute URL.
+const IMAGE_OPEN_HANDLER: &str = "imageOpen";
+
+/// Click on a picture opens it large in a window of its own (`open_image_window`).
+/// Pictures inside a link that leads somewhere other than an image keep
+/// their link behaviour.
+const IMAGE_OPEN_JS: &str = r#"
+(function() {
+  if (!(window.webkit && window.webkit.messageHandlers.imageOpen)) return;
+  const css = document.createElement('style');
+  css.textContent = '.bs-zoomable{cursor:zoom-in}';
+  document.head.appendChild(css);
+  for (const img of document.querySelectorAll('div[data-line] img')) {
+    const a = img.closest('a');
+    if (a && !/\.(png|jpe?g|gif|webp|avif|svg)(\?|#|$)/i.test(a.getAttribute('href') || '')) continue;
+    img.classList.add('bs-zoomable');
+    img.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.webkit.messageHandlers.imageOpen.postMessage(img.currentSrc || img.src);
+    });
+  }
+})();
+"#;
+
 /// Gallery tiles share one format (`with_gallery_ratios`), so a shorter
 /// image ends above its tile's bottom edge; this moves its badges up from
 /// the tile's corner to the image's own, where every other image has them.
@@ -257,6 +317,13 @@ impl PreviewPane {
         let web_view = webkit6::WebView::new();
         web_view.set_hexpand(true);
         web_view.set_vexpand(true);
+        if let Some(manager) = web_view.user_content_manager() {
+            manager.register_script_message_handler(IMAGE_OPEN_HANDLER, None);
+            let opener = web_view.clone();
+            manager.connect_script_message_received(Some(IMAGE_OPEN_HANDLER), move |_manager, value| {
+                open_image_window(&opener, value.to_str().as_str());
+            });
+        }
 
         // This is a rendered article preview, not a browsing session - the
         // navigation-history items WebKit puts in its default context menu
@@ -924,6 +991,7 @@ pub fn render_html(markdown: &str, style: PreviewStyle, dark: bool, media: &[Med
     let restore_js = restore.script();
     let image_resize_js = IMAGE_RESIZE_JS;
     let gallery_badges_js = GALLERY_BADGES_JS;
+    let image_open_js = IMAGE_OPEN_JS;
     // Footnotes written in Markdown show like the blog's (references and
     // the list block); an opened post's unconverted ones come from the
     // frontmatter.
@@ -1016,7 +1084,7 @@ object.wp-block-file__embed {{ display: none; }}
 .wp-block-button.is-style-outline > .wp-block-button__link {{ background: transparent; color: currentColor; border: 2px solid; }}
 .wp-block-group {{ margin-bottom: var(--wp--style--block-gap, 1em); }}
 .wp-block-group[style*="display:flex"] > *, .wp-block-group[style*="display:grid"] > *, .wp-block-buttons > * {{ margin-top: 0; margin-bottom: 0; }}
-.wp-block-gallery.has-nested-images {{ display: flex; flex-wrap: wrap; gap: 1rem; align-items: normal; }}
+.wp-block-gallery.has-nested-images {{ display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.5em 0; align-items: normal; }}
 .wp-block-gallery.has-nested-images figure.wp-block-image {{ margin: 0; flex-grow: 0; width: calc(33.33% - .67rem); box-sizing: border-box; display: flex; flex-direction: column; }}
 .wp-block-gallery.has-nested-images.columns-1 figure.wp-block-image {{ width: 100%; }}
 .wp-block-gallery.has-nested-images.columns-2 figure.wp-block-image {{ width: calc(50% - .5rem); }}
@@ -1294,6 +1362,7 @@ for (const tabs of document.querySelectorAll('.wp-block-tabs')) {{
 }}
 {image_resize_js}
 {gallery_badges_js}
+{image_open_js}
 {restore_js}
 </script></body></html>"#
     )

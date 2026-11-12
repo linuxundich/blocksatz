@@ -97,8 +97,18 @@ const IMAGE_RESIZE_JS: &str = r#"
 /// Shows `uri` in a window of its own, the way a browser opens a picture:
 /// shrunk to fit, a click toggles the full size.
 fn open_image_window(parent: &webkit6::WebView, uri: &str) {
+    thread_local! {
+        static OPEN: RefCell<Option<adw::Window>> = const { RefCell::new(None) };
+    }
     if !(uri.starts_with("file:") || uri.starts_with("http:") || uri.starts_with("https:")) {
         return;
+    }
+    // Only one picture at a time; it blocks the main window until closed.
+    if let Some(old) = OPEN.with(|o| o.borrow().clone()) {
+        if old.is_visible() {
+            old.present();
+            return;
+        }
     }
     let view = webkit6::WebView::new();
     view.set_hexpand(true);
@@ -111,6 +121,7 @@ fn open_image_window(parent: &webkit6::WebView, uri: &str) {
     let window = adw::Window::new();
     window.set_title(Some(uri.rsplit('/').next().unwrap_or(uri)));
     window.set_default_size(1100, 800);
+    window.set_modal(true);
     window.set_content(Some(&content));
     if let Some(root) = parent.root().and_then(|r| r.downcast::<gtk4::Window>().ok()) {
         window.set_transient_for(Some(&root));
@@ -126,6 +137,7 @@ fn open_image_window(parent: &webkit6::WebView, uri: &str) {
         }
     });
     window.add_controller(esc);
+    OPEN.with(|o| *o.borrow_mut() = Some(window.clone()));
     window.present();
 }
 

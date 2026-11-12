@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.78.1] - 2026-11-12
+
+### Changed
+
+- **Picture window is modal and single**: the window a clicked picture opens
+  in blocks the main window until closed, like a browser dialog, and only
+  one picture is open at a time.
+
 ## [0.78.0] - 2026-11-12
 
 ### Added
@@ -2887,7 +2895,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.78.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.78.1...HEAD
+[0.78.1]: https://github.com/linuxundich/blocksatz/compare/v0.78.0...v0.78.1
 [0.78.0]: https://github.com/linuxundich/blocksatz/compare/v0.77.0...v0.78.0
 [0.77.0]: https://github.com/linuxundich/blocksatz/compare/v0.76.0...v0.77.0
 [0.76.0]: https://github.com/linuxundich/blocksatz/compare/v0.75.0...v0.76.0

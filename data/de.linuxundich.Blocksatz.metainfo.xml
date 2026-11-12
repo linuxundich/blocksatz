@@ -39,6 +39,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.78.1" date="2026-11-12">
+      <description>
+        <p>Geändert: Das Bildfenster der Vorschau ist modal, und es ist immer nur ein Bild gleichzeitig offen.</p>
+      </description>
+    </release>
     <release version="0.78.0" date="2026-11-12">
       <description>
         <p>Neu: Ein Klick auf ein Bild in der Vorschau öffnet es groß in einem eigenen Fenster. Die Vorlagen des Blogs (Info-, Tipp- und Warnkästen) stehen unter „Einfügen“.</p>

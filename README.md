@@ -27,6 +27,10 @@
 
 ## What it does
 
+<table>
+<tr>
+<td width="33%" valign="top">
+
 ### Markdown in, Gutenberg out
 
 Write as you would in any text editor, with syntax highlighting, spell checking and a
@@ -34,6 +38,9 @@ formatting toolbar for the moments you'd rather click. Blocksatz converts the te
 real WordPress blocks: paragraphs, headings, lists, quotes, tables, images, videos,
 embeds, footnotes and the "more" marker. Code blocks keep their language and file name
 for the blog's syntax highlighting.
+
+</td>
+<td width="33%" valign="top">
 
 ### More than plain Markdown
 
@@ -43,12 +50,26 @@ braces below a block, using the presets of your blog's theme. You don't have to 
 them: the *Block* view picks colors from the theme's palette, sizes and block styles for
 the block under the cursor and writes the line for you.
 
+</td>
+<td width="33%" valign="top">
+
 ### A preview that looks like your blog
 
 The preview follows the editor line by line and loads the colors, gradients and font
 sizes of the active blog's theme, so striped tables and colored boxes look the way they
 will once published. The *Code* tab shows the exact block markup that will be sent, and
 *On the Blog* shows the post as WordPress itself renders it.
+
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="55%">
+<img src="data/screenshots/editor-and-properties.png" alt="The Post view with the post's type, title, slug, excerpt, status, categories and tags next to the Markdown editor" width="100%">
+</td>
+<td valign="middle">
 
 ### From first draft to published post
 
@@ -58,10 +79,6 @@ in the header bar always says what comes next: *Upload as Draft*, *Update Draft*
 tags, featured image, alt texts and links, and offers a fix for each problem it finds.
 Schedule posts, edit pages as well as posts, and manage several blogs from one window.
 
-<p align="center">
-  <img src="data/screenshots/editor-and-properties.png" alt="The Post view with the post's type, title, slug, excerpt, status, categories and tags next to the Markdown editor" width="100%">
-</p>
-
 ### Your existing posts, back as Markdown
 
 Open any post or page from the blog and keep working on it in Markdown. Blocksatz only
@@ -70,32 +87,13 @@ can't express stays as it was and goes back unchanged. A sync check notices when
 was changed on the blog in the meantime and shows the differences before anything is
 overwritten.
 
-### Images without the busywork
+</td>
+</tr>
+</table>
 
-Paste a screenshot, drop files onto the editor or pick them from the media library.
-Every image gets its own alt text and caption, uploads go out as WebP at a sensible size,
-and an image that is already on the blog is not uploaded twice. Convert or resize one
-image or all of them at once, and drag an image's edge in the preview to set its width.
-
-### Two languages, one article
-
-An article and its translation sit side by side in the same folder. Switch between them
-at the same paragraph, compare both versions section by section, and see what changed in
-the original since you last translated it. Translate by hand, paste the result from
-DeepL or a chatbot back in with code and links protected, or let an AI model do a first
-draft that you review before it goes anywhere. The translation uploads to a second
-WordPress site for the other language.
-
-### Help when you want it
-
-The assistant checks content, style, spelling and punctuation, suggests tags and writes
-alt texts for your images. It works with Gemini, ChatGPT, Claude, Groq or a local Ollama
-model, and nothing is sent unless you ask for it. Blocksatz works just as well with all
-of this switched off.
-
-<p align="center">
-  <img src="data/screenshots/dark-mode.png" alt="Blocksatz in dark mode with editor and preview" width="100%">
-</p>
+<table>
+<tr>
+<td valign="middle">
 
 ### Part of your GNOME desktop
 
@@ -114,15 +112,59 @@ another program changes the open file, it stops saving and asks what to do. Your
 WordPress password and API keys live in the system keyring, and uploads only ever change
 what is sent, never your local files.
 
-## How it works
+</td>
+<td width="55%">
+<img src="data/screenshots/dark-mode.png" alt="Blocksatz in dark mode with editor and preview" width="100%">
+</td>
+</tr>
+</table>
 
-Blocksatz is written in Rust with GTK&nbsp;4, libadwaita, GtkSourceView and WebKitGTK.
-The conversion between Markdown and Gutenberg blocks lives in its own library,
-[`crates/gutenberg`](crates/gutenberg), which runs without a user interface and is covered
-by unit tests. Blocksatz talks to WordPress through its REST API with an
-[Application Password](https://make.wordpress.org/core/2020/11/05/application-passwords-integration-guide/),
-so it needs no plugin on the blog. Articles are plain Markdown files with a short header
-for the post's properties, which you can read, diff and keep in Git.
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### Images without the busywork
+
+Paste a screenshot, drop files onto the editor or pick them from the media library.
+Every image gets its own alt text and caption, uploads go out as WebP at a sensible size,
+and an image that is already on the blog is not uploaded twice. Convert or resize one
+image or all of them at once, and drag an image's edge in the preview to set its width.
+
+</td>
+<td width="33%" valign="top">
+
+### Two languages, one article
+
+An article and its translation sit side by side in the same folder. Switch between them
+at the same paragraph, compare both versions section by section, and see what changed in
+the original since you last translated it. Translate by hand, paste the result from
+DeepL or a chatbot back in with code and links protected, or let an AI model do a first
+draft that you review before it goes anywhere. The translation uploads to a second
+WordPress site for the other language.
+
+</td>
+<td width="33%" valign="top">
+
+### Help when you want it
+
+The assistant checks content, style, spelling and punctuation, suggests tags and writes
+alt texts for your images. It works with Gemini, ChatGPT, Claude, Groq or a local Ollama
+model, and nothing is sent unless you ask for it. Blocksatz works just as well with all
+of this switched off.
+
+</td>
+</tr>
+</table>
+
+## At a glance
+
+| | |
+|---|---|
+| **Runs on** | the GNOME desktop, as a Flatpak with the GNOME 51 runtime |
+| **Works with** | any WordPress site with the REST API enabled (the default) and an Application Password, no plugin needed on the blog |
+| **Languages** | interface in English and German, follows your system language |
+| **Articles** | plain Markdown files with a short header, one folder per article in your Documents |
+| **Licence** | [GPL-3.0-or-later](LICENSE) |
 
 ## Install
 
@@ -133,13 +175,24 @@ for the post's properties, which you can read, diff and keep in Git.
 flatpak install --user blocksatz.flatpak
 ```
 
-Flatpak fetches the GNOME 51 runtime from Flathub if it is missing. Bundles don't update
-themselves, but Blocksatz tells you when a new release is out.
+Flatpak fetches the GNOME 51 runtime from Flathub if it is missing.
+
+> [!NOTE]
+> Bundles don't update themselves, but Blocksatz tells you when a new release is out.
 
 You need a WordPress site with the REST API enabled (the default) and an Application
-Password for your user, which you create under *Users → Profile* in wp-admin. The
-interface is available in English and German and follows your system language. To build
+Password for your user, which you create under *Users → Profile* in wp-admin. To build
 Blocksatz yourself, see [docs/BUILDING.md](docs/BUILDING.md).
+
+## How it works
+
+Blocksatz is written in Rust with GTK&nbsp;4, libadwaita, GtkSourceView and WebKitGTK.
+The conversion between Markdown and Gutenberg blocks lives in its own library,
+[`crates/gutenberg`](crates/gutenberg), which runs without a user interface and is covered
+by unit tests. Blocksatz talks to WordPress through its REST API with an
+[Application Password](https://make.wordpress.org/core/2020/11/05/application-passwords-integration-guide/),
+so it needs no plugin on the blog. Articles are plain Markdown files with a short header
+for the post's properties, which you can read, diff and keep in Git.
 
 ## More
 

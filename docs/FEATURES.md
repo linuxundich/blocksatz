@@ -63,6 +63,15 @@ blocks. Implemented so far:
     the original already has: its body links the original blog's
     uploads, and the featured image is left to the target blog, which
     takes the original's over (with the lui-translations plugin).
+    **SVG diagrams as a block of the theme:** with `svg_block = lui/diagramm`
+    in a blog's `[site]` section of `sites.conf` (set by hand, the
+    settings dialog keeps it), a local `![Caption](chart.svg "Alt")` is
+    uploaded and sent as that block - `{"id", "rasterId", "caption"}` -
+    instead of `wp:image`, so the theme can show it inline (and switch it
+    with light/dark). A `chart.hell.webp` (else `chart.webp`) beside the
+    SVG is uploaded along as the feed image (`rasterId`), only when it
+    changed. The preview shows the SVG as an image; an SVG a translation
+    links from its original stays a plain image.
   - The **right-hand pane** (F9) has five views: Vorschau (rendered /
     Gutenberg code / "Im Blog" - the open article as the blog itself shows
     it, draft preview or live post; offered once the article is on the

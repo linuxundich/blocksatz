@@ -940,7 +940,7 @@ mod tests {
                 size_slug: None,
             }),
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         };
         let doc = Document {
             frontmatter: Frontmatter {
@@ -1259,7 +1259,7 @@ mod tests {
                         size_slug: None,
                     }),
                     last_markdown_caption: None,
-                    last_markdown_alt: None,
+                    last_markdown_alt: None, raster: None,
                 }],
             },
             body: "Some **body**.\n".to_string(),
@@ -1321,7 +1321,7 @@ mod tests {
                     caption: None,
                     wordpress: None,
                     last_markdown_caption: None,
-                    last_markdown_alt: None,
+                    last_markdown_alt: None, raster: None,
                 }],
                 ..Frontmatter::default()
             },

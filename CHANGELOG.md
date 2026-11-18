@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- SVG diagrams as a block of the blog's theme: with `svg_block = lui/diagramm` in a blog's section of `sites.conf`, a local SVG image is uploaded and published as that block (`id`, `rasterId`, `caption`) instead of a plain image, so the theme can render it inline and switch it with light/dark. A `NAME.hell.webp` (else `NAME.webp`) beside the SVG is uploaded as its feed image, only when it changed (kept in `media_json` as `raster`). The setting survives saving the blog's credentials.
+
 ### Changed
 
 - README restructured: feature grid, screenshots beside the text, facts at a glance.

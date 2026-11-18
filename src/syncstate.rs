@@ -244,7 +244,7 @@ mod tests {
             caption: None,
             wordpress: None,
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }];
         mark_synced(&mut d, "example.org", "2026-10-01T10:00:00", "2026-10-01T10:00:05Z");
         d.frontmatter.wp_content_hash = Some("anders".into());

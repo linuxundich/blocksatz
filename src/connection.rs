@@ -196,7 +196,7 @@ impl Ui {
     /// Stores the form's blog and password; `check_after` runs the
     /// connection check afterwards (not when the save follows a check).
     fn persist(self: &Rc<Self>, check_after: bool) {
-        let site = wpsite::SiteConfig { url: self.url_row.text().trim().to_string(), username: self.username_row.text().trim().to_string() };
+        let site = wpsite::SiteConfig { url: self.url_row.text().trim().to_string(), username: self.username_row.text().trim().to_string(), svg_block: None };
         if site.url.is_empty() || site.username.is_empty() {
             self.status(&tr("Website-URL und Benutzername sind nötig."));
             return;

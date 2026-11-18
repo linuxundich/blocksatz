@@ -1435,7 +1435,7 @@ mod tests {
             caption: None,
             wordpress: Some(crate::media::WordPressMediaRef { media_id: 1, url: "https://example.org/foto.webp".into(), content_hash: String::new(), width: 0, height: 0, size_slug: None }),
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }];
         let translation = Document { frontmatter: Default::default(), body: "![Picture](foto.webp \"Alt EN\")\n".into() };
         assert_eq!(translation_body_for_check(&translation, &original), "![Picture](https://example.org/foto.webp \"Alt EN\")\n");
@@ -1767,7 +1767,7 @@ mod tests {
             caption: None,
             wordpress: Some(crate::media::WordPressMediaRef { media_id: 5, url: "https://example.org/foto.webp".into(), content_hash: String::new(), width: 0, height: 0, size_slug: None }),
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }];
         assert_eq!(body_with_uploaded_images(&doc), "![Bild](https://example.org/foto.webp \"Alt\")\n");
         assert!(local_media(&doc).is_empty());

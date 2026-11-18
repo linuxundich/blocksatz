@@ -174,6 +174,13 @@ pub struct MediaItem {
     /// Without it a translation kept its original's alt text forever,
     /// whatever its own Markdown said.
     pub last_markdown_alt: Option<String>,
+    /// The feed image uploaded alongside an SVG diagram that becomes a
+    /// site's `svg_block` (see `wpsite::SiteConfig::svg_block`): the
+    /// sibling `NAME.hell.webp` (else `NAME.webp`) of `NAME.svg`. Feeds
+    /// can't show the inline SVG, the block then links this one instead.
+    /// Persisted in `media_json` (`raster`), so it's uploaded only when it
+    /// changed, like `wordpress`.
+    pub raster: Option<WordPressMediaRef>,
 }
 
 impl MediaItem {
@@ -429,7 +436,7 @@ pub fn reconcile(existing: &[MediaItem], markdown: &str) -> Vec<MediaItem> {
                 let alt = if markdown_title.is_empty() { AltText::Undefined } else { AltText::Text(markdown_title.clone()) };
                 let id = format!("media-{next_serial:03}");
                 next_serial += 1;
-                MediaItem { id, filename, source, alt, caption, wordpress: None, last_markdown_caption: Some(markdown_bracket), last_markdown_alt: Some(markdown_title) }
+                MediaItem { id, filename, source, alt, caption, wordpress: None, last_markdown_caption: Some(markdown_bracket), last_markdown_alt: Some(markdown_title) , raster: None}
             }
         })
         .collect()
@@ -546,6 +553,51 @@ pub fn sync_uploads(
     Ok(urls)
 }
 
+/// True for a local SVG - the only kind a site's `svg_block` turns into
+/// its own block (see `wpsite::SiteConfig::svg_block`).
+pub fn is_local_svg(source: &str) -> bool {
+    !source.starts_with("http://") && !source.starts_with("https://") && source.split(['?', '#']).next().unwrap_or(source).to_lowercase().ends_with(".svg")
+}
+
+/// The feed image beside an SVG diagram: `NAME.hell.webp`, else
+/// `NAME.webp` (what the lui-diagramm tool writes next to `NAME.svg`).
+pub fn raster_companion(svg: &Path) -> Option<std::path::PathBuf> {
+    let stem = svg.file_stem()?.to_str()?;
+    let dir = svg.parent()?;
+    [format!("{stem}.hell.webp"), format!("{stem}.webp")].into_iter().map(|name| dir.join(name)).find(|p| p.is_file())
+}
+
+/// Uploads the feed image of every local SVG uploaded for a site with an
+/// `svg_block` - only when it changed since the last upload (content
+/// hash), like `sync_uploads`. An SVG without a companion keeps no
+/// `raster`; the block then shows the SVG itself in feeds.
+pub fn sync_rasters(client: &crate::wpclient::Client, items: &mut [MediaItem], doc_dir: Option<&Path>) -> Result<(), String> {
+    for item in items.iter_mut() {
+        if !is_local_svg(&item.source) || item.wordpress.is_none() {
+            continue;
+        }
+        let svg = crate::export::resolve_local_path(&item.source, doc_dir);
+        let Some(path) = raster_companion(&svg) else {
+            item.raster = None;
+            continue;
+        };
+        let bytes = std::fs::read(&path).map_err(|err| tr("Bild {path} nicht lesbar: {err}").replace("{path}", &path.display().to_string()).replace("{err}", &err.to_string()))?;
+        let hash = hash_bytes(&bytes);
+        if item.raster.as_ref().is_some_and(|r| r.content_hash == hash) {
+            continue;
+        }
+        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("diagramm.webp").to_string();
+        let compressed = crate::imagecompress::maybe_compress(&bytes, &filename);
+        let media = client.upload_media(&compressed.bytes, &compressed.filename, compressed.mime_type).map_err(|err| err.to_string())?;
+        client.update_media_metadata(media.id, item.alt.as_wordpress_value(), None).map_err(|err| err.to_string())?;
+        if let Some(previous) = item.raster.take() {
+            let _ = client.delete_media(previous.media_id);
+        }
+        item.raster = Some(WordPressMediaRef { media_id: media.id, url: media.source_url, content_hash: hash, width: media.width, height: media.height, size_slug: None });
+    }
+    Ok(())
+}
+
 /// Brings the media library's alt text and caption of images uploaded
 /// earlier in line with the article - `sync_uploads` sets them only when a
 /// file is (re)uploaded, so an alt text edited later stayed old in the
@@ -639,6 +691,9 @@ pub fn to_json(items: &[MediaItem]) -> Value {
                         object["wordpress"]["sizeSlug"] = Value::String(size.clone());
                     }
                 }
+                if let Some(r) = &item.raster {
+                    object["raster"] = serde_json::json!({ "mediaId": r.media_id, "url": r.url, "contentHash": r.content_hash });
+                }
                 object
             })
             .collect(),
@@ -684,6 +739,16 @@ pub fn from_json(value: &Value) -> Vec<MediaItem> {
                         wordpress,
                         last_markdown_caption: item.get("markdownCaption").and_then(Value::as_str).map(str::to_string),
                         last_markdown_alt: item.get("markdownAlt").and_then(Value::as_str).map(str::to_string),
+                        raster: item.get("raster").and_then(|r| {
+                            Some(WordPressMediaRef {
+                                media_id: r.get("mediaId")?.as_u64()?,
+                                url: r.get("url").and_then(Value::as_str).unwrap_or_default().to_string(),
+                                content_hash: r.get("contentHash").and_then(Value::as_str).unwrap_or_default().to_string(),
+                                width: 0,
+                                height: 0,
+                                size_slug: None,
+                            })
+                        }),
                     })
                 })
                 .collect()
@@ -901,7 +966,7 @@ mod tests {
             caption: Some("User-edited caption".to_string()),
             wordpress: None,
             last_markdown_caption: Some("a red barn".to_string()),
-            last_markdown_alt: Some("a different markdown title".to_string()),
+            last_markdown_alt: Some("a different markdown title".to_string()), raster: None,
         }];
         let updated = reconcile(&existing, "![a red barn](barn.jpg \"a different markdown title\")\n");
         assert_eq!(updated[0].caption, Some("User-edited caption".to_string()));
@@ -925,12 +990,12 @@ mod tests {
                 size_slug: None,
             }),
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }];
         let updated = reconcile(&existing, "![something else entirely](cat.png)\n");
         // Upload reference and alt text survive; without a recorded baseline
         // the bracket text replaces the stored caption once.
-        let expected = vec![MediaItem { caption: Some("something else entirely".to_string()), last_markdown_caption: Some("something else entirely".to_string()), last_markdown_alt: Some(String::new()), ..existing[0].clone() }];
+        let expected = vec![MediaItem { caption: Some("something else entirely".to_string()), last_markdown_caption: Some("something else entirely".to_string()), last_markdown_alt: Some(String::new()), raster: None, ..existing[0].clone() }];
         assert_eq!(updated, expected, "metadata for an image matched by source must survive re-scanning");
     }
 
@@ -994,7 +1059,7 @@ mod tests {
     fn reconcile_repairs_an_inherited_alt_text_without_a_baseline_once() {
         // A translation saved before the baseline was kept: German alt in
         // media_json, English title in the Markdown.
-        let inherited = vec![MediaItem { id: "media-001".into(), filename: "x.png".into(), source: "x.png".into(), alt: AltText::Text("Orange Tasse".into()), caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None }];
+        let inherited = vec![MediaItem { id: "media-001".into(), filename: "x.png".into(), source: "x.png".into(), alt: AltText::Text("Orange Tasse".into()), caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None , raster: None}];
         let items = reconcile(&inherited, "![Mug](x.png \"Orange mug\")\n");
         assert_eq!(items[0].alt, AltText::Text("Orange mug".into()));
     }
@@ -1036,7 +1101,7 @@ mod tests {
             caption: None,
             wordpress: None,
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }];
         let updated = reconcile(&existing, "No images here anymore.\n");
         assert!(updated.is_empty());
@@ -1052,7 +1117,7 @@ mod tests {
             caption: None,
             wordpress: None,
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }];
         let updated = reconcile(&existing, "![](a.png)\n\n![](b.png)\n");
         assert_eq!(updated[0].id, "media-005");
@@ -1080,8 +1145,8 @@ mod tests {
     #[test]
     fn json_round_trips_all_three_alt_states() {
         let items = vec![
-            MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: AltText::Undefined, caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None },
-            MediaItem { id: "media-002".into(), filename: "b.png".into(), source: "b.png".into(), alt: AltText::Empty, caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None },
+            MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: AltText::Undefined, caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None , raster: None},
+            MediaItem { id: "media-002".into(), filename: "b.png".into(), source: "b.png".into(), alt: AltText::Empty, caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None , raster: None},
             MediaItem {
                 id: "media-003".into(),
                 filename: "c.png".into(),
@@ -1090,7 +1155,7 @@ mod tests {
                 caption: Some("A caption".into()),
                 wordpress: Some(WordPressMediaRef { media_id: 7, url: "https://example.com/c.png".into(), content_hash: "abc123".into(), width: 0, height: 0, size_slug: None }),
                 last_markdown_caption: None,
-                last_markdown_alt: None,
+                last_markdown_alt: None, raster: None,
             },
         ];
         let round_tripped = from_json_str(&to_json_string(&items));
@@ -1100,8 +1165,8 @@ mod tests {
     #[test]
     fn deliberately_empty_alt_is_distinct_from_undefined_after_a_round_trip() {
         let items = vec![
-            MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: AltText::Undefined, caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None },
-            MediaItem { id: "media-002".into(), filename: "b.png".into(), source: "b.png".into(), alt: AltText::Empty, caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None },
+            MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: AltText::Undefined, caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None , raster: None},
+            MediaItem { id: "media-002".into(), filename: "b.png".into(), source: "b.png".into(), alt: AltText::Empty, caption: None, wordpress: None, last_markdown_caption: None, last_markdown_alt: None , raster: None},
         ];
         let round_tripped = from_json_str(&to_json_string(&items));
         assert!(round_tripped[0].alt.is_undefined());
@@ -1114,4 +1179,28 @@ mod tests {
         assert_eq!(from_json_str("not json at all"), Vec::new());
         assert_eq!(from_json_str(""), Vec::new());
     }
+
+    #[test]
+    fn the_feed_image_of_an_svg_round_trips_through_media_json() {
+        let mut items = reconcile(&[], "![Diagramm](09a.svg)\n");
+        items[0].raster = Some(WordPressMediaRef { media_id: 48790, url: "https://example.org/09a.hell_.webp".into(), content_hash: "abc".into(), width: 0, height: 0, size_slug: None });
+        let back = from_json_str(&to_json_string(&items));
+        assert_eq!(back[0].raster, items[0].raster);
+    }
+
+    #[test]
+    fn the_companion_is_the_light_webp_beside_the_svg() {
+        let dir = std::env::temp_dir().join(format!("blocksatz-raster-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let svg = dir.join("09a.svg");
+        std::fs::write(&svg, "<svg/>").unwrap();
+        assert_eq!(raster_companion(&svg), None);
+        std::fs::write(dir.join("09a.webp"), b"x").unwrap();
+        assert_eq!(raster_companion(&svg), Some(dir.join("09a.webp")));
+        std::fs::write(dir.join("09a.hell.webp"), b"x").unwrap();
+        assert_eq!(raster_companion(&svg), Some(dir.join("09a.hell.webp")));
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!(is_local_svg("bilder/x.SVG") && !is_local_svg("https://example.org/x.svg") && !is_local_svg("x.webp"));
+    }
+
 }

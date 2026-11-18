@@ -2615,7 +2615,7 @@ mod tests {
                 size_slug: None,
             }),
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }
     }
 
@@ -2938,7 +2938,7 @@ mod tests {
             caption: None,
             wordpress: None,
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }];
         let uri = gio::File::for_path(dir.join("cat.png")).uri();
 
@@ -2958,7 +2958,7 @@ mod tests {
             caption: None,
             wordpress: None,
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }];
         assert_eq!(item_index_for_image_uri(&items, "https://example.com/cat.png", None), Some(0));
         assert_eq!(item_index_for_image_uri(&items, "https://example.com/dog.png", None), None);

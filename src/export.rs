@@ -423,11 +423,17 @@ fn run_export(
 
     frontmatter.media = media::reconcile(&frontmatter.media, body);
     let uploaded_urls = media::sync_uploads(&client, &mut frontmatter.media, doc_dir, shared)?;
+    if site.svg_block.is_some() {
+        media::sync_rasters(&client, &mut frontmatter.media, doc_dir)?;
+    }
     let media_notes = media::sync_metadata(&client, &frontmatter.media);
 
     let (body, footnotes) = with_footnotes(body);
     let mut blocks = gutenberg::parse_markdown(&body);
     apply_media_metadata(&mut blocks, &frontmatter.media);
+    if let Some(block) = &site.svg_block {
+        svg_images_as_block(&mut blocks, &frontmatter.media, block);
+    }
     rewrite_image_urls(&mut blocks, &uploaded_urls);
     let content = gutenberg::render_blocks(&blocks);
 
@@ -894,6 +900,45 @@ fn caption_text(html: &str) -> String {
     out.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&#39;", "'").replace("&amp;", "&")
 }
 
+/// Turns every uploaded local SVG image into the site's diagram block
+/// (`wpsite::SiteConfig::svg_block`): `<!-- wp:NAME {"id", "rasterId",
+/// "caption"} /-->`, rendered by the theme as inline SVG. An SVG not
+/// uploaded to this blog (a translation linking its original's file) stays
+/// a plain image - the block needs an attachment of its own blog.
+fn svg_images_as_block(blocks: &mut [gutenberg::Block], media: &[media::MediaItem], block_name: &str) {
+    for block in blocks.iter_mut() {
+        match block {
+            gutenberg::Block::Image { url, title, .. } if media::is_local_svg(url) => {
+                let Some(item) = media.iter().find(|item| item.source == *url) else { continue };
+                let Some(wp) = &item.wordpress else { continue };
+                let mut attrs = serde_json::json!({ "id": wp.media_id });
+                if let Some(raster) = &item.raster {
+                    attrs["rasterId"] = serde_json::json!(raster.media_id);
+                }
+                if let Some(caption) = title.as_deref().filter(|c| !c.is_empty()) {
+                    attrs["caption"] = serde_json::json!(caption);
+                }
+                *block = gutenberg::Block::RawHtml { html: format!("<!-- wp:{block_name} {attrs} /-->") };
+            }
+            gutenberg::Block::Columns { columns } => {
+                for column in columns.iter_mut() {
+                    svg_images_as_block(column, media, block_name);
+                }
+            }
+            gutenberg::Block::Details { blocks, .. } | gutenberg::Block::Container { blocks, .. } => svg_images_as_block(blocks, media, block_name),
+            // An image with the blog's size (`apply_media_metadata`) comes
+            // wrapped - the block replaces the wrapper too, size and all.
+            gutenberg::Block::Styled { block: inner, .. } => {
+                svg_images_as_block(std::slice::from_mut(inner.as_mut()), media, block_name);
+                if matches!(inner.as_ref(), gutenberg::Block::RawHtml { .. }) {
+                    *block = std::mem::replace(inner.as_mut(), gutenberg::Block::ThematicBreak);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 /// Recursively substitutes `wp:image`/`wp:video`/`wp:audio` blocks' source
 /// with the WordPress URL `media::sync_uploads` resolved for it, wherever
 /// the block's current url is a key in `urls` - an already-remote url (not
@@ -1163,6 +1208,35 @@ mod tests {
         assert!(out.contains("<figcaption class=\"wp-element-caption\">Bildunterschrift</figcaption>"), "{out}");
     }
 
+    /// A site with `svg_block`: an uploaded SVG goes out as that block with
+    /// its feed image and caption, an ordinary image stays `wp:image`.
+    #[test]
+    fn an_uploaded_svg_becomes_the_sites_diagram_block() {
+        let md = "![Große Datei schreiben](09a.svg \"Balkendiagramm\")\n\n![Foto](foto.webp)\n";
+        let mut media = media::reconcile(&[], md);
+        media[0].wordpress = uploaded(48789, "https://example.org/09a.svg");
+        media[0].raster = uploaded(48790, "https://example.org/09a.hell_.webp");
+        media[1].wordpress = uploaded(7, "https://example.org/foto.webp");
+        let mut blocks = gutenberg::parse_markdown(md);
+        apply_media_metadata(&mut blocks, &media);
+        svg_images_as_block(&mut blocks, &media, "lui/diagramm");
+        let out = gutenberg::render_blocks(&blocks);
+        assert!(out.contains("<!-- wp:lui/diagramm {\"caption\":\"Große Datei schreiben\",\"id\":48789,\"rasterId\":48790} /-->"), "{out}");
+        assert!(out.contains("wp-image-7"), "{out}");
+        assert!(!out.contains("09a.svg"), "{out}");
+    }
+
+    /// Not uploaded to this blog (a translation linking the original's
+    /// file): no attachment for the block, so it stays an image.
+    #[test]
+    fn an_svg_without_upload_stays_an_image() {
+        let md = "![Diagramm](09a.svg)\n";
+        let media = media::reconcile(&[], md);
+        let mut blocks = gutenberg::parse_markdown(md);
+        svg_images_as_block(&mut blocks, &media, "lui/diagramm");
+        assert!(gutenberg::render_blocks(&blocks).contains("wp:image"));
+    }
+
     fn uploaded(media_id: u64, url: &str) -> Option<media::WordPressMediaRef> {
         Some(media::WordPressMediaRef { media_id, url: url.into(), content_hash: "hash".into(), width: 1280, height: 689, size_slug: Some("large".into()) })
     }
@@ -1309,7 +1383,7 @@ mod tests {
 
     #[test]
     fn an_image_used_twice_keeps_its_own_caption_at_each_place() {
-        let item = media::MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: media::AltText::Text("Alt aus der Galerie".into()), caption: Some("Bild 1".into()), wordpress: None, last_markdown_caption: None, last_markdown_alt: None };
+        let item = media::MediaItem { id: "media-001".into(), filename: "a.png".into(), source: "a.png".into(), alt: media::AltText::Text("Alt aus der Galerie".into()), caption: Some("Bild 1".into()), wordpress: None, last_markdown_caption: None, last_markdown_alt: None , raster: None};
         let mut blocks = gutenberg::parse_markdown("```gallery\n![Bild 1](a.png)\n```\n\n![](a.png)\n");
         apply_media_metadata(&mut blocks, std::slice::from_ref(&item));
         let gutenberg::Block::Image { title, alt, .. } = &blocks[1] else { panic!("expected image") };
@@ -1438,7 +1512,7 @@ mod tests {
             caption: Some("Our cat, sleeping".to_string()),
             wordpress: None,
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }];
         let html = gutenberg_preview_html("![a red cat](cat.png)", &media);
         assert!(html.contains("<figcaption class=\"wp-element-caption\">Our cat, sleeping</figcaption>"), "{html}");
@@ -1454,7 +1528,7 @@ mod tests {
             caption: Some("Our cat, sleeping".to_string()),
             wordpress: None,
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }];
         let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0, link: None }];
         apply_media_metadata(&mut blocks, &media);
@@ -1473,7 +1547,7 @@ mod tests {
             caption: None,
             wordpress: None,
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }];
         let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: "from the markdown source".to_string(), title: None, media_id: None, width: 0, height: 0, link: None }];
         apply_media_metadata(&mut blocks, &media);
@@ -1491,7 +1565,7 @@ mod tests {
             caption: None,
             wordpress: Some(media::WordPressMediaRef { media_id: 123, url: "https://example.com/cat.png".to_string(), content_hash: "abc".to_string(), width: 640, height: 480, size_slug: None }),
             last_markdown_caption: None,
-            last_markdown_alt: None,
+            last_markdown_alt: None, raster: None,
         }];
         let mut blocks = vec![gutenberg::Block::Image { url: "cat.png".to_string(), alt: String::new(), title: None, media_id: None, width: 0, height: 0, link: None }];
         apply_media_metadata(&mut blocks, &media);

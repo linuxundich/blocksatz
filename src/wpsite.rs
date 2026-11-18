@@ -24,6 +24,13 @@ use gtk4::glib;
 pub struct SiteConfig {
     pub url: String,
     pub username: String,
+    /// A block the site's theme provides for SVG diagrams (e.g.
+    /// `lui/diagramm`): a local `.svg` image is then uploaded and sent as
+    /// this block - `{"id", "rasterId", "caption"}` - instead of
+    /// `wp:image`, so the theme can show it inline. Set by hand in
+    /// `sites.conf` (`svg_block = lui/diagramm`); `None` keeps SVGs as
+    /// plain images.
+    pub svg_block: Option<String>,
 }
 
 impl SiteConfig {
@@ -79,7 +86,12 @@ impl Sites {
     pub fn upsert(&mut self, site: SiteConfig) {
         let id = site.site_id();
         match self.sites.iter_mut().find(|s| s.site_id() == id) {
-            Some(existing) => *existing = site,
+            // The settings dialog knows only url and user - a hand-set
+            // `svg_block` survives saving the credentials.
+            Some(existing) => {
+                let svg_block = site.svg_block.clone().or_else(|| existing.svg_block.clone());
+                *existing = SiteConfig { svg_block, ..site }
+            }
             None => self.sites.push(site),
         }
         // Saving a blog's credentials doesn't switch to it - that is the
@@ -209,6 +221,7 @@ fn parse_sites(input: &str) -> Sites {
             ("active", None) => sites.active = value,
             ("url", Some(site)) => site.url = value,
             ("username", Some(site)) => site.username = value,
+            ("svg_block", Some(site)) => site.svg_block = Some(value).filter(|v| !v.is_empty()),
             _ => {}
         }
     }
@@ -220,6 +233,9 @@ fn serialize_sites(sites: &Sites) -> String {
     let mut out = format!("active = {}\n", sites.active);
     for site in &sites.sites {
         out.push_str(&format!("\n[site]\nurl = {}\nusername = {}\n", site.url, site.username));
+        if let Some(block) = &site.svg_block {
+            out.push_str(&format!("svg_block = {block}\n"));
+        }
     }
     out
 }
@@ -229,7 +245,7 @@ mod tests {
     use super::*;
 
     fn site(url: &str, user: &str) -> SiteConfig {
-        SiteConfig { url: url.into(), username: user.into() }
+        SiteConfig { url: url.into(), username: user.into(), svg_block: None }
     }
 
     #[test]
@@ -237,6 +253,17 @@ mod tests {
         assert_eq!(site("https://www.linuxundich.de/", "").site_id(), "linuxundich.de");
         assert_eq!(site("http://Example.org/blog/", "").site_id(), "example.org/blog");
         assert_eq!(site("example.org", "").site_id(), "example.org");
+    }
+
+    #[test]
+    fn svg_block_round_trips_and_survives_saving_credentials() {
+        let mut lui = site("https://linuxundich.de", "christoph");
+        lui.svg_block = Some("lui/diagramm".into());
+        let mut sites = Sites { sites: vec![lui], active: "linuxundich.de".into() };
+        assert_eq!(parse_sites(&serialize_sites(&sites)), sites);
+        sites.upsert(site("https://linuxundich.de", "neu"));
+        assert_eq!(sites.active_site().svg_block.as_deref(), Some("lui/diagramm"));
+        assert_eq!(sites.active_site().username, "neu");
     }
 
     #[test]
@@ -275,7 +302,7 @@ mod tests {
 
     #[test]
     fn a_blogs_language_comes_from_its_address() {
-        let site = |url: &str| SiteConfig { url: url.into(), username: String::new() };
+        let site = |url: &str| SiteConfig { url: url.into(), username: String::new(), svg_block: None };
         assert_eq!(site_lang(&site("https://linuxundich.de/en")), Some("en".into()));
         assert_eq!(site_lang(&site("https://example.org/blog/pt-br/")), Some("pt-br".into()));
         assert_eq!(site_lang(&site("https://linuxundich.de")), None);

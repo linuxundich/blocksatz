@@ -39,6 +39,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.80.2" date="2026-11-18">
+      <description>
+        <p>Behoben: Die Vorschläge für Kategorien und Schlagwörter zeigen auch den genau passenden Begriff, an erster Stelle. Die Vorschlagsliste schließt mit Escape, einem Klick daneben oder beim Verlassen des Felds.</p>
+      </description>
+    </release>
     <release version="0.80.1" date="2026-11-18">
       <description>
         <p>Behoben: Die Textfelder für Mastodon und Bluesky wachsen mit dem Text, der ganze Beitrag ist ohne Scrollen im Feld zu sehen.</p>

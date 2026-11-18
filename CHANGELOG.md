@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.80.2] - 2026-11-18
+
 ### Fixed
 
 - Category and tag suggestions offer the exact term too, first in the list: typing "GNOME" showed "GNOME Do", "GNOME Shell" and friends, but not "GNOME" itself. Terms starting with the typed text follow, shortest first, then the rest.
@@ -2922,7 +2924,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.80.1...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.80.2...HEAD
+[0.80.2]: https://github.com/linuxundich/blocksatz/compare/v0.80.1...v0.80.2
 [0.80.1]: https://github.com/linuxundich/blocksatz/compare/v0.80.0...v0.80.1
 [0.80.0]: https://github.com/linuxundich/blocksatz/compare/v0.79.0...v0.80.0
 [0.79.0]: https://github.com/linuxundich/blocksatz/compare/v0.78.1...v0.79.0

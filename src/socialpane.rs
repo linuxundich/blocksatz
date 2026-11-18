@@ -70,15 +70,16 @@ impl SocialPane {
 
             let view = gtk4::TextView::builder().wrap_mode(gtk4::WrapMode::WordChar).top_margin(6).bottom_margin(6).left_margin(6).right_margin(6).accepts_tab(false).build();
             view.buffer().set_text(&entry.text);
-            let frame = gtk4::Frame::builder().child(&view).build();
-            let scroller = gtk4::ScrolledWindow::builder().child(&frame).min_content_height(120).hscrollbar_policy(gtk4::PolicyType::Never).build();
+            // No scroller of its own: the field grows with the text, so a
+            // whole post is always visible; the post pane scrolls instead.
+            let frame = gtk4::Frame::builder().child(&view).height_request(96).build();
             let suggest_button = gtk4::Button::builder().label(tr("Vorschlag vom Blog")).tooltip_text(tr("Text so, wie ihn das Blog schreiben würde – zum Weiterbearbeiten")).build();
             let auto_button = gtk4::Button::builder().label(tr("Automatisch")).tooltip_text(tr("Text leeren: Das Blog schreibt ihn beim Veröffentlichen")).build();
             let buttons = gtk4::Box::builder().spacing(6).halign(gtk4::Align::End).build();
             buttons.append(&auto_button);
             buttons.append(&suggest_button);
             let content = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(6).margin_top(8).margin_bottom(8).margin_start(12).margin_end(12).build();
-            content.append(&scroller);
+            content.append(&frame);
             content.append(&buttons);
             let text_row = adw::PreferencesRow::builder().activatable(false).selectable(false).child(&content).build();
             expander.add_row(&text_row);

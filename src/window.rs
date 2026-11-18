@@ -1675,12 +1675,18 @@ fn wire_open_path_action(window: &adw::ApplicationWindow, ctx: &DocContext) {
 pub(crate) fn open_document_at_path(path: PathBuf, ctx: &DocContext) {
     worksave::flush(ctx, false);
     match document::read(&path) {
-        Ok(doc) => {
+        Ok(mut doc) => {
+            // A hand-written `artikel.en.md` often has no `lang:` - take it
+            // from the file name, so AI actions (`ailang`) and the preview
+            // badge don't fall back to German.
+            if doc.frontmatter.lang.is_none() {
+                doc.frontmatter.lang = library::file_lang(&path).flatten();
+            }
             *ctx.written.borrow_mut() = document::serialize(&doc);
             ctx.buffer.set_text(&doc.body);
             ctx.title.set_subtitle(&subtitle_for(Some(&path), &doc.frontmatter));
             *ctx.saved_text.borrow_mut() = doc.body.clone();
-            crate::editor::follow_language(doc.frontmatter.lang.as_deref().or(library::file_lang(&path).flatten().as_deref()));
+            crate::editor::follow_language(doc.frontmatter.lang.as_deref());
             *ctx.frontmatter.borrow_mut() = doc.frontmatter;
             let doc_dir = path.parent().map(Path::to_path_buf);
             let _ = recentfiles::record(&path);

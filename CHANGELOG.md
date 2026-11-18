@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The publish dialog ("Veröffentlichen") stays open after "Jetzt veröffentlichen"/"Planen"/"Änderungen veröffentlichen" and shows the upload's progress: a bar and the current step (image n of m, categories and tags, featured image, the post itself). It closes by itself once the post is up and keeps the error on screen if the upload fails. "Beide Sprachen" keeps the page open for the translation. "Im Hintergrund weiter" closes it while the upload goes on.
+
+### Fixed
+
+- AI alt text (body images and featured image), captions and tag suggestions came back in German for an English language version without a `lang:` line in its front matter (e.g. a hand-written `artikel.en.md`). Opening a file now takes the language from its name (`artikel.en.md` → `en`), which also fixes the preview's language badge.
+
 ## [0.81.0] - 2026-11-18
 
 ### Added

@@ -54,6 +54,8 @@ pub struct MainAction {
     links: releasecheck::LinkTarget,
     banner_kind: Cell<BannerKind>,
     busy: Cell<bool>,
+    /// The release check's progress page while an upload it started runs.
+    progress: std::cell::RefCell<Option<releasecheck::UploadProgress>>,
     /// Open the blog preview once the running upload is done.
     preview_after_upload: Cell<bool>,
     /// The working copy whose blog preview "Im Blog" shows - when another
@@ -119,6 +121,7 @@ impl MainAction {
             links,
             banner_kind: Cell::new(BannerKind::None),
             busy: Cell::new(false),
+            progress: std::cell::RefCell::new(None),
             preview_after_upload: Cell::new(false),
             previewed: std::cell::RefCell::new(None),
             original_changed: Cell::new((u64::MAX, None)),
@@ -645,8 +648,9 @@ impl MainAction {
                 let Some(window) = self.window.upgrade() else { return };
                 worksave::flush(&self.ctx, false);
                 let weak = self.weak.clone();
-                releasecheck::open(&window, &self.ctx, Mode::Publish { scheduled }, &self.links, move |decision| {
+                releasecheck::open(&window, &self.ctx, Mode::Publish { scheduled }, &self.links, move |decision, progress| {
                     let Some(this) = weak.upgrade() else { return };
+                    this.follow_progress(progress);
                     *this.pair_step.borrow_mut() = Some(PairStep { next: PairNext::Publish(decision.clone()), ..step.clone() });
                     this.publish_with(decision);
                 });
@@ -670,6 +674,7 @@ impl MainAction {
     fn continue_pair(&self) {
         let Some(step) = self.pair_step.borrow_mut().take() else { return };
         if self.ctx.current_path.borrow().as_deref() != Some(step.original.as_path()) {
+            self.abandon_progress();
             return;
         }
         window::open_document_at_path(step.translation.clone(), &self.ctx);
@@ -691,9 +696,12 @@ impl MainAction {
                 if let Decision::Scheduled(at) = decision {
                     self.ctx.frontmatter.borrow_mut().scheduled_at = Some(at);
                 }
+                // The translation's own check replaces the original's page.
+                self.abandon_progress();
                 let weak = self.weak.clone();
-                releasecheck::open(&window, &self.ctx, Mode::Publish { scheduled }, &self.links, move |decision| {
+                releasecheck::open(&window, &self.ctx, Mode::Publish { scheduled }, &self.links, move |decision, progress| {
                     if let Some(this) = weak.upgrade() {
+                        this.follow_progress(progress);
                         this.publish_with(decision);
                     }
                 });
@@ -706,8 +714,9 @@ impl MainAction {
         // The checks look at the current media list.
         worksave::flush(&self.ctx, false);
         let weak = self.weak.clone();
-        releasecheck::open(&window, &self.ctx, mode, &self.links, move |decision| {
+        releasecheck::open(&window, &self.ctx, mode, &self.links, move |decision, progress| {
             let Some(this) = weak.upgrade() else { return };
+            this.follow_progress(progress);
             match (mode, decision) {
                 (Mode::PublishChanges, _) => this.upload(TargetStatus::PublishOrKeep, false),
                 (_, Decision::Now) => this.upload(TargetStatus::Set(PostStatus::Publish), false),
@@ -717,6 +726,21 @@ impl MainAction {
                 }
             }
         });
+    }
+
+    /// Shows the coming upload's steps on `progress` (the release check's
+    /// last page).
+    fn follow_progress(&self, progress: releasecheck::UploadProgress) {
+        if let Some(old) = self.progress.replace(Some(progress)) {
+            old.abandon();
+        }
+    }
+
+    /// The upload was called off before it started: closes the progress page.
+    fn abandon_progress(&self) {
+        if let Some(progress) = self.progress.take() {
+            progress.abandon();
+        }
     }
 
     fn set_busy(&self, busy: bool) {
@@ -741,6 +765,7 @@ impl MainAction {
         crate::translatedialog::fill_source_id(&self.ctx);
         if self.ctx.frontmatter.borrow().translation.as_ref().is_some_and(|t| t.source_id == 0) {
             window::show_toast(&self.ctx.toast_overlay, &tr("Erst das Original hochladen - die Übersetzung wird mit ihm verknüpft."));
+            self.abandon_progress();
             return;
         }
         self.confirm_unpublish(target, preview_after);
@@ -769,10 +794,11 @@ impl MainAction {
         alert.set_close_response("cancel");
         let weak = self.weak.clone();
         alert.connect_response(None, move |_, response| {
+            let Some(this) = weak.upgrade() else { return };
             if response == "schedule" {
-                if let Some(this) = weak.upgrade() {
-                    this.check_existing_translation(target, preview_after);
-                }
+                this.check_existing_translation(target, preview_after);
+            } else {
+                this.abandon_progress();
             }
         });
         alert.present(Some(&window));
@@ -833,9 +859,12 @@ impl MainAction {
         alert.connect_response(None, move |_, response| {
             let Some(this) = weak.upgrade() else { return };
             match response {
-                "adopt" => this.adopt_existing_translation(pair.id, pair.source_hash.clone()),
+                "adopt" => {
+                    this.abandon_progress();
+                    this.adopt_existing_translation(pair.id, pair.source_hash.clone());
+                }
                 "new" => this.check_language(target, preview_after),
-                _ => {}
+                _ => this.abandon_progress(),
             }
         });
         alert.present(Some(&window));
@@ -912,10 +941,11 @@ impl MainAction {
         alert.set_close_response("cancel");
         let weak = self.weak.clone();
         alert.connect_response(None, move |_, response| {
+            let Some(this) = weak.upgrade() else { return };
             if response == "upload" {
-                if let Some(this) = weak.upgrade() {
-                    this.confirm_new_categories(target, preview_after);
-                }
+                this.confirm_new_categories(target, preview_after);
+            } else {
+                this.abandon_progress();
             }
         });
         alert.present(Some(&window));
@@ -976,10 +1006,11 @@ impl MainAction {
             alert.set_close_response("cancel");
             let weak = this.weak.clone();
             alert.connect_response(None, move |_, response| {
+                let Some(this) = weak.upgrade() else { return };
                 if response == "create" {
-                    if let Some(this) = weak.upgrade() {
-                        this.upload_now(target, preview_after);
-                    }
+                    this.upload_now(target, preview_after);
+                } else {
+                    this.abandon_progress();
                 }
             });
             alert.present(Some(&window));
@@ -999,6 +1030,9 @@ impl MainAction {
             self.ctx.frontmatter.borrow_mut().wp_site = Some(site);
         }
         self.preview_after_upload.set(preview_after);
+        if let Some(progress) = self.progress.borrow().as_ref() {
+            progress.document(&self.ctx.frontmatter.borrow().title);
+        }
 
         let ctx = self.ctx.clone();
         let get_body: export::BodyProvider = {
@@ -1019,9 +1053,32 @@ impl MainAction {
             let weak = self.weak.clone();
             let toast_overlay = ctx.toast_overlay.clone();
             PublishFeedback {
-                on_progress: Rc::new(|_| {}),
+                on_progress: {
+                    let weak = self.weak.clone();
+                    Rc::new(move |fraction: Option<f64>, step: &str| {
+                        if let Some(progress) = weak.upgrade().and_then(|this| this.progress.borrow().clone()) {
+                            progress.update(fraction, step);
+                        }
+                    })
+                },
+                on_cancel: {
+                    let weak = self.weak.clone();
+                    Rc::new(move || {
+                        if let Some(this) = weak.upgrade() {
+                            this.abandon_progress();
+                        }
+                    })
+                },
                 on_success: Rc::new(move |post: &wpclient::PostResult, status: PostStatus, requested: Option<PostStatus>| {
                     let Some(this) = weak.upgrade() else { return };
+                    // "Beide Sprachen": the page stays for the translation.
+                    if this.pair_step.borrow().is_some() {
+                        if let Some(progress) = this.progress.borrow().as_ref() {
+                            progress.update(None, &tr("Die Übersetzung folgt …"));
+                        }
+                    } else if let Some(progress) = this.progress.take() {
+                        progress.finished();
+                    }
                     blogsync::record_upload(&this.ctx, post, status);
                     let scheduled = this.ctx.frontmatter.borrow().scheduled_at.clone();
                     let mut message = if SENDING_DATE.with(|cell| cell.replace(false)) && matches!(status, PostStatus::Publish | PostStatus::Private) {
@@ -1052,6 +1109,9 @@ impl MainAction {
                 on_error: {
                     let weak = self.weak.clone();
                     Rc::new(move |message: &str| {
+                        if let Some(progress) = weak.upgrade().and_then(|this| this.progress.take()) {
+                            progress.failed(message);
+                        }
                         let halfway = weak.upgrade().and_then(|this| this.pair_step.borrow_mut().take()).is_some();
                         if halfway {
                             window::show_toast(&toast_overlay, &format!("{message} {}", tr("Die andere Sprache wurde nicht hochgeladen.")));

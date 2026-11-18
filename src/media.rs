@@ -504,18 +504,27 @@ pub fn hash_local_file(source: &str, doc_dir: Option<&Path>) -> std::io::Result<
 /// reaches the post either. An image the original has but hasn't uploaded
 /// yet stops the upload with an error, rather than landing in the wrong
 /// media library.
+///
+/// `on_item(n, total)` runs before the n-th (1-based) of the `total` local
+/// images is checked or uploaded - the release check's progress bar.
 pub fn sync_uploads(
     client: &crate::wpclient::Client,
     items: &mut [MediaItem],
     doc_dir: Option<&Path>,
     shared: Option<&crate::translate::SharedMedia>,
+    on_item: &dyn Fn(usize, usize),
 ) -> Result<HashMap<String, String>, String> {
     let mut urls = link_shared(items, shared)?;
+    let is_local = |item: &MediaItem, urls: &HashMap<String, String>| !(item.source.starts_with("http://") || item.source.starts_with("https://") || urls.contains_key(&item.source));
+    let total = items.iter().filter(|item| is_local(item, &urls)).count();
+    let mut n = 0;
 
     for item in items.iter_mut() {
-        if item.source.starts_with("http://") || item.source.starts_with("https://") || urls.contains_key(&item.source) {
+        if !is_local(item, &urls) {
             continue;
         }
+        n += 1;
+        on_item(n, total);
 
         let resolved = crate::export::resolve_local_path(&item.source, doc_dir);
         let bytes = std::fs::read(&resolved)

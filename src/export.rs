@@ -65,9 +65,20 @@ pub(crate) type DocDirProvider = Rc<dyn Fn() -> Option<PathBuf>>;
 /// a snapshot that could be stale by the time the upload finishes.
 pub(crate) type DocumentSaver = Rc<dyn Fn()>;
 
+/// What the export thread hands back: the post, and the media list,
+/// content hash and featured image (file, id, source) it ended with.
+type ExportOutcome = Result<(wpclient::PostResult, Vec<media::MediaItem>, Option<String>, (Option<String>, Option<u64>, Option<String>)), String>;
+
+/// A step of the upload: how far it is (`None` while that isn't known yet)
+/// and what it is doing.
+pub(crate) type ProgressSink = Rc<dyn Fn(Option<f64>, &str)>;
+
 #[derive(Clone)]
 pub(crate) struct PublishFeedback {
-    pub on_progress: Rc<dyn Fn(&str)>,
+    pub on_progress: ProgressSink,
+    /// The upload was called off before anything was sent (the "changed on
+    /// WordPress" question answered with "Abbrechen").
+    pub on_cancel: Rc<dyn Fn()>,
     pub on_success: OnPublishSuccess,
     pub on_error: Rc<dyn Fn(&str)>,
 }
@@ -165,7 +176,7 @@ pub(crate) fn publish(
     };
 
     set_busy(true);
-    (feedback.on_progress)(&tr("Prüfe auf Änderungen auf WordPress …"));
+    (feedback.on_progress)(None, &tr("Prüfe auf Änderungen auf WordPress …"));
 
     // The blog this working copy belongs to, not necessarily the active one.
     let site = wpsite::for_site_id(frontmatter.borrow().wp_site.as_deref());
@@ -219,8 +230,8 @@ pub(crate) fn publish(
                         if response == "overwrite" {
                             start_export(target_status, &frontmatter, &get_body(), &get_doc_dir(), &feedback, &set_busy, &save_document);
                         } else {
-                            (feedback.on_progress)(&tr("Abgebrochen - lokale Änderungen wurden nicht gesendet."));
                             set_busy(false);
+                            (feedback.on_cancel)();
                         }
                     });
                     confirm.present(Some(&dialog_parent));
@@ -260,7 +271,7 @@ pub(crate) fn start_export(
     save_document: &DocumentSaver,
 ) {
     set_busy(true);
-    (feedback.on_progress)(&tr("Wird gesendet …"));
+    (feedback.on_progress)(Some(0.0), &tr("Verbindung zum Blog …"));
 
     // Recorded on disk *before* the request, so an interrupted first upload
     // is recognized on the next try (see `Frontmatter::wp_pending_create`).
@@ -293,14 +304,18 @@ pub(crate) fn start_export(
     // there instead (only in what is sent; the file keeps its text).
     let body = crate::translate::localized_links(&body, &current_fm, &site);
 
-    let (tx, rx) = mpsc::channel::<Result<(wpclient::PostResult, Vec<media::MediaItem>, Option<String>, (Option<String>, Option<u64>, Option<String>)), String>>();
+    let (tx, rx) = mpsc::channel::<ExportOutcome>();
+    let (progress_tx, progress_rx) = mpsc::channel::<(f64, String)>();
     let running = UploadRunning::start();
     std::thread::spawn(move || {
         let _running = running;
+        let progress = move |fraction: f64, step: &str| {
+            let _ = progress_tx.send((fraction, step.to_string()));
+        };
         let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
             .map_err(|err| err.to_string())
             .and_then(|maybe_password| maybe_password.ok_or_else(|| tr("Kein Application Password im Schlüsselbund gefunden.")))
-            .and_then(|password| run_export(&site, &password, &mut current_fm, target_status, &body, doc_dir.as_deref(), shared.as_ref()))
+            .and_then(|password| run_export_with_progress(&site, &password, &mut current_fm, target_status, &body, doc_dir.as_deref(), shared.as_ref(), &progress))
             .map(|post| (post, current_fm.media, current_fm.wp_content_hash, (current_fm.featured_image, current_fm.featured_media_id, current_fm.wp_featured_source)));
         let _ = tx.send(outcome);
     });
@@ -309,8 +324,30 @@ pub(crate) fn start_export(
     let feedback = feedback.clone();
     let set_busy = set_busy.clone();
     let save_document = save_document.clone();
-    glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
+    glib::timeout_add_local(Duration::from_millis(100), move || {
+        // Only the latest step matters for the bar.
+        if let Some((fraction, step)) = progress_rx.try_iter().last() {
+            (feedback.on_progress)(Some(fraction), &step);
+        }
+        export_finished(rx.try_recv(), &frontmatter, &feedback, &set_busy, &save_document, &sent_body, &site_id, target_status)
+    });
+}
+
+/// The answer of the export thread, once it is there.
+#[allow(clippy::too_many_arguments)]
+fn export_finished(
+    received: Result<ExportOutcome, mpsc::TryRecvError>,
+    frontmatter: &Rc<RefCell<Frontmatter>>,
+    feedback: &PublishFeedback,
+    set_busy: &BusySetter,
+    save_document: &DocumentSaver,
+    sent_body: &str,
+    site_id: &str,
+    target_status: Option<PostStatus>,
+) -> glib::ControlFlow {
+    match received {
         Ok(Ok((post, media, content_hash, (featured_image, featured_media_id, featured_source)))) => {
+            (feedback.on_progress)(Some(1.0), &tr("Fertig"));
             let (title, final_status) = {
                 let mut fm = frontmatter.borrow_mut();
                 fm.wp_post_id = Some(post.id);
@@ -325,8 +362,8 @@ pub(crate) fn start_export(
                 fm.wp_pending_create = None;
                 // Fingerprinted against the body as it was *sent*: anything
                 // typed while the upload ran is a local change still to go.
-                let mut synced = Document { frontmatter: fm.clone(), body: sent_body.clone() };
-                syncstate::mark_synced(&mut synced, &site_id, &post.modified_gmt, &syncstate::now_rfc3339());
+                let mut synced = Document { frontmatter: fm.clone(), body: sent_body.to_string() };
+                syncstate::mark_synced(&mut synced, site_id, &post.modified_gmt, &syncstate::now_rfc3339());
                 *fm = synced.frontmatter;
                 (fm.title.clone(), fm.status)
             };
@@ -356,7 +393,7 @@ pub(crate) fn start_export(
             (feedback.on_error)(&tr("Interner Fehler: Export-Thread hat kein Ergebnis geliefert."));
             glib::ControlFlow::Break
         }
-    });
+    }
 }
 
 static UPLOADS_RUNNING: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -390,6 +427,7 @@ impl Drop for UploadRunning {
     }
 }
 
+#[cfg(test)]
 fn run_export(
     site: &wpsite::SiteConfig,
     password: &str,
@@ -398,6 +436,33 @@ fn run_export(
     body: &str,
     doc_dir: Option<&Path>,
     shared: Option<&translate::SharedMedia>,
+) -> Result<wpclient::PostResult, String> {
+    run_export_with_progress(site, password, frontmatter, target_status, body, doc_dir, shared, &|_, _| {})
+}
+
+/// Where the images end on the progress bar - they take most of the time;
+/// the rest are a few small requests and the post itself.
+const IMAGES_DONE: f64 = 0.75;
+
+/// The progress of image `n` of `total`, between the start and `IMAGES_DONE`.
+fn image_fraction(n: usize, total: usize) -> f64 {
+    if total == 0 {
+        return IMAGES_DONE;
+    }
+    0.05 + (IMAGES_DONE - 0.05) * (n.saturating_sub(1) as f64 / total as f64)
+}
+
+/// `progress(fraction, step)` reports each step for the upload dialog.
+#[allow(clippy::too_many_arguments)]
+fn run_export_with_progress(
+    site: &wpsite::SiteConfig,
+    password: &str,
+    frontmatter: &mut Frontmatter,
+    target_status: Option<PostStatus>,
+    body: &str,
+    doc_dir: Option<&Path>,
+    shared: Option<&translate::SharedMedia>,
+    progress: &dyn Fn(f64, &str),
 ) -> Result<wpclient::PostResult, String> {
     // WordPress only actually schedules a post if its `date` is genuinely
     // in the future - given a missing or past date, it silently publishes
@@ -422,7 +487,11 @@ fn run_export(
     };
 
     frontmatter.media = media::reconcile(&frontmatter.media, body);
-    let uploaded_urls = media::sync_uploads(&client, &mut frontmatter.media, doc_dir, shared)?;
+    progress(0.05, &tr("Bilder prüfen …"));
+    let uploaded_urls = media::sync_uploads(&client, &mut frontmatter.media, doc_dir, shared, &|n, total| {
+        progress(image_fraction(n, total), &tr("Bild {n} von {total} …").replace("{n}", &n.to_string()).replace("{total}", &total.to_string()));
+    })?;
+    progress(IMAGES_DONE, &tr("Bildtexte abgleichen …"));
     if site.svg_block.is_some() {
         media::sync_rasters(&client, &mut frontmatter.media, doc_dir)?;
     }
@@ -445,6 +514,7 @@ fn run_export(
     // taxonomy for the `page` type) - skipped entirely rather than
     // resolving/creating terms that would then just be silently dropped.
     if frontmatter.post_type == PostType::Post {
+        progress(0.82, &tr("Kategorien und Schlagwörter …"));
         let mut category_ids = Vec::new();
         for name in &frontmatter.categories {
             category_ids.push(client.resolve_or_create_term("categories", name).map_err(|err| err.to_string())?);
@@ -539,6 +609,7 @@ fn run_export(
         // check - the featured image isn't a `MediaItem` at all (it's a
         // single Frontmatter field, never scanned from the Markdown body),
         // so it has no tracked content hash to compare against.
+        progress(0.85, &tr("Aufmacherbild hochladen …"));
         let media = upload_image_file(&client, path, doc_dir).map_err(|err| err.to_string())?;
         payload["featured_media"] = serde_json::json!(media.id);
         featured_uploaded = Some(media.id);
@@ -611,6 +682,7 @@ fn run_export(
             }
         }
     }
+    progress(0.9, &tr("Beitrag senden …"));
     let mut result = match frontmatter.wp_post_id {
         Some(id) => client.update_item(rest_base, id, &payload),
         None => client.create_item(rest_base, &payload),
@@ -626,6 +698,7 @@ fn run_export(
     // The uploads happened before the post existed: tie them to it now, so
     // the media library shows where each one is used. Best effort - a
     // failure here is no reason to fail a post that is already saved.
+    progress(0.96, &tr("Bilder zuordnen …"));
     let ids = frontmatter.media.iter().filter_map(|item| item.wordpress.as_ref().map(|wp| wp.media_id)).chain(featured_uploaded).chain(frontmatter.featured_media_id);
     for id in ids.collect::<std::collections::BTreeSet<u64>>() {
         let _ = client.attach_media(id, result.id);
@@ -1088,6 +1161,14 @@ pub(crate) fn mime_from_extension(filename: &str) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn images_fill_the_bar_up_to_the_post_request() {
+        assert_eq!(super::image_fraction(0, 0), super::IMAGES_DONE);
+        assert!((super::image_fraction(1, 4) - 0.05).abs() < 1e-9);
+        assert!(super::image_fraction(4, 4) < super::IMAGES_DONE);
+        assert!(super::image_fraction(2, 4) > super::image_fraction(1, 4));
+    }
+
     use super::*;
 
     #[test]

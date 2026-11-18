@@ -5,12 +5,14 @@
 //! plus the choice "Sofort / Geplant". Links and images open as sub-pages
 //! with the existing link checker and media manager. Replaces the old
 //! export wizard (a carousel of the same steps) and the plain "publish?"
-//! confirmation; only the final button actually uploads.
+//! confirmation; only the final button actually uploads. The dialog then
+//! stays open on a progress page (`UploadProgress`) until the post is up.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use adw::prelude::*;
+use gtk4::glib;
 
 use crate::browser;
 use crate::document::{self, Document, PostType};
@@ -208,8 +210,9 @@ pub struct LinkTarget {
 }
 
 /// Shows the release check; `on_decision` runs when the final button is
-/// pressed (not on cancel).
-pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext, mode: Mode, links: &LinkTarget, on_decision: impl Fn(Decision) + 'static) {
+/// pressed (not on cancel), with the progress page the dialog now shows -
+/// the upload reports to it and it closes the dialog when done.
+pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext, mode: Mode, links: &LinkTarget, on_decision: impl Fn(Decision, UploadProgress) + 'static) {
     let doc = ctx.current_document();
     let nav = adw::NavigationView::new();
     let dialog = adw::Dialog::builder().title(tr("Veröffentlichen")).content_width(560).content_height(820).child(&nav).build();
@@ -290,19 +293,22 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext, mode: Mode, links
         let when = when.clone();
         let schedule_entry = schedule_entry.clone();
         let on_decision = Rc::new(on_decision);
+        let nav = nav.clone();
+        let title = doc.frontmatter.title.clone();
         accept.connect_clicked(move |_| {
             let scheduled = matches!(mode, Mode::Publish { .. }) && when.active_name().as_deref() == Some("scheduled");
-            if scheduled {
+            let decision = if scheduled {
                 let Some(at) = document::parse_scheduled_at(&schedule_entry.text()) else {
                     schedule_entry.add_css_class("error");
                     return;
                 };
-                dialog.close();
-                on_decision(Decision::Scheduled(at));
+                Decision::Scheduled(at)
             } else {
-                dialog.close();
-                on_decision(Decision::Now);
-            }
+                Decision::Now
+            };
+            let progress = UploadProgress::new(&dialog, &title);
+            nav.push(&progress.page);
+            on_decision(decision, progress);
         });
     }
     {
@@ -319,6 +325,125 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext, mode: Mode, links
     };
     nav.add(&adw::NavigationPage::builder().title(title).child(&toolbar).build());
     dialog.present(Some(window));
+}
+
+/// The release check's last page: the upload on its way, with a progress
+/// bar and the current step. Closing the dialog only hides it - the upload
+/// goes on and reports by toast as before.
+#[derive(Clone)]
+pub struct UploadProgress {
+    dialog: adw::Dialog,
+    page: adw::NavigationPage,
+    status: adw::StatusPage,
+    bar: gtk4::ProgressBar,
+    step: gtk4::Label,
+    close: gtk4::Button,
+    pulse: Rc<Cell<Option<glib::SourceId>>>,
+}
+
+impl UploadProgress {
+    fn new(dialog: &adw::Dialog, title: &str) -> Self {
+        let bar = gtk4::ProgressBar::new();
+        let step = gtk4::Label::builder().label(tr("Vorbereiten …")).wrap(true).justify(gtk4::Justification::Center).build();
+        step.add_css_class("dim-label");
+        let column = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(12).build();
+        column.append(&bar);
+        column.append(&step);
+        let clamp = adw::Clamp::builder().maximum_size(360).child(&column).build();
+        let status = adw::StatusPage::builder().icon_name("document-send-symbolic").title(tr("Wird hochgeladen")).description(glib::markup_escape_text(title).as_str()).child(&clamp).vexpand(true).build();
+
+        let close = gtk4::Button::builder().label(tr("Im Hintergrund weiter")).build();
+        close.add_css_class("pill");
+        let buttons = gtk4::Box::builder().halign(gtk4::Align::Center).margin_top(12).margin_bottom(12).build();
+        buttons.append(&close);
+        {
+            let dialog = dialog.clone();
+            close.connect_clicked(move |_| {
+                dialog.close();
+            });
+        }
+
+        // No way back to the checks: the decision is made.
+        let header = adw::HeaderBar::builder().show_back_button(false).build();
+        let toolbar = adw::ToolbarView::new();
+        toolbar.add_top_bar(&header);
+        toolbar.set_content(Some(&status));
+        toolbar.add_bottom_bar(&buttons);
+        let page = adw::NavigationPage::builder().title(tr("Hochladen")).child(&toolbar).can_pop(false).build();
+
+        let this = UploadProgress { dialog: dialog.clone(), page, status, bar, step, close, pulse: Rc::new(Cell::new(None)) };
+        {
+            let pulse = this.pulse.clone();
+            dialog.connect_closed(move |_| {
+                if let Some(id) = pulse.take() {
+                    id.remove();
+                }
+            });
+        }
+        this.start_pulse();
+        this
+    }
+
+    fn start_pulse(&self) {
+        if let Some(id) = self.pulse.take() {
+            self.pulse.set(Some(id));
+            return;
+        }
+        let bar = self.bar.clone();
+        self.pulse.set(Some(glib::timeout_add_local(std::time::Duration::from_millis(120), move || {
+            bar.pulse();
+            glib::ControlFlow::Continue
+        })));
+    }
+
+    fn stop_pulse(&self) {
+        if let Some(id) = self.pulse.take() {
+            id.remove();
+        }
+    }
+
+    /// The document now going up (the second one of "Beide Sprachen").
+    pub fn document(&self, title: &str) {
+        self.status.set_description(Some(glib::markup_escape_text(title).as_str()));
+    }
+
+    /// A step: how far (`None`: not known yet, the bar pulses) and what.
+    pub fn update(&self, fraction: Option<f64>, step: &str) {
+        match fraction {
+            Some(fraction) => {
+                self.stop_pulse();
+                self.bar.set_fraction(fraction.clamp(0.0, 1.0));
+            }
+            None => self.start_pulse(),
+        }
+        self.step.set_label(step);
+    }
+
+    /// Done: the dialog closes after a moment with the full bar.
+    pub fn finished(&self) {
+        self.update(Some(1.0), &tr("Fertig"));
+        let dialog = self.dialog.clone();
+        glib::timeout_add_local_once(std::time::Duration::from_millis(600), move || {
+            dialog.close();
+        });
+    }
+
+    /// The upload failed: the reason stays on the page.
+    pub fn failed(&self, message: &str) {
+        self.stop_pulse();
+        self.status.set_icon_name(Some("dialog-error-symbolic"));
+        self.status.set_title(&tr("Hochladen fehlgeschlagen"));
+        self.bar.set_visible(false);
+        self.step.set_label(message);
+        self.step.set_selectable(true);
+        self.close.set_label(&tr("Schließen"));
+    }
+
+    /// Called off before anything was sent (a question answered with
+    /// "Abbrechen"): just close.
+    pub fn abandon(&self) {
+        self.dialog.close();
+    }
 }
 
 fn check_row(c: &Check, dialog: &adw::Dialog, nav: &adw::NavigationView, ctx: &DocContext, doc: &Document, links: &LinkTarget) -> adw::ActionRow {

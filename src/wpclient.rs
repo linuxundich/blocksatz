@@ -60,6 +60,9 @@ pub struct PostResult {
     /// The post's featured image as WordPress has it - for a translation
     /// also the attachment lui-translations set up from the original's.
     pub featured_media: Option<u64>,
+    /// The `wpsp_social` field of the answer (WP Social Publisher, see
+    /// `social.rs`) - what was planned or sent along with this upload.
+    pub social: Option<Value>,
     /// Things that went wrong after the post itself was saved (filled in
     /// by `export::run_export`), reported with the success message instead
     /// of being swallowed.
@@ -488,6 +491,28 @@ impl Client {
     pub fn namespaces(&self) -> Result<Vec<String>> {
         let value = self.get_json(&format!("{}/wp-json/?_fields=namespaces", self.base_url))?;
         Ok(value.get("namespaces").and_then(Value::as_array).map(|list| list.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default())
+    }
+
+    /// GET on any REST route of the blog, e.g. `wpsp/v1/status?post=1` -
+    /// for plugins with their own namespace.
+    pub fn rest_get(&self, route: &str) -> Result<Value> {
+        self.get_json(&format!("{}/wp-json/{route}", self.base_url))
+    }
+
+    /// POST of a JSON body to any REST route of the blog.
+    pub fn rest_post(&self, route: &str, body: &Value) -> Result<Value> {
+        let mut response = self
+            .agent
+            .post(format!("{}/wp-json/{route}", self.base_url))
+            .header("Authorization", self.auth_header.as_str())
+            .send_json(body)
+            .map_err(network_error)?;
+        let status = response.status().as_u16();
+        let body_text = response.body_mut().read_to_string().unwrap_or_default();
+        if !(200..300).contains(&status) {
+            return Err(error_from_body(status, &body_text));
+        }
+        serde_json::from_str(&body_text).map_err(|err| unreadable_response(status, err))
     }
 
     fn get_json(&self, url: &str) -> Result<Value> {
@@ -1177,7 +1202,8 @@ impl Client {
         let date = value.get("date").and_then(Value::as_str).map(str::to_string);
         let featured_media = value.get("featured_media").and_then(Value::as_u64).filter(|id| *id != 0);
         let content_raw = value.get("content").and_then(|c| c.get("raw")).and_then(Value::as_str).map(str::to_string);
-        Ok(PostResult { id, link, modified_gmt, status, date, featured_media, content_raw, notes: Vec::new() })
+        let social = value.get("wpsp_social").filter(|v| v.is_object()).cloned();
+        Ok(PostResult { id, link, modified_gmt, status, date, featured_media, content_raw, social, notes: Vec::new() })
     }
 
     /// Resolves a category/tag name to its term id, creating the term if no

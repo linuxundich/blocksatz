@@ -139,6 +139,7 @@ pub(crate) fn fetch_and_convert(site: &wpsite::SiteConfig, password: &str, post_
         extra: Vec::new(),
         lang,
         translation,
+        social: None,
         featured_media_id: (detail.featured_media != 0).then_some(detail.featured_media),
         author_id: (detail.author != 0).then_some(detail.author),
         author_name,

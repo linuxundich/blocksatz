@@ -36,6 +36,13 @@ pub struct PostPane {
     preview_button: gtk4::Button,
     admin_button: gtk4::Button,
     properties_slot: gtk4::Box,
+    /// The "Social Media" group (`socialpane.rs`), rebuilt with the
+    /// properties.
+    social_slot: gtk4::Box,
+    social: std::cell::RefCell<Option<Rc<crate::socialpane::SocialPane>>>,
+    /// `wp_synced_at` the social group last saw - a new one means an
+    /// upload happened and the blog's state changed.
+    social_synced: std::cell::RefCell<Option<String>>,
     media_row: adw::ActionRow,
     shown_generation: Cell<Option<u64>>,
     /// The header-relevant fields last handed to the preview, so it only
@@ -76,6 +83,7 @@ impl PostPane {
         card.add_css_class("card");
 
         let properties_slot = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).build();
+        let social_slot = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).build();
 
         let media_row = adw::ActionRow::builder().title(tr("Medienverwaltung")).activatable(true).action_name("win.media-manager").build();
         media_row.add_suffix(&gtk4::Image::from_icon_name("go-next-symbolic"));
@@ -90,6 +98,7 @@ impl PostPane {
         let column = gtk4::Box::builder().orientation(gtk4::Orientation::Vertical).spacing(24).margin_top(12).margin_bottom(24).margin_start(12).margin_end(12).build();
         column.append(&card);
         column.append(&properties_slot);
+        column.append(&social_slot);
         column.append(&media_group);
         column.append(&stats_group);
         let scrolled = gtk4::ScrolledWindow::builder()
@@ -116,6 +125,9 @@ impl PostPane {
             preview_button,
             admin_button: admin_button.clone(),
             properties_slot,
+            social_slot,
+            social: std::cell::RefCell::new(None),
+            social_synced: std::cell::RefCell::new(None),
             media_row,
             shown_generation: Cell::new(None),
             shown_header: std::cell::RefCell::new(String::new()),
@@ -209,7 +221,13 @@ impl PostPane {
         let generation = self.ctx.doc_generation.get();
         if self.shown_generation.get() != Some(generation) {
             self.shown_generation.set(Some(generation));
+            *self.social_synced.borrow_mut() = doc.frontmatter.wp_synced_at.clone();
             self.rebuild_properties(doc.body);
+        } else if *self.social_synced.borrow() != doc.frontmatter.wp_synced_at {
+            *self.social_synced.borrow_mut() = doc.frontmatter.wp_synced_at.clone();
+            if let Some(social) = self.social.borrow().as_ref() {
+                social.after_sync();
+            }
         }
     }
 
@@ -230,6 +248,14 @@ impl PostPane {
         }
         let widget = properties::build(&window, body, self.ctx.frontmatter.clone(), self.term_caches.clone(), doc_dir);
         self.properties_slot.append(&widget);
+
+        while let Some(child) = self.social_slot.first_child() {
+            self.social_slot.remove(&child);
+        }
+        let path = self.ctx.current_path.borrow().clone();
+        let social = crate::socialpane::SocialPane::new(self.ctx.frontmatter.clone(), path, self.ctx.toast_overlay.clone());
+        self.social_slot.append(&social.widget);
+        *self.social.borrow_mut() = Some(social);
     }
 
     fn open_admin(&self) {

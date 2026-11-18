@@ -487,6 +487,14 @@ blocks. Implemented so far:
   if it changed on WordPress since, a confirmation asks before
   overwriting. Skipped (fails open) if the check itself can't complete, so
   a network hiccup never blocks publishing outright.
+- **Mastodon and Bluesky posts** ("Social Media" in the "Beitrag" view,
+  see [`docs/social.md`](social.md)) — write the posts next to the article,
+  one switch per network, a character count, the attachment (featured
+  image, link preview, none) and "Vorschlag vom Blog" for the text the
+  blog would write itself. They are saved in the frontmatter and travel
+  with the upload; the WP Social Publisher plugin on the blog sends them
+  the moment the article goes live, also at its scheduled time. An
+  article that is already online gets "Jetzt teilen".
 - **Broken-link checker** — the "Links" page of the release check scans
   the article for every unique `http(s)://` URL (Markdown link/image
   destinations, plus a bare URL alone on its own line that exports as a

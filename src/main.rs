@@ -1,4 +1,6 @@
 mod about;
+mod social;
+mod socialpane;
 mod adblock;
 mod aialt;
 mod ailang;

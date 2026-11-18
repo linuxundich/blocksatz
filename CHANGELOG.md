@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Mastodon and Bluesky posts written in Blocksatz: a "Social Media" group in the "Beitrag" view with a switch, text, attachment and character count per network, plus "Vorschlag vom Blog" for the text the blog would write. The texts are kept in the frontmatter (`social_networks`, `social_intro`, `social_<network>`, `social_<network>_embed`; `{link}` stands for the permalink) and sent with every upload of a post that isn't online yet as the REST field `wpsp_social`. The blog's WP Social Publisher (1.10 or later) plans them and posts them when the article is published, in the same request or at its scheduled time; the upload message says what was planned or sent. An article that is already online is shared with "Jetzt teilen" after a confirmation. Loading the blog's version keeps the texts. See `docs/social.md`.
+
 ## [0.79.0] - 2026-11-18
 
 ### Added

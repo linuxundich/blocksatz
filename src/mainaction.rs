@@ -1276,10 +1276,13 @@ impl MainAction {
         // The blog doesn't know a translation's link to its original
         // (section hashes, review state) - keep it from the working copy.
         let translation = self.ctx.frontmatter.borrow().translation.clone();
+        // Nor the social texts, which only live here (`social.rs`).
+        let social = self.ctx.frontmatter.borrow().social.clone();
         let mut frontmatter = imported.frontmatter;
         if frontmatter.translation.is_none() {
             frontmatter.translation = translation;
         }
+        frontmatter.social = social;
         *self.ctx.frontmatter.borrow_mut() = frontmatter;
         self.ctx.preview_pane.set_article_header(&self.ctx.frontmatter.borrow());
         worksave::flush(&self.ctx, true);
@@ -1455,6 +1458,7 @@ fn takes_offline(fm: &document::Frontmatter, resolved: Option<PostStatus>, now: 
 fn adopted_translation(local: &Document, imported: importer::ImportedPost, source_hash: &str) -> Document {
     let mut frontmatter = imported.frontmatter;
     frontmatter.lang = local.frontmatter.lang.clone();
+    frontmatter.social = local.frontmatter.social.clone();
     frontmatter.translation = local.frontmatter.translation.clone().map(|mut link| {
         link.source_sections = Vec::new();
         link.source_hash = source_hash.to_string();

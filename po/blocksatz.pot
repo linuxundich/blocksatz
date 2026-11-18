@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Blocksatz 0.77.0\n"
+"Project-Id-Version: Blocksatz 0.79.0\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-11-04 13:02+0100\n"
+"POT-Creation-Date: 2026-11-18 16:29+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -174,10 +174,10 @@ msgstr ""
 #: src/aimenu.rs:188 src/blogposts.rs:412 src/diskwatch.rs:223
 #: src/export.rs:206 src/gallerydialog.rs:154 src/mainaction.rs:583
 #: src/mainaction.rs:765 src/mainaction.rs:825 src/mainaction.rs:908
-#: src/mainaction.rs:973 src/mainaction.rs:1337 src/mainaction.rs:1394
+#: src/mainaction.rs:973 src/mainaction.rs:1340 src/mainaction.rs:1397
 #: src/markdowncheck.rs:164 src/mediabrowser.rs:554 src/newarticle.rs:209
 #: src/releasecheck.rs:267 src/tagsuggest.rs:86 src/taxonomy.rs:352
-#: src/taxonomy.rs:666
+#: src/taxonomy.rs:666 src/socialpane.rs:356
 msgid "Abbrechen"
 msgstr ""
 
@@ -300,6 +300,7 @@ msgstr ""
 #: src/properties.rs:472 src/properties.rs:880 src/taxonomy.rs:75
 #: src/taxonomy.rs:223 src/taxonomy.rs:296 src/taxonomy.rs:376
 #: src/taxonomy.rs:481 src/taxonomy.rs:610 src/taxonomy.rs:690
+#: src/socialpane.rs:411
 msgid "Kein Application Password im Schlüsselbund gefunden."
 msgstr ""
 
@@ -550,7 +551,7 @@ msgid "Hervorgehobenes Zitat"
 msgstr ""
 
 #: src/blockinspector.rs:70 src/mainaction.rs:344 src/markdowncheck.rs:84
-#: src/postpane.rs:62
+#: src/postpane.rs:69
 msgid "Details"
 msgstr ""
 
@@ -921,7 +922,7 @@ msgstr ""
 msgid "− nur im Blog · + nur hier"
 msgstr ""
 
-#: src/compare.rs:87 src/mainaction.rs:1339
+#: src/compare.rs:87 src/mainaction.rs:1342
 msgid "Blog-Fassung übernehmen"
 msgstr ""
 
@@ -941,7 +942,7 @@ msgstr ""
 msgid "Keine Unterschiede im Text"
 msgstr ""
 
-#: src/compare.rs:150 src/diskwatch.rs:226 src/mainaction.rs:1340
+#: src/compare.rs:150 src/diskwatch.rs:226 src/mainaction.rs:1343
 msgid "Meine Fassung behalten"
 msgstr ""
 
@@ -1135,7 +1136,7 @@ msgstr ""
 msgid "Die Datei wurde außerhalb von Blocksatz geändert."
 msgstr ""
 
-#: src/diskwatch.rs:220 src/mainaction.rs:1334
+#: src/diskwatch.rs:220 src/mainaction.rs:1337
 msgid "Welche Fassung soll gelten?"
 msgstr ""
 
@@ -1146,7 +1147,7 @@ msgid ""
 "neben der Datei erhalten."
 msgstr ""
 
-#: src/diskwatch.rs:224 src/mainaction.rs:1338
+#: src/diskwatch.rs:224 src/mainaction.rs:1341
 msgid "Vergleichen …"
 msgstr ""
 
@@ -1214,25 +1215,25 @@ msgid ""
 "sein."
 msgstr ""
 
-#: src/export.rs:625
+#: src/export.rs:639
 msgid ""
 "SEO-Titel/-Beschreibung nicht gespeichert: Rank Math ist auf diesem Blog "
 "nicht aktiv."
 msgstr ""
 
-#: src/export.rs:635
+#: src/export.rs:649
 msgid "Alt-Text des Aufmacherbilds nicht gesetzt: {err}"
 msgstr ""
 
-#: src/export.rs:977
+#: src/export.rs:1030
 msgid "Bild nicht abrufbar: {err}"
 msgstr ""
 
-#: src/export.rs:981
+#: src/export.rs:1034
 msgid "Bild nicht lesbar: {err}"
 msgstr ""
 
-#: src/export.rs:984 src/media.rs:515
+#: src/export.rs:1037 src/media.rs:522 src/media.rs:584
 msgid "Bild {path} nicht lesbar: {err}"
 msgstr ""
 
@@ -1378,7 +1379,7 @@ msgstr ""
 msgid "Galerie aus Mediathek …"
 msgstr ""
 
-#: src/formatting.rs:139 src/preview.rs:493
+#: src/formatting.rs:139 src/preview.rs:572
 msgid "Alle Bilder bearbeiten…"
 msgstr ""
 
@@ -1544,7 +1545,7 @@ msgstr ""
 msgid "Interner Fehler: Lade-Thread hat kein Ergebnis geliefert."
 msgstr ""
 
-#: src/imagealt.rs:66 src/preview.rs:436
+#: src/imagealt.rs:66 src/preview.rs:515
 msgid "Bildbeschriftung bearbeiten…"
 msgstr ""
 
@@ -1643,7 +1644,7 @@ msgstr ""
 msgid "Interner Fehler: Bildbearbeitungs-Thread hat kein Ergebnis geliefert."
 msgstr ""
 
-#: src/imageedit.rs:358 src/postpane.rs:196
+#: src/imageedit.rs:358 src/postpane.rs:208
 msgid "Keine Bilder"
 msgstr ""
 
@@ -1855,7 +1856,7 @@ msgstr ""
 msgid "Im Blog gelöscht"
 msgstr ""
 
-#: src/librarysidebar.rs:551 src/mainaction.rs:1419
+#: src/librarysidebar.rs:551 src/mainaction.rs:1422
 msgid "Nur lokal"
 msgstr ""
 
@@ -2013,7 +2014,7 @@ msgstr ""
 msgid "Das Modell hat die Anfrage abgelehnt (Kategorie: {category})."
 msgstr ""
 
-#: src/llm.rs:769 src/wpclient.rs:437
+#: src/llm.rs:769 src/wpclient.rs:440
 msgid "Antwort nicht lesbar: {err}"
 msgstr ""
 
@@ -2033,17 +2034,17 @@ msgstr ""
 msgid "Datum im Blog lassen"
 msgstr ""
 
-#: src/mainaction.rs:195 src/mainaction.rs:1492
+#: src/mainaction.rs:195 src/mainaction.rs:1496
 msgid "Zur Prüfung einreichen"
 msgstr ""
 
 #: src/mainaction.rs:195 src/mainaction.rs:199 src/mainaction.rs:207
-#: src/mainaction.rs:587 src/mainaction.rs:1490
+#: src/mainaction.rs:587 src/mainaction.rs:1494
 msgid "Veröffentlichen …"
 msgstr ""
 
-#: src/mainaction.rs:201 src/mainaction.rs:217 src/postpane.rs:58
-#: src/postpane.rs:191
+#: src/mainaction.rs:201 src/mainaction.rs:217 src/postpane.rs:65
+#: src/postpane.rs:203
 msgid "Blog-Vorschau öffnen"
 msgstr ""
 
@@ -2072,7 +2073,7 @@ msgid "Jetzt veröffentlichen"
 msgstr ""
 
 #: src/mainaction.rs:213 src/mainaction.rs:219 src/mainaction.rs:225
-#: src/mainaction.rs:232 src/mainaction.rs:234 src/mainaction.rs:1491
+#: src/mainaction.rs:232 src/mainaction.rs:234 src/mainaction.rs:1495
 msgid "Auf Entwurf zurücksetzen …"
 msgstr ""
 
@@ -2088,7 +2089,7 @@ msgstr ""
 msgid "Änderungen verwerfen …"
 msgstr ""
 
-#: src/mainaction.rs:229 src/postpane.rs:191
+#: src/mainaction.rs:229 src/postpane.rs:203
 msgid "Im Blog ansehen"
 msgstr ""
 
@@ -2450,95 +2451,95 @@ msgid ""
 "Browser-Tab sie."
 msgstr ""
 
-#: src/mainaction.rs:1255 src/mainaction.rs:1305
+#: src/mainaction.rs:1255 src/mainaction.rs:1308
 msgid "Laden fehlgeschlagen: {err}"
 msgstr ""
 
-#: src/mainaction.rs:1288
+#: src/mainaction.rs:1291
 msgid "Blog-Fassung geladen."
 msgstr ""
 
-#: src/mainaction.rs:1335
+#: src/mainaction.rs:1338
 msgid ""
 "Der Beitrag wurde im Blog geändert, nachdem du ihn zuletzt abgeglichen hast, "
 "und du hast hier weitergeschrieben."
 msgstr ""
 
-#: src/mainaction.rs:1388
+#: src/mainaction.rs:1391
 msgid "Verknüpfung gelöst. Der Artikel ist jetzt nur lokal."
 msgstr ""
 
-#: src/mainaction.rs:1427
+#: src/mainaction.rs:1430
 msgid "im Blog gelöscht"
 msgstr ""
 
-#: src/mainaction.rs:1428
+#: src/mainaction.rs:1431
 msgid "Konflikt"
 msgstr ""
 
-#: src/mainaction.rs:1429
+#: src/mainaction.rs:1432
 msgid "im Blog geändert"
 msgstr ""
 
-#: src/mainaction.rs:1430
+#: src/mainaction.rs:1433
 msgid "Änderungen nicht online"
 msgstr ""
 
-#: src/mainaction.rs:1431
+#: src/mainaction.rs:1434
 msgid "nicht hochgeladen"
 msgstr ""
 
-#: src/mainaction.rs:1487
+#: src/mainaction.rs:1491
 msgid "Status im Blog lassen"
 msgstr ""
 
-#: src/mainaction.rs:1489
+#: src/mainaction.rs:1493
 msgid "Termin hochladen"
 msgstr ""
 
-#: src/mainaction.rs:1493
+#: src/mainaction.rs:1497
 msgid "Privat veröffentlichen"
 msgstr ""
 
-#: src/mainaction.rs:1510 src/mainaction.rs:1553
+#: src/mainaction.rs:1514 src/mainaction.rs:1557
 msgid "Rückdatiert: veröffentlicht am {date}."
 msgstr ""
 
-#: src/mainaction.rs:1511
+#: src/mainaction.rs:1515
 msgid "Rückdatiert."
 msgstr ""
 
-#: src/mainaction.rs:1514
+#: src/mainaction.rs:1518
 msgid ""
 "Hochgeladen, aber WordPress hat den Beitrag als „{stored}“ gespeichert, "
 "nicht als „{requested}“."
 msgstr ""
 
-#: src/mainaction.rs:1518
+#: src/mainaction.rs:1522
 msgid "Termin: {when}"
 msgstr ""
 
-#: src/mainaction.rs:1523
+#: src/mainaction.rs:1527
 msgid "Als Entwurf hochgeladen."
 msgstr ""
 
-#: src/mainaction.rs:1524
+#: src/mainaction.rs:1528
 msgid "Zur Prüfung eingereicht."
 msgstr ""
 
-#: src/mainaction.rs:1525 src/mainaction.rs:1552
+#: src/mainaction.rs:1529 src/mainaction.rs:1556
 msgid "Veröffentlicht."
 msgstr ""
 
-#: src/mainaction.rs:1526
+#: src/mainaction.rs:1530
 msgid "Geplant für {when}."
 msgstr ""
 
-#: src/mainaction.rs:1527
+#: src/mainaction.rs:1531
 msgid "Privat veröffentlicht."
 msgstr ""
 
-#: src/mainaction.rs:1528 src/mainaction.rs:1554
+#: src/mainaction.rs:1532 src/mainaction.rs:1558
 msgid "Aktualisiert."
 msgstr ""
 
@@ -2578,7 +2579,7 @@ msgstr ""
 msgid "Shortcode"
 msgstr ""
 
-#: src/markdowncheck.rs:103 src/preview.rs:1744
+#: src/markdowncheck.rs:103 src/preview.rs:1825
 msgid "Abfrage-Loop"
 msgstr ""
 
@@ -2644,7 +2645,7 @@ msgstr ""
 msgid "Dieser Beitrag nutzt viele Gutenberg-Funktionen"
 msgstr ""
 
-#: src/markdowncheck.rs:164 src/postpane.rs:59
+#: src/markdowncheck.rs:164 src/postpane.rs:66
 msgid "In wp-admin bearbeiten"
 msgstr ""
 
@@ -2656,7 +2657,7 @@ msgstr ""
 msgid "Gutenberg-Funktionen in diesem Beitrag"
 msgstr ""
 
-#: src/markdowncheck.rs:179 src/postpane.rs:187
+#: src/markdowncheck.rs:179 src/postpane.rs:199
 msgid "Markdown-Nähe: {level}"
 msgstr ""
 
@@ -2670,11 +2671,11 @@ msgid ""
 "vollständig vor; empfohlen: deutlich unter {max} Zeichen."
 msgstr ""
 
-#: src/media.rs:566 src/media.rs:575
+#: src/media.rs:618 src/media.rs:627
 msgid "Bildtexte von {file} nicht abgeglichen: {err}"
 msgstr ""
 
-#: src/media.rs:608
+#: src/media.rs:660
 msgid ""
 "Das Bild {file} gehört zum Original, ist dort aber noch nicht hochgeladen. "
 "Bitte zuerst das Original aktualisieren."
@@ -2809,7 +2810,7 @@ msgstr ""
 msgid "{n} Bilder gefunden."
 msgstr ""
 
-#: src/mediapanel.rs:42 src/postpane.rs:80 src/shortcuts.rs:37
+#: src/mediapanel.rs:42 src/postpane.rs:88 src/shortcuts.rs:37
 msgid "Medienverwaltung"
 msgstr ""
 
@@ -3231,7 +3232,7 @@ msgstr ""
 msgid "Schlagwörter"
 msgstr ""
 
-#: src/newarticle.rs:702 src/preview.rs:1746 src/taxonomy.rs:33
+#: src/newarticle.rs:702 src/preview.rs:1827 src/taxonomy.rs:33
 #: src/translatedialog.rs:809
 msgid "Kategorien"
 msgstr ""
@@ -3242,7 +3243,7 @@ msgid "Auszug"
 msgstr ""
 
 #: src/newarticle.rs:704 src/releasecheck.rs:94 src/releasecheck.rs:95
-#: src/releasecheck.rs:96 src/releasecheck.rs:97
+#: src/releasecheck.rs:96 src/releasecheck.rs:97 src/socialpane.rs:457
 msgid "Beitragsbild"
 msgstr ""
 
@@ -3270,195 +3271,195 @@ msgstr ""
 msgid "Fokus-Schlüsselwort"
 msgstr ""
 
-#: src/postpane.rs:82
+#: src/postpane.rs:90
 msgid "Medien"
 msgstr ""
 
-#: src/postpane.rs:85
+#: src/postpane.rs:93
 msgid "Statistik"
 msgstr ""
 
-#: src/postpane.rs:168
+#: src/postpane.rs:180
 msgid "Zuletzt abgeglichen: {at}"
 msgstr ""
 
-#: src/postpane.rs:169
+#: src/postpane.rs:181
 msgid "Noch nicht im Blog."
 msgstr ""
 
-#: src/postpane.rs:179
+#: src/postpane.rs:191
 msgid "Veröffentlicht am {date}"
 msgstr ""
 
-#: src/postpane.rs:197
+#: src/postpane.rs:209
 msgid "1 Bild"
 msgstr ""
 
-#: src/postpane.rs:198
+#: src/postpane.rs:210
 msgid "{n} Bilder"
 msgstr ""
 
-#: src/preview.rs:145
+#: src/preview.rs:217
 msgid "Modern"
 msgstr ""
 
-#: src/preview.rs:146
+#: src/preview.rs:218
 msgid "Klassisch"
 msgstr ""
 
-#: src/preview.rs:147
+#: src/preview.rs:219
 msgid "Sepia"
 msgstr ""
 
-#: src/preview.rs:481
+#: src/preview.rs:560
 msgid "Bild bearbeiten…"
 msgstr ""
 
-#: src/preview.rs:940
+#: src/preview.rs:1020
 msgid "Wiedergabeliste – die Titel erzeugt das Blog"
 msgstr ""
 
-#: src/preview.rs:1639
+#: src/preview.rs:1720
 msgid "Video lässt sich in der Vorschau nicht abspielen"
 msgstr ""
 
-#: src/preview.rs:1710
+#: src/preview.rs:1791
 msgid "Seitenumbruch"
 msgstr ""
 
-#: src/preview.rs:1742
+#: src/preview.rs:1823
 msgid "Neueste Beiträge"
 msgstr ""
 
-#: src/preview.rs:1743
+#: src/preview.rs:1824
 msgid "Neueste Kommentare"
 msgstr ""
 
-#: src/preview.rs:1745
+#: src/preview.rs:1826
 msgid "Archive"
 msgstr ""
 
-#: src/preview.rs:1747
+#: src/preview.rs:1828
 msgid "Schlagwörter-Wolke"
 msgstr ""
 
-#: src/preview.rs:1748
+#: src/preview.rs:1829
 msgid "Kalender"
 msgstr ""
 
-#: src/preview.rs:1749
+#: src/preview.rs:1830
 msgid "Suche"
 msgstr ""
 
-#: src/preview.rs:1750
+#: src/preview.rs:1831
 msgid "Seitenliste"
 msgstr ""
 
-#: src/preview.rs:1751
+#: src/preview.rs:1832
 msgid "Social-Media-Links"
 msgstr ""
 
-#: src/preview.rs:1752
+#: src/preview.rs:1833
 msgid "RSS-Feed"
 msgstr ""
 
-#: src/preview.rs:1753
+#: src/preview.rs:1834
 msgid "Synchronisiertes Muster"
 msgstr ""
 
-#: src/preview.rs:1754
+#: src/preview.rs:1835
 msgid "Inhaltsverzeichnis"
 msgstr ""
 
-#: src/preview.rs:1755
+#: src/preview.rs:1836
 msgid "Werbeplatz"
 msgstr ""
 
-#: src/preview.rs:1756
+#: src/preview.rs:1837
 msgid "Symbol"
 msgstr ""
 
-#: src/preview.rs:1757
+#: src/preview.rs:1838
 msgid "Anmelden/Abmelden"
 msgstr ""
 
-#: src/preview.rs:1758
+#: src/preview.rs:1839
 msgid "Lesezeit"
 msgstr ""
 
-#: src/preview.rs:1759 src/properties.rs:452
+#: src/preview.rs:1840 src/properties.rs:452
 msgid "Autor"
 msgstr ""
 
-#: src/preview.rs:1760
+#: src/preview.rs:1841
 msgid "Kategorien und Schlagwörter"
 msgstr ""
 
-#: src/preview.rs:1761
+#: src/preview.rs:1842
 msgid "Datum"
 msgstr ""
 
-#: src/preview.rs:1762
+#: src/preview.rs:1843
 msgid "Avatar"
 msgstr ""
 
-#: src/preview.rs:1763
+#: src/preview.rs:1844
 msgid "Brotkrümelnavigation"
 msgstr ""
 
-#: src/preview.rs:1764
+#: src/preview.rs:1845
 msgid "Navigation"
 msgstr ""
 
-#: src/preview.rs:1765 src/properties.rs:565
+#: src/preview.rs:1846 src/properties.rs:565
 msgid "Kommentare"
 msgstr ""
 
-#: src/preview.rs:1770 src/preview.rs:1808
+#: src/preview.rs:1851 src/preview.rs:1889
 msgid "{name} – wird vom Blog erzeugt"
 msgstr ""
 
-#: src/preview.rs:1807
+#: src/preview.rs:1888
 msgid "Shortcode [{name}]"
 msgstr ""
 
-#: src/preview.rs:1814
+#: src/preview.rs:1895
 msgid "Weiterlesen"
 msgstr ""
 
-#: src/preview.rs:1828
+#: src/preview.rs:1909
 msgid "Fußnoten"
 msgstr ""
 
-#: src/preview.rs:1843
+#: src/preview.rs:1924
 msgid "YouTube-Video"
 msgstr ""
 
-#: src/preview.rs:1844
+#: src/preview.rs:1925
 msgid "Vimeo-Video"
 msgstr ""
 
-#: src/preview.rs:1849
+#: src/preview.rs:1930
 msgid "Eingebetteter Inhalt"
 msgstr ""
 
-#: src/preview.rs:1901
+#: src/preview.rs:1982
 msgid "Sprache dieser Fassung"
 msgstr ""
 
-#: src/preview.rs:2142
+#: src/preview.rs:2223
 msgid "Bereits zu WordPress hochgeladen"
 msgstr ""
 
-#: src/preview.rs:2149 src/preview.rs:2150
+#: src/preview.rs:2230 src/preview.rs:2231
 msgid "Alt"
 msgstr ""
 
-#: src/preview.rs:2150
+#: src/preview.rs:2231
 msgid "Bewusst ohne Alternativtext (dekoratives Bild)"
 msgstr ""
 
-#: src/preview.rs:2154
+#: src/preview.rs:2235
 msgid "Bildformat"
 msgstr ""
 
@@ -4773,22 +4774,170 @@ msgstr ""
 msgid "Keine Verbindung zum Blog ({err})"
 msgstr ""
 
-#: src/wpclient.rs:579
+#: src/wpclient.rs:604
 msgid "Keine Medien-ID in der Antwort"
 msgstr ""
 
-#: src/wpclient.rs:745
+#: src/wpclient.rs:770
 msgid "Kein aktives Theme gefunden."
 msgstr ""
 
-#: src/wpclient.rs:875
+#: src/wpclient.rs:900
 msgid "Keine Term-ID in der Antwort"
 msgstr ""
 
-#: src/wpclient.rs:1173
+#: src/wpclient.rs:1198
 msgid "Keine Post-ID in der Antwort"
 msgstr ""
 
-#: src/wpclient.rs:1233
+#: src/wpclient.rs:1259
 msgid "Kein Term-ID für \"{name}\" erhalten"
+msgstr ""
+
+#: src/social.rs:240
+msgid ""
+"Social Media: Das Blog hat die Texte nicht angenommen – ist WP Social "
+"Publisher ab 1.10 aktiv?"
+msgstr ""
+
+#: src/social.rs:245
+msgid "Social Media: {msg}"
+msgstr ""
+
+#: src/social.rs:249
+msgid ""
+"Social Media vorgemerkt für {networks} – geht beim Veröffentlichen hinaus."
+msgstr ""
+
+#: src/social.rs:253 src/socialpane.rs:385
+msgid "{network}: geteilt."
+msgstr ""
+
+#: src/social.rs:255 src/socialpane.rs:265 src/socialpane.rs:385
+msgid "{network}: nicht geteilt – {msg}"
+msgstr ""
+
+#: src/socialpane.rs:59
+msgid "Social Media"
+msgstr ""
+
+#: src/socialpane.rs:60
+msgid ""
+"Texte für Mastodon und Bluesky – das Blog teilt sie beim Veröffentlichen. "
+"Leer lassen: Das Blog schreibt sie aus Titel, Auszug und Schlagwörtern. "
+"{link} steht für den Link zum Artikel."
+msgstr ""
+
+#: src/socialpane.rs:63
+msgid "Einstieg für automatische Texte"
+msgstr ""
+
+#: src/socialpane.rs:75
+msgid "Vorschlag vom Blog"
+msgstr ""
+
+#: src/socialpane.rs:75 src/socialpane.rs:290
+msgid "Text so, wie ihn das Blog schreiben würde – zum Weiterbearbeiten"
+msgstr ""
+
+#: src/socialpane.rs:76
+msgid "Automatisch"
+msgstr ""
+
+#: src/socialpane.rs:76
+msgid "Text leeren: Das Blog schreibt ihn beim Veröffentlichen"
+msgstr ""
+
+#: src/socialpane.rs:86
+msgid "Anhang"
+msgstr ""
+
+#: src/socialpane.rs:100
+msgid "Jetzt teilen"
+msgstr ""
+
+#: src/socialpane.rs:209
+msgid "Voreinstellung des Blogs ({mode})"
+msgstr ""
+
+#: src/socialpane.rs:210
+msgid "Voreinstellung des Blogs"
+msgstr ""
+
+#: src/socialpane.rs:232
+msgid "Automatischer Text vom Blog"
+msgstr ""
+
+#: src/socialpane.rs:235
+msgid "{used} von {limit} Zeichen"
+msgstr ""
+
+#: src/socialpane.rs:252
+msgid ""
+"Auf diesem Blog ist WP Social Publisher (ab 1.10) nicht aktiv – die Texte "
+"bleiben nur in der Datei."
+msgstr ""
+
+#: src/socialpane.rs:258
+msgid "{network}: geteilt"
+msgstr ""
+
+#: src/socialpane.rs:260
+msgid "{network}: im Blog nicht eingerichtet"
+msgstr ""
+
+#: src/socialpane.rs:270
+msgid "Im Blog vorgemerkt: {networks}"
+msgstr ""
+
+#: src/socialpane.rs:275
+msgid ""
+"Gehen mit dem Hochladen ans Blog und hinaus, sobald der Artikel zum Termin "
+"erscheint."
+msgstr ""
+
+#: src/socialpane.rs:277
+msgid ""
+"Gehen mit dem Hochladen ans Blog und hinaus, sobald der Artikel "
+"veröffentlicht wird."
+msgstr ""
+
+#: src/socialpane.rs:290
+msgid "Erst nach dem ersten Hochladen"
+msgstr ""
+
+#: src/socialpane.rs:342
+msgid ""
+"Das Blog hat für {network} keinen Vorschlag – ist das Netzwerk dort "
+"eingerichtet?"
+msgstr ""
+
+#: src/socialpane.rs:344
+msgid "Kein Vorschlag vom Blog: {err}"
+msgstr ""
+
+#: src/socialpane.rs:355
+msgid "Jetzt teilen?"
+msgstr ""
+
+#: src/socialpane.rs:355
+msgid ""
+"Der Artikel geht sofort auf {networks} hinaus. Das lässt sich hier nicht "
+"rückgängig machen."
+msgstr ""
+
+#: src/socialpane.rs:356
+msgid "Teilen"
+msgstr ""
+
+#: src/socialpane.rs:392
+msgid "Teilen fehlgeschlagen: {err}"
+msgstr ""
+
+#: src/socialpane.rs:456
+msgid "Linkvorschau"
+msgstr ""
+
+#: src/socialpane.rs:458
+msgid "Kein Anhang"
 msgstr ""

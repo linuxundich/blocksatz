@@ -594,6 +594,13 @@ fn run_export(
         payload["comment_status"] = serde_json::Value::String(if open { "open" } else { "closed" }.to_string());
     }
 
+    // Mastodon/Bluesky texts for WP Social Publisher (`social.rs`): planned
+    // with this request, sent by the plugin when the post goes live.
+    let social_sent = crate::social::upload_sends(frontmatter);
+    if let Some(social) = frontmatter.social.as_ref().filter(|_| social_sent) {
+        payload["wpsp_social"] = social.payload();
+    }
+
     let rest_base = frontmatter.post_type.rest_base();
     // A previous first upload may have created the post without its answer
     // arriving (network drop): look for it before creating a second one.
@@ -624,6 +631,7 @@ fn run_export(
         let _ = client.attach_media(id, result.id);
     }
     result.notes.extend(media_notes);
+    result.notes.extend(crate::social::upload_notes(result.social.as_ref(), social_sent));
     // SEO fields sent to a blog without Rank Math are dropped by WordPress -
     // said instead of reporting a plain success.
     let has_seo = [&frontmatter.rank_math_title, &frontmatter.rank_math_description, &frontmatter.rank_math_focus_keyword].iter().any(|v| v.as_deref().is_some_and(|v| !v.trim().is_empty()));
@@ -1089,7 +1097,7 @@ mod tests {
     }
 
     fn post_result(status: Option<&str>, date: Option<&str>) -> wpclient::PostResult {
-        wpclient::PostResult { id: 1, link: String::new(), modified_gmt: String::new(), status: status.map(str::to_string), date: date.map(str::to_string), featured_media: None, content_raw: None, notes: Vec::new() }
+        wpclient::PostResult { id: 1, link: String::new(), modified_gmt: String::new(), status: status.map(str::to_string), date: date.map(str::to_string), featured_media: None, content_raw: None, social: None, notes: Vec::new() }
     }
 
     #[test]
@@ -1626,6 +1634,7 @@ mod tests {
             extra: Vec::new(),
             lang: None,
             translation: None,
+            social: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1699,6 +1708,7 @@ mod tests {
             extra: Vec::new(),
             lang: None,
             translation: None,
+            social: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1771,6 +1781,7 @@ mod tests {
             extra: Vec::new(),
             lang: None,
             translation: None,
+            social: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1842,6 +1853,7 @@ mod tests {
             extra: Vec::new(),
             lang: None,
             translation: None,
+            social: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1916,6 +1928,7 @@ mod tests {
             extra: Vec::new(),
             lang: None,
             translation: None,
+            social: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,
@@ -1995,6 +2008,7 @@ mod tests {
             extra: Vec::new(),
             lang: None,
             translation: None,
+            social: None,
             featured_media_id: None,
             author_id: None,
             author_name: None,

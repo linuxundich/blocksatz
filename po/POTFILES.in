@@ -66,3 +66,5 @@ src/updatecheck.rs
 src/window.rs
 src/worksave.rs
 src/wpclient.rs
+src/social.rs
+src/socialpane.rs

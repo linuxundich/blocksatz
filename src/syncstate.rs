@@ -57,6 +57,9 @@ pub fn fingerprint(doc: &Document) -> String {
         media: Vec::new(),
         // A local notice (`markdowncheck.rs`), never sent.
         markdown_hint: false,
+        // Social posts only travel with an upload while the post isn't
+        // online yet; afterwards editing them changes nothing on the blog.
+        social: doc.frontmatter.social.clone().filter(|_| crate::social::upload_sends(&doc.frontmatter)),
         ..doc.frontmatter.clone()
     };
     let mut hasher = sha2::Sha256::new();

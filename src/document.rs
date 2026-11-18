@@ -315,6 +315,10 @@ pub struct Frontmatter {
     /// (`translate.rs`) - which post, as of which state of it, and whether
     /// someone has reviewed it. Sent as post meta on upload (`export.rs`).
     pub translation: Option<TranslationLink>,
+    /// Mastodon/Bluesky posts for WP Social Publisher (`social.rs`) -
+    /// `None` when Blocksatz doesn't manage them for this article (then
+    /// an upload leaves whatever was planned in wp-admin alone).
+    pub social: Option<crate::social::SocialPosts>,
 }
 
 /// Where a translated working copy came from. Stored as plain
@@ -492,6 +496,7 @@ pub fn parse(input: &str) -> Document {
             "translated_at" => translation.translated_at = unquote(value),
             "translation_reviewed" => translation.reviewed = value.trim() == "true",
             "translation_target_sections" => translation.target_sections = parse_list(value),
+            key if crate::social::is_key(key) => crate::social::parse_key(frontmatter.social.get_or_insert_with(Default::default), key, value),
             "via_label" => frontmatter.via_label = Some(unquote(value)),
             "via_url" => frontmatter.via_url = Some(unquote(value)),
             "source_label" => frontmatter.source_label = Some(unquote(value)),
@@ -628,6 +633,9 @@ pub fn serialize(doc: &Document) -> String {
         if !t.target_sections.is_empty() {
             out.push_str(&format!("translation_target_sections: {}\n", render_list(&t.target_sections)));
         }
+    }
+    if let Some(social) = &fm.social {
+        out.push_str(&crate::social::serialize(social));
     }
     for (key, value) in &fm.extra {
         out.push_str(&format!("{key}: {value}\n"));
@@ -1237,6 +1245,7 @@ mod tests {
                 extra: Vec::new(),
                 lang: None,
                 translation: None,
+                social: None,
                 featured_media_id: Some(99),
                 author_id: Some(3),
                 author_name: Some("Jane Editor".to_string()),

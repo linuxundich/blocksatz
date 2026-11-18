@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.80.1] - 2026-11-18
+
+### Fixed
+
+- The Mastodon and Bluesky text fields grow with their text instead of scrolling inside a fixed height, so a whole post is visible and editable at once.
+
 ## [0.80.0] - 2026-11-18
 
 ### Added
@@ -2911,7 +2917,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.80.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.80.1...HEAD
+[0.80.1]: https://github.com/linuxundich/blocksatz/compare/v0.80.0...v0.80.1
 [0.80.0]: https://github.com/linuxundich/blocksatz/compare/v0.79.0...v0.80.0
 [0.79.0]: https://github.com/linuxundich/blocksatz/compare/v0.78.1...v0.79.0
 [0.78.1]: https://github.com/linuxundich/blocksatz/compare/v0.78.0...v0.78.1

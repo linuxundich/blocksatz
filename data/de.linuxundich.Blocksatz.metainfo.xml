@@ -39,6 +39,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.80.1" date="2026-11-18">
+      <description>
+        <p>Behoben: Die Textfelder für Mastodon und Bluesky wachsen mit dem Text, der ganze Beitrag ist ohne Scrollen im Feld zu sehen.</p>
+      </description>
+    </release>
     <release version="0.80.0" date="2026-11-18">
       <description>
         <p>Neu: Texte für Mastodon und Bluesky direkt im Artikel schreiben. Das Blog-Plugin WP Social Publisher (ab 1.10) teilt sie, sobald der Artikel erscheint, auch zum geplanten Termin; bereits veröffentlichte Artikel lassen sich sofort teilen.</p>

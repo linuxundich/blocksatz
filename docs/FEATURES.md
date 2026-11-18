@@ -495,6 +495,17 @@ blocks. Implemented so far:
   with the upload; the WP Social Publisher plugin on the blog sends them
   the moment the article goes live, also at its scheduled time. An
   article that is already online gets "Jetzt teilen".
+- **Affiliate links** — a plain Markdown link to an Amazon page with a
+  partner tag (`?tag=…`) or to `amzn.to` is uploaded with
+  `rel="sponsored nofollow noopener"`, so search engines see a paid link
+  and a theme can mark it (`a[rel~='sponsored']`); opening the post again
+  gives back the plain Markdown link. "Affiliate-Link einfügen …" in the
+  insert menu turns an Amazon address in any shape (title slug, tracking
+  parameters, another shop) or a bare ASIN into
+  `https://www.amazon.de/dp/ASIN?tag=…`, takes an address from the
+  clipboard, replaces the selected text and remembers the partner tag per
+  blog (`affiliate_tag` in `sites.conf`). The rule lives in
+  `crates/gutenberg/src/affiliate.rs`.
 - **Broken-link checker** — the "Links" page of the release check scans
   the article for every unique `http(s)://` URL (Markdown link/image
   destinations, plus a bare URL alone on its own line that exports as a

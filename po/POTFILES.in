@@ -68,3 +68,4 @@ src/worksave.rs
 src/wpclient.rs
 src/social.rs
 src/socialpane.rs
+src/affiliatedialog.rs

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Blocksatz 0.63.3\n"
 "Report-Msgid-Bugs-To: https://github.com/linuxundich/blocksatz/issues\n"
-"POT-Creation-Date: 2026-11-18 16:29+0100\n"
+"POT-Creation-Date: 2026-11-18 17:23+0100\n"
 "PO-Revision-Date: 2026-10-01 22:03+0200\n"
 "Last-Translator: Christoph Langner <mail@christoph-langner.de>\n"
 "Language-Team: none\n"
@@ -182,7 +182,7 @@ msgstr ""
 #: src/mainaction.rs:973 src/mainaction.rs:1340 src/mainaction.rs:1397
 #: src/markdowncheck.rs:164 src/mediabrowser.rs:554 src/newarticle.rs:209
 #: src/releasecheck.rs:267 src/tagsuggest.rs:86 src/taxonomy.rs:352
-#: src/taxonomy.rs:666 src/socialpane.rs:356
+#: src/taxonomy.rs:666 src/socialpane.rs:357 src/affiliatedialog.rs:43
 msgid "Abbrechen"
 msgstr "Cancel"
 
@@ -306,7 +306,7 @@ msgstr "Imitating your own writing style requires a WordPress connection."
 #: src/properties.rs:472 src/properties.rs:880 src/taxonomy.rs:75
 #: src/taxonomy.rs:223 src/taxonomy.rs:296 src/taxonomy.rs:376
 #: src/taxonomy.rs:481 src/taxonomy.rs:610 src/taxonomy.rs:690
-#: src/socialpane.rs:411
+#: src/socialpane.rs:412
 msgid "Kein Application Password im Schlüsselbund gefunden."
 msgstr "No Application Password found in the keyring."
 
@@ -535,7 +535,7 @@ msgstr "Audio"
 msgid "Einbettung"
 msgstr "Embed"
 
-#: src/blockinspector.rs:63 src/formatting.rs:151 src/markdowncheck.rs:104
+#: src/blockinspector.rs:63 src/formatting.rs:152 src/markdowncheck.rs:104
 msgid "Trenner"
 msgstr "Separator"
 
@@ -777,7 +777,7 @@ msgstr "Restore as draft"
 msgid "In den Papierkorb"
 msgstr "Move to trash"
 
-#: src/blogposts.rs:399 src/window.rs:1693
+#: src/blogposts.rs:399 src/window.rs:1694
 msgid "Öffnen fehlgeschlagen: {err}"
 msgstr "Failed to open: {err}"
 
@@ -1390,7 +1390,7 @@ msgstr "Insert image …"
 msgid "Weitere Medien"
 msgstr "More media"
 
-#: src/formatting.rs:93
+#: src/formatting.rs:93 src/affiliatedialog.rs:43
 msgid "Einfügen"
 msgstr "Insert"
 
@@ -1426,39 +1426,44 @@ msgstr "Edit All Images…"
 msgid "Bestehenden Artikel verlinken …"
 msgstr "Link existing article …"
 
-#: src/formatting.rs:152
+#: src/formatting.rs:150
+#
+msgid "Affiliate-Link einfügen …"
+msgstr "Insert Affiliate Link …"
+
+#: src/formatting.rs:153
 msgid "„Weiterlesen“-Marker"
 msgstr "“Read more” marker"
 
-#: src/formatting.rs:153
+#: src/formatting.rs:154
 msgid "Fußnote"
 msgstr "Footnote"
 
-#: src/formatting.rs:174
+#: src/formatting.rs:175
 msgid "Vorlagen des Blogs"
 msgstr "Blog patterns"
 
-#: src/formatting.rs:175
+#: src/formatting.rs:176
 msgid "Container"
 msgstr "Containers"
 
-#: src/formatting.rs:176
+#: src/formatting.rs:177
 msgid "Vom Blog erzeugt"
 msgstr "Rendered by the blog"
 
-#: src/formatting.rs:577
+#: src/formatting.rs:578
 msgid "Spalte 1"
 msgstr "Column 1"
 
-#: src/formatting.rs:578
+#: src/formatting.rs:579
 msgid "Spalte 2"
 msgstr "Column 2"
 
-#: src/formatting.rs:579
+#: src/formatting.rs:580
 msgid "Zelle 1"
 msgstr "Cell 1"
 
-#: src/formatting.rs:580
+#: src/formatting.rs:581
 msgid "Zelle 2"
 msgstr "Cell 2"
 
@@ -1889,7 +1894,7 @@ msgid "{site} · nicht erreichbar"
 msgstr "{site} · unreachable"
 
 #: src/librarysidebar.rs:497 src/mainaction.rs:291 src/mainaction.rs:578
-#: src/window.rs:410 src/window.rs:938 src/window.rs:1255
+#: src/window.rs:410 src/window.rs:939 src/window.rs:1256
 msgid "Unbenannt"
 msgstr "Untitled"
 
@@ -2777,7 +2782,7 @@ msgstr "All media"
 
 #: src/mediabrowser.rs:34 src/newarticle.rs:194 src/newarticle.rs:412
 #: src/properties.rs:913 src/releasecheck.rs:105 src/releasecheck.rs:108
-#: src/releasecheck.rs:377 src/window.rs:1805
+#: src/releasecheck.rs:377 src/window.rs:1806
 msgid "Bilder"
 msgstr "Images"
 
@@ -3349,7 +3354,7 @@ msgid "Auszug"
 msgstr "Excerpt"
 
 #: src/newarticle.rs:704 src/releasecheck.rs:94 src/releasecheck.rs:95
-#: src/releasecheck.rs:96 src/releasecheck.rs:97 src/socialpane.rs:457
+#: src/releasecheck.rs:96 src/releasecheck.rs:97 src/socialpane.rs:458
 msgid "Beitragsbild"
 msgstr "Featured image"
 
@@ -4859,19 +4864,19 @@ msgstr "Keep Waiting"
 msgid "Trotzdem beenden"
 msgstr "Quit Anyway"
 
-#: src/window.rs:1256
+#: src/window.rs:1257
 msgid "Unbenannte Seite"
 msgstr "Untitled page"
 
-#: src/window.rs:1314
+#: src/window.rs:1315
 msgid "{n} Übersetzungen in den Ordner ihres Originals verschoben."
 msgstr "Moved {n} translations into the folder of their original."
 
-#: src/window.rs:1385
+#: src/window.rs:1386
 msgid "Vorhandene Arbeitskopie geöffnet."
 msgstr "Opened the existing working copy."
 
-#: src/window.rs:1433
+#: src/window.rs:1434
 msgid ""
 "Original nicht in der Bibliothek – öffne es aus dem Originalblog, dann "
 "landet es im selben Ordner."
@@ -4879,55 +4884,55 @@ msgstr ""
 "Original not in the library – open it from the original blog and it lands in "
 "the same folder."
 
-#: src/window.rs:1437 src/window.rs:1457
+#: src/window.rs:1438 src/window.rs:1458
 msgid "Arbeitskopie konnte nicht angelegt werden: {err}"
 msgstr "Couldn't create a working copy: {err}"
 
-#: src/window.rs:1476
+#: src/window.rs:1477
 msgid "Neben dem Original abgelegt."
 msgstr "Placed next to the original."
 
-#: src/window.rs:1494
+#: src/window.rs:1495
 msgid "Zur vorhandenen Übersetzung gelegt."
 msgstr "Placed with the existing translation."
 
-#: src/window.rs:1637
+#: src/window.rs:1638
 msgid "Markdown-Datei öffnen"
 msgstr "Open Markdown File"
 
-#: src/window.rs:1809
+#: src/window.rs:1810
 msgid "Bild einfügen"
 msgstr "Insert Image"
 
-#: src/window.rs:1844
+#: src/window.rs:1845
 msgid "Video/Audio einfügen"
 msgstr "Insert Video/Audio"
 
-#: src/window.rs:1918
+#: src/window.rs:1919
 msgid "KI-Entwurf als neues Dokument angelegt - bitte prüfen."
 msgstr "AI draft created as a new document - please review it."
 
-#: src/window.rs:2027
+#: src/window.rs:2040
 msgid "Bitte den Artikel zuerst speichern, um Bilder einzufügen."
 msgstr "Please save the article first to insert images."
 
-#: src/window.rs:2036
+#: src/window.rs:2049
 msgid "Bild konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the image from the clipboard."
 
-#: src/window.rs:2042
+#: src/window.rs:2055
 msgid "Bild konnte nicht gespeichert werden: {err}"
 msgstr "Couldn't save the image: {err}"
 
-#: src/window.rs:2056 src/window.rs:2070
+#: src/window.rs:2069 src/window.rs:2083
 msgid "Formatierter Text konnte nicht aus der Zwischenablage gelesen werden."
 msgstr "Couldn't read the formatted text from the clipboard."
 
-#: src/window.rs:2074
+#: src/window.rs:2087
 msgid "Formatierter Text aus der Zwischenablage hat ein unbekanntes Format."
 msgstr "Formatted text from the clipboard is in an unknown format."
 
-#: src/window.rs:2079
+#: src/window.rs:2092
 msgid "Formatierter Text konnte nicht umgewandelt werden: {err}"
 msgstr "Couldn't convert the formatted text: {err}"
 
@@ -4959,28 +4964,31 @@ msgstr "No term ID received for \"{name}\""
 msgid ""
 "Social Media: Das Blog hat die Texte nicht angenommen – ist WP Social "
 "Publisher ab 1.10 aktiv?"
-msgstr "Social media: the blog didn't take the texts – is WP Social Publisher 1.10 or later active?"
+msgstr ""
+"Social media: the blog didn't take the texts – is WP Social Publisher 1.10 "
+"or later active?"
 
-#: src/social.rs:245
 #
+#: src/social.rs:245
 msgid "Social Media: {msg}"
 msgstr "Social media: {msg}"
 
 #: src/social.rs:249
 msgid ""
 "Social Media vorgemerkt für {networks} – geht beim Veröffentlichen hinaus."
-msgstr "Social media planned for {networks} – goes out when the article is published."
+msgstr ""
+"Social media planned for {networks} – goes out when the article is published."
 
-#: src/social.rs:253 src/socialpane.rs:385
+#: src/social.rs:253 src/socialpane.rs:386
 msgid "{network}: geteilt."
 msgstr "{network}: shared."
 
-#: src/social.rs:255 src/socialpane.rs:265 src/socialpane.rs:385
+#: src/social.rs:255 src/socialpane.rs:266 src/socialpane.rs:386
 msgid "{network}: nicht geteilt – {msg}"
 msgstr "{network}: not shared – {msg}"
 
-#: src/socialpane.rs:59
 #
+#: src/socialpane.rs:59
 msgid "Social Media"
 msgstr "Social Media"
 
@@ -4989,128 +4997,176 @@ msgid ""
 "Texte für Mastodon und Bluesky – das Blog teilt sie beim Veröffentlichen. "
 "Leer lassen: Das Blog schreibt sie aus Titel, Auszug und Schlagwörtern. "
 "{link} steht für den Link zum Artikel."
-msgstr "Posts for Mastodon and Bluesky – the blog shares them when the article goes live. Leave a text empty and the blog writes it from title, excerpt and tags. {link} stands for the link to the article."
+msgstr ""
+"Posts for Mastodon and Bluesky – the blog shares them when the article goes "
+"live. Leave a text empty and the blog writes it from title, excerpt and "
+"tags. {link} stands for the link to the article."
 
 #: src/socialpane.rs:63
 msgid "Einstieg für automatische Texte"
 msgstr "Lead-in for automatic texts"
 
-#: src/socialpane.rs:75
 #
+#: src/socialpane.rs:76
 msgid "Vorschlag vom Blog"
 msgstr "Suggestion from the blog"
 
-#: src/socialpane.rs:75 src/socialpane.rs:290
+#: src/socialpane.rs:76 src/socialpane.rs:291
 msgid "Text so, wie ihn das Blog schreiben würde – zum Weiterbearbeiten"
 msgstr "The text as the blog would write it – to edit further"
 
-#: src/socialpane.rs:76
 #
+#: src/socialpane.rs:77
 msgid "Automatisch"
 msgstr "Automatic"
 
-#: src/socialpane.rs:76
+#: src/socialpane.rs:77
 msgid "Text leeren: Das Blog schreibt ihn beim Veröffentlichen"
 msgstr "Clear the text: the blog writes it when publishing"
 
-#: src/socialpane.rs:86
+#: src/socialpane.rs:87
 msgid "Anhang"
 msgstr "Attachment"
 
-#: src/socialpane.rs:100
+#: src/socialpane.rs:101
 msgid "Jetzt teilen"
 msgstr "Share now"
 
-#: src/socialpane.rs:209
+#: src/socialpane.rs:210
 msgid "Voreinstellung des Blogs ({mode})"
 msgstr "Blog default ({mode})"
 
-#: src/socialpane.rs:210
 #
+#: src/socialpane.rs:211
 msgid "Voreinstellung des Blogs"
 msgstr "Blog default"
 
-#: src/socialpane.rs:232
+#: src/socialpane.rs:233
 msgid "Automatischer Text vom Blog"
 msgstr "Automatic text from the blog"
 
-#: src/socialpane.rs:235
 #
+#: src/socialpane.rs:236
 msgid "{used} von {limit} Zeichen"
 msgstr "{used} of {limit} characters"
 
-#: src/socialpane.rs:252
+#: src/socialpane.rs:253
 msgid ""
 "Auf diesem Blog ist WP Social Publisher (ab 1.10) nicht aktiv – die Texte "
 "bleiben nur in der Datei."
-msgstr "WP Social Publisher (1.10 or later) isn't active on this blog – the texts only stay in the file."
+msgstr ""
+"WP Social Publisher (1.10 or later) isn't active on this blog – the texts "
+"only stay in the file."
 
-#: src/socialpane.rs:258
+#: src/socialpane.rs:259
 msgid "{network}: geteilt"
 msgstr "{network}: shared"
 
-#: src/socialpane.rs:260
 #
+#: src/socialpane.rs:261
 msgid "{network}: im Blog nicht eingerichtet"
 msgstr "{network}: not set up on the blog"
 
-#: src/socialpane.rs:270
+#: src/socialpane.rs:271
 msgid "Im Blog vorgemerkt: {networks}"
 msgstr "Planned on the blog: {networks}"
 
-#: src/socialpane.rs:275
+#: src/socialpane.rs:276
 msgid ""
 "Gehen mit dem Hochladen ans Blog und hinaus, sobald der Artikel zum Termin "
 "erscheint."
-msgstr "Go to the blog with the upload and out once the article appears at its scheduled time."
+msgstr ""
+"Go to the blog with the upload and out once the article appears at its "
+"scheduled time."
 
-#: src/socialpane.rs:277
+#: src/socialpane.rs:278
 msgid ""
 "Gehen mit dem Hochladen ans Blog und hinaus, sobald der Artikel "
 "veröffentlicht wird."
 msgstr "Go to the blog with the upload and out once the article is published."
 
-#: src/socialpane.rs:290
 #
+#: src/socialpane.rs:291
 msgid "Erst nach dem ersten Hochladen"
 msgstr "Only after the first upload"
 
-#: src/socialpane.rs:342
+#: src/socialpane.rs:343
 msgid ""
 "Das Blog hat für {network} keinen Vorschlag – ist das Netzwerk dort "
 "eingerichtet?"
-msgstr "The blog has no suggestion for {network} – is the network set up there?"
+msgstr ""
+"The blog has no suggestion for {network} – is the network set up there?"
 
-#: src/socialpane.rs:344
 #
+#: src/socialpane.rs:345
 msgid "Kein Vorschlag vom Blog: {err}"
 msgstr "No suggestion from the blog: {err}"
 
-#: src/socialpane.rs:355
 #
+#: src/socialpane.rs:356
 msgid "Jetzt teilen?"
 msgstr "Share now?"
 
-#: src/socialpane.rs:355
+#: src/socialpane.rs:356
 msgid ""
 "Der Artikel geht sofort auf {networks} hinaus. Das lässt sich hier nicht "
 "rückgängig machen."
-msgstr "The article goes out on {networks} right away. This can't be undone from here."
+msgstr ""
+"The article goes out on {networks} right away. This can't be undone from "
+"here."
 
-#: src/socialpane.rs:356
+#: src/socialpane.rs:357
 msgid "Teilen"
 msgstr "Share"
 
-#: src/socialpane.rs:392
 #
+#: src/socialpane.rs:393
 msgid "Teilen fehlgeschlagen: {err}"
 msgstr "Sharing failed: {err}"
 
-#: src/socialpane.rs:456
 #
+#: src/socialpane.rs:457
 msgid "Linkvorschau"
 msgstr "Link preview"
 
-#: src/socialpane.rs:458
+#: src/socialpane.rs:459
 msgid "Kein Anhang"
 msgstr "No attachment"
+
+#: src/affiliatedialog.rs:23
+msgid "Amazon-Adresse oder ASIN"
+msgstr "Amazon address or ASIN"
+
+#: src/affiliatedialog.rs:24
+#
+msgid "Linktext"
+msgstr "Link text"
+
+#: src/affiliatedialog.rs:25
+msgid "Partner-Tag"
+msgstr "Partner tag"
+
+#: src/affiliatedialog.rs:39
+#
+msgid "Affiliate-Link einfügen"
+msgstr "Insert Affiliate Link"
+
+#: src/affiliatedialog.rs:40
+msgid ""
+"Der Link geht als „sponsored“ hoch, das Blog kennzeichnet ihn als Affiliate-"
+"Link."
+msgstr "The link goes up as “sponsored”, the blog marks it as an affiliate link."
+
+#: src/affiliatedialog.rs:61
+msgid "Ohne Partner-Tag ist es kein Affiliate-Link."
+msgstr "Without a partner tag it isn't an affiliate link."
+
+#: src/affiliatedialog.rs:63
+msgid "Adresse einer Produktseite oder ASIN (z. B. B0D8JCN5P4) eintragen."
+msgstr "Enter a product page address or an ASIN (e.g. B0D8JCN5P4)."
+
+#: src/affiliatedialog.rs:64
+msgid ""
+"Keine Produktseite erkannt – gesucht wird die ASIN nach /dp/ oder /gp/"
+"product/."
+msgstr "No product page recognized – the ASIN is looked for after /dp/ or /gp/product/."

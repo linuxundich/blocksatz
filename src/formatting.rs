@@ -147,6 +147,7 @@ fn image_menu() -> gio::Menu {
 fn insert_menu() -> gio::Menu {
     let media = gio::Menu::new();
     media.append(Some(&tr("Bestehenden Artikel verlinken …")), Some("win.insert-post-link"));
+    media.append(Some(&tr("Affiliate-Link einfügen …")), Some("win.insert-affiliate-link"));
     let elements = gio::Menu::new();
     elements.append(Some(&tr("Trenner")), Some("fmt.insert-separator"));
     elements.append(Some(&tr("„Weiterlesen“-Marker")), Some("fmt.insert-more"));

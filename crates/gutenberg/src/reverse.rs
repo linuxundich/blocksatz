@@ -1121,7 +1121,10 @@ pub(crate) fn inline_html_to_markdown(html: &str) -> String {
                 }
                 ("a", false) => {
                     let attrs = crate::attrs::parse_tag_attrs(&body[1..]);
-                    if attrs.len() == 1 && attrs[0].0 == "href" {
+                    // A plain link, or an affiliate link with exactly the
+                    // `rel` the forward direction gives it (`affiliate.rs`).
+                    let affiliate = attrs.len() == 2 && attrs[0].0 == "href" && attrs[1].0 == "rel" && attrs[1].1 == crate::affiliate::REL && crate::affiliate::is_affiliate_url(&unescape_entities(&attrs[0].1));
+                    if (attrs.len() == 1 && attrs[0].0 == "href") || affiliate {
                         links.push(Some(attrs[0].1.clone()));
                         out.push('[');
                     } else {
@@ -1711,6 +1714,25 @@ mod tests {
         let back = markdown_to_gutenberg(&md);
         assert!(crate::same_structure(wp, &back), "{:?}\nMarkdown:\n{md}\nBack:\n{back}", crate::first_difference(wp, &back));
         md
+    }
+
+    #[test]
+    fn affiliate_links_are_plain_markdown_both_ways() {
+        let md = "Ein [Raspberry Pi 5](https://www.amazon.de/dp/B0D8JCN5P4?tag=linuxundich-21) und [Doku](https://www.raspberrypi.com/).";
+        let wp = markdown_to_gutenberg(md);
+        assert!(wp.contains("<a href=\"https://www.amazon.de/dp/B0D8JCN5P4?tag=linuxundich-21\" rel=\"sponsored nofollow noopener\">Raspberry Pi 5</a>"), "{wp}");
+        assert!(wp.contains("<a href=\"https://www.raspberrypi.com/\">Doku</a>"), "{wp}");
+        assert_eq!(assert_lossless(&wp), md);
+    }
+
+    #[test]
+    fn affiliate_links_in_lists_and_with_other_rel_stay_right() {
+        let wp = markdown_to_gutenberg("- [Pi](https://amzn.to/abc)\n- [Pi](https://www.amazon.de/dp/B0D8JCN5P4)");
+        assert!(wp.contains("<a href=\"https://amzn.to/abc\" rel=\"sponsored nofollow noopener\">Pi</a>"), "{wp}");
+        assert!(wp.contains("<a href=\"https://www.amazon.de/dp/B0D8JCN5P4\">Pi</a>"), "untagged Amazon link is no affiliate link: {wp}");
+        // Another rel, or rel on a non-affiliate address: kept as HTML.
+        let md = assert_lossless("<!-- wp:paragraph -->\n<p><a href=\"https://www.amazon.de/dp/B0D8JCN5P4?tag=x-21\" rel=\"sponsored\">a</a> <a href=\"https://example.org/\" rel=\"sponsored nofollow noopener\">b</a></p>\n<!-- /wp:paragraph -->");
+        assert!(md.contains("rel=\"sponsored\">a</a>") && md.contains("rel=\"sponsored nofollow noopener\">b</a>"), "{md}");
     }
 
     #[test]

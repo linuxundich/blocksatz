@@ -899,6 +899,7 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     wire_media_library_browser_action(&window, &buffer, &frontmatter);
     wire_insert_gallery_action(&window, &buffer, &frontmatter);
     wire_insert_post_link_action(&window, &buffer);
+    wire_insert_affiliate_link_action(&window, &buffer);
     wire_paste_shortcut(&view, &buffer, &current_path, &toast_overlay);
     wire_drop_target(&view, &buffer, &current_path);
     wire_find_action(&window, &search_bar);
@@ -1970,6 +1971,18 @@ fn wire_insert_gallery_action(window: &adw::ApplicationWindow, buffer: &sourcevi
             }
         });
         gallerydialog::open(&window, on_insert);
+    });
+    window.add_action(&action);
+}
+
+fn wire_insert_affiliate_link_action(window: &adw::ApplicationWindow, buffer: &sourceview5::Buffer) {
+    let action = gio::SimpleAction::new("insert-affiliate-link", None);
+    let buffer = buffer.clone();
+    let window_weak = window.downgrade();
+    action.connect_activate(move |_, _| {
+        if let Some(window) = window_weak.upgrade() {
+            crate::affiliatedialog::open(&window, &buffer);
+        }
     });
     window.add_action(&action);
 }

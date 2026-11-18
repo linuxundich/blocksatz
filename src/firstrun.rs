@@ -186,7 +186,7 @@ pub fn open(parent: &adw::ApplicationWindow) {
                 return;
             }
 
-            if let Err(err) = wpsite::save(&wpsite::SiteConfig { url: url.clone(), username: username.clone(), svg_block: None }) {
+            if let Err(err) = wpsite::save(&wpsite::SiteConfig { url: url.clone(), username: username.clone(), ..Default::default() }) {
                 status.set_label(&tr("Fehler beim Speichern: {err}").replace("{err}", &err.to_string()));
                 status.set_visible(true);
                 return;

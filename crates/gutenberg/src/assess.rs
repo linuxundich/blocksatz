@@ -212,7 +212,7 @@ fn has_inline_html(html: &str) -> bool {
     html.match_indices('<').any(|(i, _)| {
         let name: String = html[i + 1..].trim_start_matches('/').chars().take_while(|c| c.is_ascii_alphanumeric()).collect();
         !name.is_empty() && !MARKDOWN_TAGS.contains(&name.as_str())
-    }) || html.contains(" target=") || html.contains(" rel=")
+    }) || html.contains(" target=") || html.replace(&format!(" rel=\"{}\"", crate::affiliate::REL), "").contains(" rel=")
 }
 
 #[cfg(test)]

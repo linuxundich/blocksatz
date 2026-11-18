@@ -31,6 +31,10 @@ pub struct SiteConfig {
     /// `sites.conf` (`svg_block = lui/diagramm`); `None` keeps SVGs as
     /// plain images.
     pub svg_block: Option<String>,
+    /// Amazon partner tag for affiliate links (`affiliate_tag =
+    /// linuxundich-21`), remembered by "Affiliate-Link einfügen …"
+    /// (`affiliatedialog.rs`); `None` until first used.
+    pub affiliate_tag: Option<String>,
 }
 
 impl SiteConfig {
@@ -90,7 +94,8 @@ impl Sites {
             // `svg_block` survives saving the credentials.
             Some(existing) => {
                 let svg_block = site.svg_block.clone().or_else(|| existing.svg_block.clone());
-                *existing = SiteConfig { svg_block, ..site }
+                let affiliate_tag = site.affiliate_tag.clone().or_else(|| existing.affiliate_tag.clone());
+                *existing = SiteConfig { svg_block, affiliate_tag, ..site }
             }
             None => self.sites.push(site),
         }
@@ -184,6 +189,15 @@ pub fn save(config: &SiteConfig) -> std::io::Result<()> {
     save_all(&sites)
 }
 
+/// Remembers the Amazon partner tag of the blog `site_id`.
+pub fn save_affiliate_tag(site_id: &str, tag: &str) -> std::io::Result<()> {
+    let mut sites = load_all();
+    if let Some(site) = sites.sites.iter_mut().find(|s| s.site_id() == site_id) {
+        site.affiliate_tag = Some(tag.trim().to_string()).filter(|t| !t.is_empty());
+    }
+    save_all(&sites)
+}
+
 pub fn set_active(site_id: &str) -> std::io::Result<()> {
     let mut sites = load_all();
     sites.active = site_id.to_string();
@@ -222,6 +236,7 @@ fn parse_sites(input: &str) -> Sites {
             ("url", Some(site)) => site.url = value,
             ("username", Some(site)) => site.username = value,
             ("svg_block", Some(site)) => site.svg_block = Some(value).filter(|v| !v.is_empty()),
+            ("affiliate_tag", Some(site)) => site.affiliate_tag = Some(value).filter(|v| !v.is_empty()),
             _ => {}
         }
     }
@@ -236,6 +251,9 @@ fn serialize_sites(sites: &Sites) -> String {
         if let Some(block) = &site.svg_block {
             out.push_str(&format!("svg_block = {block}\n"));
         }
+        if let Some(tag) = &site.affiliate_tag {
+            out.push_str(&format!("affiliate_tag = {tag}\n"));
+        }
     }
     out
 }
@@ -245,7 +263,17 @@ mod tests {
     use super::*;
 
     fn site(url: &str, user: &str) -> SiteConfig {
-        SiteConfig { url: url.into(), username: user.into(), svg_block: None }
+        SiteConfig { url: url.into(), username: user.into(), ..Default::default() }
+    }
+
+    #[test]
+    fn affiliate_tag_round_trips_and_survives_saving_credentials() {
+        let mut lui = site("https://linuxundich.de", "christoph");
+        lui.affiliate_tag = Some("linuxundich-21".into());
+        let mut sites = Sites { sites: vec![lui], active: "linuxundich.de".into() };
+        assert_eq!(parse_sites(&serialize_sites(&sites)), sites);
+        sites.upsert(site("https://linuxundich.de", "neu"));
+        assert_eq!(sites.active_site().affiliate_tag.as_deref(), Some("linuxundich-21"));
     }
 
     #[test]
@@ -302,7 +330,7 @@ mod tests {
 
     #[test]
     fn a_blogs_language_comes_from_its_address() {
-        let site = |url: &str| SiteConfig { url: url.into(), username: String::new(), svg_block: None };
+        let site = |url: &str| SiteConfig { url: url.into(), username: String::new(), ..Default::default() };
         assert_eq!(site_lang(&site("https://linuxundich.de/en")), Some("en".into()));
         assert_eq!(site_lang(&site("https://example.org/blog/pt-br/")), Some("pt-br".into()));
         assert_eq!(site_lang(&site("https://linuxundich.de")), None);

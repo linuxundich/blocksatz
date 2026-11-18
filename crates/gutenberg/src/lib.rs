@@ -6,6 +6,7 @@
 
 use pulldown_cmark::{Alignment, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
+pub mod affiliate;
 mod assess;
 mod attrs;
 mod containers;
@@ -513,7 +514,7 @@ fn find_matching_end(events: &[Event], start: usize, end_marker: &TagEnd) -> usi
 
 fn inline_html(events: &[Event]) -> String {
     let mut out = String::new();
-    pulldown_cmark::html::push_html(&mut out, events.iter().cloned());
+    pulldown_cmark::html::push_html(&mut out, affiliate::mark_links(events.iter().cloned()).into_iter());
     out.trim().to_string()
 }
 
@@ -582,7 +583,7 @@ fn as_lone_media(events: &[Event]) -> Option<Block> {
             // The caption may carry inline Markdown (a credit link,
             // emphasis) - kept as inline HTML.
             let mut caption = String::new();
-            pulldown_cmark::html::push_html(&mut caption, events[1..events.len() - 1].iter().cloned());
+            pulldown_cmark::html::push_html(&mut caption, affiliate::mark_links(events[1..events.len() - 1].iter().cloned()).into_iter());
             let alt = title.to_string();
             let title = (!caption.is_empty()).then_some(caption);
             Some(Block::Image {

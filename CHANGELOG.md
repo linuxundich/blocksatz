@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Affiliate links: a plain Markdown link to an Amazon page with a partner tag (`?tag=…`) or to `amzn.to` goes up with `rel="sponsored nofollow noopener"`, so the blog theme can mark it as an affiliate link (`a[rel~='sponsored']`) - no hand-written HTML link needed any more. Opening the post again turns such a link back into plain Markdown; a link with any other `rel` stays HTML. Such links no longer count as design in the Markdown closeness check.
+- "Affiliate-Link einfügen …" in the insert menu: an Amazon address in any shape (title slug, tracking parameters, another country's shop) or a bare ASIN becomes `https://www.amazon.de/dp/ASIN?tag=…`. An Amazon address on the clipboard is filled in, the selected text becomes the link text, and the partner tag is remembered per blog (`affiliate_tag` in `sites.conf`).
+
 ## [0.80.2] - 2026-11-18
 
 ### Fixed

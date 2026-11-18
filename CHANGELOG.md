@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.83.0] - 2026-11-18
+
 ### Fixed
 
 - An SVG diagram sent as the theme's block (`svg_block = lui/diagramm`) lost its alignment: `{align=wide}` or `{align=full}` under the image (Block inspector: "Weite Breite"/"Volle Breite") now reaches the block as `"align"`, so the theme can show it across the sidebar or on its full-width stage. Before, the next upload reset a diagram set to full width in WordPress.
@@ -2949,7 +2951,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.82.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.83.0...HEAD
+[0.83.0]: https://github.com/linuxundich/blocksatz/compare/v0.82.0...v0.83.0
 [0.82.0]: https://github.com/linuxundich/blocksatz/compare/v0.81.0...v0.82.0
 [0.81.0]: https://github.com/linuxundich/blocksatz/compare/v0.80.2...v0.81.0
 [0.80.2]: https://github.com/linuxundich/blocksatz/compare/v0.80.1...v0.80.2

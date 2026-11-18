@@ -39,6 +39,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.83.1" date="2026-11-18">
+      <description>
+        <p>Behoben: In der Vorschau wächst „Weite Breite“ wie im Blog von der linken Textkante nach rechts, und die Bildunterschriften breiter Bilder stehen links an der Bildkante.</p>
+      </description>
+    </release>
     <release version="0.83.0" date="2026-11-18">
       <description>
         <p>Behoben: SVG-Diagramme, die als Block des Blog-Themes hochgehen, behalten jetzt „Weite Breite“ oder „Volle Breite“. Neu: Die Vorschau zeigt breite Bilder über die Textspalte hinaus und volle Breite auf einem Band.</p>

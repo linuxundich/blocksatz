@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.83.1] - 2026-11-18
+
 ### Fixed
 
 - Preview: "Weite Breite" now grows to the right from the text's left edge, as on the blog, instead of spreading evenly to both sides; captions of wide and full-width images sit left at the image edge instead of centered.
@@ -2955,7 +2957,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.83.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.83.1...HEAD
+[0.83.1]: https://github.com/linuxundich/blocksatz/compare/v0.83.0...v0.83.1
 [0.83.0]: https://github.com/linuxundich/blocksatz/compare/v0.82.0...v0.83.0
 [0.82.0]: https://github.com/linuxundich/blocksatz/compare/v0.81.0...v0.82.0
 [0.81.0]: https://github.com/linuxundich/blocksatz/compare/v0.80.2...v0.81.0

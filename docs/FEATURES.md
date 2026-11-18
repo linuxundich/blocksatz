@@ -66,7 +66,8 @@ blocks. Implemented so far:
     **SVG diagrams as a block of the theme:** with `svg_block = lui/diagramm`
     in a blog's `[site]` section of `sites.conf` (set by hand, the
     settings dialog keeps it), a local `![Caption](chart.svg "Alt")` is
-    uploaded and sent as that block - `{"id", "rasterId", "caption"}` -
+    uploaded and sent as that block - `{"id", "rasterId", "caption"}`,
+    plus `"align"` for `{align=wide}`/`{align=full}` (Weite/Volle Breite) -
     instead of `wp:image`, so the theme can show it inline (and switch it
     with light/dark). A `chart.hell.webp` (else `chart.webp`) beside the
     SVG is uploaded along as the feed image (`rasterId`), only when it

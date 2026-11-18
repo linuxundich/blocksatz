@@ -990,16 +990,9 @@ fn svg_images_as_block(blocks: &mut [gutenberg::Block], media: &[media::MediaIte
     for block in blocks.iter_mut() {
         match block {
             gutenberg::Block::Image { url, title, .. } if media::is_local_svg(url) => {
-                let Some(item) = media.iter().find(|item| item.source == *url) else { continue };
-                let Some(wp) = &item.wordpress else { continue };
-                let mut attrs = serde_json::json!({ "id": wp.media_id });
-                if let Some(raster) = &item.raster {
-                    attrs["rasterId"] = serde_json::json!(raster.media_id);
+                if let Some(diagram) = svg_block(url, title.as_deref(), None, media, block_name) {
+                    *block = diagram;
                 }
-                if let Some(caption) = title.as_deref().filter(|c| !c.is_empty()) {
-                    attrs["caption"] = serde_json::json!(caption);
-                }
-                *block = gutenberg::Block::RawHtml { html: format!("<!-- wp:{block_name} {attrs} /-->") };
             }
             gutenberg::Block::Columns { columns } => {
                 for column in columns.iter_mut() {
@@ -1007,17 +1000,52 @@ fn svg_images_as_block(blocks: &mut [gutenberg::Block], media: &[media::MediaIte
                 }
             }
             gutenberg::Block::Details { blocks, .. } | gutenberg::Block::Container { blocks, .. } => svg_images_as_block(blocks, media, block_name),
-            // An image with the blog's size (`apply_media_metadata`) comes
-            // wrapped - the block replaces the wrapper too, size and all.
-            gutenberg::Block::Styled { block: inner, .. } => {
-                svg_images_as_block(std::slice::from_mut(inner.as_mut()), media, block_name);
-                if matches!(inner.as_ref(), gutenberg::Block::RawHtml { .. }) {
-                    *block = std::mem::replace(inner.as_mut(), gutenberg::Block::ThematicBreak);
+            // An image with the blog's size (`apply_media_metadata`) or an
+            // attribute line (`{align=wide}`) comes wrapped - the block
+            // replaces the wrapper too; of its attributes only the wide/full
+            // alignment carries over (the theme's "Weite/Volle Breite").
+            gutenberg::Block::Styled { .. } => {
+                // Wrappers nest (attribute line outside, size inside).
+                let mut align = None;
+                let mut current: &gutenberg::Block = block;
+                while let gutenberg::Block::Styled { attrs, block: inner } = current {
+                    align = align.or(attrs.align.as_deref().filter(|a| matches!(*a, "wide" | "full")));
+                    current = inner.as_ref();
+                }
+                if let gutenberg::Block::Image { url, title, .. } = current {
+                    if media::is_local_svg(url) {
+                        if let Some(diagram) = svg_block(url, title.as_deref(), align, media, block_name) {
+                            *block = diagram;
+                        }
+                        continue;
+                    }
+                }
+                if let gutenberg::Block::Styled { block: inner, .. } = block {
+                    svg_images_as_block(std::slice::from_mut(inner.as_mut()), media, block_name);
                 }
             }
             _ => {}
         }
     }
+}
+
+/// The `block_name` block for an uploaded local SVG (`None` while it has no
+/// WordPress media id yet): media id, raster fallback, caption, alignment.
+fn svg_block(url: &str, caption: Option<&str>, align: Option<&str>, media: &[media::MediaItem], block_name: &str) -> Option<gutenberg::Block> {
+    let item = media.iter().find(|item| item.source == url)?;
+    let wp = item.wordpress.as_ref()?;
+    let mut attrs = serde_json::Map::new();
+    if let Some(align) = align {
+        attrs.insert("align".into(), serde_json::json!(align));
+    }
+    if let Some(caption) = caption.filter(|c| !c.is_empty()) {
+        attrs.insert("caption".into(), serde_json::json!(caption));
+    }
+    attrs.insert("id".into(), serde_json::json!(wp.media_id));
+    if let Some(raster) = &item.raster {
+        attrs.insert("rasterId".into(), serde_json::json!(raster.media_id));
+    }
+    Some(gutenberg::Block::RawHtml { html: format!("<!-- wp:{block_name} {} /-->", serde_json::Value::Object(attrs)) })
 }
 
 /// Recursively substitutes `wp:image`/`wp:video`/`wp:audio` blocks' source
@@ -1313,6 +1341,24 @@ mod tests {
         assert!(out.contains("<!-- wp:lui/diagramm {\"caption\":\"Große Datei schreiben\",\"id\":48789,\"rasterId\":48790} /-->"), "{out}");
         assert!(out.contains("wp-image-7"), "{out}");
         assert!(!out.contains("09a.svg"), "{out}");
+    }
+
+    /// `{align=full}`/`{align=wide}` on an SVG image reaches the diagram
+    /// block (the theme's stage / wide layout); other alignments do not.
+    #[test]
+    fn an_svg_keeps_wide_or_full_alignment() {
+        let md = "![Acht Jahre](arch.svg)\n{align=full}\n\n![Breit](breit.svg)\n{align=wide}\n\n![Mitte](mitte.svg)\n{align=center}\n";
+        let mut media = media::reconcile(&[], md);
+        media[0].wordpress = uploaded(1, "https://example.org/arch.svg");
+        media[1].wordpress = uploaded(2, "https://example.org/breit.svg");
+        media[2].wordpress = uploaded(3, "https://example.org/mitte.svg");
+        let mut blocks = gutenberg::parse_markdown(md);
+        apply_media_metadata(&mut blocks, &media);
+        svg_images_as_block(&mut blocks, &media, "lui/diagramm");
+        let out = gutenberg::render_blocks(&blocks);
+        assert!(out.contains("<!-- wp:lui/diagramm {\"align\":\"full\",\"caption\":\"Acht Jahre\",\"id\":1} /-->"), "{out}");
+        assert!(out.contains("<!-- wp:lui/diagramm {\"align\":\"wide\",\"caption\":\"Breit\",\"id\":2} /-->"), "{out}");
+        assert!(out.contains("<!-- wp:lui/diagramm {\"caption\":\"Mitte\",\"id\":3} /-->"), "{out}");
     }
 
     /// Not uploaded to this blog (a translation linking the original's

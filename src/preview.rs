@@ -1156,6 +1156,14 @@ figure.wp-block-image.alignleft, figure.wp-block-image.alignright {{ max-width: 
 figure.wp-block-image.alignleft {{ margin-left: 0; margin-right: 1.5em; }}
 figure.wp-block-image.alignright {{ margin-left: 1.5em; margin-right: 0; }}
 figure.wp-block-image.aligncenter {{ margin-left: auto; margin-right: auto; }}
+/* Wide/full width: breaks out of the text column, centered on it; full
+   width sits on a band across the whole pane (the lui-theme's stage). */
+.alignwide, .alignfull {{ position: relative; left: 50%; transform: translateX(-50%); box-sizing: border-box; }}
+.alignwide {{ width: min(calc(100vw - 2rem), 61rem); max-width: none; }}
+.alignfull {{ width: 100vw; max-width: none; padding: 1.5rem 1rem; background: color-mix(in srgb, currentColor 7%, transparent); }}
+.alignwide img, .alignfull img {{ width: 100%; }}
+.alignfull > * {{ max-width: 64rem; margin-left: auto; margin-right: auto; }}
+html {{ overflow-x: clip; }}
 .wp-block-image.is-style-rounded img {{ border-radius: 9999px; }}
 .wp-element-caption {{ font-size: .875em; opacity: .75; margin-top: .5em; text-align: center; }}
 figure.wp-block-table {{ margin: 1.5em 0; overflow-x: auto; }}
@@ -2378,6 +2386,15 @@ fn find_matching_end(events: &[(Event, std::ops::Range<usize>)], start: usize, e
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `{align=wide}`/`{align=full}` on an image reach the preview as the
+    /// WordPress classes the breakout styles hang on.
+    #[test]
+    fn wide_and_full_images_break_out_in_the_preview() {
+        let html = render_html("![Breit](a.png)\n{align=wide}\n\n![Bühne](b.png)\n{align=full}\n", PreviewStyle::Modern, false, &[], ScrollRestore::Top, &Frontmatter::default(), false, None);
+        assert!(html.contains("alignwide") && html.contains("alignfull"), "{html}");
+        assert!(html.contains(".alignfull {"), "{html}");
+    }
 
     #[test]
     fn attribute_line_restyles_the_block_above_and_is_not_shown() {

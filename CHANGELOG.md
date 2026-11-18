@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- An SVG diagram sent as the theme's block (`svg_block = lui/diagramm`) lost its alignment: `{align=wide}` or `{align=full}` under the image (Block inspector: "Weite Breite"/"Volle Breite") now reaches the block as `"align"`, so the theme can show it across the sidebar or on its full-width stage. Before, the next upload reset a diagram set to full width in WordPress.
+
+### Changed
+
+- Preview: images (and other blocks) set to "Weite Breite" break out of the text column, "Volle Breite" ones sit on a band across the whole preview, like on the blog.
+
 ## [0.82.0] - 2026-11-18
 
 ### Added

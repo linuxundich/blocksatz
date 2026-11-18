@@ -39,6 +39,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.80.0" date="2026-11-18">
+      <description>
+        <p>Neu: Texte für Mastodon und Bluesky direkt im Artikel schreiben. Das Blog-Plugin WP Social Publisher (ab 1.10) teilt sie, sobald der Artikel erscheint, auch zum geplanten Termin; bereits veröffentlichte Artikel lassen sich sofort teilen.</p>
+      </description>
+    </release>
     <release version="0.79.0" date="2026-11-18">
       <description>
         <p>Neu: SVG-Diagramme gehen als Block des Blog-Themes hoch, wenn der Blog in sites.conf einen svg_block nennt, mit dem hellen WebP daneben als Bild für Feeds.</p>

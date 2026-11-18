@@ -1,6 +1,7 @@
 mod about;
 mod affiliatedialog;
 mod social;
+mod socialembed;
 mod socialpane;
 mod adblock;
 mod aialt;

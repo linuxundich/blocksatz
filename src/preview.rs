@@ -399,6 +399,23 @@ impl PreviewPane {
             });
         }
 
+        // Fetched Mastodon/Bluesky postings: render again in place, as long
+        // as this pane exists.
+        {
+            let web_view = web_view.downgrade();
+            let style = style.clone();
+            let last_markdown = last_markdown.clone();
+            let last_media = last_media.clone();
+            let doc_dir = doc_dir.clone();
+            let last_frontmatter = last_frontmatter.clone();
+            let show_header = show_header.clone();
+            crate::socialembed::on_loaded(move || {
+                let Some(web_view) = web_view.upgrade() else { return false };
+                rerender_keeping_scroll(&web_view, style.get(), &last_markdown, &last_media, doc_dir.borrow().clone(), &last_frontmatter, show_header.get());
+                true
+            });
+        }
+
         Self {
             widget: web_view.clone().upcast(),
             web_view,
@@ -799,6 +816,7 @@ impl PreviewPane {
     /// first, so a picture changed outside Blocksatz under the same name
     /// shows its new content, then renders the article again.
     pub fn reload(self: &Rc<Self>) {
+        crate::socialembed::refresh_all();
         if let Some(manager) = webkit6::NetworkSession::default().and_then(|session| session.website_data_manager()) {
             manager.clear(webkit6::WebsiteDataTypes::MEMORY_CACHE | webkit6::WebsiteDataTypes::DISK_CACHE, glib::TimeSpan::from_seconds(0), gio::Cancellable::NONE, |_| {});
         }
@@ -838,21 +856,25 @@ impl PreviewPane {
     /// above, or images loading after the restore, would otherwise push
     /// the content away from a fixed pixel position.
     fn rerender_preserving_scroll(&self) {
-        let style = self.style.get();
-        let last_markdown = self.last_markdown.clone();
-        let last_media = self.last_media.clone();
-        let doc_dir = self.doc_dir.borrow().clone();
-        let last_frontmatter = self.last_frontmatter.clone();
-        let show_header = self.show_header.get();
-        let web_view = self.web_view.clone();
-        self.web_view.evaluate_javascript("JSON.stringify(window.__currentSyncState ? window.__currentSyncState() : null)", None, None, gio::Cancellable::NONE, move |result| {
-            let restore = result.map(|value| ScrollRestore::from_state_json(&value.to_str())).unwrap_or(ScrollRestore::Top);
-            let dark = adw::StyleManager::default().is_dark();
-            let html = render_html(&last_markdown.borrow(), style, dark, &last_media.borrow(), restore, &last_frontmatter.borrow(), show_header, appearance::current_scheme_colors());
-            let html = with_gallery_ratios(&html, doc_dir.as_deref());
-            web_view.load_html(&html, base_uri(doc_dir.as_deref()).as_deref());
-        });
+        rerender_keeping_scroll(&self.web_view, self.style.get(), &self.last_markdown, &self.last_media, self.doc_dir.borrow().clone(), &self.last_frontmatter, self.show_header.get());
     }
+}
+
+/// `PreviewPane::rerender_preserving_scroll`'s work, on the pane's parts -
+/// also for the Mastodon/Bluesky callback in `PreviewPane::new`, which
+/// has no pane to call it on.
+fn rerender_keeping_scroll(web_view: &webkit6::WebView, style: PreviewStyle, last_markdown: &Rc<RefCell<String>>, last_media: &Rc<RefCell<Vec<MediaItem>>>, doc_dir: Option<PathBuf>, last_frontmatter: &Rc<RefCell<Frontmatter>>, show_header: bool) {
+    let last_markdown = last_markdown.clone();
+    let last_media = last_media.clone();
+    let last_frontmatter = last_frontmatter.clone();
+    let web_view_for_load = web_view.clone();
+    web_view.evaluate_javascript("JSON.stringify(window.__currentSyncState ? window.__currentSyncState() : null)", None, None, gio::Cancellable::NONE, move |result| {
+        let restore = result.map(|value| ScrollRestore::from_state_json(&value.to_str())).unwrap_or(ScrollRestore::Top);
+        let dark = adw::StyleManager::default().is_dark();
+        let html = render_html(&last_markdown.borrow(), style, dark, &last_media.borrow(), restore, &last_frontmatter.borrow(), show_header, appearance::current_scheme_colors());
+        let html = with_gallery_ratios(&html, doc_dir.as_deref());
+        web_view_for_load.load_html(&html, base_uri(doc_dir.as_deref()).as_deref());
+    });
 }
 
 /// A `file://` URI for `dir`, suitable as a `WebView` base URI - built via
@@ -1009,6 +1031,8 @@ pub fn render_html(markdown: &str, style: PreviewStyle, dark: bool, media: &[Med
     // frontmatter.
     let (markdown, notes) = crate::export::with_footnotes(markdown);
     let footnotes = crate::export::footnotes_meta(&notes, frontmatter.wp_footnotes.as_deref());
+    // Mastodon/Bluesky cards speak the article's language.
+    crate::socialembed::set_english(frontmatter.lang.as_deref().is_some_and(|lang| lang.starts_with("en")));
     let body = render_body(&markdown, media, footnotes.as_deref());
     let header = if show_header { render_header(frontmatter) } else { String::new() };
     let lang_badge = render_lang_badge(frontmatter);
@@ -1209,6 +1233,7 @@ figure.wp-block-table {{ margin: 1.5em 0; overflow-x: auto; }}
 {theme_css}
 {BADGE_CSS}
 {EMBED_CSS}
+{SOCIAL_CSS}
 {HEADER_CSS}
 {LANG_BADGE_CSS}
 </style></head><body>{lang_badge}{header}{body}<script>
@@ -1760,6 +1785,7 @@ fn media_tag_for(src: &str) -> Option<&'static str> {
     }
 }
 
+const SOCIAL_CSS: &str = crate::socialembed::CSS;
 const EMBED_CSS: &str = ".embed-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; aspect-ratio: 16 / 9; max-width: 100%; margin: 1rem auto; padding: 1rem; box-sizing: border-box; text-align: center; border: 1px solid rgba(127, 127, 127, 0.3); border-radius: 8px; background: rgba(127, 127, 127, 0.08); }
 .embed-placeholder .embed-icon { font-size: 2.5rem; opacity: .6; }
 .embed-placeholder .embed-label { font-weight: 600; opacity: .85; }
@@ -1783,6 +1809,10 @@ const EMBED_CSS: &str = ".embed-placeholder { display: flex; flex-direction: col
 /// special-casing for this block, see the module doc comment's note on
 /// `data-line` anchoring by source line rather than proportion.
 fn render_embed_placeholder(url: &str) -> String {
+    // A Mastodon or Bluesky posting shows as the blog's card instead.
+    if let Some(card) = crate::socialembed::card(url) {
+        return card;
+    }
     let (icon, label) = embed_placeholder_label(url);
     format!(
         "<div class=\"embed-placeholder\"><span class=\"embed-icon\">{icon}</span><span class=\"embed-label\">{}</span><span class=\"embed-url\">{}</span></div>",

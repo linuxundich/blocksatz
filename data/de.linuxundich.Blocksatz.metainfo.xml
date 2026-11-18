@@ -39,6 +39,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.82.0" date="2026-11-18">
+      <description>
+        <p>Neu: Der Dialog „Veröffentlichen“ zeigt beim Hochladen einen Fortschrittsbalken mit dem aktuellen Schritt und schließt sich, sobald der Beitrag oben ist. Behoben: KI-Alternativtexte, Bildunterschriften und Tag-Vorschläge kommen bei englischen Fassungen ohne lang-Zeile jetzt auf Englisch.</p>
+      </description>
+    </release>
     <release version="0.81.0" date="2026-11-18">
       <description>
         <p>Neu: Affiliate-Links als normaler Markdown-Link. Ein Amazon-Link mit Partner-Tag geht mit rel="sponsored nofollow noopener" hoch, damit das Blog ihn kennzeichnet. „Affiliate-Link einfügen …“ macht aus einer Amazon-Adresse oder ASIN einen sauberen Partner-Link und merkt sich den Tag je Blog.</p>

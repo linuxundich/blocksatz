@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.82.0] - 2026-11-18
+
 ### Added
 
 - The publish dialog ("Veröffentlichen") stays open after "Jetzt veröffentlichen"/"Planen"/"Änderungen veröffentlichen" and shows the upload's progress: a bar and the current step (image n of m, categories and tags, featured image, the post itself). It closes by itself once the post is up and keeps the error on screen if the upload fails. "Beide Sprachen" keeps the page open for the translation. "Im Hintergrund weiter" closes it while the upload goes on.
@@ -2939,7 +2941,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.81.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.82.0...HEAD
+[0.82.0]: https://github.com/linuxundich/blocksatz/compare/v0.81.0...v0.82.0
 [0.81.0]: https://github.com/linuxundich/blocksatz/compare/v0.80.2...v0.81.0
 [0.80.2]: https://github.com/linuxundich/blocksatz/compare/v0.80.1...v0.80.2
 [0.80.1]: https://github.com/linuxundich/blocksatz/compare/v0.80.0...v0.80.1

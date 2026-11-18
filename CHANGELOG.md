@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Preview: "Weite Breite" now grows to the right from the text's left edge, as on the blog, instead of spreading evenly to both sides; captions of wide and full-width images sit left at the image edge instead of centered.
+
 ## [0.83.0] - 2026-11-18
 
 ### Fixed

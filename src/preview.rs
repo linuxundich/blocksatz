@@ -1156,11 +1156,14 @@ figure.wp-block-image.alignleft, figure.wp-block-image.alignright {{ max-width: 
 figure.wp-block-image.alignleft {{ margin-left: 0; margin-right: 1.5em; }}
 figure.wp-block-image.alignright {{ margin-left: 1.5em; margin-right: 0; }}
 figure.wp-block-image.aligncenter {{ margin-left: auto; margin-right: auto; }}
-/* Wide/full width: breaks out of the text column, centered on it; full
-   width sits on a band across the whole pane (the lui-theme's stage). */
-.alignwide, .alignfull {{ position: relative; left: 50%; transform: translateX(-50%); box-sizing: border-box; }}
-.alignwide {{ width: min(calc(100vw - 2rem), 61rem); max-width: none; }}
-.alignfull {{ width: 100vw; max-width: none; padding: 1.5rem 1rem; background: color-mix(in srgb, currentColor 7%, transparent); }}
+/* Wide width grows to the right from the text's left edge (the lui-theme
+   takes the sidebar's room), full width sits on a band across the whole
+   pane (the theme's stage); captions stay left at the image edge. */
+.alignwide, .alignfull {{ box-sizing: border-box; max-width: none; }}
+.alignwide {{ width: min(calc(100% + (100vw - 100%) / 2 - 1rem), 61rem); }}
+.alignfull {{ position: relative; left: 50%; transform: translateX(-50%); width: 100vw; padding: 1.5rem 1rem; background: color-mix(in srgb, currentColor 7%, transparent); }}
+.alignwide > figcaption {{ text-align: left; max-width: 38rem; }}
+.alignfull > figcaption {{ text-align: left; box-sizing: border-box; padding-right: max(0px, min(100%, 64rem) - 38rem); }}
 .alignwide img, .alignfull img {{ width: 100%; }}
 .alignfull > * {{ max-width: 64rem; margin-left: auto; margin-right: auto; }}
 html {{ overflow-x: clip; }}

@@ -39,6 +39,80 @@ pub fn attach(entry: &adw::EntryRow, terms: Rc<RefCell<Vec<String>>>) {
         popover_for_activate.popdown();
     });
 
+    // `autohide(false)` keeps typing in the entry (an autohiding popover
+    // grabs the keyboard), so closing is done here: Escape, a click
+    // anywhere outside the entry and the list, or leaving the field.
+    {
+        let popover = popover.clone();
+        let keys = gtk4::EventControllerKey::new();
+        keys.set_propagation_phase(gtk4::PropagationPhase::Capture);
+        keys.connect_key_pressed(move |_, key, _, _| {
+            if key == gtk4::gdk::Key::Escape && popover.is_visible() {
+                popover.popdown();
+                return gtk4::glib::Propagation::Stop;
+            }
+            gtk4::glib::Propagation::Proceed
+        });
+        entry.add_controller(keys);
+    }
+    {
+        let popover = popover.clone();
+        let entry_weak = entry.downgrade();
+        let focus = gtk4::EventControllerFocus::new();
+        focus.connect_leave(move |_| {
+            let popover = popover.clone();
+            let entry_weak = entry_weak.clone();
+            // A click into the list moves focus there first; only close
+            // when focus went somewhere else entirely.
+            gtk4::glib::timeout_add_local_once(std::time::Duration::from_millis(150), move || {
+                let Some(entry) = entry_weak.upgrade() else { return };
+                let inside = |w: &gtk4::Widget| w.has_focus() || w.focus_child().is_some();
+                if !inside(entry.upcast_ref()) && !inside(popover.upcast_ref()) {
+                    popover.popdown();
+                }
+            });
+        });
+        entry.add_controller(focus);
+    }
+    {
+        let popover = popover.clone();
+        let entry_weak = entry.downgrade();
+        // Added to the window while the field exists, removed with it -
+        // the properties are rebuilt per article.
+        let installed: Rc<RefCell<Option<(gtk4::Widget, gtk4::GestureClick)>>> = Rc::default();
+        {
+            let installed = installed.clone();
+            entry.connect_unrealize(move |_| {
+                if let Some((root, click)) = installed.borrow_mut().take() {
+                    root.remove_controller(&click);
+                }
+            });
+        }
+        entry.connect_realize(move |entry| {
+            let Some(root) = entry.root() else { return };
+            let click = gtk4::GestureClick::new();
+            click.set_propagation_phase(gtk4::PropagationPhase::Capture);
+            let popover = popover.clone();
+            let entry_weak = entry_weak.clone();
+            let root_widget: gtk4::Widget = root.clone().upcast();
+            click.connect_pressed(move |_, _, x, y| {
+                if !popover.is_visible() {
+                    return;
+                }
+                let Some(entry) = entry_weak.upgrade() else { return };
+                let hit = root_widget.pick(x, y, gtk4::PickFlags::DEFAULT);
+                let on = |target: &gtk4::Widget| hit.as_ref().is_some_and(|w| w == target || w.is_ancestor(target));
+                if !on(entry.upcast_ref()) {
+                    popover.popdown();
+                }
+            });
+            root.add_controller(click.clone());
+            if let Some((old_root, old)) = installed.borrow_mut().replace((root.upcast(), click)) {
+                old_root.remove_controller(&old);
+            }
+        });
+    }
+
     let list_box_for_changed = list_box.clone();
     let popover_for_changed = popover.clone();
     entry.connect_changed(move |row| {
@@ -54,15 +128,11 @@ pub fn attach(entry: &adw::EntryRow, terms: Rc<RefCell<Vec<String>>>) {
             return;
         }
 
-        let matches: Vec<String> = terms
-            .borrow()
-            .iter()
-            .filter(|t| t.to_lowercase().contains(&current_segment) && t.to_lowercase() != current_segment)
-            .take(MAX_SUGGESTIONS)
-            .cloned()
-            .collect();
+        let typed = text.rsplit(',').next().unwrap_or("").trim().to_string();
+        let matches = suggestions(&terms.borrow(), &current_segment);
 
-        if matches.is_empty() {
+        // Nothing to offer beyond what is already typed, exactly so.
+        if matches.is_empty() || (matches.len() == 1 && matches[0] == typed) {
             popover_for_changed.popdown();
             return;
         }
@@ -82,4 +152,57 @@ pub fn attach(entry: &adw::EntryRow, terms: Rc<RefCell<Vec<String>>>) {
         }
         popover_for_changed.popup();
     });
+}
+
+/// Terms containing `segment` (lowercase): the exact term first, then
+/// those starting with it (shortest first), then the rest - so typing
+/// "gnome" offers "GNOME" before "GNOME Shell" and "Desktop GNOME".
+fn suggestions(terms: &[String], segment: &str) -> Vec<String> {
+    let mut matches: Vec<(u8, usize, &String)> = terms
+        .iter()
+        .filter_map(|term| {
+            let lower = term.to_lowercase();
+            let rank = if lower == segment {
+                0
+            } else if lower.starts_with(segment) {
+                1
+            } else if lower.contains(segment) {
+                2
+            } else {
+                return None;
+            };
+            Some((rank, term.chars().count(), term))
+        })
+        .collect();
+    matches.sort_by(|a, b| (a.0, a.1).cmp(&(b.0, b.1)).then_with(|| a.2.to_lowercase().cmp(&b.2.to_lowercase())));
+    matches.into_iter().take(MAX_SUGGESTIONS).map(|(_, _, term)| term.clone()).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn terms(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn exact_term_comes_first() {
+        let all = terms(&["GNOME Do", "GNOME Erweiterung", "Desktop GNOME", "GNOME", "GNOME Shell", "KDE"]);
+        assert_eq!(suggestions(&all, "gnome"), terms(&["GNOME", "GNOME Do", "GNOME Shell", "GNOME Erweiterung", "Desktop GNOME"]));
+    }
+
+    #[test]
+    fn exact_term_shows_even_among_many_longer_ones() {
+        let mut all: Vec<String> = (0..20).map(|i| format!("GNOME Thema {i:02}")).collect();
+        all.push("GNOME".into());
+        let found = suggestions(&all, "gnome");
+        assert_eq!(found.len(), MAX_SUGGESTIONS);
+        assert_eq!(found[0], "GNOME");
+    }
+
+    #[test]
+    fn nothing_matches() {
+        assert!(suggestions(&terms(&["KDE", "Arch Linux"]), "gnome").is_empty());
+    }
 }

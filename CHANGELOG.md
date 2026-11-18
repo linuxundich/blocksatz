@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Category and tag suggestions offer the exact term too, first in the list: typing "GNOME" showed "GNOME Do", "GNOME Shell" and friends, but not "GNOME" itself. Terms starting with the typed text follow, shortest first, then the rest.
+- The suggestion list closes with Escape, a click outside it or when the field loses focus; before, nothing but a comma or a picked suggestion closed it.
+
 ## [0.80.1] - 2026-11-18
 
 ### Fixed

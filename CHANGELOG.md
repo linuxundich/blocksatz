@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.81.0] - 2026-11-18
+
 ### Added
 
 - Affiliate links: a plain Markdown link to an Amazon page with a partner tag (`?tag=…`) or to `amzn.to` goes up with `rel="sponsored nofollow noopener"`, so the blog theme can mark it as an affiliate link (`a[rel~='sponsored']`) - no hand-written HTML link needed any more. Opening the post again turns such a link back into plain Markdown; a link with any other `rel` stays HTML. Such links no longer count as design in the Markdown closeness check.
@@ -2929,7 +2931,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.80.2...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.81.0...HEAD
+[0.81.0]: https://github.com/linuxundich/blocksatz/compare/v0.80.2...v0.81.0
 [0.80.2]: https://github.com/linuxundich/blocksatz/compare/v0.80.1...v0.80.2
 [0.80.1]: https://github.com/linuxundich/blocksatz/compare/v0.80.0...v0.80.1
 [0.80.0]: https://github.com/linuxundich/blocksatz/compare/v0.79.0...v0.80.0

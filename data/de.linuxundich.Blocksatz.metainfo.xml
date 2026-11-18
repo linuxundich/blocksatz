@@ -39,6 +39,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.81.0" date="2026-11-18">
+      <description>
+        <p>Neu: Affiliate-Links als normaler Markdown-Link. Ein Amazon-Link mit Partner-Tag geht mit rel="sponsored nofollow noopener" hoch, damit das Blog ihn kennzeichnet. „Affiliate-Link einfügen …“ macht aus einer Amazon-Adresse oder ASIN einen sauberen Partner-Link und merkt sich den Tag je Blog.</p>
+      </description>
+    </release>
     <release version="0.80.2" date="2026-11-18">
       <description>
         <p>Behoben: Die Vorschläge für Kategorien und Schlagwörter zeigen auch den genau passenden Begriff, an erster Stelle. Die Vorschlagsliste schließt mit Escape, einem Klick daneben oder beim Verlassen des Felds.</p>

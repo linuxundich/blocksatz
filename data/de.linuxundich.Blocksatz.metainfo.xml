@@ -39,6 +39,12 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.79.0" date="2026-11-18">
+      <description>
+        <p>Neu: SVG-Diagramme gehen als Block des Blog-Themes hoch, wenn der Blog in sites.conf einen svg_block nennt, mit dem hellen WebP daneben als Bild für Feeds.</p>
+        <p>Geändert: Die README ist neu gegliedert.</p>
+      </description>
+    </release>
     <release version="0.78.1" date="2026-11-12">
       <description>
         <p>Geändert: Das Bildfenster der Vorschau ist modal, und es ist immer nur ein Bild gleichzeitig offen.</p>

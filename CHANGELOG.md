@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.79.0] - 2026-11-18
+
 ### Added
 
 - SVG diagrams as a block of the blog's theme: with `svg_block = lui/diagramm` in a blog's section of `sites.conf`, a local SVG image is uploaded and published as that block (`id`, `rasterId`, `caption`) instead of a plain image, so the theme can render it inline and switch it with light/dark. A `NAME.hell.webp` (else `NAME.webp`) beside the SVG is uploaded as its feed image, only when it changed (kept in `media_json` as `raster`). The setting survives saving the blog's credentials.
@@ -2903,7 +2905,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.78.1...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.79.0...HEAD
+[0.79.0]: https://github.com/linuxundich/blocksatz/compare/v0.78.1...v0.79.0
 [0.78.1]: https://github.com/linuxundich/blocksatz/compare/v0.78.0...v0.78.1
 [0.78.0]: https://github.com/linuxundich/blocksatz/compare/v0.77.0...v0.78.0
 [0.77.0]: https://github.com/linuxundich/blocksatz/compare/v0.76.0...v0.77.0

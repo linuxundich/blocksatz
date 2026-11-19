@@ -16,6 +16,7 @@ src/changelog.rs
 src/chat.rs
 src/chatsettings.rs
 src/compare.rs
+src/datetimepicker.rs
 src/connection.rs
 src/counterpart.rs
 src/diskwatch.rs

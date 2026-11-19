@@ -62,6 +62,7 @@ pub fn build_status_row(frontmatter: &Rc<RefCell<Frontmatter>>) -> (adw::ComboRo
         .tooltip_text(tr("Ein Datum in der Vergangenheit datiert den Beitrag zurück; er bleibt bzw. geht online."))
         .text(current.scheduled_at.as_deref().map(document::format_scheduled_at_for_display).unwrap_or_default().as_str())
         .build();
+    crate::datetimepicker::attach(&scheduled_row);
     scheduled_row.set_visible(current.status == PostStatus::Future);
 
     // The publish date of a post that is online: changed here, it goes up
@@ -72,6 +73,7 @@ pub fn build_status_row(frontmatter: &Rc<RefCell<Frontmatter>>) -> (adw::ComboRo
         .tooltip_text(tr("Nur Daten in der Vergangenheit - ein späteres Datum nähme den Beitrag offline; dafür gibt es „Geplant“."))
         .text(current.publish_date.as_deref().or(current.wp_published_at.as_deref()).map(document::format_scheduled_at_for_display).unwrap_or_default().as_str())
         .build();
+    crate::datetimepicker::attach(&published_row);
     published_row.set_visible(online(current.status, &current));
 
     {

@@ -5224,3 +5224,11 @@ msgstr ""
 
 #~ msgid "Abgebrochen - lokale Änderungen wurden nicht gesendet."
 #~ msgstr "Cancelled - the local changes were not sent."
+
+#: src/datetimepicker.rs
+msgid "Jetzt"
+msgstr "Now"
+
+#: src/datetimepicker.rs
+msgid "Datum und Uhrzeit wählen"
+msgstr "Pick date and time"

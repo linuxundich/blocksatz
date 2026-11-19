@@ -240,6 +240,7 @@ pub fn open(window: &adw::ApplicationWindow, ctx: &DocContext, mode: Mode, links
 
     // "Sofort / Geplant" - not for changes to a post that's already live.
     let schedule_entry = adw::EntryRow::builder().title(tr("Termin (JJJJ-MM-TT HH:MM)")).build();
+    crate::datetimepicker::attach(&schedule_entry);
     if let Some(at) = &doc.frontmatter.scheduled_at {
         schedule_entry.set_text(&document::format_scheduled_at_for_display(at));
     }

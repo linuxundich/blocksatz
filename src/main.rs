@@ -1,4 +1,5 @@
 mod about;
+mod datetimepicker;
 mod affiliatedialog;
 mod social;
 mod socialembed;

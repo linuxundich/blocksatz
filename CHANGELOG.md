@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Release check, post pane: the date fields ("Termin", "Veröffentlichungstermin", "Veröffentlicht am") get a calendar button next to them. It opens a calendar with hour and minute spinners, starts at the date already entered or the next full hour, and fills the field on "Übernehmen" or a double click on a day; "Jetzt" jumps to the current time. Typing the date still works.
 - Preview: a lone Mastodon or Bluesky posting URL shows as the same card the blog's `lui-social-embed` plugin renders (author, text, images, link preview, reply line, date, "Auf … ansehen") instead of the generic "Eingebetteter Inhalt" placeholder. Postings come from the networks' public interfaces without signing in, in the background, and are cached for a day under `~/.cache/blocksatz/social/`; the preview's reload button fetches them again. The card's texts follow the article's language.
 
 ## [0.83.1] - 2026-11-18

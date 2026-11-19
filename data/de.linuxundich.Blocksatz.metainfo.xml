@@ -39,6 +39,11 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="0.84.0" date="2026-11-19">
+      <description>
+        <p>Neu: Die Vorschau zeigt Mastodon- und Bluesky-Postings als Karte wie im Blog. Die Datumsfelder der Freigabe-Prüfung und des Beitrags haben einen Kalender-Knopf mit Uhrzeit.</p>
+      </description>
+    </release>
     <release version="0.83.1" date="2026-11-18">
       <description>
         <p>Behoben: In der Vorschau wächst „Weite Breite“ wie im Blog von der linken Textkante nach rechts, und die Bildunterschriften breiter Bilder stehen links an der Bildkante.</p>

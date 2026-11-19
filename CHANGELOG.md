@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.84.0] - 2026-11-19
+
 ### Added
 
 - Release check, post pane: the date fields ("Termin", "Veröffentlichungstermin", "Veröffentlicht am") get a calendar button next to them. It opens a calendar with hour and minute spinners, starts at the date already entered or the next full hour, and fills the field on "Übernehmen" or a double click on a day; "Jetzt" jumps to the current time. Typing the date still works.
@@ -2962,7 +2964,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.83.1...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.84.0...HEAD
+[0.84.0]: https://github.com/linuxundich/blocksatz/compare/v0.83.1...v0.84.0
 [0.83.1]: https://github.com/linuxundich/blocksatz/compare/v0.83.0...v0.83.1
 [0.83.0]: https://github.com/linuxundich/blocksatz/compare/v0.82.0...v0.83.0
 [0.82.0]: https://github.com/linuxundich/blocksatz/compare/v0.81.0...v0.82.0

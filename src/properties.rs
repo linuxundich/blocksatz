@@ -194,16 +194,20 @@ fn build_textarea_row(title: &str, initial_text: &str) -> (adw::PreferencesRow, 
 }
 
 /// Builds the property groups for the open article, bound to
-/// `frontmatter`. Rebuilt whenever another article is opened.
+/// `frontmatter`. Rebuilt whenever another article is opened. `site` is
+/// the document's own blog (`wpsite::for_document`), which `term_caches`
+/// already points at.
 pub fn build(
     parent: &adw::ApplicationWindow,
     body: String,
     frontmatter: Rc<RefCell<Frontmatter>>,
     term_caches: termcache::TermCacheHandles,
+    site: wpsite::SiteConfig,
     doc_dir: Option<PathBuf>,
 ) -> gtk4::Widget {
-    let termcache::TermCacheHandles { categories: category_terms, tags: tag_terms, category_slugs } = term_caches;
-    let site = wpsite::load();
+    let category_terms = term_caches.categories.clone();
+    let tag_terms = term_caches.tags.clone();
+    let category_slugs = term_caches.category_slugs.clone();
     let current = frontmatter.borrow().clone();
 
     // "Artikel" or "Seite" - which REST collection (`/posts` vs `/pages`)
@@ -328,7 +332,7 @@ pub fn build(
     // this reads `category_slugs` rather than deriving it locally.
     let url_length_row = adw::ActionRow::builder().title(tr("URL-Länge (SEO)")).build();
     // The blog the article belongs to, not necessarily the active one.
-    let url_site = wpsite::for_site_id(current.wp_site.as_deref()).url;
+    let url_site = site.url.clone();
     let url_length_icon = gtk4::Image::new();
     url_length_icon.set_valign(gtk4::Align::Center);
     url_length_row.add_suffix(&url_length_icon);
@@ -584,11 +588,6 @@ pub fn build(
     let refresh_button = gtk4::Button::from_icon_name("view-refresh-symbolic");
     refresh_button.set_tooltip_text(Some(&tr("Kategorien & Tags von WordPress aktualisieren")));
     refresh_button.add_css_class("flat");
-    let term_caches = termcache::TermCacheHandles {
-        categories: category_terms.clone(),
-        tags: tag_terms.clone(),
-        category_slugs: category_slugs.clone(),
-    };
     {
         let term_caches = term_caches.clone();
         refresh_button.connect_clicked(move |_| {
@@ -661,6 +660,20 @@ pub fn build(
     autocomplete::attach(&categories_row, category_terms);
     autocomplete::attach(&tags_row, tag_terms.clone());
     refresh_tags_status(&tags_status_row, &tags_status_flow, &tags_row.text(), &tag_terms.borrow());
+    {
+        // Redraw green/red once the blog's tag list arrives or changes
+        // (it may still be loading when the pane is built). The listener
+        // lives as long as the tag row does.
+        let (row, flow, tags_row_weak, tag_terms) = (tags_status_row.downgrade(), tags_status_flow.downgrade(), tags_row.downgrade(), tag_terms.clone());
+        let listener = term_caches.connect_changed(move || {
+            if let (Some(row), Some(flow), Some(tags_row)) = (row.upgrade(), flow.upgrade(), tags_row_weak.upgrade()) {
+                refresh_tags_status(&row, &flow, &tags_row.text(), &tag_terms.borrow());
+            }
+        });
+        tags_row.connect_destroy(move |_| {
+            let _ = &listener;
+        });
+    }
 
     let image_group = adw::PreferencesGroup::builder().title(tr("Aufmacherbild")).build();
     image_group.add(&featured_image_row);
@@ -707,7 +720,7 @@ pub fn build(
         let seo_group = seo_group.clone();
         let has_values = [&current.rank_math_title, &current.rank_math_description, &current.rank_math_focus_keyword].iter().any(|v| v.as_deref().is_some_and(|v| !v.trim().is_empty()));
         let (url_length_row, url_length_icon, url_site, frontmatter, category_slugs) = (url_length_row.clone(), url_length_icon.clone(), url_site.clone(), frontmatter.clone(), category_slugs.clone());
-        crate::siteinfo::probe(&wpsite::for_site_id(current.wp_site.as_deref()), move |active| {
+        crate::siteinfo::probe(&site, move |active| {
             // Now the permalink shape is known as well.
             refresh_url_length_row(&url_length_row, &url_length_icon, &url_site, &frontmatter, &category_slugs);
             seo_group.set_visible(active || has_values);

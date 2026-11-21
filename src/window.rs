@@ -13,7 +13,7 @@ use crate::{
     newarticle,
     blogposts, blogsync, counterpart, importer, langswitch, library, librarysidebar, mainaction, markdowncheck, postpane, releasecheck, syncstate, worksave,
     about, aievaluate, aiinplace, aimenu, aitasks, aiwriter, browser, chat, codeview, document, editor, export, formatting, gallerydialog, imagealt, linkpicker, media,
-    mediabrowser, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, terminal, themestyle, windowstate,
+    mediabrowser, mediapanel, preview, recentfiles, richtext, searchbar, settings, shortcuts, stats, statusbar, termcache, terminal, themestyle, windowstate, wpsite,
 };
 
 const DEBOUNCE_MS: u64 = 250;
@@ -679,12 +679,9 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
     // library was actually edited before writing to it.
     let saved_text: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
 
-    let cached_terms = termcache::load();
-    let term_caches = termcache::TermCacheHandles {
-        categories: Rc::new(RefCell::new(cached_terms.categories)),
-        tags: Rc::new(RefCell::new(cached_terms.tags)),
-        category_slugs: Rc::new(RefCell::new(cached_terms.category_slugs)),
-    };
+    // Starts on the active blog's terms; the post pane points them at the
+    // open document's blog (`termcache::use_site`) as soon as it is shown.
+    let term_caches = termcache::TermCacheHandles::for_site(&wpsite::load());
     termcache::spawn_refresh(&term_caches);
     themestyle::spawn_refresh();
     {
@@ -860,7 +857,15 @@ pub fn build(app: &adw::Application, initial_path: Option<PathBuf>) -> adw::Appl
         let term_caches = term_caches.clone();
         let ctx = doc_ctx.clone();
         doc_ctx.site_listeners.borrow_mut().push(Rc::new(move || {
-            termcache::reload(&term_caches);
+            // The terms follow the open document's blog, which may or may
+            // not be the newly active one; refresh either way (new
+            // credentials, a blog added).
+            let site = wpsite::for_document(ctx.current_path.borrow().as_deref(), ctx.frontmatter.borrow().wp_site.as_deref());
+            if *term_caches.site.borrow() == site.site_id() {
+                termcache::spawn_refresh(&term_caches);
+            } else {
+                termcache::use_site(&term_caches, &site);
+            }
             themestyle::reload();
             blogsync::refresh(&ctx);
         }));

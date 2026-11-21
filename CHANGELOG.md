@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Post pane: categories and tags are checked against the article's own blog. An `artikel.en.md` marked tags green or red by the German blog's list, so "Projects" showed as new although the English blog has it, and "Google Play" as existing although it didn't. The term lists now follow the open document (`wp_site`, else its language), switch along with the DE · EN toggle, and redraw once the blog's answer arrives; each blog keeps its own cache file, and the English one is refreshed too instead of staying empty.
+- Post pane: the parent page and author lists, the URL length check and the Rank Math check of a not yet uploaded translation use its own blog instead of the active one.
+- "Kategorien & Tags verwalten …" lists, renames, re-parents, creates and deletes the terms of the open document's blog instead of the active one, and names that blog in its header. The blog is fixed when the dialog opens, so every change goes to the blog it shows.
+
 ## [0.84.0] - 2026-11-19
 
 ### Added

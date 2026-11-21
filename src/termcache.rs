@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -29,9 +29,13 @@ pub struct TermCache {
     pub category_slugs: HashMap<String, String>,
 }
 
-/// The three shared, in-memory handles `load()`'s result is unpacked into
-/// at startup (`window.rs`) - bundled purely to keep functions that pass
-/// all three around (they're always read/refreshed together) under
+/// A view that wants to hear about new term lists (`connect_changed`).
+type ChangedListener = Weak<dyn Fn()>;
+
+/// The shared, in-memory term lists of one blog, created at startup
+/// (`window.rs`) and pointed at the open document's blog by `use_site` -
+/// bundled to keep functions that pass them around (they're always
+/// read/refreshed together) under
 /// clippy::too_many_arguments, the same fix already used for `DocContext`/
 /// `RecentFilesWidgets` in `window.rs`. Cloning the whole bundle is as
 /// cheap as cloning any one field, since every field already is one.
@@ -40,6 +44,52 @@ pub struct TermCacheHandles {
     pub categories: Rc<RefCell<Vec<String>>>,
     pub tags: Rc<RefCell<Vec<String>>>,
     pub category_slugs: Rc<RefCell<HashMap<String, String>>>,
+    /// `site_id` of the blog the lists above belong to - the blog of the
+    /// open document (`use_site`), not necessarily the active one: an
+    /// `artikel.en.md` is checked against the English blog's tags.
+    pub site: Rc<RefCell<String>>,
+    /// Called after the lists changed (another blog, or a refresh from
+    /// WordPress arrived), so views showing "exists / new" can redraw.
+    pub changed: Rc<RefCell<Vec<ChangedListener>>>,
+}
+
+impl TermCacheHandles {
+    /// Handles holding `site`'s on-disk cache.
+    pub fn for_site(site: &wpsite::SiteConfig) -> Self {
+        let id = site.site_id();
+        let cache = load_site(&id);
+        TermCacheHandles {
+            categories: Rc::new(RefCell::new(cache.categories)),
+            tags: Rc::new(RefCell::new(cache.tags)),
+            category_slugs: Rc::new(RefCell::new(cache.category_slugs)),
+            site: Rc::new(RefCell::new(id)),
+            changed: Rc::new(RefCell::new(Vec::new())),
+        }
+    }
+
+    /// Registers `listener` for `changed`; it lives as long as the caller
+    /// keeps the returned `Rc`.
+    pub fn connect_changed(&self, listener: impl Fn() + 'static) -> Rc<dyn Fn()> {
+        let listener: Rc<dyn Fn()> = Rc::new(listener);
+        let mut listeners = self.changed.borrow_mut();
+        listeners.retain(|l| l.strong_count() > 0);
+        listeners.push(Rc::downgrade(&listener));
+        listener
+    }
+
+    fn notify(&self) {
+        let listeners: Vec<Rc<dyn Fn()>> = self.changed.borrow().iter().filter_map(Weak::upgrade).collect();
+        for listener in listeners {
+            listener();
+        }
+    }
+
+    fn apply(&self, cache: TermCache) {
+        *self.categories.borrow_mut() = cache.categories;
+        *self.tags.borrow_mut() = cache.tags;
+        *self.category_slugs.borrow_mut() = cache.category_slugs;
+        self.notify();
+    }
 }
 
 /// Adwaita's standard green_5 - used wherever a category/tag is shown as
@@ -71,34 +121,52 @@ pub fn term_markup(term: &str, known_terms: &[String]) -> String {
     format!(r#"<span foreground="{color}">{}</span>"#, glib::markup_escape_text(term))
 }
 
-/// One cache per blog (the active one): `terms-<site id>.json`.
-fn cache_path() -> PathBuf {
-    let site_id: String = wpsite::load().site_id().chars().map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect();
+/// One cache per blog: `terms-<site id>.json`.
+fn cache_path(site_id: &str) -> PathBuf {
+    let site_id: String = site_id.chars().map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' }).collect();
     let mut dir = glib::user_cache_dir();
     dir.push(crate::APP_DIR);
     dir.push(format!("terms-{site_id}.json"));
     dir
 }
 
-/// Switches the shared lists to the (newly) active blog's cache and
-/// refreshes it from that blog.
-pub fn reload(handles: &TermCacheHandles) {
-    let cache = load();
-    *handles.categories.borrow_mut() = cache.categories;
-    *handles.tags.borrow_mut() = cache.tags;
-    *handles.category_slugs.borrow_mut() = cache.category_slugs;
+/// Points the shared lists at `site` - the blog of the document just
+/// opened (`wpsite::for_document`). Loads that blog's on-disk cache at
+/// once and refreshes it from WordPress. Nothing happens if the lists
+/// already belong to `site`.
+pub fn use_site(handles: &TermCacheHandles, site: &wpsite::SiteConfig) {
+    let id = site.site_id();
+    if *handles.site.borrow() == id {
+        return;
+    }
+    *handles.site.borrow_mut() = id.clone();
+    handles.apply(load_site(&id));
     spawn_refresh(handles);
 }
 
-pub fn load() -> TermCache {
-    match std::fs::read_to_string(cache_path()) {
+/// The blog `handles` belongs to (the active one if none is set yet).
+pub fn site_of(handles: &TermCacheHandles) -> wpsite::SiteConfig {
+    let id = handles.site.borrow().clone();
+    wpsite::for_site_id(if id.is_empty() { None } else { Some(id.as_str()) })
+}
+
+/// The same lists, but fixed to the blog they belong to right now: a
+/// dialog that writes terms keeps talking to the blog it showed, even if
+/// another document is opened meanwhile.
+pub fn pinned(handles: &TermCacheHandles) -> TermCacheHandles {
+    TermCacheHandles { site: Rc::new(RefCell::new(handles.site.borrow().clone())), ..handles.clone() }
+}
+
+/// `site_id`'s cache as last saved, empty if there is none.
+pub fn load_site(site_id: &str) -> TermCache {
+    match std::fs::read_to_string(cache_path(site_id)) {
         Ok(contents) => parse(&contents),
         Err(_) => TermCache::default(),
     }
 }
 
-fn save(cache: &TermCache) -> std::io::Result<()> {
-    let path = cache_path();
+fn save(site_id: &str, cache: &TermCache) -> std::io::Result<()> {
+    let path = cache_path(site_id);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -132,16 +200,19 @@ fn serialize(cache: &TermCache) -> String {
     serde_json::json!({ "categories": cache.categories, "tags": cache.tags, "category_slugs": cache.category_slugs }).to_string()
 }
 
-/// Refreshes the cache from the configured WordPress site on a background
-/// thread (see `wpclient`'s module docs for why it's blocking), updating
-/// the shared in-memory lists and the on-disk cache once done. A no-op if
-/// no site is configured; leaves the existing cache untouched on failure.
+/// Refreshes the lists from the blog they belong to (`handles.site`) on a
+/// background thread (see `wpclient`'s module docs for why it's
+/// blocking), updating the shared lists and that blog's on-disk cache once
+/// done. A no-op if no blog is configured; leaves the cache untouched on
+/// failure, and drops the answer if the lists moved to another blog in
+/// the meantime.
 pub fn spawn_refresh(handles: &TermCacheHandles) {
-    let site = wpsite::load();
+    let site = site_of(handles);
     if site.url.is_empty() {
         return;
     }
-    let TermCacheHandles { categories, tags, category_slugs } = handles.clone();
+    let site_id = site.site_id();
+    let handles = handles.clone();
 
     let (tx, rx) = mpsc::channel::<Option<TermCache>>();
     std::thread::spawn(move || {
@@ -165,10 +236,10 @@ pub fn spawn_refresh(handles: &TermCacheHandles) {
 
     glib::timeout_add_local(Duration::from_millis(150), move || match rx.try_recv() {
         Ok(Some(cache)) => {
-            *categories.borrow_mut() = cache.categories.clone();
-            *tags.borrow_mut() = cache.tags.clone();
-            *category_slugs.borrow_mut() = cache.category_slugs.clone();
-            let _ = save(&cache);
+            let _ = save(&site_id, &cache);
+            if *handles.site.borrow() == site_id {
+                handles.apply(cache);
+            }
             glib::ControlFlow::Break
         }
         Ok(None) => glib::ControlFlow::Break,
@@ -189,6 +260,63 @@ mod tests {
             category_slugs: HashMap::from([("GNU/Linux".to_string(), "gnu-linux".to_string())]),
         };
         assert_eq!(parse(&serialize(&cache)), cache);
+    }
+
+    #[test]
+    fn each_blog_has_its_own_cache_file() {
+        let de = cache_path("linuxundich.de");
+        let en = cache_path("linuxundich.de/en");
+        assert!(de.ends_with("terms-linuxundich.de.json"));
+        assert!(en.ends_with("terms-linuxundich.de_en.json"));
+        assert_ne!(de, en);
+    }
+
+    fn handles(site: &str, tags: &[&str]) -> TermCacheHandles {
+        TermCacheHandles {
+            categories: Rc::new(RefCell::new(Vec::new())),
+            tags: Rc::new(RefCell::new(tags.iter().map(|t| t.to_string()).collect())),
+            category_slugs: Rc::new(RefCell::new(HashMap::new())),
+            site: Rc::new(RefCell::new(site.to_string())),
+            changed: Rc::new(RefCell::new(Vec::new())),
+        }
+    }
+
+    #[test]
+    fn switching_lists_tells_listeners_and_drops_dead_ones() {
+        // German tags first, then the English blog's: "Projects" only
+        // exists on the English one, "Projekte" only on the German one.
+        let h = handles("linuxundich.de", &["Projekte", "Google Play"]);
+        assert!(!term_exists("Projects", &h.tags.borrow()));
+        let calls = Rc::new(std::cell::Cell::new(0));
+        let listener = {
+            let calls = calls.clone();
+            h.connect_changed(move || calls.set(calls.get() + 1))
+        };
+        h.apply(TermCache { tags: vec!["Projects".to_string()], ..TermCache::default() });
+        assert_eq!(calls.get(), 1);
+        assert!(term_exists("Projects", &h.tags.borrow()));
+        assert!(!term_exists("Google Play", &h.tags.borrow()));
+        drop(listener);
+        h.apply(TermCache::default());
+        assert_eq!(calls.get(), 1);
+    }
+
+    #[test]
+    fn use_site_keeps_the_lists_of_the_same_blog() {
+        let h = handles("linuxundich.de/en", &["Projects"]);
+        let site = wpsite::SiteConfig { url: "https://linuxundich.de/en".to_string(), ..wpsite::SiteConfig::default() };
+        use_site(&h, &site);
+        assert_eq!(*h.tags.borrow(), vec!["Projects".to_string()]);
+    }
+
+    #[test]
+    fn a_pinned_copy_keeps_its_blog_but_shares_the_lists() {
+        let main = handles("linuxundich.de/en", &["Projects"]);
+        let dialog = pinned(&main);
+        *main.site.borrow_mut() = "linuxundich.de".to_string();
+        assert_eq!(*dialog.site.borrow(), "linuxundich.de/en");
+        main.tags.borrow_mut().push("Projekte".to_string());
+        assert!(term_exists("Projekte", &dialog.tags.borrow()));
     }
 
     #[test]

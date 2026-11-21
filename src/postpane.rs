@@ -246,7 +246,13 @@ impl PostPane {
                 fm.wp_published_at = Some(date);
             }
         }
-        let widget = properties::build(&window, body, self.ctx.frontmatter.clone(), self.term_caches.clone(), doc_dir);
+        // Categories, tags, pages and authors come from the document's own
+        // blog - for `artikel.en.md` the English one, even while the
+        // German blog is the active one.
+        let path = self.ctx.current_path.borrow().clone();
+        let site = wpsite::for_document(path.as_deref(), self.ctx.frontmatter.borrow().wp_site.as_deref());
+        termcache::use_site(&self.term_caches, &site);
+        let widget = properties::build(&window, body, self.ctx.frontmatter.clone(), self.term_caches.clone(), site, doc_dir);
         self.properties_slot.append(&widget);
 
         while let Some(child) = self.social_slot.first_child() {

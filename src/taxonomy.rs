@@ -23,9 +23,13 @@ use adw::prelude::*;
 use gtk4::glib;
 
 use crate::i18n::tr;
-use crate::{secrets, termcache, wpclient, wpsite};
+use crate::{secrets, termcache, wpclient};
 
+/// Lists, edits and deletes the terms of the open document's blog - the
+/// one `term_caches` belongs to (`termcache::use_site`), named in the
+/// header, so an English article's dialog edits the English blog.
 pub fn open(parent: &adw::ApplicationWindow, term_caches: termcache::TermCacheHandles) {
+    let term_caches = termcache::pinned(&term_caches);
     let status_label = gtk4::Label::new(Some(&tr("Lade Kategorien & Tags …")));
     status_label.set_wrap(true);
     status_label.set_xalign(0.0);
@@ -50,6 +54,7 @@ pub fn open(parent: &adw::ApplicationWindow, term_caches: termcache::TermCacheHa
     let scroller = gtk4::ScrolledWindow::builder().child(&content_box).vexpand(true).build();
 
     let header = adw::HeaderBar::new();
+    header.set_title_widget(Some(&adw::WindowTitle::new(&tr("Kategorien & Tags verwalten"), &termcache::site_of(&term_caches).site_id())));
     let toolbar_view = adw::ToolbarView::new();
     toolbar_view.add_top_bar(&header);
     toolbar_view.set_content(Some(&scroller));
@@ -62,7 +67,7 @@ pub fn open(parent: &adw::ApplicationWindow, term_caches: termcache::TermCacheHa
         .build();
     dialog.present(Some(parent));
 
-    let site = wpsite::load();
+    let site = termcache::site_of(&term_caches);
     if site.url.is_empty() {
         status_label.set_label(&tr("Keine WordPress-Seite konfiguriert."));
         return;
@@ -214,7 +219,7 @@ fn build_category_row(
             name_row.set_sensitive(false);
             status_label.set_visible(false);
 
-            let site = wpsite::load();
+            let site = termcache::site_of(&term_caches);
             let (tx, rx) = mpsc::channel::<Result<(), String>>();
             let new_name_for_thread = new_name.clone();
             std::thread::spawn(move || {
@@ -279,6 +284,7 @@ fn build_category_row(
         let status_label = status_label.clone();
         let last_good_index = last_good_index.clone();
         let updating = updating.clone();
+        let term_caches = term_caches.clone();
         parent_row.connect_selected_notify(move |row| {
             if updating.get() {
                 return;
@@ -288,7 +294,7 @@ fn build_category_row(
             row.set_sensitive(false);
             status_label.set_visible(false);
 
-            let site = wpsite::load();
+            let site = termcache::site_of(&term_caches);
             let (tx, rx) = mpsc::channel::<Result<(), String>>();
             std::thread::spawn(move || {
                 let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
@@ -368,7 +374,7 @@ fn build_category_row(
                 delete_button.set_sensitive(false);
                 status_label.set_visible(false);
 
-                let site = wpsite::load();
+                let site = termcache::site_of(&term_caches);
                 let (tx, rx) = mpsc::channel::<Result<(), String>>();
                 std::thread::spawn(move || {
                     let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))
@@ -472,7 +478,7 @@ fn build_create_category_row(
             parent_row.set_sensitive(false);
             status_label.set_visible(false);
 
-            let site = wpsite::load();
+            let site = termcache::site_of(&term_caches);
             let (tx, rx) = mpsc::channel::<Result<u64, String>>();
             let name_for_thread = name.clone();
             std::thread::spawn(move || {
@@ -601,7 +607,7 @@ fn build_tag_row(
             row.set_sensitive(false);
             status_label.set_visible(false);
 
-            let site = wpsite::load();
+            let site = termcache::site_of(&term_caches);
             let (tx, rx) = mpsc::channel::<Result<(), String>>();
             let new_name_for_thread = new_name.clone();
             std::thread::spawn(move || {
@@ -682,7 +688,7 @@ fn build_tag_row(
                 delete_button.set_sensitive(false);
                 status_label.set_visible(false);
 
-                let site = wpsite::load();
+                let site = termcache::site_of(&term_caches);
                 let (tx, rx) = mpsc::channel::<Result<(), String>>();
                 std::thread::spawn(move || {
                     let outcome = futures_lite::future::block_on(secrets::load_app_password(&site.url, &site.username))

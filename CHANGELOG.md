@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.84.1] - 2026-11-21
+
 ### Fixed
 
 - Post pane: categories and tags are checked against the article's own blog. An `artikel.en.md` marked tags green or red by the German blog's list, so "Projects" showed as new although the English blog has it, and "Google Play" as existing although it didn't. The term lists now follow the open document (`wp_site`, else its language), switch along with the DE · EN toggle, and redraw once the blog's answer arrives; each blog keeps its own cache file, and the English one is refreshed too instead of staying empty.
@@ -2970,7 +2972,8 @@ to WordPress.
   Service (GNOME Keyring, or the portal equivalent under Flatpak) via `oo7`,
   never written to disk in plain text.
 
-[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.84.0...HEAD
+[Unreleased]: https://github.com/linuxundich/blocksatz/compare/v0.84.1...HEAD
+[0.84.1]: https://github.com/linuxundich/blocksatz/compare/v0.84.0...v0.84.1
 [0.84.0]: https://github.com/linuxundich/blocksatz/compare/v0.83.1...v0.84.0
 [0.83.1]: https://github.com/linuxundich/blocksatz/compare/v0.83.0...v0.83.1
 [0.83.0]: https://github.com/linuxundich/blocksatz/compare/v0.82.0...v0.83.0
